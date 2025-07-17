@@ -6,7 +6,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100&family=Lexend:wght@100&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>muchq.net</title>
+    <title>MuchQ</title>
     <style type="text/css">
       body {
         font-family: "Lexend Deca", sans-serif;
@@ -28,18 +28,72 @@
           Latin Modern Math,
           math;
       }
+      math {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 120px;
+          height: 120px;
+          margin:-60px 0 0 -60px;
+          animation:spin 120s linear infinite;
+      }
+      math.third {
+          left: 40%;
+          animation: zoom-in-zoom-out 20s ease infinite;
+      }
+      math.fffo {
+          top: 40%;
+          left: 60%;
+          animation:spin 50s linear infinite;
+      }
+
+      @keyframes spin {
+          100% {
+              transform:rotate(360deg);
+          }
+      }
+      @keyframes zoom-in-zoom-out {
+        0% {
+          left: 40%;
+          color: blue;
+          transform:rotate(360deg);
+          scale: 100%;
+        }
+        50% {
+          left: 50%;
+          color: yellow;
+          transform:rotate(0deg);
+          scale: 550%;
+        }
+        100% {
+          left: 40%;
+          color: red;
+          transform:rotate(3240deg);
+          scale: 100%;
+        }
+      }
     </style>
   </head>
   <body>
     <h1>Hello</h1>
     <p>
-    <math>
+    <math class="third">
       <mfrac>
       <mn>1</mn>
-      <mn>3</mn>
+      <mn>π</mn>
       </mfrac>
     </math>
     </p>
-    <p>∀A∊𝔰𝔩(n,𝔽),TrA=0</p>
+    <math class="fffo">
+      <mi>∀A</mi>
+      <mo>∊</mo>
+      <mi>𝔰𝔩(n,𝔽)</mi>
+      <mspace></mspace>
+      <mo>,</mo>
+      <mspace></mspace>
+      <mi>TrA</mi>
+      <mo>=</mo>
+      <mi>0</mi>
+    </math>
   </body>
 </html>
