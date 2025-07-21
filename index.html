@@ -524,8 +524,9 @@
         const timeLocation = gl.getUniformLocation(program, 'u_time');
 
         // Mouse tracking with scaled interesting parameter ranges
-        let mouseX = 0.0;
-        let mouseY = 0.0;
+        // Default to visually interesting coordinates for mobile users
+        let mouseX = -0.4;
+        let mouseY = 0.6;
 
         document.addEventListener('mousemove', (e) => {
           // Map full screen where:
