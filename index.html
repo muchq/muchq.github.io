@@ -450,7 +450,35 @@
             }
 
             if(iterations >= maxIterations - 1.0) {
-              fragColor = vec4(0.95, 0.95, 0.98, 1.0); // Very pale background
+              // Retro grid pattern for convergent areas (inside Julia set)
+              vec2 gridUV = uv * 8.0; // Scale for grid density
+              vec2 gridLines = abs(fract(gridUV) - 0.5);
+              float grid = min(gridLines.x, gridLines.y);
+              
+              // Create grid line thickness with smooth edges
+              float lineWidth = 0.05;
+              float gridMask = 1.0 - smoothstep(0.0, lineWidth, grid);
+              
+              // Iridescent color morphing based on position and time
+              float colorPhase = length(uv) * 2.0 + u_time * 0.3;
+              float hue1 = sin(colorPhase) * 0.5 + 0.5; // Base hue oscillation
+              float hue2 = sin(colorPhase + 2.0) * 0.5 + 0.5; // Secondary hue
+              
+              // Map to retro color palette: pinks, blues, purples
+              float retroHue = mix(0.8, 0.0, hue1) + mix(0.0, 0.3, hue2); // Purple to pink range
+              retroHue = fract(retroHue); // Wrap around
+              
+              // Higher saturation and brightness for retro look
+              float retroSat = 0.8 + sin(u_time * 0.2 + length(uv)) * 0.15;
+              float retroBright = 0.6 + cos(u_time * 0.15 + uv.x * 2.0) * 0.2;
+              
+              vec3 retroColor = hsv2rgb(vec3(retroHue, retroSat, retroBright));
+              
+              // Blend grid with background
+              vec3 bgColor = vec3(0.05, 0.02, 0.08); // Dark retro background
+              vec3 finalColor = mix(bgColor, retroColor, gridMask * 0.8);
+              
+              fragColor = vec4(finalColor, 1.0);
             } else {
               float t = iterations / maxIterations;
 
