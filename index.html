@@ -453,108 +453,34 @@
             }
 
             if(iterations >= maxIterations - 1.0) {
-              // 3D Holodeck room - cast rays to rectangular room walls
-              
-              // Set up ray from camera at center of room looking toward corner
-              vec3 baseRayDir = normalize(vec3(uv, 0.8)); // Wider field of view
-              
-              // Rotate camera to look toward upper-right-back corner
-              float angleY = 0.6; // Rotate toward right wall
-              float angleX = 0.3; // Rotate toward ceiling
-              
-              // Apply rotation matrices
-              mat3 rotY = mat3(cos(angleY), 0.0, sin(angleY),
-                              0.0, 1.0, 0.0,
-                              -sin(angleY), 0.0, cos(angleY));
-              
-              mat3 rotX = mat3(1.0, 0.0, 0.0,
-                              0.0, cos(angleX), -sin(angleX),
-                              0.0, sin(angleX), cos(angleX));
-              
-              vec3 rayDir = rotY * rotX * baseRayDir;
-              vec3 cameraPos = vec3(0.0, 0.0, 0.0); // Center of room
-              
-              // Add gentle camera movement
-              cameraPos.x += sin(u_time * 0.1) * 0.1;
-              cameraPos.y += cos(u_time * 0.08) * 0.08;
-              
-              // Room dimensions (half-sizes)
-              vec3 roomSize = vec3(4.0, 3.0, 5.0);
-              
-              // Ray-box intersection to find which wall we hit
-              vec3 invDir = 1.0 / rayDir;
-              vec3 t1 = (-roomSize - cameraPos) * invDir;
-              vec3 t2 = (roomSize - cameraPos) * invDir;
-              
-              vec3 tMin = min(t1, t2);
-              vec3 tMax = max(t1, t2);
-              
-              float tNear = max(max(tMin.x, tMin.y), tMin.z);
-              
-              // Find hit point on room wall
-              vec3 hitPoint = cameraPos + rayDir * tNear;
-              
-              // Determine which face we hit and get UV coordinates
-              vec2 gridUV;
-              float wallType = 0.0;
-              
-              if (abs(hitPoint.x) >= roomSize.x - 0.01) {
-                // Left/Right wall (YZ plane) - align grid to wall boundaries
-                float gridDensity = 15.0; // Number of grid squares across the wall
-                gridUV = vec2(
-                  (hitPoint.z + roomSize.z) / (2.0 * roomSize.z) * gridDensity,
-                  (hitPoint.y + roomSize.y) / (2.0 * roomSize.y) * gridDensity
-                );
-                wallType = 1.0;
-              } else if (abs(hitPoint.y) >= roomSize.y - 0.01) {
-                // Floor/Ceiling (XZ plane) - align grid to wall boundaries  
-                float gridDensity = 15.0;
-                gridUV = vec2(
-                  (hitPoint.x + roomSize.x) / (2.0 * roomSize.x) * gridDensity,
-                  (hitPoint.z + roomSize.z) / (2.0 * roomSize.z) * gridDensity
-                );
-                wallType = 2.0;
-              } else {
-                // Front/Back wall (XY plane) - align grid to wall boundaries
-                float gridDensity = 15.0;
-                gridUV = vec2(
-                  (hitPoint.x + roomSize.x) / (2.0 * roomSize.x) * gridDensity,
-                  (hitPoint.y + roomSize.y) / (2.0 * roomSize.y) * gridDensity
-                );
-                wallType = 3.0;
-              }
-              
-              // Create grid pattern on the wall - thinner lines
+              // Retro grid pattern for convergent areas (inside Julia set)
+              vec2 gridUV = uv * 8.0; // Scale for grid density
               vec2 gridLines = abs(fract(gridUV) - 0.5);
               float grid = min(gridLines.x, gridLines.y);
-              float gridMask = 1.0 - smoothstep(0.0, 0.027, grid); // 1/3 thickness (was 0.08)
-              
-              // Distance-based intensity for perspective
-              float distance = length(hitPoint - cameraPos);
-              float perspectiveFade = 1.0 - distance / 8.0;
-              perspectiveFade = max(0.2, perspectiveFade);
-              
-              float totalGrid = gridMask * perspectiveFade;
-              
-              // Iridescent color morphing based on wall position and time
-              float colorPhase = distance * 0.2 + wallType * 2.0 + u_time * 0.3;
-              float hue1 = sin(colorPhase) * 0.5 + 0.5;
-              float hue2 = sin(colorPhase + 2.0) * 0.5 + 0.5;
-              
-              // Map to holodeck color palette: blues, teals, oranges
-              float holoHue = mix(0.5, 0.1, hue1) + mix(0.0, 0.15, hue2); // Blue to orange range
-              holoHue = fract(holoHue);
-              
-              // Dynamic saturation and brightness based on wall type
-              float holoSat = 0.7 + sin(u_time * 0.2 + wallType + distance * 0.1) * 0.2;
-              float holoBright = 0.8 + cos(u_time * 0.15 + hitPoint.x * 0.3) * 0.15;
-              
-              vec3 holoColor = hsv2rgb(vec3(holoHue, holoSat, holoBright));
-              
-              // Blend grid with dark background
-              vec3 bgColor = vec3(0.02, 0.05, 0.08); // Dark blue-black background
-              vec3 finalColor = mix(bgColor, holoColor, totalGrid);
-              
+
+              // Create grid line thickness with smooth edges
+              float lineWidth = 0.05;
+              float gridMask = 1.0 - smoothstep(0.0, lineWidth, grid);
+
+              // Iridescent color morphing based on position and time
+              float colorPhase = length(uv) * 2.0 + u_time * 0.3;
+              float hue1 = sin(colorPhase) * 0.5 + 0.5; // Base hue oscillation
+              float hue2 = sin(colorPhase + 2.0) * 0.5 + 0.5; // Secondary hue
+
+              // Map to retro color palette: pinks, blues, purples
+              float retroHue = mix(0.8, 0.0, hue1) + mix(0.0, 0.3, hue2); // Purple to pink range
+              retroHue = fract(retroHue); // Wrap around
+
+              // Higher saturation and brightness for retro look
+              float retroSat = 0.8 + sin(u_time * 0.2 + length(uv)) * 0.15;
+              float retroBright = 0.6 + cos(u_time * 0.15 + uv.x * 2.0) * 0.2;
+
+              vec3 retroColor = hsv2rgb(vec3(retroHue, retroSat, retroBright));
+
+              // Blend grid with background
+              vec3 bgColor = vec3(0.05, 0.02, 0.08); // Dark retro background
+              vec3 finalColor = mix(bgColor, retroColor, gridMask * 0.8);
+
               fragColor = vec4(finalColor, 1.0);
             } else {
               float t = iterations / maxIterations;
