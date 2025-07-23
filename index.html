@@ -47,6 +47,15 @@
           animation:spin 50s linear infinite;
       }
 
+      math.julia {
+          position: fixed;
+          color: blue;
+          top: 60%;
+          left: 30%;
+          margin: 0 auto;
+          animation:zoom-in-zoom-out-julia 40s linear infinite;
+      }
+
       @keyframes spin {
           100% {
               transform:rotate(360deg);
@@ -68,6 +77,27 @@
         100% {
           left: 40%;
           color: red;
+          transform:rotate(3240deg);
+          scale: 100%;
+        }
+      }
+
+      @keyframes zoom-in-zoom-out-julia {
+        0% {
+          left: 40%;
+          color: green;
+          transform:rotate(360deg);
+          scale: 100%;
+        }
+        50% {
+          left: 50%;
+          color: yellow;
+          transform:rotate(0deg);
+          scale: 60%;
+        }
+        100% {
+          left: 40%;
+          color: pink;
           transform:rotate(3240deg);
           scale: 100%;
         }
@@ -667,5 +697,29 @@
       <mo>=</mo>
       <mi>0</mi>
     </math>
+<math class="julia"">
+ <semantics>
+  <mrow>
+   <msub>
+    <mi>z</mi>
+    <mrow>
+     <mi>n</mi>
+     <mo stretchy="false">+</mo>
+     <mn>1</mn>
+    </mrow>
+   </msub>
+   <mo stretchy="false">=</mo>
+   <mrow>
+    <msubsup>
+     <mi>z</mi>
+     <mi>n</mi>
+     <mn>2</mn>
+    </msubsup>
+    <mo stretchy="false">+</mo>
+    <mi>c</mi>
+   </mrow>
+  </mrow>
+ </semantics>
+</math>
   </body>
 </html>
