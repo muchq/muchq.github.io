@@ -738,10 +738,10 @@ if (!gl) {
       this.messageHandlers = new Map();
       
       // For testing: simulate server with local storage
-      this.isSimulated = true;
+      this.isSimulated = false;
     }
     
-    connect(url = 'ws://localhost:8080') {
+    connect(url = 'wss://thoughts.muchq.com/ws') {
       if (this.isSimulated) {
         // Simulate successful connection
         console.log('🔌 Simulating WebSocket connection to', url);
@@ -906,6 +906,17 @@ if (!gl) {
     handleGameState(message) {
       // Handle full game state updates
       console.log('🎮 Received game state update:', message);
+      
+      // Process the players array from the game_state message
+      if (message.players && Array.isArray(message.players)) {
+        message.players.forEach(player => {
+          // Skip adding the local player (check against gameState.localPlayerId)
+          if (player.playerId !== gameState.localPlayerId) {
+            gameState.addPlayer(player.playerId, player.position, player.color);
+            console.log(`🎮 Added player ${player.playerId} from game state at [${player.position.join(', ')}]`);
+          }
+        });
+      }
     }
     
     disconnect() {
