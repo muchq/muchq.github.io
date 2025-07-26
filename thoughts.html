@@ -340,7 +340,7 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        transition: all 0.1s ease;
+        transition: none;
       }
 
       #left-joystick {
@@ -361,18 +361,19 @@
         
         /* Adjust other UI elements for mobile */
         #mini-map {
-          top: 80px;
-          left: 20px;
+          top: 70px;
+          left: 10px;
           width: 75px;
           height: 75px;
         }
         
         #sound-toggle {
-          top: 165px;
-          left: 20px;
+          top: 155px;
+          left: 10px;
           width: 75px;
-          height: 20px;
+          height: 25px;
           font-size: 9px;
+          z-index: 1002;
         }
         
         #fps-counter {
@@ -567,8 +568,8 @@
           const knobX = Math.cos(angle) * constrainedDistance;
           const knobY = Math.sin(angle) * constrainedDistance;
           
-          // Update knob position (knob is 50px, so offset by 25px to center)
-          this.knob.style.transform = `translate(${knobX}px, ${knobY}px)`;
+          // Update knob position (preserve CSS centering and add offset)
+          this.knob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
           
           // Update normalized values (-1 to 1)
           this.x = knobX / this.maxDistance;
@@ -576,7 +577,7 @@
         }
         
         resetPosition() {
-          this.knob.style.transform = `translate(0px, 0px)`;
+          this.knob.style.transform = `translate(-50%, -50%)`;
           this.x = 0;
           this.y = 0;
         }
