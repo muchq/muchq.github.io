@@ -218,11 +218,85 @@
         z-index: 1000;
         pointer-events: none;
       }
+
+      /* Mini-map */
+      #mini-map {
+        position: fixed;
+        top: 80px;
+        left: 20px;
+        width: 150px;
+        height: 150px;
+        background: rgba(0, 0, 0, 0.8);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        z-index: 1000;
+        pointer-events: none;
+      }
+
+      #mini-map-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        border-radius: 6px;
+      }
+
+      .mini-map-grid {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: 
+          linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+        background-size: 15px 15px;
+      }
+
+      .mini-map-boundary {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        width: 130px;
+        height: 130px;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 2px;
+      }
+
+      .mini-map-player {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: #ff6b35;
+        border: 1px solid #fff;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 0 8px rgba(255, 107, 53, 0.8);
+      }
+
+      .mini-map-direction {
+        position: absolute;
+        width: 2px;
+        height: 12px;
+        background: #fff;
+        transform-origin: bottom center;
+        transform: translate(-50%, -100%);
+        border-radius: 1px;
+      }
     </style>
   </head>
   <body>
     <canvas id="scene-canvas"></canvas>
     <div id="fps-counter">FPS: --</div>
+    <div id="mini-map">
+      <div id="mini-map-content">
+        <div class="mini-map-grid"></div>
+        <div class="mini-map-boundary"></div>
+        <div class="mini-map-player" id="mini-map-player">
+          <div class="mini-map-direction" id="mini-map-direction"></div>
+        </div>
+      </div>
+    </div>
     <nav>
       <div class="nav-container">
         <a href="index.html" class="nav-logo">MuchQ</a>
@@ -298,6 +372,7 @@
           uniform vec3 u_sphereCenter;
           uniform vec3 u_cameraPos;
           uniform float u_time;
+          uniform float u_worldBoundary;
           
           // Light sources
           const vec3 light1 = vec3(1.0, 1.0, 1.0);   // Main light (top right)
@@ -326,7 +401,7 @@
             float amplitude = 0.5;
             float frequency = 1.0;
             
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 3; i++) {
               value += amplitude * noise(p * frequency);
               amplitude *= 0.5;
               frequency *= 2.0;
@@ -428,9 +503,8 @@
             // Use 3D noise directly from ray direction to avoid seams
             vec3 noiseCoord = rayDir * 3.0 + vec3(u_time * 0.02, u_time * 0.01, 0.0);
             
-            // Generate cloud density using 3D-like sampling
+            // Generate cloud density using simpler sampling
             float cloudDensity = fbm(noiseCoord.xy);
-            cloudDensity += fbm(noiseCoord.xz * 0.7) * 0.3; // Add some variation
             cloudDensity = smoothstep(0.4, 0.8, cloudDensity * 0.8);
             
             // Darker storm sky colors (20% darker)
@@ -517,8 +591,8 @@
             vec3 currentRayDir = rayDir;
             float reflectivity = 1.0;
             
-            // Ray tracing with reflections (up to 3 bounces)
-            for (int bounce = 0; bounce < 3; bounce++) {
+            // Ray tracing with reflections (up to 2 bounces)
+            for (int bounce = 0; bounce < 2; bounce++) {
               Hit hit = traceRay(rayOrigin, currentRayDir);
               
               if (hit.objectId == 0) {
@@ -558,6 +632,22 @@
                 vec3 floorColor1 = vec3(0.9, 0.9, 0.95); // Light gray
                 vec3 floorColor2 = vec3(0.7, 0.7, 0.8);  // Darker gray
                 vec3 floorColor = mix(floorColor1, floorColor2, checkerPattern);
+                
+                // Add boundary lines
+                float boundary = u_worldBoundary;
+                float lineWidth = 2.0; // Thicker boundary lines
+                
+                // Distance to each boundary edge
+                float distToEdgeX = min(abs(hit.point.x - boundary), abs(hit.point.x + boundary));
+                float distToEdgeZ = min(abs(hit.point.z - boundary), abs(hit.point.z + boundary));
+                float distToEdge = min(distToEdgeX, distToEdgeZ);
+                
+                // Create boundary line effect
+                if (distToEdge < lineWidth) {
+                  float lineIntensity = 1.0 - smoothstep(0.0, lineWidth, distToEdge);
+                  vec3 boundaryColor = vec3(0.0, 0.0, 0.0); // Black boundary
+                  floorColor = mix(floorColor, boundaryColor, lineIntensity * 0.9);
+                }
                 
                 // Add lighting from both light sources
                 lighting += calculateLighting(hit.point, hit.normal, light1, viewDir, floorColor) * 0.3;
@@ -827,10 +917,12 @@
         const sphereCenterLocation = gl.getUniformLocation(program, 'u_sphereCenter');
         const cameraPosLocation = gl.getUniformLocation(program, 'u_cameraPos');
         const timeLocation = gl.getUniformLocation(program, 'u_time');
+        const worldBoundaryLocation = gl.getUniformLocation(program, 'u_worldBoundary');
 
         // Camera and sphere position
         let spherePosition = [0, 0, 0]; // Sphere floats above floor at y=-2
-        const moveSpeed = 0.1;
+        const moveSpeed = 0.15;
+        const worldBoundary = 50; // ±50 units from center (22.5 seconds to traverse at current speed)
         
         // Camera controls
         let cameraAngle = 0; // Rotation angle around sphere (in radians)
@@ -854,6 +946,9 @@
           const forward = [Math.sin(cameraAngle), 0, Math.cos(cameraAngle)];
           const right = [Math.cos(cameraAngle), 0, -Math.sin(cameraAngle)];
           
+          // Store current position for boundary checking
+          const oldPosition = [spherePosition[0], spherePosition[1], spherePosition[2]];
+          
           // WASD for sphere movement relative to camera direction
           if (keys['w']) {
             spherePosition[0] -= forward[0] * moveSpeed;
@@ -870,6 +965,14 @@
           if (keys['d']) {
             spherePosition[0] += right[0] * moveSpeed;
             spherePosition[2] += right[2] * moveSpeed;
+          }
+          
+          // Boundary collision detection
+          if (Math.abs(spherePosition[0]) > worldBoundary) {
+            spherePosition[0] = oldPosition[0]; // Revert X movement
+          }
+          if (Math.abs(spherePosition[2]) > worldBoundary) {
+            spherePosition[2] = oldPosition[2]; // Revert Z movement
           }
           
           // Arrow keys for camera control
@@ -899,9 +1002,32 @@
         let fps = 0;
         const fpsElement = document.getElementById('fps-counter');
         
+        // Mini-map elements
+        const miniMapPlayer = document.getElementById('mini-map-player');
+        const miniMapDirection = document.getElementById('mini-map-direction');
+        
+        // Update mini-map
+        function updateMiniMap() {
+          // Convert world coordinates to mini-map coordinates
+          // World boundary is ±100, map boundary is 130px with 10px margin
+          const mapSize = 130;
+          const mapCenter = mapSize / 2 + 10; // 75px from top-left (65 + 10 margin)
+          
+          const mapX = mapCenter + (spherePosition[0] / worldBoundary) * (mapSize / 2); // Normal X
+          const mapZ = mapCenter + (spherePosition[2] / worldBoundary) * (mapSize / 2); // Reverse Z
+          
+          miniMapPlayer.style.left = `${mapX}px`;
+          miniMapPlayer.style.top = `${mapZ}px`;
+          
+          // Update direction indicator (camera angle in degrees) 
+          const directionDegrees = (-cameraAngle * 180 / Math.PI) + 90; // Reverse and add 90° to align with mini-map orientation
+          miniMapDirection.style.transform = `translate(-50%, -100%) rotate(${directionDegrees}deg)`;
+        }
+
         // Render loop
         function render(time) {
           updateSpherePosition();
+          updateMiniMap();
           
           // FPS calculation
           frameCount++;
@@ -932,6 +1058,7 @@
           gl.uniform3f(sphereCenterLocation, spherePosition[0], spherePosition[1], spherePosition[2]);
           gl.uniform3f(cameraPosLocation, cameraPosition[0], cameraPosition[1], cameraPosition[2]);
           gl.uniform1f(timeLocation, time * 0.001);
+          gl.uniform1f(worldBoundaryLocation, worldBoundary);
           
           // Create fullscreen quad
           const quadVertices = new Float32Array([
