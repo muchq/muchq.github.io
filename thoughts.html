@@ -361,14 +361,14 @@
         
         /* Adjust other UI elements for mobile */
         #mini-map {
-          top: 20px;
+          top: 80px;
           left: 20px;
           width: 75px;
           height: 75px;
         }
         
         #sound-toggle {
-          top: 105px;
+          top: 165px;
           left: 20px;
           width: 75px;
           height: 20px;
@@ -567,8 +567,8 @@
           const knobX = Math.cos(angle) * constrainedDistance;
           const knobY = Math.sin(angle) * constrainedDistance;
           
-          // Update knob position
-          this.knob.style.transform = `translate(${this.centerX + knobX - 25}px, ${this.centerY + knobY - 25}px)`;
+          // Update knob position (knob is 50px, so offset by 25px to center)
+          this.knob.style.transform = `translate(${knobX}px, ${knobY}px)`;
           
           // Update normalized values (-1 to 1)
           this.x = knobX / this.maxDistance;
@@ -576,7 +576,7 @@
         }
         
         resetPosition() {
-          this.knob.style.transform = `translate(${this.centerX - 25}px, ${this.centerY - 25}px)`;
+          this.knob.style.transform = `translate(0px, 0px)`;
           this.x = 0;
           this.y = 0;
         }
@@ -1217,9 +1217,8 @@
           if (keys['d']) moveX += 1;
           
           // Left joystick input (WASD equivalent)
-          // Joystick Y is inverted (negative Y = forward)
           moveX += leftJoystick.x;
-          moveZ -= leftJoystick.y; // Invert Y axis
+          moveZ += leftJoystick.y; // Match WASD behavior
           
           // Apply movement relative to camera direction
           if (moveX !== 0 || moveZ !== 0) {
@@ -1245,7 +1244,7 @@
           if (keys['arrowdown']) cameraZoom += 1;
           
           // Right joystick input (arrow key equivalent)
-          cameraRotate += rightJoystick.x;
+          cameraRotate -= rightJoystick.x; // Invert X for correct rotation direction
           cameraZoom += rightJoystick.y;
           
           // Apply camera changes
