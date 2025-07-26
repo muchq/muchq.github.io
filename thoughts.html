@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@100&family=Lexend:wght@100&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Thoughts - MuchQ</title>
+    <style type="text/css">
+      body {
+        font-family: "Lexend Deca", sans-serif;
+        font-optical-sizing: auto;
+        font-weight: 100;
+        font-style: normal;
+        margin: 40px auto;
+        max-width: 650px;
+        line-height: 1.6;
+        font-size: 18px;
+        color: #444;
+        padding: 80px 10px 10px 10px
+      }
+      h1,h2,h3 {
+        line-height: 1.2
+      }
+      p {
+        font-family:
+          Latin Modern Math,
+          math;
+      }
+
+      /* Navigation Styles */
+      nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(68, 68, 68, 0.1);
+        z-index: 1000;
+      }
+
+      .nav-container {
+        max-width: 650px;
+        margin: 0 auto;
+        padding: 0 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 60px;
+      }
+
+      .nav-logo {
+        font-size: 20px;
+        font-weight: 200;
+        color: #444;
+        text-decoration: none;
+      }
+
+      .nav-menu {
+        display: flex;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        gap: 30px;
+      }
+
+      .nav-item {
+        position: relative;
+        background: rgba(255, 255, 255, 0.50);
+        border-radius: 5px;
+      }
+
+      .nav-link {
+        color: #444;
+        text-decoration: none;
+        font-size: 16px;
+        padding: 8px 12px;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+        display: block;
+      }
+
+      .nav-link:hover {
+        background: rgba(68, 68, 68, 0.05);
+      }
+
+      .dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        background: white;
+        border: 1px solid rgba(68, 68, 68, 0.1);
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: all 0.3s ease;
+        min-width: 150px;
+        padding: 8px 0;
+      }
+
+      .nav-item:hover .dropdown {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
+
+      .dropdown-item {
+        display: block;
+        padding: 8px 16px;
+        color: #444;
+        text-decoration: none;
+        font-size: 14px;
+        transition: background 0.2s ease;
+      }
+
+      .dropdown-item:hover {
+        background: rgba(68, 68, 68, 0.05);
+      }
+
+      .mobile-menu-toggle {
+        display: none;
+        background: none;
+        border: none;
+        font-size: 18px;
+        color: #444;
+        cursor: pointer;
+      }
+
+      /* Mobile Styles */
+      @media (max-width: 768px) {
+        .nav-menu {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          width: 100%;
+          background: white;
+          flex-direction: column;
+          gap: 0;
+          padding: 20px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+          opacity: 0;
+          visibility: hidden;
+          transform: translateY(-20px);
+          transition: all 0.3s ease;
+        }
+
+        .nav-menu.active {
+          opacity: 1;
+          visibility: visible;
+          transform: translateY(0);
+        }
+
+        .mobile-menu-toggle {
+          display: block;
+        }
+
+        .nav-item {
+          width: 100%;
+        }
+
+        .nav-link {
+          padding: 12px 0;
+          border-bottom: 1px solid rgba(68, 68, 68, 0.1);
+        }
+
+        .dropdown {
+          position: static;
+          opacity: 1;
+          visibility: visible;
+          transform: none;
+          box-shadow: none;
+          border: none;
+          background: rgba(68, 68, 68, 0.02);
+          margin-top: 8px;
+          border-radius: 4px;
+        }
+
+        .nav-item:hover .dropdown {
+          transform: none;
+        }
+      }
+
+      /* WebGL Canvas */
+      #scene-canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -1;
+        pointer-events: none;
+        display: block;
+      }
+
+      /* Make sure content stays above canvas */
+      body {
+        position: relative;
+        z-index: 1;
+        background: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="scene-canvas"></canvas>
+    <nav>
+      <div class="nav-container">
+        <a href="index.html" class="nav-logo">MuchQ</a>
+        <ul class="nav-menu">
+          <li class="nav-item">
+            <a href="#" class="nav-link">Projects</a>
+            <div class="dropdown">
+              <a href="#" class="dropdown-item">Web Apps</a>
+              <a href="#" class="dropdown-item">Open Source</a>
+              <a href="#" class="dropdown-item">Graphics</a>
+            </div>
+          </li>
+          <li class="nav-item">
+            <a href="#" class="nav-link">Interests</a>
+            <div class="dropdown">
+              <a href="#" class="dropdown-item">Music</a>
+              <a href="#" class="dropdown-item">Math</a>
+              <a href="#" class="dropdown-item">Chess</a>
+              <a href="#" class="dropdown-item">Space</a>
+            </div>
+          </li>
+          <li class="nav-item">
+            <a href="#" class="nav-link">Blog</a>
+          </li>
+          <li class="nav-item">
+            <a href="thoughts.html" class="nav-link">Thoughts</a>
+          </li>
+          <li class="nav-item">
+            <a href="#" class="nav-link">Resume</a>
+          </li>
+        </ul>
+        <button class="mobile-menu-toggle">☰</button>
+      </div>
+    </nav>
+
+    <script>
+      document.querySelector('.mobile-menu-toggle').addEventListener('click', function() {
+        document.querySelector('.nav-menu').classList.toggle('active');
+      });
+
+      // WebGL 3D Scene
+      const canvas = document.getElementById('scene-canvas');
+      const gl = canvas.getContext('webgl2');
+
+      if (!gl) {
+        console.error('WebGL2 not supported');
+        // Fallback to regular WebGL
+        const gl1 = canvas.getContext('webgl');
+        if (!gl1) {
+          console.error('WebGL not supported at all');
+          // Set a fallback background
+          canvas.style.background = 'linear-gradient(to bottom, #b3d9ff 0%, #6bb6ff 100%)';
+        }
+      } else {
+        console.log('WebGL2 initialized successfully');
+        // Fullscreen vertex shader
+        const vertexShaderSource = `#version 300 es
+          in vec2 a_position;
+          out vec2 v_uv;
+          
+          void main() {
+            v_uv = a_position * 0.5 + 0.5;
+            gl_Position = vec4(a_position, 0.0, 1.0);
+          }
+        `;
+
+        // Ray-traced fragment shader
+        const fragmentShaderSource = `#version 300 es
+          precision highp float;
+          
+          in vec2 v_uv;
+          
+          uniform vec2 u_resolution;
+          uniform vec3 u_sphereCenter;
+          uniform vec3 u_cameraPos;
+          uniform float u_time;
+          
+          out vec4 fragColor;
+          
+          // Ray-sphere intersection
+          float intersectSphere(vec3 rayOrigin, vec3 rayDir, vec3 sphereCenter, float radius) {
+            vec3 oc = rayOrigin - sphereCenter;
+            float a = dot(rayDir, rayDir);
+            float b = 2.0 * dot(oc, rayDir);
+            float c = dot(oc, oc) - radius * radius;
+            float discriminant = b * b - 4.0 * a * c;
+            
+            if (discriminant < 0.0) {
+              return -1.0;
+            }
+            
+            float t1 = (-b - sqrt(discriminant)) / (2.0 * a);
+            float t2 = (-b + sqrt(discriminant)) / (2.0 * a);
+            
+            if (t1 > 0.0) return t1;
+            if (t2 > 0.0) return t2;
+            return -1.0;
+          }
+          
+          // Ray-plane intersection
+          float intersectPlane(vec3 rayOrigin, vec3 rayDir, vec3 planePoint, vec3 planeNormal) {
+            float denom = dot(planeNormal, rayDir);
+            if (abs(denom) < 0.0001) return -1.0; // Ray parallel to plane
+            
+            vec3 p0l0 = planePoint - rayOrigin;
+            float t = dot(p0l0, planeNormal) / denom;
+            return t > 0.0 ? t : -1.0;
+          }
+          
+          void main() {
+            // Convert screen coordinates to normalized device coordinates
+            vec2 ndc = (gl_FragCoord.xy / u_resolution.xy) * 2.0 - 1.0;
+            ndc.x *= u_resolution.x / u_resolution.y; // Correct aspect ratio
+            
+            // Set up camera and ray
+            vec3 cameraPos = u_cameraPos;
+            vec3 rayDir = normalize(vec3(ndc.x, ndc.y, -1.0));
+            
+            // Background color (light blue gradient)
+            vec3 backgroundColor = mix(vec3(0.8, 0.9, 1.0), vec3(0.6, 0.7, 0.9), ndc.y * 0.5 + 0.5);
+            
+            // Ray-trace the sphere
+            float sphereT = intersectSphere(cameraPos, rayDir, u_sphereCenter, 1.0);
+            
+            // Ray-trace the floor (plane at y = -2)
+            vec3 floorPoint = vec3(0.0, -2.0, 0.0);
+            vec3 floorNormal = vec3(0.0, 1.0, 0.0);
+            float floorT = intersectPlane(cameraPos, rayDir, floorPoint, floorNormal);
+            
+            // Determine what we hit first
+            bool hitSphere = sphereT > 0.0;
+            bool hitFloor = floorT > 0.0;
+            
+            if (hitSphere && (!hitFloor || sphereT < floorT)) {
+              // Hit the sphere first
+              vec3 hitPoint = cameraPos + sphereT * rayDir;
+              vec3 normal = normalize(hitPoint - u_sphereCenter);
+              
+              // Simple lighting
+              vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+              float diffuse = max(dot(normal, lightDir), 0.0);
+              float ambient = 0.3;
+              
+              vec3 sphereColor = vec3(1.0, 0.5, 0.2); // Orange
+              vec3 finalColor = sphereColor * (ambient + diffuse * 0.7);
+              
+              fragColor = vec4(finalColor, 1.0);
+            } else if (hitFloor) {
+              // Hit the floor
+              vec3 hitPoint = cameraPos + floorT * rayDir;
+              
+              // Create a checkered pattern
+              vec2 floorCoord = hitPoint.xz;
+              vec2 checker = floor(floorCoord * 2.0);
+              float checkerPattern = mod(checker.x + checker.y, 2.0);
+              
+              // Floor colors
+              vec3 floorColor1 = vec3(0.9, 0.9, 0.95); // Light gray
+              vec3 floorColor2 = vec3(0.7, 0.7, 0.8);  // Darker gray
+              vec3 floorColor = mix(floorColor1, floorColor2, checkerPattern);
+              
+              // Simple lighting for floor
+              vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+              float diffuse = max(dot(floorNormal, lightDir), 0.0);
+              float ambient = 0.4;
+              
+              vec3 finalColor = floorColor * (ambient + diffuse * 0.6);
+              
+              // Add distance fog
+              float distance = length(hitPoint - cameraPos);
+              float fogFactor = exp(-distance * 0.05);
+              finalColor = mix(backgroundColor, finalColor, fogFactor);
+              
+              fragColor = vec4(finalColor, 1.0);
+            } else {
+              // Background
+              fragColor = vec4(backgroundColor, 1.0);
+            }
+          }
+        `;
+
+        function createShader(gl, type, source) {
+          const shader = gl.createShader(type);
+          gl.shaderSource(shader, source);
+          gl.compileShader(shader);
+          
+          if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            console.error('Shader compilation error:', gl.getShaderInfoLog(shader));
+            gl.deleteShader(shader);
+            return null;
+          }
+          
+          return shader;
+        }
+
+        function createProgram(gl, vertexShader, fragmentShader) {
+          const program = gl.createProgram();
+          gl.attachShader(program, vertexShader);
+          gl.attachShader(program, fragmentShader);
+          gl.linkProgram(program);
+          
+          if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+            console.error('Program linking error:', gl.getProgramInfoLog(program));
+            gl.deleteProgram(program);
+            return null;
+          }
+          
+          return program;
+        }
+
+        // Matrix math utilities
+        function multiplyMatrices(a, b) {
+          const result = new Float32Array(16);
+          for (let i = 0; i < 4; i++) {
+            for (let j = 0; j < 4; j++) {
+              result[i * 4 + j] = 
+                a[i * 4 + 0] * b[0 * 4 + j] +
+                a[i * 4 + 1] * b[1 * 4 + j] +
+                a[i * 4 + 2] * b[2 * 4 + j] +
+                a[i * 4 + 3] * b[3 * 4 + j];
+            }
+          }
+          return result;
+        }
+
+        function createPerspectiveMatrix(fov, aspect, near, far) {
+          const f = Math.tan(Math.PI * 0.5 - 0.5 * fov);
+          const rangeInv = 1.0 / (near - far);
+          return new Float32Array([
+            f / aspect, 0, 0, 0,
+            0, f, 0, 0,
+            0, 0, (near + far) * rangeInv, -1,
+            0, 0, near * far * rangeInv * 2, 0
+          ]);
+        }
+
+        function createLookAtMatrix(eye, target, up) {
+          const zAxis = normalize(subtract(eye, target));
+          const xAxis = normalize(cross(up, zAxis));
+          const yAxis = normalize(cross(zAxis, xAxis));
+          
+          return new Float32Array([
+            xAxis[0], yAxis[0], zAxis[0], 0,
+            xAxis[1], yAxis[1], zAxis[1], 0,
+            xAxis[2], yAxis[2], zAxis[2], 0,
+            -dot(xAxis, eye), -dot(yAxis, eye), -dot(zAxis, eye), 1
+          ]);
+        }
+
+        function createTranslationMatrix(x, y, z) {
+          return new Float32Array([
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            x, y, z, 1
+          ]);
+        }
+
+        function createIdentityMatrix() {
+          return new Float32Array([
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+          ]);
+        }
+
+        function normalize(v) {
+          const length = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+          return [v[0] / length, v[1] / length, v[2] / length];
+        }
+
+        function cross(a, b) {
+          return [
+            a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0]
+          ];
+        }
+
+        function dot(a, b) {
+          return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+        }
+
+        function subtract(a, b) {
+          return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+        }
+
+        // Create shaders and program
+        const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+        const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+        
+        if (!vertexShader || !fragmentShader) {
+          console.error('Failed to create shaders');
+        } else {
+        
+        const program = createProgram(gl, vertexShader, fragmentShader);
+        
+        if (!program) {
+          console.error('Failed to create program');
+        } else {
+        
+        console.log('Shaders and program created successfully');
+
+        // Create plane geometry (large quad)
+        const planeVertices = new Float32Array([
+          -50, 0, -50,  0, 1, 0,  0, 0,
+           50, 0, -50,  0, 1, 0,  1, 0,
+          -50, 0,  50,  0, 1, 0,  0, 1,
+           50, 0,  50,  0, 1, 0,  1, 1
+        ]);
+        
+        const planeIndices = new Uint16Array([
+          0, 1, 2,
+          1, 3, 2
+        ]);
+
+        // Create sphere geometry
+        function createSphere(radius, segments) {
+          const vertices = [];
+          const indices = [];
+          
+          for (let lat = 0; lat <= segments; lat++) {
+            const theta = lat * Math.PI / segments;
+            const sinTheta = Math.sin(theta);
+            const cosTheta = Math.cos(theta);
+            
+            for (let lon = 0; lon <= segments; lon++) {
+              const phi = lon * 2 * Math.PI / segments;
+              const sinPhi = Math.sin(phi);
+              const cosPhi = Math.cos(phi);
+              
+              const x = cosPhi * sinTheta;
+              const y = cosTheta;
+              const z = sinPhi * sinTheta;
+              
+              vertices.push(
+                radius * x, radius * y, radius * z,  // position
+                x, y, z,                              // normal
+                lon / segments, lat / segments        // texCoord
+              );
+            }
+          }
+          
+          for (let lat = 0; lat < segments; lat++) {
+            for (let lon = 0; lon < segments; lon++) {
+              const first = (lat * (segments + 1)) + lon;
+              const second = first + segments + 1;
+              
+              indices.push(first, second, first + 1);
+              indices.push(second, second + 1, first + 1);
+            }
+          }
+          
+          return {
+            vertices: new Float32Array(vertices),
+            indices: new Uint16Array(indices)
+          };
+        }
+
+        const sphere = createSphere(5, 32);
+        console.log('Sphere created with', sphere.vertices.length / 8, 'vertices and', sphere.indices.length, 'indices');
+
+        // Create buffers
+        const planeVAO = gl.createVertexArray();
+        gl.bindVertexArray(planeVAO);
+        
+        const planeVertexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, planeVertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, planeVertices, gl.STATIC_DRAW);
+        
+        const planeIndexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, planeIndexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, planeIndices, gl.STATIC_DRAW);
+        
+        const positionLocation = gl.getAttribLocation(program, 'a_position');
+        const normalLocation = gl.getAttribLocation(program, 'a_normal');
+        const texCoordLocation = gl.getAttribLocation(program, 'a_texCoord');
+        
+        console.log('Attribute locations:', { positionLocation, normalLocation, texCoordLocation });
+        
+        if (positionLocation !== -1) {
+          gl.enableVertexAttribArray(positionLocation);
+          gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 8 * 4, 0);
+        }
+        if (normalLocation !== -1) {
+          gl.enableVertexAttribArray(normalLocation);
+          gl.vertexAttribPointer(normalLocation, 3, gl.FLOAT, false, 8 * 4, 3 * 4);
+        }
+        if (texCoordLocation !== -1) {
+          gl.enableVertexAttribArray(texCoordLocation);
+          gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 8 * 4, 6 * 4);
+        }
+
+        const sphereVAO = gl.createVertexArray();
+        gl.bindVertexArray(sphereVAO);
+        
+        const sphereVertexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, sphereVertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, sphere.vertices, gl.STATIC_DRAW);
+        
+        const sphereIndexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sphereIndexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, sphere.indices, gl.STATIC_DRAW);
+        
+        if (positionLocation !== -1) {
+          gl.enableVertexAttribArray(positionLocation);
+          gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 8 * 4, 0);
+        }
+        if (normalLocation !== -1) {
+          gl.enableVertexAttribArray(normalLocation);
+          gl.vertexAttribPointer(normalLocation, 3, gl.FLOAT, false, 8 * 4, 3 * 4);
+        }
+        if (texCoordLocation !== -1) {
+          gl.enableVertexAttribArray(texCoordLocation);
+          gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 8 * 4, 6 * 4);
+        }
+
+        // Get uniform locations for ray tracing
+        const resolutionLocation = gl.getUniformLocation(program, 'u_resolution');
+        const sphereCenterLocation = gl.getUniformLocation(program, 'u_sphereCenter');
+        const cameraPosLocation = gl.getUniformLocation(program, 'u_cameraPos');
+        const timeLocation = gl.getUniformLocation(program, 'u_time');
+
+        // Camera and sphere position
+        let cameraPosition = [0, 0, 3];
+        let spherePosition = [0, 0, 0]; // Sphere floats above floor at y=-2
+        const moveSpeed = 0.1;
+
+        // Input handling
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+          keys[e.key.toLowerCase()] = true;
+        });
+        
+        document.addEventListener('keyup', (e) => {
+          keys[e.key.toLowerCase()] = false;
+        });
+
+        function updateSpherePosition() {
+          if (keys['w']) spherePosition[2] -= moveSpeed;
+          if (keys['s']) spherePosition[2] += moveSpeed;
+          if (keys['a']) spherePosition[0] -= moveSpeed;
+          if (keys['d']) spherePosition[0] += moveSpeed;
+        }
+
+        // Resize canvas
+        function resizeCanvas() {
+          const dpr = window.devicePixelRatio || 1;
+          canvas.width = window.innerWidth * dpr;
+          canvas.height = window.innerHeight * dpr;
+          canvas.style.width = window.innerWidth + 'px';
+          canvas.style.height = window.innerHeight + 'px';
+          gl.viewport(0, 0, canvas.width, canvas.height);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
+        console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
+
+        // Render loop
+        let frameCount = 0;
+        function render(time) {
+          updateSpherePosition();
+          
+          // Clear with a different color to verify canvas is working
+          gl.clearColor(0.2, 0.2, 0.8, 1.0);
+          gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+          
+          // Debug: log first few frames
+          if (frameCount < 5) {
+            console.log('Rendering frame', frameCount, 'Canvas size:', canvas.width, 'x', canvas.height);
+            console.log('GL viewport:', gl.getParameter(gl.VIEWPORT));
+          }
+          
+          frameCount++;
+          
+          // Just draw a simple colored screen first to test
+          if (frameCount < 10) {
+            // Skip complex rendering for first few frames to see if canvas works
+            requestAnimationFrame(render);
+            return;
+          }
+          
+          if (frameCount === 10) {
+            console.log('Starting to render sphere at frame', frameCount);
+          }
+          
+          gl.enable(gl.DEPTH_TEST);
+          gl.useProgram(program);
+          
+          const aspect = canvas.width / canvas.height;
+          const projectionMatrix = createPerspectiveMatrix(Math.PI / 3, aspect, 0.1, 1000);
+          const viewMatrix = createLookAtMatrix(cameraPosition, spherePosition, [0, 1, 0]);
+          
+          if (frameCount < 15) {
+            console.log('Matrices created, aspect:', aspect);
+            console.log('Camera pos:', cameraPosition, 'Sphere pos:', spherePosition);
+          }
+          
+          // Set uniforms for ray tracing
+          gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
+          gl.uniform3f(sphereCenterLocation, spherePosition[0], spherePosition[1], spherePosition[2]);
+          gl.uniform3f(cameraPosLocation, cameraPosition[0], cameraPosition[1], cameraPosition[2]);
+          gl.uniform1f(timeLocation, time * 0.001);
+          
+          // Create fullscreen quad
+          const quadVertices = new Float32Array([
+            -1, -1,
+             1, -1,
+            -1,  1,
+             1,  1
+          ]);
+          
+          const quadBuffer = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+          gl.bufferData(gl.ARRAY_BUFFER, quadVertices, gl.STATIC_DRAW);
+          
+          const quadVAO = gl.createVertexArray();
+          gl.bindVertexArray(quadVAO);
+          
+          if (positionLocation !== -1) {
+            gl.enableVertexAttribArray(positionLocation);
+            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+          }
+          
+          if (frameCount < 15) {
+            console.log('About to draw fullscreen quad for ray tracing');
+          }
+          
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+          
+          const error = gl.getError();
+          if (error !== gl.NO_ERROR && frameCount < 15) {
+            console.error('WebGL error after draw:', error);
+          }
+          
+          requestAnimationFrame(render);
+        }
+
+        requestAnimationFrame(render);
+        } // end program check
+        } // end shader check
+      } // end WebGL2 check
+    </script>
+
+  </body>
+</html>
