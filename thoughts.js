@@ -38,22 +38,28 @@ function playBoingSound() {
   oscillator.connect(gainNode);
   gainNode.connect(audioContext.destination);
 
-  // Configure the boing sound - starts low and rises (half duration)
-  oscillator.frequency.setValueAtTime(200, now);
-  oscillator.frequency.exponentialRampToValueAtTime(400, now + 0.05);
-  oscillator.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+  // Add slight pitch randomization (±20% variation)
+  const pitchVariation = 0.8 + Math.random() * 0.4; // 0.8 to 1.2 multiplier
+  const baseFreq1 = 200 * pitchVariation;
+  const baseFreq2 = 400 * pitchVariation;
+  const baseFreq3 = 600 * pitchVariation;
 
-  // Gentle volume envelope (30% quieter: 0.1 -> 0.07, half duration)
+  // Configure the boing sound - twice as fast (half the timing)
+  oscillator.frequency.setValueAtTime(baseFreq1, now);
+  oscillator.frequency.exponentialRampToValueAtTime(baseFreq2, now + 0.025); // Half of 0.05
+  oscillator.frequency.exponentialRampToValueAtTime(baseFreq3, now + 0.075); // Half of 0.15
+
+  // Gentle volume envelope (twice as fast)
   gainNode.gain.setValueAtTime(0, now);
-  gainNode.gain.linearRampToValueAtTime(0.07, now + 0.005); // Quick attack
-  gainNode.gain.exponentialRampToValueAtTime(0.007, now + 0.15); // Gentle decay
+  gainNode.gain.linearRampToValueAtTime(0.07, now + 0.0025); // Half of 0.005
+  gainNode.gain.exponentialRampToValueAtTime(0.007, now + 0.075); // Half of 0.15
 
   // Use a triangle wave for a softer sound
   oscillator.type = 'triangle';
 
-  // Play the sound
+  // Play the sound (twice as fast duration)
   oscillator.start(now);
-  oscillator.stop(now + 0.15);
+  oscillator.stop(now + 0.075); // Half of 0.15
 }
 
 // Mobile Joystick System
