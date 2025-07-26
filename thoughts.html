@@ -320,9 +320,18 @@
             vec2 ndc = (gl_FragCoord.xy / u_resolution.xy) * 2.0 - 1.0;
             ndc.x *= u_resolution.x / u_resolution.y; // Correct aspect ratio
             
-            // Set up camera and ray
+            // Camera setup that always looks at sphere center
             vec3 cameraPos = u_cameraPos;
-            vec3 rayDir = normalize(vec3(ndc.x, ndc.y, -1.0));
+            vec3 target = u_sphereCenter;
+            
+            // Create camera coordinate system (look-at matrix)
+            vec3 forward = normalize(target - cameraPos);
+            vec3 right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
+            vec3 up = cross(right, forward);
+            
+            // Calculate ray direction in world space
+            float fov = 0.8; // Field of view factor
+            vec3 rayDir = normalize(forward + ndc.x * right * fov + ndc.y * up * fov);
             
             // Background color (light blue gradient)
             vec3 backgroundColor = mix(vec3(0.8, 0.9, 1.0), vec3(0.6, 0.7, 0.9), ndc.y * 0.5 + 0.5);
@@ -631,9 +640,15 @@
         const timeLocation = gl.getUniformLocation(program, 'u_time');
 
         // Camera and sphere position
-        let cameraPosition = [0, 0, 3];
         let spherePosition = [0, 0, 0]; // Sphere floats above floor at y=-2
         const moveSpeed = 0.1;
+        
+        // Camera controls
+        let cameraAngle = 0; // Rotation angle around sphere (in radians)
+        let cameraDistance = 7; // Distance from sphere
+        let cameraHeight = 4; // Height above sphere
+        const rotateSpeed = 0.05;
+        const zoomSpeed = 0.2;
 
         // Input handling
         const keys = {};
@@ -646,10 +661,17 @@
         });
 
         function updateSpherePosition() {
+          // WASD for sphere movement
           if (keys['w']) spherePosition[2] -= moveSpeed;
           if (keys['s']) spherePosition[2] += moveSpeed;
           if (keys['a']) spherePosition[0] -= moveSpeed;
           if (keys['d']) spherePosition[0] += moveSpeed;
+          
+          // Arrow keys for camera control
+          if (keys['arrowleft']) cameraAngle -= rotateSpeed;
+          if (keys['arrowright']) cameraAngle += rotateSpeed;
+          if (keys['arrowup']) cameraDistance = Math.max(2, cameraDistance - zoomSpeed);
+          if (keys['arrowdown']) cameraDistance = Math.min(15, cameraDistance + zoomSpeed);
         }
 
         // Resize canvas
@@ -698,12 +720,14 @@
           gl.enable(gl.DEPTH_TEST);
           gl.useProgram(program);
           
-          const aspect = canvas.width / canvas.height;
-          const projectionMatrix = createPerspectiveMatrix(Math.PI / 3, aspect, 0.1, 1000);
-          const viewMatrix = createLookAtMatrix(cameraPosition, spherePosition, [0, 1, 0]);
+          // Calculate camera position using polar coordinates around sphere
+          const cameraPosition = [
+            spherePosition[0] + Math.sin(cameraAngle) * cameraDistance,
+            spherePosition[1] + cameraHeight,
+            spherePosition[2] + Math.cos(cameraAngle) * cameraDistance
+          ];
           
           if (frameCount < 15) {
-            console.log('Matrices created, aspect:', aspect);
             console.log('Camera pos:', cameraPosition, 'Sphere pos:', spherePosition);
           }
           
@@ -735,6 +759,7 @@
           
           if (frameCount < 15) {
             console.log('About to draw fullscreen quad for ray tracing');
+            console.log('Camera pos:', cameraPosition, 'Sphere pos:', spherePosition);
           }
           
           gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
