@@ -371,6 +371,7 @@
           uniform vec2 u_resolution;
           uniform vec3 u_sphereCenter;
           uniform vec3 u_cameraPos;
+          uniform vec3 u_cameraTarget;
           uniform float u_time;
           uniform float u_worldBoundary;
           
@@ -570,9 +571,9 @@
             vec2 ndc = (gl_FragCoord.xy / u_resolution.xy) * 2.0 - 1.0;
             ndc.x *= u_resolution.x / u_resolution.y; // Correct aspect ratio
             
-            // Camera setup that always looks at sphere center
+            // Camera setup that looks at fixed target (sphere's zenith)
             vec3 cameraPos = u_cameraPos;
-            vec3 target = u_sphereCenter;
+            vec3 target = u_cameraTarget;
             
             // Create camera coordinate system (look-at matrix)
             vec3 forward = normalize(target - cameraPos);
@@ -916,6 +917,7 @@
         const resolutionLocation = gl.getUniformLocation(program, 'u_resolution');
         const sphereCenterLocation = gl.getUniformLocation(program, 'u_sphereCenter');
         const cameraPosLocation = gl.getUniformLocation(program, 'u_cameraPos');
+        const cameraTargetLocation = gl.getUniformLocation(program, 'u_cameraTarget');
         const timeLocation = gl.getUniformLocation(program, 'u_time');
         const worldBoundaryLocation = gl.getUniformLocation(program, 'u_worldBoundary');
 
@@ -1045,18 +1047,36 @@
           gl.enable(gl.DEPTH_TEST);
           gl.useProgram(program);
           
-          // Calculate camera position using polar coordinates around sphere
+          // Calculate camera position using polar coordinates around sphere (fixed Y position)
+          const fixedSphereY = -1.0; // Keep camera at a fixed height relative to sphere's center position
           const cameraPosition = [
             spherePosition[0] + Math.sin(cameraAngle) * cameraDistance,
-            spherePosition[1] + cameraHeight,
+            fixedSphereY + cameraHeight,
             spherePosition[2] + Math.cos(cameraAngle) * cameraDistance
           ];
           
           
+          // Add energetic boinnnngy bounce motion to sphere
+          const bounceHeight = 1.0; // Maximum bounce height (half as high)
+          const bounceSpeed = 5.6; // How fast the bouncing cycle is (40% faster!)
+          const sphereRadius = 1.0; // Sphere radius from shader
+          const groundLevel = -2.0; // Floor level from shader
+          
+          // Create a gravity-like bounce using a parabolic arc
+          const cycle = (time * 0.001 * bounceSpeed) % (2 * Math.PI);
+          const normalizedTime = cycle / (2 * Math.PI); // 0 to 1 for one complete bounce
+          
+          // Use a parabolic function that starts and ends at ground level
+          // y = 4h * t * (1-t) gives a parabola from 0 to 1 with peak at 0.5
+          const bounceY = 4 * bounceHeight * normalizedTime * (1 - normalizedTime);
+          const bobbingY = (groundLevel + sphereRadius) + bounceY;
+          
           // Set uniforms for ray tracing
+          const sphereZenith = (groundLevel + sphereRadius) + (bounceHeight / 2); // Midpoint of bounce
           gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
-          gl.uniform3f(sphereCenterLocation, spherePosition[0], spherePosition[1], spherePosition[2]);
+          gl.uniform3f(sphereCenterLocation, spherePosition[0], bobbingY, spherePosition[2]);
           gl.uniform3f(cameraPosLocation, cameraPosition[0], cameraPosition[1], cameraPosition[2]);
+          gl.uniform3f(cameraTargetLocation, spherePosition[0], sphereZenith, spherePosition[2]);
           gl.uniform1f(timeLocation, time * 0.001);
           gl.uniform1f(worldBoundaryLocation, worldBoundary);
           
