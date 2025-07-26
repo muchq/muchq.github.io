@@ -315,6 +315,72 @@
         background: rgba(0, 100, 0, 0.8);
         border-color: rgba(0, 255, 0, 0.5);
       }
+
+      /* Mobile Joysticks - only show in landscape mode on mobile */
+      .mobile-joystick {
+        position: fixed;
+        width: 120px;
+        height: 120px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        display: none;
+        z-index: 1001;
+        touch-action: none;
+        user-select: none;
+      }
+
+      .joystick-knob {
+        position: absolute;
+        width: 50px;
+        height: 50px;
+        background: rgba(255, 255, 255, 0.8);
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        border-radius: 50%;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        transition: all 0.1s ease;
+      }
+
+      #left-joystick {
+        bottom: 40px;
+        left: 40px;
+      }
+
+      #right-joystick {
+        bottom: 40px;
+        right: 40px;
+      }
+
+      /* Show joysticks on all mobile devices (both orientations) */
+      @media (max-width: 1024px) {
+        .mobile-joystick {
+          display: block;
+        }
+        
+        /* Adjust other UI elements for mobile */
+        #mini-map {
+          top: 20px;
+          left: 20px;
+          width: 75px;
+          height: 75px;
+        }
+        
+        #sound-toggle {
+          top: 105px;
+          left: 20px;
+          width: 75px;
+          height: 20px;
+          font-size: 9px;
+        }
+        
+        #fps-counter {
+          bottom: 10px;
+          right: 10px;
+          font-size: 10px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -330,6 +396,15 @@
       </div>
     </div>
     <button id="sound-toggle">🔇 Sound: OFF</button>
+    
+    <!-- Mobile Joysticks -->
+    <div id="left-joystick" class="mobile-joystick">
+      <div class="joystick-knob" id="left-knob"></div>
+    </div>
+    <div id="right-joystick" class="mobile-joystick">
+      <div class="joystick-knob" id="right-knob"></div>
+    </div>
+    
     <nav>
       <div class="nav-container">
         <a href="index.html" class="nav-logo">MuchQ</a>
@@ -423,6 +498,100 @@
         oscillator.start(now);
         oscillator.stop(now + 0.15);
       }
+
+      // Mobile Joystick System
+      class VirtualJoystick {
+        constructor(container, knob) {
+          this.container = container;
+          this.knob = knob;
+          this.centerX = 60; // Half of joystick width
+          this.centerY = 60; // Half of joystick height
+          this.maxDistance = 35; // Max distance from center
+          this.active = false;
+          this.x = 0; // -1 to 1
+          this.y = 0; // -1 to 1
+          
+          this.setupEvents();
+        }
+        
+        setupEvents() {
+          // Touch events
+          this.container.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.active = true;
+            this.handleMove(e.touches[0]);
+          });
+          
+          this.container.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (this.active) {
+              this.handleMove(e.touches[0]);
+            }
+          });
+          
+          this.container.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            this.active = false;
+            this.resetPosition();
+          });
+          
+          // Mouse events for testing on desktop
+          this.container.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            this.active = true;
+            this.handleMove(e);
+          });
+          
+          document.addEventListener('mousemove', (e) => {
+            if (this.active) {
+              this.handleMove(e);
+            }
+          });
+          
+          document.addEventListener('mouseup', () => {
+            this.active = false;
+            this.resetPosition();
+          });
+        }
+        
+        handleMove(pointer) {
+          const rect = this.container.getBoundingClientRect();
+          const deltaX = pointer.clientX - rect.left - this.centerX;
+          const deltaY = pointer.clientY - rect.top - this.centerY;
+          
+          const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+          const angle = Math.atan2(deltaY, deltaX);
+          
+          const constrainedDistance = Math.min(distance, this.maxDistance);
+          
+          const knobX = Math.cos(angle) * constrainedDistance;
+          const knobY = Math.sin(angle) * constrainedDistance;
+          
+          // Update knob position
+          this.knob.style.transform = `translate(${this.centerX + knobX - 25}px, ${this.centerY + knobY - 25}px)`;
+          
+          // Update normalized values (-1 to 1)
+          this.x = knobX / this.maxDistance;
+          this.y = knobY / this.maxDistance;
+        }
+        
+        resetPosition() {
+          this.knob.style.transform = `translate(${this.centerX - 25}px, ${this.centerY - 25}px)`;
+          this.x = 0;
+          this.y = 0;
+        }
+      }
+      
+      // Initialize joysticks
+      const leftJoystick = new VirtualJoystick(
+        document.getElementById('left-joystick'),
+        document.getElementById('left-knob')
+      );
+      
+      const rightJoystick = new VirtualJoystick(
+        document.getElementById('right-joystick'),
+        document.getElementById('right-knob')
+      );
 
       // WebGL 3D Scene
       const canvas = document.getElementById('scene-canvas');
@@ -1038,22 +1207,24 @@
           // Store current position for boundary checking
           const oldPosition = [spherePosition[0], spherePosition[1], spherePosition[2]];
           
-          // WASD for sphere movement relative to camera direction
-          if (keys['w']) {
-            spherePosition[0] -= forward[0] * moveSpeed;
-            spherePosition[2] -= forward[2] * moveSpeed;
-          }
-          if (keys['s']) {
-            spherePosition[0] += forward[0] * moveSpeed;
-            spherePosition[2] += forward[2] * moveSpeed;
-          }
-          if (keys['a']) {
-            spherePosition[0] -= right[0] * moveSpeed;
-            spherePosition[2] -= right[2] * moveSpeed;
-          }
-          if (keys['d']) {
-            spherePosition[0] += right[0] * moveSpeed;
-            spherePosition[2] += right[2] * moveSpeed;
+          // Combine keyboard and joystick input for movement
+          let moveX = 0, moveZ = 0;
+          
+          // WASD keyboard input
+          if (keys['w']) moveZ -= 1;
+          if (keys['s']) moveZ += 1;
+          if (keys['a']) moveX -= 1;
+          if (keys['d']) moveX += 1;
+          
+          // Left joystick input (WASD equivalent)
+          // Joystick Y is inverted (negative Y = forward)
+          moveX += leftJoystick.x;
+          moveZ -= leftJoystick.y; // Invert Y axis
+          
+          // Apply movement relative to camera direction
+          if (moveX !== 0 || moveZ !== 0) {
+            spherePosition[0] += (forward[0] * moveZ + right[0] * moveX) * moveSpeed;
+            spherePosition[2] += (forward[2] * moveZ + right[2] * moveX) * moveSpeed;
           }
           
           // Boundary collision detection
@@ -1064,11 +1235,26 @@
             spherePosition[2] = oldPosition[2]; // Revert Z movement
           }
           
-          // Arrow keys for camera control
-          if (keys['arrowleft']) cameraAngle += rotateSpeed;
-          if (keys['arrowright']) cameraAngle -= rotateSpeed;
-          if (keys['arrowup']) cameraDistance = Math.max(2, cameraDistance - zoomSpeed);
-          if (keys['arrowdown']) cameraDistance = Math.min(15, cameraDistance + zoomSpeed);
+          // Combine keyboard and joystick input for camera control
+          let cameraRotate = 0, cameraZoom = 0;
+          
+          // Arrow key input
+          if (keys['arrowleft']) cameraRotate += 1;
+          if (keys['arrowright']) cameraRotate -= 1;
+          if (keys['arrowup']) cameraZoom -= 1;
+          if (keys['arrowdown']) cameraZoom += 1;
+          
+          // Right joystick input (arrow key equivalent)
+          cameraRotate += rightJoystick.x;
+          cameraZoom += rightJoystick.y;
+          
+          // Apply camera changes
+          if (cameraRotate !== 0) {
+            cameraAngle += cameraRotate * rotateSpeed;
+          }
+          if (cameraZoom !== 0) {
+            cameraDistance = Math.max(2, Math.min(15, cameraDistance + cameraZoom * zoomSpeed));
+          }
         }
 
         // Resize canvas
