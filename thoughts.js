@@ -1483,9 +1483,9 @@ if (!gl) {
     miniMapPlayer.style.left = `${localMapX}px`;
     miniMapPlayer.style.top = `${localMapZ}px`;
 
-    // Update direction indicator (camera angle in degrees)
-    const directionDegrees = (-gameState.camera.angle * 180 / Math.PI) + 90; // Reverse and add 90° to align with mini-map orientation
-    miniMapDirection.style.transform = `translate(-50%, -100%) rotate(${directionDegrees}deg)`;
+    // Update direction indicator to point forward (camera direction)
+    const directionDegrees = -gameState.camera.angle * 180 / Math.PI; // Convert to degrees, pointing forward
+    miniMapDirection.style.transform = `translate(-50%, -50%) rotate(${directionDegrees}deg)`;
     
     // Update other players
     const allPlayers = Array.from(gameState.players.values());
