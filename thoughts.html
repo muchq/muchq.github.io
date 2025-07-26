@@ -283,6 +283,38 @@
         transform: translate(-50%, -100%);
         border-radius: 1px;
       }
+
+      /* Sound toggle button */
+      #sound-toggle {
+        position: fixed;
+        top: 240px;
+        left: 20px;
+        width: 150px;
+        height: 30px;
+        background: rgba(0, 0, 0, 0.8);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 4px;
+        color: #fff;
+        font-family: "Lexend Deca", sans-serif;
+        font-size: 12px;
+        font-weight: 100;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        transition: all 0.2s ease;
+      }
+
+      #sound-toggle:hover {
+        background: rgba(0, 0, 0, 0.9);
+        border-color: rgba(255, 255, 255, 0.5);
+      }
+
+      #sound-toggle.enabled {
+        background: rgba(0, 100, 0, 0.8);
+        border-color: rgba(0, 255, 0, 0.5);
+      }
     </style>
   </head>
   <body>
@@ -297,6 +329,7 @@
         </div>
       </div>
     </div>
+    <button id="sound-toggle">🔇 Sound: OFF</button>
     <nav>
       <div class="nav-container">
         <a href="index.html" class="nav-logo">MuchQ</a>
@@ -336,6 +369,60 @@
       document.querySelector('.mobile-menu-toggle').addEventListener('click', function() {
         document.querySelector('.nav-menu').classList.toggle('active');
       });
+
+      // Audio setup for bounce sound (global scope)
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      let lastBounceTime = 0;
+      let soundEnabled = false; // Default sound off
+
+      // Sound toggle functionality
+      const soundToggle = document.getElementById('sound-toggle');
+      soundToggle.addEventListener('click', function() {
+        soundEnabled = !soundEnabled;
+        
+        if (soundEnabled) {
+          soundToggle.textContent = '🔊 Sound: ON';
+          soundToggle.classList.add('enabled');
+          // Resume audio context if needed (browser security)
+          if (audioContext.state === 'suspended') {
+            audioContext.resume();
+          }
+        } else {
+          soundToggle.textContent = '🔇 Sound: OFF';
+          soundToggle.classList.remove('enabled');
+        }
+      });
+
+      function playBoingSound() {
+        if (!soundEnabled) return; // Don't play if sound disabled
+        
+        const now = audioContext.currentTime;
+        
+        // Create oscillator for the "boing" sound
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        // Connect audio nodes
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        // Configure the boing sound - starts low and rises (half duration)
+        oscillator.frequency.setValueAtTime(200, now);
+        oscillator.frequency.exponentialRampToValueAtTime(400, now + 0.05);
+        oscillator.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+        
+        // Gentle volume envelope (30% quieter: 0.1 -> 0.07, half duration)
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(0.07, now + 0.005); // Quick attack
+        gainNode.gain.exponentialRampToValueAtTime(0.007, now + 0.15); // Gentle decay
+        
+        // Use a triangle wave for a softer sound
+        oscillator.type = 'triangle';
+        
+        // Play the sound
+        oscillator.start(now);
+        oscillator.stop(now + 0.15);
+      }
 
       // WebGL 3D Scene
       const canvas = document.getElementById('scene-canvas');
@@ -1070,6 +1157,15 @@
           // y = 4h * t * (1-t) gives a parabola from 0 to 1 with peak at 0.5
           const bounceY = 4 * bounceHeight * normalizedTime * (1 - normalizedTime);
           const bobbingY = (groundLevel + sphereRadius) + bounceY;
+          
+          // Detect ground impact for sound (when sphere is at its lowest point)
+          const isAtGround = bounceY < 0.05; // Very close to ground
+          const timeSinceLastBounce = time - lastBounceTime;
+          
+          if (isAtGround && timeSinceLastBounce > 200) { // Prevent multiple triggers, min 200ms between bounces
+            playBoingSound();
+            lastBounceTime = time;
+          }
           
           // Set uniforms for ray tracing
           const sphereZenith = (groundLevel + sphereRadius) + (bounceHeight / 2); // Midpoint of bounce
