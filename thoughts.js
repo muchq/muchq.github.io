@@ -191,6 +191,7 @@ if (!gl) {
     uniform vec3 u_sphereCenter;
     uniform vec3 u_cameraPos;
     uniform vec3 u_cameraTarget;
+    uniform vec3 u_sphereColor;
     uniform float u_time;
     uniform float u_worldBoundary;
 
@@ -427,7 +428,7 @@ if (!gl) {
 
         if (hit.objectId == 1) {
           // Hit sphere
-          vec3 sphereColor = vec3(1.0, 0.5, 0.2); // Orange
+          vec3 sphereColor = u_sphereColor; // Use dynamic player color
 
           // Add lighting from both light sources
           lighting += calculateLighting(hit.point, hit.normal, light1, viewDir, sphereColor) * 0.4;
@@ -659,20 +660,125 @@ if (!gl) {
   const sphereCenterLocation = gl.getUniformLocation(program, 'u_sphereCenter');
   const cameraPosLocation = gl.getUniformLocation(program, 'u_cameraPos');
   const cameraTargetLocation = gl.getUniformLocation(program, 'u_cameraTarget');
+  const sphereColorLocation = gl.getUniformLocation(program, 'u_sphereColor');
   const timeLocation = gl.getUniformLocation(program, 'u_time');
   const worldBoundaryLocation = gl.getUniformLocation(program, 'u_worldBoundary');
 
-  // Camera and sphere position
-  let spherePosition = [0, 0, 0]; // Sphere floats above floor at y=-2
-  const moveSpeed = 0.20;
-  const worldBoundary = 50; // ±50 units from center (22.5 seconds to traverse at current speed)
+  // Game Configuration
+  const GAME_CONFIG = {
+    moveSpeed: 0.20,
+    worldBoundary: 50,
+    rotateSpeed: 0.05,
+    zoomSpeed: 0.2,
+    bounceHeight: 1.0,
+    bounceSpeed: 5.6,
+    sphereRadius: 1.0,
+    groundLevel: -2.0
+  };
 
-  // Camera controls
-  let cameraAngle = 0; // Rotation angle around sphere (in radians)
-  let cameraDistance = 7; // Distance from sphere
-  let cameraHeight = 4; // Height above sphere
-  const rotateSpeed = 0.05;
-  const zoomSpeed = 0.2;
+  // Utility Functions for Random Generation
+  function generateRandomColor() {
+    // Generate vibrant, saturated colors
+    const hue = Math.random() * 360; // 0-360 degrees
+    const saturation = 0.7 + Math.random() * 0.3; // 70-100% saturation
+    const lightness = 0.4 + Math.random() * 0.3; // 40-70% lightness
+    
+    // Convert HSL to RGB
+    const h = hue / 60;
+    const c = (1 - Math.abs(2 * lightness - 1)) * saturation;
+    const x = c * (1 - Math.abs((h % 2) - 1));
+    const m = lightness - c / 2;
+    
+    let r, g, b;
+    if (h < 1) { r = c; g = x; b = 0; }
+    else if (h < 2) { r = x; g = c; b = 0; }
+    else if (h < 3) { r = 0; g = c; b = x; }
+    else if (h < 4) { r = 0; g = x; b = c; }
+    else if (h < 5) { r = x; g = 0; b = c; }
+    else { r = c; g = 0; b = x; }
+    
+    return [r + m, g + m, b + m];
+  }
+  
+  function generateRandomSpawnPosition() {
+    // Generate random position within world boundary
+    // Leave some margin from the edges for safety
+    const margin = 5;
+    const safeZone = GAME_CONFIG.worldBoundary - margin;
+    
+    const x = (Math.random() - 0.5) * 2 * safeZone; // -safeZone to +safeZone
+    const z = (Math.random() - 0.5) * 2 * safeZone; // -safeZone to +safeZone
+    const y = 0; // Always spawn at ground level
+    
+    return [x, y, z];
+  }
+  
+  function generatePlayerId() {
+    // Generate unique player ID
+    return 'player-' + Math.random().toString(36).substr(2, 9);
+  }
+
+  // Player Management
+  class Player {
+    constructor(id, position = [0, 0, 0], color = [1.0, 0.5, 0.2]) {
+      this.id = id;
+      this.position = [...position];
+      this.color = [...color];
+      this.lastBounceTime = 0;
+    }
+    
+    updatePosition(newPosition) {
+      this.position = [...newPosition];
+    }
+    
+    getBouncingY(time) {
+      const cycle = (time * 0.001 * GAME_CONFIG.bounceSpeed) % (2 * Math.PI);
+      const normalizedTime = cycle / (2 * Math.PI);
+      const bounceY = 4 * GAME_CONFIG.bounceHeight * normalizedTime * (1 - normalizedTime);
+      return (GAME_CONFIG.groundLevel + GAME_CONFIG.sphereRadius) + bounceY;
+    }
+  }
+
+  // Game State Management
+  class GameState {
+    constructor() {
+      this.players = new Map();
+      this.localPlayerId = null;
+      this.camera = {
+        angle: 0,
+        distance: 7,
+        height: 4
+      };
+    }
+    
+    addPlayer(id, position, color) {
+      const player = new Player(id, position, color);
+      this.players.set(id, player);
+      return player;
+    }
+    
+    removePlayer(id) {
+      this.players.delete(id);
+    }
+    
+    updatePlayer(id, position) {
+      const player = this.players.get(id);
+      if (player) {
+        player.updatePosition(position);
+      }
+    }
+    
+    getLocalPlayer() {
+      return this.players.get(this.localPlayerId);
+    }
+    
+    getAllPlayers() {
+      return Array.from(this.players.values());
+    }
+  }
+
+  // Initialize game state
+  const gameState = new GameState();
 
   // Input handling
   const keys = {};
@@ -684,13 +790,16 @@ if (!gl) {
     keys[e.key.toLowerCase()] = false;
   });
 
-  function updateSpherePosition() {
+  function updateLocalPlayer() {
+    const localPlayer = gameState.getLocalPlayer();
+    if (!localPlayer) return;
+    
     // Calculate camera-relative movement directions
-    const forward = [Math.sin(cameraAngle), 0, Math.cos(cameraAngle)];
-    const right = [Math.cos(cameraAngle), 0, -Math.sin(cameraAngle)];
+    const forward = [Math.sin(gameState.camera.angle), 0, Math.cos(gameState.camera.angle)];
+    const right = [Math.cos(gameState.camera.angle), 0, -Math.sin(gameState.camera.angle)];
 
     // Store current position for boundary checking
-    const oldPosition = [spherePosition[0], spherePosition[1], spherePosition[2]];
+    const oldPosition = [...localPlayer.position];
 
     // Combine keyboard and joystick input for movement
     let moveX = 0, moveZ = 0;
@@ -707,16 +816,16 @@ if (!gl) {
 
     // Apply movement relative to camera direction
     if (moveX !== 0 || moveZ !== 0) {
-      spherePosition[0] += (forward[0] * moveZ + right[0] * moveX) * moveSpeed;
-      spherePosition[2] += (forward[2] * moveZ + right[2] * moveX) * moveSpeed;
+      localPlayer.position[0] += (forward[0] * moveZ + right[0] * moveX) * GAME_CONFIG.moveSpeed;
+      localPlayer.position[2] += (forward[2] * moveZ + right[2] * moveX) * GAME_CONFIG.moveSpeed;
     }
 
     // Boundary collision detection
-    if (Math.abs(spherePosition[0]) > worldBoundary) {
-      spherePosition[0] = oldPosition[0]; // Revert X movement
+    if (Math.abs(localPlayer.position[0]) > GAME_CONFIG.worldBoundary) {
+      localPlayer.position[0] = oldPosition[0]; // Revert X movement
     }
-    if (Math.abs(spherePosition[2]) > worldBoundary) {
-      spherePosition[2] = oldPosition[2]; // Revert Z movement
+    if (Math.abs(localPlayer.position[2]) > GAME_CONFIG.worldBoundary) {
+      localPlayer.position[2] = oldPosition[2]; // Revert Z movement
     }
 
     // Combine keyboard and joystick input for camera control
@@ -734,10 +843,10 @@ if (!gl) {
 
     // Apply camera changes
     if (cameraRotate !== 0) {
-      cameraAngle += cameraRotate * rotateSpeed;
+      gameState.camera.angle += cameraRotate * GAME_CONFIG.rotateSpeed;
     }
     if (cameraZoom !== 0) {
-      cameraDistance = Math.max(2, Math.min(15, cameraDistance + cameraZoom * zoomSpeed));
+      gameState.camera.distance = Math.max(2, Math.min(15, gameState.camera.distance + cameraZoom * GAME_CONFIG.zoomSpeed));
     }
   }
 
@@ -767,6 +876,9 @@ if (!gl) {
 
   // Update mini-map
   function updateMiniMap() {
+    const localPlayer = gameState.getLocalPlayer();
+    if (!localPlayer) return;
+    
     // Convert world coordinates to mini-map coordinates
     // Check if we're on mobile (width < 1024px)
     const isMobile = window.innerWidth < 1024;
@@ -774,20 +886,29 @@ if (!gl) {
     const mapMargin = isMobile ? 5 : 10;  // Mobile uses smaller margin
     const mapCenter = mapSize / 2 + mapMargin;
 
-    const mapX = mapCenter + (spherePosition[0] / worldBoundary) * (mapSize / 2);
-    const mapZ = mapCenter + (spherePosition[2] / worldBoundary) * (mapSize / 2);
+    const mapX = mapCenter + (localPlayer.position[0] / GAME_CONFIG.worldBoundary) * (mapSize / 2);
+    const mapZ = mapCenter + (localPlayer.position[2] / GAME_CONFIG.worldBoundary) * (mapSize / 2);
 
     miniMapPlayer.style.left = `${mapX}px`;
     miniMapPlayer.style.top = `${mapZ}px`;
 
     // Update direction indicator (camera angle in degrees)
-    const directionDegrees = (-cameraAngle * 180 / Math.PI) + 90; // Reverse and add 90° to align with mini-map orientation
+    const directionDegrees = (-gameState.camera.angle * 180 / Math.PI) + 90; // Reverse and add 90° to align with mini-map orientation
     miniMapDirection.style.transform = `translate(-50%, -100%) rotate(${directionDegrees}deg)`;
   }
 
+  // Initialize the local player with random spawn
+  gameState.localPlayerId = generatePlayerId();
+  const randomSpawnPosition = generateRandomSpawnPosition();
+  const randomColor = generateRandomColor();
+  
+  console.log(`Spawning player ${gameState.localPlayerId} at position [${randomSpawnPosition.map(x => x.toFixed(2)).join(', ')}] with color [${randomColor.map(x => x.toFixed(2)).join(', ')}]`);
+  
+  gameState.addPlayer(gameState.localPlayerId, randomSpawnPosition, randomColor);
+
   // Render loop
   function render(time) {
-    updateSpherePosition();
+    updateLocalPlayer();
     updateMiniMap();
 
     // FPS calculation
@@ -806,47 +927,41 @@ if (!gl) {
     gl.enable(gl.DEPTH_TEST);
     gl.useProgram(program);
 
-    // Calculate camera position using polar coordinates around sphere (fixed Y position)
+    const localPlayer = gameState.getLocalPlayer();
+    if (!localPlayer) return;
+
+    // Calculate camera position using polar coordinates around local player (fixed Y position)
     const fixedSphereY = -1.0; // Keep camera at a fixed height relative to sphere's center position
     const cameraPosition = [
-      spherePosition[0] + Math.sin(cameraAngle) * cameraDistance,
-      fixedSphereY + cameraHeight,
-      spherePosition[2] + Math.cos(cameraAngle) * cameraDistance
+      localPlayer.position[0] + Math.sin(gameState.camera.angle) * gameState.camera.distance,
+      fixedSphereY + gameState.camera.height,
+      localPlayer.position[2] + Math.cos(gameState.camera.angle) * gameState.camera.distance
     ];
 
-
-    // Add energetic boinnnngy bounce motion to sphere
-    const bounceHeight = 1.0; // Maximum bounce height (half as high)
-    const bounceSpeed = 5.6; // How fast the bouncing cycle is (40% faster!)
-    const sphereRadius = 1.0; // Sphere radius from shader
-    const groundLevel = -2.0; // Floor level from shader
-
-    // Create a gravity-like bounce using a parabolic arc
-    const cycle = (time * 0.001 * bounceSpeed) % (2 * Math.PI);
-    const normalizedTime = cycle / (2 * Math.PI); // 0 to 1 for one complete bounce
-
-    // Use a parabolic function that starts and ends at ground level
-    // y = 4h * t * (1-t) gives a parabola from 0 to 1 with peak at 0.5
-    const bounceY = 4 * bounceHeight * normalizedTime * (1 - normalizedTime);
-    const bobbingY = (groundLevel + sphereRadius) + bounceY;
+    // Get bouncing Y position for local player
+    const bobbingY = localPlayer.getBouncingY(time);
 
     // Detect ground impact for sound (when sphere is at its lowest point)
+    const cycle = (time * 0.001 * GAME_CONFIG.bounceSpeed) % (2 * Math.PI);
+    const normalizedTime = cycle / (2 * Math.PI);
+    const bounceY = 4 * GAME_CONFIG.bounceHeight * normalizedTime * (1 - normalizedTime);
     const isAtGround = bounceY < 0.05; // Very close to ground
-    const timeSinceLastBounce = time - lastBounceTime;
+    const timeSinceLastBounce = time - localPlayer.lastBounceTime;
 
     if (isAtGround && timeSinceLastBounce > 200) { // Prevent multiple triggers, min 200ms between bounces
       playBoingSound();
-      lastBounceTime = time;
+      localPlayer.lastBounceTime = time;
     }
 
     // Set uniforms for ray tracing
-    const sphereZenith = (groundLevel + sphereRadius) + (bounceHeight / 2); // Midpoint of bounce
+    const sphereZenith = (GAME_CONFIG.groundLevel + GAME_CONFIG.sphereRadius) + (GAME_CONFIG.bounceHeight / 2); // Midpoint of bounce
     gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
-    gl.uniform3f(sphereCenterLocation, spherePosition[0], bobbingY, spherePosition[2]);
+    gl.uniform3f(sphereCenterLocation, localPlayer.position[0], bobbingY, localPlayer.position[2]);
     gl.uniform3f(cameraPosLocation, cameraPosition[0], cameraPosition[1], cameraPosition[2]);
-    gl.uniform3f(cameraTargetLocation, spherePosition[0], sphereZenith, spherePosition[2]);
+    gl.uniform3f(cameraTargetLocation, localPlayer.position[0], sphereZenith, localPlayer.position[2]);
+    gl.uniform3f(sphereColorLocation, localPlayer.color[0], localPlayer.color[1], localPlayer.color[2]);
     gl.uniform1f(timeLocation, time * 0.001);
-    gl.uniform1f(worldBoundaryLocation, worldBoundary);
+    gl.uniform1f(worldBoundaryLocation, GAME_CONFIG.worldBoundary);
 
     // Create fullscreen quad
     const quadVertices = new Float32Array([
