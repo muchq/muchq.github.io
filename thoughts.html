@@ -661,11 +661,27 @@
         });
 
         function updateSpherePosition() {
-          // WASD for sphere movement
-          if (keys['w']) spherePosition[2] -= moveSpeed;
-          if (keys['s']) spherePosition[2] += moveSpeed;
-          if (keys['a']) spherePosition[0] -= moveSpeed;
-          if (keys['d']) spherePosition[0] += moveSpeed;
+          // Calculate camera-relative movement directions
+          const forward = [Math.sin(cameraAngle), 0, Math.cos(cameraAngle)];
+          const right = [Math.cos(cameraAngle), 0, -Math.sin(cameraAngle)];
+          
+          // WASD for sphere movement relative to camera direction
+          if (keys['w']) {
+            spherePosition[0] -= forward[0] * moveSpeed;
+            spherePosition[2] -= forward[2] * moveSpeed;
+          }
+          if (keys['s']) {
+            spherePosition[0] += forward[0] * moveSpeed;
+            spherePosition[2] += forward[2] * moveSpeed;
+          }
+          if (keys['a']) {
+            spherePosition[0] -= right[0] * moveSpeed;
+            spherePosition[2] -= right[2] * moveSpeed;
+          }
+          if (keys['d']) {
+            spherePosition[0] += right[0] * moveSpeed;
+            spherePosition[2] += right[2] * moveSpeed;
+          }
           
           // Arrow keys for camera control
           if (keys['arrowleft']) cameraAngle -= rotateSpeed;
