@@ -718,6 +718,189 @@ if (!gl) {
     return 'player-' + Math.random().toString(36).substr(2, 9);
   }
 
+  // Network Communication System
+  class NetworkManager {
+    constructor() {
+      this.ws = null;
+      this.isConnected = false;
+      this.lastSentPosition = null;
+      this.positionUpdateThrottle = 50; // Send updates max every 50ms (20fps)
+      this.lastPositionSent = 0;
+      this.messageHandlers = new Map();
+      
+      // For testing: simulate server with local storage
+      this.isSimulated = true;
+    }
+    
+    connect(url = 'ws://localhost:8080') {
+      if (this.isSimulated) {
+        // Simulate successful connection
+        console.log('🔌 Simulating WebSocket connection to', url);
+        this.isConnected = true;
+        this.onConnected();
+        return;
+      }
+      
+      try {
+        this.ws = new WebSocket(url);
+        
+        this.ws.onopen = () => {
+          console.log('🔌 WebSocket connected to', url);
+          this.isConnected = true;
+          this.onConnected();
+        };
+        
+        this.ws.onmessage = (event) => {
+          this.handleMessage(JSON.parse(event.data));
+        };
+        
+        this.ws.onclose = () => {
+          console.log('🔌 WebSocket disconnected');
+          this.isConnected = false;
+          this.onDisconnected();
+        };
+        
+        this.ws.onerror = (error) => {
+          console.error('🔌 WebSocket error:', error);
+          this.isConnected = false;
+        };
+      } catch (error) {
+        console.error('🔌 Failed to connect to WebSocket:', error);
+        this.isConnected = false;
+      }
+    }
+    
+    onConnected() {
+      // Send initial player spawn data
+      this.sendPlayerJoin();
+    }
+    
+    onDisconnected() {
+      // Handle disconnection
+    }
+    
+    sendPlayerJoin() {
+      const localPlayer = gameState.getLocalPlayer();
+      if (!localPlayer) return;
+      
+      const message = {
+        type: 'player_join',
+        playerId: localPlayer.id,
+        position: localPlayer.position,
+        color: localPlayer.color,
+        timestamp: Date.now()
+      };
+      
+      this.sendMessage(message);
+      console.log('📤 Sent player join:', message);
+    }
+    
+    sendPositionUpdate(position) {
+      const now = Date.now();
+      
+      // Throttle position updates
+      if (now - this.lastPositionSent < this.positionUpdateThrottle) {
+        return;
+      }
+      
+      // Check if position actually changed significantly
+      if (this.lastSentPosition) {
+        const dx = position[0] - this.lastSentPosition[0];
+        const dz = position[2] - this.lastSentPosition[2];
+        const distance = Math.sqrt(dx * dx + dz * dz);
+        
+        // Only send if moved more than 0.1 units
+        if (distance < 0.1) {
+          return;
+        }
+      }
+      
+      const localPlayer = gameState.getLocalPlayer();
+      if (!localPlayer) return;
+      
+      const message = {
+        type: 'position_update',
+        playerId: localPlayer.id,
+        position: position,
+        timestamp: now
+      };
+      
+      this.sendMessage(message);
+      this.lastSentPosition = [...position];
+      this.lastPositionSent = now;
+      
+      console.log('📤 Sent position update:', message);
+    }
+    
+    sendMessage(message) {
+      if (this.isSimulated) {
+        // Simulate sending to server (just log for now)
+        console.log('📡 [SIMULATED] Sending to server:', message);
+        return;
+      }
+      
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify(message));
+      }
+    }
+    
+    handleMessage(message) {
+      console.log('📥 Received from server:', message);
+      
+      switch (message.type) {
+        case 'player_join':
+          this.handlePlayerJoin(message);
+          break;
+        case 'player_leave':
+          this.handlePlayerLeave(message);
+          break;
+        case 'position_update':
+          this.handlePositionUpdate(message);
+          break;
+        case 'game_state':
+          this.handleGameState(message);
+          break;
+        default:
+          console.warn('Unknown message type:', message.type);
+      }
+    }
+    
+    handlePlayerJoin(message) {
+      if (message.playerId !== gameState.localPlayerId) {
+        gameState.addPlayer(message.playerId, message.position, message.color);
+        console.log(`👋 Player ${message.playerId} joined at [${message.position.join(', ')}]`);
+      }
+    }
+    
+    handlePlayerLeave(message) {
+      if (message.playerId !== gameState.localPlayerId) {
+        gameState.removePlayer(message.playerId);
+        console.log(`👋 Player ${message.playerId} left`);
+      }
+    }
+    
+    handlePositionUpdate(message) {
+      if (message.playerId !== gameState.localPlayerId) {
+        gameState.updatePlayer(message.playerId, message.position);
+      }
+    }
+    
+    handleGameState(message) {
+      // Handle full game state updates
+      console.log('🎮 Received game state update:', message);
+    }
+    
+    disconnect() {
+      if (this.ws) {
+        this.ws.close();
+      }
+      this.isConnected = false;
+    }
+  }
+  
+  // Initialize network manager
+  const networkManager = new NetworkManager();
+
   // Player Management
   class Player {
     constructor(id, position = [0, 0, 0], color = [1.0, 0.5, 0.2]) {
@@ -798,7 +981,7 @@ if (!gl) {
     const forward = [Math.sin(gameState.camera.angle), 0, Math.cos(gameState.camera.angle)];
     const right = [Math.cos(gameState.camera.angle), 0, -Math.sin(gameState.camera.angle)];
 
-    // Store current position for boundary checking
+    // Store current position for boundary checking and network updates
     const oldPosition = [...localPlayer.position];
 
     // Combine keyboard and joystick input for movement
@@ -826,6 +1009,16 @@ if (!gl) {
     }
     if (Math.abs(localPlayer.position[2]) > GAME_CONFIG.worldBoundary) {
       localPlayer.position[2] = oldPosition[2]; // Revert Z movement
+    }
+
+    // Check if position changed and send network update
+    const positionChanged = (
+      Math.abs(localPlayer.position[0] - oldPosition[0]) > 0.01 ||
+      Math.abs(localPlayer.position[2] - oldPosition[2]) > 0.01
+    );
+    
+    if (positionChanged && networkManager.isConnected) {
+      networkManager.sendPositionUpdate(localPlayer.position);
     }
 
     // Combine keyboard and joystick input for camera control
@@ -905,6 +1098,25 @@ if (!gl) {
   console.log(`Spawning player ${gameState.localPlayerId} at position [${randomSpawnPosition.map(x => x.toFixed(2)).join(', ')}] with color [${randomColor.map(x => x.toFixed(2)).join(', ')}]`);
   
   gameState.addPlayer(gameState.localPlayerId, randomSpawnPosition, randomColor);
+  
+  // Connect to server (or simulate connection)
+  networkManager.connect();
+  
+  // Handle page unload - notify server when player leaves
+  window.addEventListener('beforeunload', () => {
+    if (networkManager.isConnected) {
+      const localPlayer = gameState.getLocalPlayer();
+      if (localPlayer) {
+        const message = {
+          type: 'player_leave',
+          playerId: localPlayer.id,
+          timestamp: Date.now()
+        };
+        networkManager.sendMessage(message);
+      }
+      networkManager.disconnect();
+    }
+  });
 
   // Render loop
   function render(time) {
