@@ -367,6 +367,18 @@
           height: 75px;
         }
         
+        /* Scale down minimap content for mobile */
+        #mini-map .mini-map-boundary {
+          top: 5px;
+          left: 5px;
+          width: 65px;
+          height: 65px;
+        }
+        
+        #mini-map .mini-map-grid {
+          background-size: 7.5px 7.5px;
+        }
+        
         #sound-toggle {
           top: 155px;
           left: 10px;
@@ -1284,12 +1296,14 @@
         // Update mini-map
         function updateMiniMap() {
           // Convert world coordinates to mini-map coordinates
-          // World boundary is ±100, map boundary is 130px with 10px margin
-          const mapSize = 130;
-          const mapCenter = mapSize / 2 + 10; // 75px from top-left (65 + 10 margin)
+          // Check if we're on mobile (width < 1024px)
+          const isMobile = window.innerWidth < 1024;
+          const mapSize = isMobile ? 65 : 130; // Mobile uses smaller boundary
+          const mapMargin = isMobile ? 5 : 10;  // Mobile uses smaller margin
+          const mapCenter = mapSize / 2 + mapMargin;
           
-          const mapX = mapCenter + (spherePosition[0] / worldBoundary) * (mapSize / 2); // Normal X
-          const mapZ = mapCenter + (spherePosition[2] / worldBoundary) * (mapSize / 2); // Reverse Z
+          const mapX = mapCenter + (spherePosition[0] / worldBoundary) * (mapSize / 2);
+          const mapZ = mapCenter + (spherePosition[2] / worldBoundary) * (mapSize / 2);
           
           miniMapPlayer.style.left = `${mapX}px`;
           miniMapPlayer.style.top = `${mapZ}px`;
