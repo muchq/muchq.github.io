@@ -22,7 +22,10 @@ let backgroundMusic = {
   sixteenthPatternActive: false,
   sixteenthPatternIndex: 0,
   sixteenthNoteIndex: 0,
-  measureCount: 0
+  measureCount: 0,
+  melodyActive: false,
+  melodyPhraseLength: 0,
+  melodyRestLength: 0
 };
 
 // Twinkly arpeggio patterns in higher octaves for sparkling effect
@@ -87,22 +90,28 @@ function midiToFreq(midi) {
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
 
+// Cache reverb impulse buffer to avoid recalculation
+let cachedReverbBuffer = null;
+
 function createReverbNode() {
   const convolver = audioContext.createConvolver();
   
-  // Create impulse response for reverb
-  const length = audioContext.sampleRate * 2; // 2 seconds
-  const impulse = audioContext.createBuffer(2, length, audioContext.sampleRate);
-  
-  for (let channel = 0; channel < 2; channel++) {
-    const channelData = impulse.getChannelData(channel);
-    for (let i = 0; i < length; i++) {
-      const n = length - i;
-      channelData[i] = (Math.random() * 2 - 1) * Math.pow(n / length, 2);
+  // Use cached buffer if available
+  if (!cachedReverbBuffer) {
+    // Create impulse response for reverb (smaller for better performance)
+    const length = audioContext.sampleRate * 1; // Reduced to 1 second
+    cachedReverbBuffer = audioContext.createBuffer(2, length, audioContext.sampleRate);
+    
+    for (let channel = 0; channel < 2; channel++) {
+      const channelData = cachedReverbBuffer.getChannelData(channel);
+      for (let i = 0; i < length; i++) {
+        const n = length - i;
+        channelData[i] = (Math.random() * 2 - 1) * Math.pow(n / length, 2);
+      }
     }
   }
   
-  convolver.buffer = impulse;
+  convolver.buffer = cachedReverbBuffer;
   return convolver;
 }
 
@@ -251,7 +260,7 @@ function scheduleNextMusicNotes() {
   
   const currentTime = audioContext.currentTime;
   const secondsPerBeat = 60.0 / backgroundMusic.tempo;
-  const noteLength = secondsPerBeat * 0.5; // Eighth notes (slower)
+  const noteLength = secondsPerBeat * 1.0; // Quarter notes (half the previous speed)
   const chordLength = secondsPerBeat * 4; // Whole notes for chords (much longer)
   const counterpointLength = secondsPerBeat * 2; // Half notes for counterpoint
   
@@ -260,54 +269,82 @@ function scheduleNextMusicNotes() {
     backgroundMusic.nextCounterpointTime = currentTime + (secondsPerBeat * 0.25); // Offset by quarter beat
   }
   
-  // Schedule ahead by 100ms
-  while (backgroundMusic.nextNoteTime < currentTime + 0.1) {
+  // Schedule ahead by 200ms for fewer iterations
+  while (backgroundMusic.nextNoteTime < currentTime + 0.2) {
     let actualNoteLength = noteLength;
-    let melodyMidi;
+    let shouldPlayMelody = false;
     
-    // Check if we should start a 16th pattern (roughly every 4-8 measures)
-    if (!backgroundMusic.sixteenthPatternActive && backgroundMusic.noteIndex % 8 === 0) {
-      // 25% chance to start a 16th pattern at the beginning of a measure
-      if (Math.random() < 0.25) {
-        backgroundMusic.sixteenthPatternActive = true;
-        backgroundMusic.sixteenthPatternIndex = Math.floor(Math.random() * sixteenthPatterns.length);
-        backgroundMusic.sixteenthNoteIndex = 0;
+    // Manage melody sparsity (20% presence)
+    if (!backgroundMusic.melodyActive && backgroundMusic.melodyRestLength <= 0) {
+      // Check if we should start a new melody phrase
+      if (Math.random() < 0.2) { // 20% chance each beat
+        backgroundMusic.melodyActive = true;
+        backgroundMusic.melodyPhraseLength = 4 + Math.floor(Math.random() * 8); // 4-12 notes phrase
+      } else {
+        backgroundMusic.melodyRestLength = 2 + Math.floor(Math.random() * 6); // 2-8 beats rest
       }
     }
     
-    if (backgroundMusic.sixteenthPatternActive) {
-      // Use 16th note pattern (4x faster)
-      actualNoteLength = noteLength * 0.25; // Quarter the length for 16th notes
-      const currentPattern = sixteenthPatterns[backgroundMusic.sixteenthPatternIndex];
-      melodyMidi = currentPattern[backgroundMusic.sixteenthNoteIndex];
+    if (backgroundMusic.melodyActive) {
+      shouldPlayMelody = true;
+      backgroundMusic.melodyPhraseLength--;
       
-      // Advance 16th pattern
-      backgroundMusic.sixteenthNoteIndex++;
-      if (backgroundMusic.sixteenthNoteIndex >= currentPattern.length) {
-        // Pattern complete, return to normal melody
-        backgroundMusic.sixteenthPatternActive = false;
-        backgroundMusic.sixteenthNoteIndex = 0;
+      if (backgroundMusic.melodyPhraseLength <= 0) {
+        // End melody phrase, start rest period
+        backgroundMusic.melodyActive = false;
+        backgroundMusic.melodyRestLength = 8 + Math.floor(Math.random() * 16); // 8-24 beats rest
       }
     } else {
-      // Use normal melody pattern
-      melodyMidi = melodyPattern[backgroundMusic.noteIndex];
+      // In rest period
+      backgroundMusic.melodyRestLength--;
     }
     
-    // Add slight rhythmic variation (less for 16th notes)
-    const variationAmount = backgroundMusic.sixteenthPatternActive ? 0.05 : 0.1; // Less variation for 16ths
-    const rhythmVariation = (Math.random() - 0.5) * 2 * variationAmount * actualNoteLength;
-    const actualNoteTime = backgroundMusic.nextNoteTime + rhythmVariation;
+    // Only play melody if it's active
+    if (shouldPlayMelody) {
+      let melodyMidi;
+      
+      // Check if we should start a 16th pattern (only when melody is active)
+      if (!backgroundMusic.sixteenthPatternActive && backgroundMusic.noteIndex % 8 === 0) {
+        // 15% chance to start a 16th pattern (reduced from 25% due to sparsity)
+        if (Math.random() < 0.15) {
+          backgroundMusic.sixteenthPatternActive = true;
+          backgroundMusic.sixteenthPatternIndex = Math.floor(Math.random() * sixteenthPatterns.length);
+          backgroundMusic.sixteenthNoteIndex = 0;
+        }
+      }
+      
+      if (backgroundMusic.sixteenthPatternActive) {
+        // Use 16th note pattern (2x faster relative to new quarter note base)
+        actualNoteLength = noteLength * 0.5; // Half the length for 16th notes
+        const currentPattern = sixteenthPatterns[backgroundMusic.sixteenthPatternIndex];
+        melodyMidi = currentPattern[backgroundMusic.sixteenthNoteIndex];
+        
+        // Advance 16th pattern
+        backgroundMusic.sixteenthNoteIndex++;
+        if (backgroundMusic.sixteenthNoteIndex >= currentPattern.length) {
+          // Pattern complete, return to normal melody
+          backgroundMusic.sixteenthPatternActive = false;
+          backgroundMusic.sixteenthNoteIndex = 0;
+        }
+      } else {
+        // Use normal melody pattern
+        melodyMidi = melodyPattern[backgroundMusic.noteIndex];
+      }
+      
+      // Simplified rhythmic variation for better performance
+      const rhythmVariation = (Math.random() - 0.5) * 0.1 * actualNoteLength;
+      const actualNoteTime = backgroundMusic.nextNoteTime + rhythmVariation;
+      
+      // Simplified duration calculation
+      const actualDuration = actualNoteLength * (backgroundMusic.sixteenthPatternActive ? 1.5 : 2);
+      
+      // Play melody note with rhythmic variation
+      const melodyFreq = midiToFreq(melodyMidi);
+      createChiptuneMelodyNote(melodyFreq, Math.max(actualNoteTime, currentTime), actualDuration);
+    }
     
-    // Also slightly vary the note duration for more organic feel
-    const durationVariation = 1 + (Math.random() - 0.5) * 0.2; // ±10% duration variation
-    const actualDuration = (actualNoteLength * (backgroundMusic.sixteenthPatternActive ? 1.5 : 2)) * durationVariation;
-    
-    // Play melody note with rhythmic variation
-    const melodyFreq = midiToFreq(melodyMidi);
-    createChiptuneMelodyNote(melodyFreq, Math.max(actualNoteTime, currentTime), actualDuration);
-    
-    // Play chord every 8 notes (4 beats) - keep chords on steady rhythm (only for normal pattern)
-    if (!backgroundMusic.sixteenthPatternActive && backgroundMusic.noteIndex % 8 === 0) {
+    // Play chord every 4 notes (4 beats) - keep chords on steady rhythm regardless of melody
+    if (backgroundMusic.noteIndex % 4 === 0) {
       const chord = chordProgression[backgroundMusic.chordIndex];
       const chordFreqs = chord.map(midi => midiToFreq(midi - 12)); // Lower octave
       createChiptuneChord(chordFreqs, backgroundMusic.nextNoteTime, chordLength);
@@ -316,14 +353,14 @@ function scheduleNextMusicNotes() {
     }
     
     // Advance to next note (maintain steady underlying rhythm)
-    backgroundMusic.nextNoteTime += actualNoteLength;
+    backgroundMusic.nextNoteTime += noteLength; // Always use base note length for timing grid
     if (!backgroundMusic.sixteenthPatternActive) {
       backgroundMusic.noteIndex = (backgroundMusic.noteIndex + 1) % melodyPattern.length;
     }
   }
   
   // Schedule counterpoint chords (offset timing for more texture)
-  while (backgroundMusic.nextCounterpointTime < currentTime + 0.1) {
+  while (backgroundMusic.nextCounterpointTime < currentTime + 0.2) {
     const counterpointChord = counterpointProgression[backgroundMusic.counterpointIndex];
     const counterpointFreqs = counterpointChord.map(midi => midiToFreq(midi - 24)); // Two octaves lower for subtle bass
     createCounterpointChord(counterpointFreqs, backgroundMusic.nextCounterpointTime, counterpointLength);
@@ -333,9 +370,9 @@ function scheduleNextMusicNotes() {
     backgroundMusic.counterpointIndex = (backgroundMusic.counterpointIndex + 1) % counterpointProgression.length;
   }
   
-  // Schedule next batch
+  // Schedule next batch - optimize timing to reduce CPU load
   if (backgroundMusic.isPlaying) {
-    setTimeout(scheduleNextMusicNotes, 50); // Slower scheduling
+    setTimeout(scheduleNextMusicNotes, 100); // Less frequent scheduling for better performance
   }
 }
 
@@ -361,6 +398,9 @@ function startBackgroundMusic() {
   backgroundMusic.sixteenthPatternIndex = 0;
   backgroundMusic.sixteenthNoteIndex = 0;
   backgroundMusic.measureCount = 0;
+  backgroundMusic.melodyActive = false;
+  backgroundMusic.melodyPhraseLength = 0;
+  backgroundMusic.melodyRestLength = Math.floor(Math.random() * 8) + 4; // Start with random rest
   
   scheduleNextMusicNotes();
   console.log('🎵 Started twinkly background music with reverb');
