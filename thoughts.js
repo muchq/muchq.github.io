@@ -188,12 +188,15 @@ if (!gl) {
     in vec2 v_uv;
 
     uniform vec2 u_resolution;
-    uniform vec3 u_sphereCenter;
     uniform vec3 u_cameraPos;
     uniform vec3 u_cameraTarget;
-    uniform vec3 u_sphereColor;
     uniform float u_time;
     uniform float u_worldBoundary;
+    
+    // Multiple sphere support (up to 10 players)
+    uniform int u_numSpheres;
+    uniform vec3 u_sphereCenters[10];
+    uniform vec3 u_sphereColors[10];
 
     // Light sources
     const vec3 light1 = vec3(1.0, 1.0, 1.0);   // Main light (top right)
@@ -282,36 +285,39 @@ if (!gl) {
     // Scene intersection - returns closest hit
     struct Hit {
       float t;
-      int objectId; // 0 = miss, 1 = sphere, 2 = floor
+      int objectId; // 0 = miss, 1-10 = sphere index, 11 = floor
       vec3 point;
       vec3 normal;
+      vec3 color;
     };
 
     Hit traceRay(vec3 rayOrigin, vec3 rayDir) {
       Hit hit;
       hit.t = -1.0;
       hit.objectId = 0;
+      float closestT = 1e30;
 
-      // Test sphere
-      float sphereT = intersectSphere(rayOrigin, rayDir, u_sphereCenter, 1.0);
+      // Test all spheres
+      for (int i = 0; i < u_numSpheres && i < 10; i++) {
+        float sphereT = intersectSphere(rayOrigin, rayDir, u_sphereCenters[i], 1.0);
+        if (sphereT > 0.0 && sphereT < closestT) {
+          closestT = sphereT;
+          hit.t = sphereT;
+          hit.objectId = i + 1; // sphere indices start at 1
+          hit.point = rayOrigin + sphereT * rayDir;
+          hit.normal = normalize(hit.point - u_sphereCenters[i]);
+          hit.color = u_sphereColors[i];
+        }
+      }
 
       // Test floor
       vec3 floorPoint = vec3(0.0, -2.0, 0.0);
       vec3 floorNormal = vec3(0.0, 1.0, 0.0);
       float floorT = intersectPlane(rayOrigin, rayDir, floorPoint, floorNormal);
 
-      // Find closest hit
-      bool hitSphere = sphereT > 0.0;
-      bool hitFloor = floorT > 0.0;
-
-      if (hitSphere && (!hitFloor || sphereT < floorT)) {
-        hit.t = sphereT;
-        hit.objectId = 1;
-        hit.point = rayOrigin + sphereT * rayDir;
-        hit.normal = normalize(hit.point - u_sphereCenter);
-      } else if (hitFloor) {
+      if (floorT > 0.0 && floorT < closestT) {
         hit.t = floorT;
-        hit.objectId = 2;
+        hit.objectId = 11; // floor
         hit.point = rayOrigin + floorT * rayDir;
         hit.normal = floorNormal;
       }
@@ -426,9 +432,9 @@ if (!gl) {
         vec3 viewDir = normalize(rayOrigin - hit.point);
         vec3 lighting = vec3(0.0);
 
-        if (hit.objectId == 1) {
-          // Hit sphere
-          vec3 sphereColor = u_sphereColor; // Use dynamic player color
+        if (hit.objectId >= 1 && hit.objectId <= 10) {
+          // Hit sphere - use color from hit struct
+          vec3 sphereColor = hit.color;
 
           // Add lighting from both light sources
           lighting += calculateLighting(hit.point, hit.normal, light1, viewDir, sphereColor) * 0.4;
@@ -444,7 +450,7 @@ if (!gl) {
           rayOrigin = hit.point + hit.normal * 0.001; // Offset to avoid self-intersection
           reflectivity *= 0.3; // Reduce reflection strength
 
-        } else if (hit.objectId == 2) {
+        } else if (hit.objectId == 11) {
           // Hit floor
           vec2 floorCoord = hit.point.xz;
           vec2 checker = floor(floorCoord * 2.0);
@@ -657,12 +663,15 @@ if (!gl) {
 
   // Get uniform locations for ray tracing
   const resolutionLocation = gl.getUniformLocation(program, 'u_resolution');
-  const sphereCenterLocation = gl.getUniformLocation(program, 'u_sphereCenter');
   const cameraPosLocation = gl.getUniformLocation(program, 'u_cameraPos');
   const cameraTargetLocation = gl.getUniformLocation(program, 'u_cameraTarget');
-  const sphereColorLocation = gl.getUniformLocation(program, 'u_sphereColor');
   const timeLocation = gl.getUniformLocation(program, 'u_time');
   const worldBoundaryLocation = gl.getUniformLocation(program, 'u_worldBoundary');
+  
+  // Multiple spheres support
+  const numSpheresLocation = gl.getUniformLocation(program, 'u_numSpheres');
+  const sphereCentersLocation = gl.getUniformLocation(program, 'u_sphereCenters');
+  const sphereColorsLocation = gl.getUniformLocation(program, 'u_sphereColors');
 
   // Game Configuration
   const GAME_CONFIG = {
@@ -773,6 +782,11 @@ if (!gl) {
     onConnected() {
       // Send initial player spawn data
       this.sendPlayerJoin();
+      
+      // Start fake server if in simulation mode
+      if (this.isSimulated) {
+        fakeServer.start();
+      }
     }
     
     onDisconnected() {
@@ -900,6 +914,165 @@ if (!gl) {
   
   // Initialize network manager
   const networkManager = new NetworkManager();
+
+  // Fake Server Simulation (for testing multiplayer without real server)
+  class FakeServer {
+    constructor() {
+      this.players = new Map();
+      this.isRunning = false;
+      this.updateInterval = null;
+      this.botPlayers = [];
+      this.stateUpdateFrequency = 300; // Send state updates every 300ms for smoother movement
+    }
+    
+    start() {
+      if (this.isRunning) return;
+      this.isRunning = true;
+      
+      // Create some bot players for testing
+      this.createBotPlayers(2); // Create 2 bot players
+      
+      // Start sending periodic state updates
+      this.updateInterval = setInterval(() => {
+        this.sendStateUpdate();
+      }, this.stateUpdateFrequency);
+      
+      console.log('🤖 Fake server started with bot players');
+    }
+    
+    stop() {
+      if (!this.isRunning) return;
+      this.isRunning = false;
+      
+      if (this.updateInterval) {
+        clearInterval(this.updateInterval);
+        this.updateInterval = null;
+      }
+      
+      console.log('🤖 Fake server stopped');
+    }
+    
+    createBotPlayers(count) {
+      for (let i = 0; i < count; i++) {
+        const botId = `bot-${i + 1}`;
+        const botPlayer = {
+          id: botId,
+          position: generateRandomSpawnPosition(),
+          color: generateRandomColor(),
+          velocity: [0, 0, 0], // Start stationary
+          direction: Math.random() * Math.PI * 2, // Random direction
+          speed: 0.02 + Math.random() * 0.03, // Adjusted for 300ms updates: 0.02-0.05 units per update
+          directionChangeTimer: 0
+        };
+        
+        this.players.set(botId, botPlayer);
+        this.botPlayers.push(botPlayer);
+        
+        // Simulate bot joining
+        setTimeout(() => {
+          this.simulatePlayerJoin(botPlayer);
+        }, 1000 + i * 500); // Stagger bot joins
+      }
+    }
+    
+    updateBotPositions() {
+      this.botPlayers.forEach(bot => {
+        // Increment direction change timer
+        bot.directionChangeTimer++;
+        
+        // Change direction less frequently and more smoothly
+        if (bot.directionChangeTimer > 10 + Math.random() * 17) { // Change direction every 3-8 seconds (adjusted for 300ms updates)
+          bot.direction += (Math.random() - 0.5) * 0.3; // Smaller direction changes
+          bot.directionChangeTimer = 0;
+        }
+        
+        // Sometimes pause movement for more natural behavior
+        const shouldMove = Math.random() > 0.1; // 90% chance to move each update
+        
+        if (shouldMove) {
+          // Update velocity based on direction (much slower)
+          bot.velocity[0] = Math.cos(bot.direction) * bot.speed;
+          bot.velocity[2] = Math.sin(bot.direction) * bot.speed;
+          
+          // Update position
+          bot.position[0] += bot.velocity[0];
+          bot.position[2] += bot.velocity[2];
+        }
+        
+        // Smoother boundary handling - turn around gradually when approaching edges
+        const boundaryBuffer = 10;
+        if (Math.abs(bot.position[0]) > GAME_CONFIG.worldBoundary - boundaryBuffer) {
+          // Turn away from boundary gradually
+          const turnDirection = bot.position[0] > 0 ? Math.PI : 0;
+          bot.direction = bot.direction * 0.8 + turnDirection * 0.2;
+          bot.directionChangeTimer = 0;
+        }
+        if (Math.abs(bot.position[2]) > GAME_CONFIG.worldBoundary - boundaryBuffer) {
+          // Turn away from boundary gradually  
+          const turnDirection = bot.position[2] > 0 ? -Math.PI/2 : Math.PI/2;
+          bot.direction = bot.direction * 0.8 + turnDirection * 0.2;
+          bot.directionChangeTimer = 0;
+        }
+      });
+    }
+    
+    sendStateUpdate() {
+      if (!this.isRunning) return;
+      
+      // Update bot positions
+      this.updateBotPositions();
+      
+      // Send position updates for each bot
+      this.botPlayers.forEach(bot => {
+        const message = {
+          type: 'position_update',
+          playerId: bot.id,
+          position: [...bot.position],
+          timestamp: Date.now()
+        };
+        
+        // Simulate receiving the message
+        setTimeout(() => {
+          networkManager.handleMessage(message);
+        }, 10 + Math.random() * 20); // Simulate 10-30ms network latency
+      });
+    }
+    
+    simulatePlayerJoin(player) {
+      const message = {
+        type: 'player_join',
+        playerId: player.id,
+        position: [...player.position],
+        color: [...player.color],
+        timestamp: Date.now()
+      };
+      
+      // Simulate receiving the join message
+      setTimeout(() => {
+        networkManager.handleMessage(message);
+      }, 50 + Math.random() * 100); // Simulate 50-150ms network latency
+    }
+    
+    simulatePlayerLeave(playerId) {
+      const message = {
+        type: 'player_leave',
+        playerId: playerId,
+        timestamp: Date.now()
+      };
+      
+      // Simulate receiving the leave message
+      setTimeout(() => {
+        networkManager.handleMessage(message);
+      }, 50 + Math.random() * 100);
+      
+      // Remove from fake server
+      this.players.delete(playerId);
+      this.botPlayers = this.botPlayers.filter(bot => bot.id !== playerId);
+    }
+  }
+  
+  // Initialize fake server
+  const fakeServer = new FakeServer();
 
   // Player Management
   class Player {
@@ -1066,6 +1239,10 @@ if (!gl) {
   // Mini-map elements
   const miniMapPlayer = document.getElementById('mini-map-player');
   const miniMapDirection = document.getElementById('mini-map-direction');
+  const miniMapContent = document.getElementById('mini-map-content');
+  
+  // Track other player elements on minimap
+  const otherPlayerElements = new Map();
 
   // Update mini-map
   function updateMiniMap() {
@@ -1079,15 +1256,58 @@ if (!gl) {
     const mapMargin = isMobile ? 5 : 10;  // Mobile uses smaller margin
     const mapCenter = mapSize / 2 + mapMargin;
 
-    const mapX = mapCenter + (localPlayer.position[0] / GAME_CONFIG.worldBoundary) * (mapSize / 2);
-    const mapZ = mapCenter + (localPlayer.position[2] / GAME_CONFIG.worldBoundary) * (mapSize / 2);
+    // Helper function to convert world position to minimap position
+    function worldToMiniMap(worldPos) {
+      const mapX = mapCenter + (worldPos[0] / GAME_CONFIG.worldBoundary) * (mapSize / 2);
+      const mapZ = mapCenter + (worldPos[2] / GAME_CONFIG.worldBoundary) * (mapSize / 2);
+      return [mapX, mapZ];
+    }
 
-    miniMapPlayer.style.left = `${mapX}px`;
-    miniMapPlayer.style.top = `${mapZ}px`;
+    // Update local player position
+    const [localMapX, localMapZ] = worldToMiniMap(localPlayer.position);
+    miniMapPlayer.style.left = `${localMapX}px`;
+    miniMapPlayer.style.top = `${localMapZ}px`;
 
     // Update direction indicator (camera angle in degrees)
     const directionDegrees = (-gameState.camera.angle * 180 / Math.PI) + 90; // Reverse and add 90° to align with mini-map orientation
     miniMapDirection.style.transform = `translate(-50%, -100%) rotate(${directionDegrees}deg)`;
+    
+    // Update other players
+    const allPlayers = Array.from(gameState.players.values());
+    const currentOtherPlayerIds = new Set();
+    
+    allPlayers.forEach(player => {
+      if (player.id === gameState.localPlayerId) return; // Skip local player
+      
+      currentOtherPlayerIds.add(player.id);
+      
+      // Get or create element for this player
+      let playerElement = otherPlayerElements.get(player.id);
+      if (!playerElement) {
+        playerElement = document.createElement('div');
+        playerElement.className = 'mini-map-other-player';
+        miniMapContent.appendChild(playerElement);
+        otherPlayerElements.set(player.id, playerElement);
+      }
+      
+      // Update position and color
+      const [otherMapX, otherMapZ] = worldToMiniMap(player.position);
+      playerElement.style.left = `${otherMapX}px`;
+      playerElement.style.top = `${otherMapZ}px`;
+      
+      // Set player color
+      const [r, g, b] = player.color;
+      playerElement.style.backgroundColor = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
+      playerElement.style.boxShadow = `0 0 6px rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, 0.8)`;
+    });
+    
+    // Remove elements for players who are no longer present
+    otherPlayerElements.forEach((element, playerId) => {
+      if (!currentOtherPlayerIds.has(playerId)) {
+        element.remove();
+        otherPlayerElements.delete(playerId);
+      }
+    });
   }
 
   // Initialize the local player with random spawn
@@ -1165,15 +1385,39 @@ if (!gl) {
       localPlayer.lastBounceTime = time;
     }
 
+    // Prepare sphere data for all players
+    const allPlayers = Array.from(gameState.players.values());
+    const sphereCenters = [];
+    const sphereColors = [];
+    
+    // Add all players' sphere data
+    for (let i = 0; i < Math.min(allPlayers.length, 10); i++) {
+      const player = allPlayers[i];
+      const playerBobbingY = player.getBouncingY(time);
+      
+      // Add sphere center using direct position
+      sphereCenters.push(player.position[0], playerBobbingY, player.position[2]);
+      
+      // Add sphere color
+      sphereColors.push(player.color[0], player.color[1], player.color[2]);
+    }
+    
+    // Pad arrays to size 10 if needed
+    while (sphereCenters.length < 30) sphereCenters.push(0.0); // 10 spheres * 3 components
+    while (sphereColors.length < 30) sphereColors.push(0.0); // 10 spheres * 3 components
+
     // Set uniforms for ray tracing
     const sphereZenith = (GAME_CONFIG.groundLevel + GAME_CONFIG.sphereRadius) + (GAME_CONFIG.bounceHeight / 2); // Midpoint of bounce
     gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
-    gl.uniform3f(sphereCenterLocation, localPlayer.position[0], bobbingY, localPlayer.position[2]);
     gl.uniform3f(cameraPosLocation, cameraPosition[0], cameraPosition[1], cameraPosition[2]);
     gl.uniform3f(cameraTargetLocation, localPlayer.position[0], sphereZenith, localPlayer.position[2]);
-    gl.uniform3f(sphereColorLocation, localPlayer.color[0], localPlayer.color[1], localPlayer.color[2]);
     gl.uniform1f(timeLocation, time * 0.001);
     gl.uniform1f(worldBoundaryLocation, GAME_CONFIG.worldBoundary);
+    
+    // Set multiple sphere data
+    gl.uniform1i(numSpheresLocation, Math.min(allPlayers.length, 10));
+    gl.uniform3fv(sphereCentersLocation, sphereCenters);
+    gl.uniform3fv(sphereColorsLocation, sphereColors);
 
     // Create fullscreen quad
     const quadVertices = new Float32Array([
