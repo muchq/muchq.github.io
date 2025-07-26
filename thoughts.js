@@ -3,55 +3,37 @@ document.querySelector('.mobile-menu-toggle').addEventListener('click', function
 });
 
 // Audio setup for bounce sound and background music (global scope)
-const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+let audioContext = null;
 let lastBounceTime = 0;
 let soundEnabled = false; // Default sound off
 
-// Background music system
+// Initialize audio context only when needed (mobile compatibility)
+function initAudioContext() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioContext;
+}
+
+// Simplified background music system
 let backgroundMusic = {
   isPlaying: false,
-  currentOscillators: [],
   gainNode: null,
-  reverbNode: null,
   nextNoteTime: 0,
-  nextCounterpointTime: 0,
-  tempo: 70, // Much slower BPM for relaxed feel
+  tempo: 60, // Slower, more relaxed
   noteIndex: 0,
-  chordIndex: 0,
-  counterpointIndex: 0,
-  sixteenthPatternActive: false,
-  sixteenthPatternIndex: 0,
-  sixteenthNoteIndex: 0,
-  measureCount: 0,
-  melodyActive: false,
-  melodyPhraseLength: 0,
-  melodyRestLength: 0
+  chordIndex: 0
 };
 
-// Twinkly arpeggio patterns in higher octaves for sparkling effect
+// Simple melody pattern - just peaceful arpeggios
 const melodyPattern = [
-  72, 76, 79, 84, 79, 76, 72, 74, // C E G C' G E C D (octave higher)
-  76, 79, 83, 88, 83, 79, 76, 77, // E G B E' B G E F
-  79, 83, 86, 91, 86, 83, 79, 81, // G B D G' D B G A
-  84, 79, 76, 72, 76, 79, 84, 88  // C' G E C E G C' E' (descending then ascending)
+  60, 64, 67, 72, // C E G C' (simple arpeggio)
+  67, 71, 74, 79, // G B D G'
+  57, 60, 64, 69, // A C E A'
+  65, 69, 72, 77  // F A C F'
 ];
 
-// 16th note variation patterns - faster ornamental runs
-const sixteenthPatterns = [
-  // Pattern 1: Ascending run
-  [72, 74, 76, 77, 79, 81, 83, 84], // C D E F G A B C'
-  
-  // Pattern 2: Descending sparkle
-  [88, 86, 84, 83, 81, 79, 77, 76], // E' D' C' B A G F E
-  
-  // Pattern 3: Broken chord arpeggio
-  [72, 79, 84, 88, 84, 79, 76, 72], // C G C' E' C' G E C
-  
-  // Pattern 4: Gentle wave pattern
-  [76, 79, 81, 84, 81, 79, 77, 74]  // E G A C' A G F D
-];
-
-// Chord progression (I-V-vi-IV in C major)
+// Simple chord progression (I-V-vi-IV in C major)
 const chordProgression = [
   [60, 64, 67], // C major
   [67, 71, 74], // G major  
@@ -59,351 +41,132 @@ const chordProgression = [
   [65, 69, 72]  // F major
 ];
 
-// Counterpoint chord patterns - gentle moving harmonies that complement the melody
-const counterpointProgression = [
-  // Measures 1-2: C major context
-  [64, 67, 71], // Em7 (E G B) - gentle minor color
-  [62, 65, 69], // Dm7 (D F A) - stepwise motion
-  [60, 64, 67], // C (C E G) - resolution
-  [59, 62, 65], // Bdim (B D F) - passing chord
-  
-  // Measures 3-4: G major context  
-  [67, 71, 74], // G (G B D) - tonic
-  [65, 69, 72], // F (F A C) - subdominant color
-  [64, 67, 71], // Em (E G B) - relative minor
-  [62, 66, 69], // D7 (D F# A) - dominant leading back
-  
-  // Measures 5-6: A minor context
-  [57, 60, 64], // Am (A C E) - tonic
-  [55, 59, 62], // G6 (G B D) - subtonic
-  [53, 57, 60], // F (F A C) - submediant  
-  [52, 55, 59], // E (E G# B) - dominant
-  
-  // Measures 7-8: F major context
-  [65, 69, 72], // F (F A C) - tonic
-  [64, 67, 71], // Em (E G B) - ii chord
-  [62, 65, 69], // Dm (D F A) - vi chord
-  [60, 64, 67]  // C (C E G) - V chord resolving to I
-];
-
 function midiToFreq(midi) {
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
 
-// Cache reverb impulse buffer to avoid recalculation
-let cachedReverbBuffer = null;
-
-function createReverbNode() {
-  const convolver = audioContext.createConvolver();
+// Simple reverb using delay instead of convolution (mobile-friendly)
+function createSimpleReverb() {
+  const delay = audioContext.createDelay(0.3);
+  const feedback = audioContext.createGain();
+  const wetGain = audioContext.createGain();
   
-  // Use cached buffer if available
-  if (!cachedReverbBuffer) {
-    // Create impulse response for reverb (smaller for better performance)
-    const length = audioContext.sampleRate * 1; // Reduced to 1 second
-    cachedReverbBuffer = audioContext.createBuffer(2, length, audioContext.sampleRate);
-    
-    for (let channel = 0; channel < 2; channel++) {
-      const channelData = cachedReverbBuffer.getChannelData(channel);
-      for (let i = 0; i < length; i++) {
-        const n = length - i;
-        channelData[i] = (Math.random() * 2 - 1) * Math.pow(n / length, 2);
-      }
-    }
-  }
+  delay.delayTime.setValueAtTime(0.15, audioContext.currentTime);
+  feedback.gain.setValueAtTime(0.3, audioContext.currentTime);
+  wetGain.gain.setValueAtTime(0.2, audioContext.currentTime);
   
-  convolver.buffer = cachedReverbBuffer;
-  return convolver;
+  delay.connect(feedback);
+  feedback.connect(delay);
+  delay.connect(wetGain);
+  
+  return { input: delay, output: wetGain };
 }
 
-function createChiptuneMelodyNote(frequency, startTime, duration) {
+function createSimpleNote(frequency, startTime, duration, volume = 0.03) {
   const oscillator = audioContext.createOscillator();
   const gainNode = audioContext.createGain();
-  const dryGain = audioContext.createGain();
-  const wetGain = audioContext.createGain();
-  const pannerDry = audioContext.createStereoPanner();
-  const pannerWet = audioContext.createStereoPanner();
   
-  // Triangle wave for softer, more twinkly sound
-  oscillator.type = 'triangle';
+  oscillator.type = 'sine';
   oscillator.frequency.setValueAtTime(frequency, startTime);
   
-  // Gentle attack and longer release for twinkly effect (20% more reduction = 48% quieter total)
   gainNode.gain.setValueAtTime(0, startTime);
-  gainNode.gain.linearRampToValueAtTime(0.048, startTime + 0.05); // Another 20% reduction (0.06 * 0.8)
-  gainNode.gain.setValueAtTime(0.048, startTime + duration * 0.3);
-  gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration); // Long sparkly decay
-  
-  // Set up dry/wet mix for reverb
-  dryGain.gain.setValueAtTime(0.3, startTime); // Some dry signal
-  wetGain.gain.setValueAtTime(0.7, startTime); // More wet signal for atmosphere
-  
-  // Pan melody to right channel
-  pannerDry.pan.setValueAtTime(1.0, startTime); // Full right
-  pannerWet.pan.setValueAtTime(1.0, startTime); // Full right
+  gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.1);
+  gainNode.gain.setValueAtTime(volume, startTime + duration * 0.7);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
   
   oscillator.connect(gainNode);
-  gainNode.connect(dryGain);
-  gainNode.connect(wetGain);
-  
-  dryGain.connect(pannerDry);
-  wetGain.connect(pannerWet);
-  
-  pannerDry.connect(backgroundMusic.gainNode);
-  pannerWet.connect(backgroundMusic.reverbNode);
+  gainNode.connect(backgroundMusic.gainNode);
   
   oscillator.start(startTime);
   oscillator.stop(startTime + duration);
   
-  return { oscillator, gainNode, dryGain, wetGain, pannerDry, pannerWet };
+  return { oscillator, gainNode };
 }
 
-function createChiptuneChord(frequencies, startTime, duration) {
+function createSimpleChord(frequencies, startTime, duration) {
   const chordOscillators = [];
   
   frequencies.forEach((freq, index) => {
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
-    const dryGain = audioContext.createGain();
-    const wetGain = audioContext.createGain();
-    const pannerDry = audioContext.createStereoPanner();
-    const pannerWet = audioContext.createStereoPanner();
     
-    // Softer waveforms for atmospheric harmony
     oscillator.type = 'sine';
     oscillator.frequency.setValueAtTime(freq, startTime);
     
-    // Increased chord volume for better presence
-    const volume = 0.09;
+    const volume = 0.02; // Quieter chords
     gainNode.gain.setValueAtTime(0, startTime);
-    gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.1);
-    gainNode.gain.setValueAtTime(volume, startTime + duration - 0.2);
+    gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.2);
+    gainNode.gain.setValueAtTime(volume, startTime + duration - 0.5);
     gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
     
-    // Reverb mix for chords (more wet than dry)
-    dryGain.gain.setValueAtTime(0.2, startTime);
-    wetGain.gain.setValueAtTime(0.8, startTime);
-    
-    // Pan chords to left channel
-    pannerDry.pan.setValueAtTime(-1.0, startTime); // Full left
-    pannerWet.pan.setValueAtTime(-1.0, startTime); // Full left
-    
     oscillator.connect(gainNode);
-    gainNode.connect(dryGain);
-    gainNode.connect(wetGain);
-    
-    dryGain.connect(pannerDry);
-    wetGain.connect(pannerWet);
-    
-    pannerDry.connect(backgroundMusic.gainNode);
-    pannerWet.connect(backgroundMusic.reverbNode);
+    gainNode.connect(backgroundMusic.gainNode);
     
     oscillator.start(startTime);
     oscillator.stop(startTime + duration);
     
-    chordOscillators.push({ oscillator, gainNode, dryGain, wetGain, pannerDry, pannerWet });
+    chordOscillators.push({ oscillator, gainNode });
   });
   
   return chordOscillators;
 }
 
-function createCounterpointChord(frequencies, startTime, duration) {
-  const chordOscillators = [];
-  
-  frequencies.forEach((freq, index) => {
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    const dryGain = audioContext.createGain();
-    const wetGain = audioContext.createGain();
-    const pannerDry = audioContext.createStereoPanner();
-    const pannerWet = audioContext.createStereoPanner();
-    
-    // Very soft sine waves for subtle counterpoint
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(freq, startTime);
-    
-    // Even quieter than main chords for subtle texture
-    const volume = 0.015;
-    gainNode.gain.setValueAtTime(0, startTime);
-    gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.2); // Very slow attack
-    gainNode.gain.setValueAtTime(volume, startTime + duration - 0.3);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration); // Long fade
-    
-    // Heavy reverb for counterpoint (more atmospheric)
-    dryGain.gain.setValueAtTime(0.1, startTime);
-    wetGain.gain.setValueAtTime(0.9, startTime);
-    
-    // Keep counterpoint slightly left of center for subtle texture
-    pannerDry.pan.setValueAtTime(-0.3, startTime); // Slightly left
-    pannerWet.pan.setValueAtTime(-0.3, startTime); // Slightly left
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(dryGain);
-    gainNode.connect(wetGain);
-    
-    dryGain.connect(pannerDry);
-    wetGain.connect(pannerWet);
-    
-    pannerDry.connect(backgroundMusic.gainNode);
-    pannerWet.connect(backgroundMusic.reverbNode);
-    
-    oscillator.start(startTime);
-    oscillator.stop(startTime + duration);
-    
-    chordOscillators.push({ oscillator, gainNode, dryGain, wetGain, pannerDry, pannerWet });
-  });
-  
-  return chordOscillators;
-}
 
 function scheduleNextMusicNotes() {
   if (!backgroundMusic.isPlaying) return;
   
   const currentTime = audioContext.currentTime;
   const secondsPerBeat = 60.0 / backgroundMusic.tempo;
-  const noteLength = secondsPerBeat * 1.0; // Quarter notes (half the previous speed)
-  const chordLength = secondsPerBeat * 4; // Whole notes for chords (much longer)
-  const counterpointLength = secondsPerBeat * 2; // Half notes for counterpoint
+  const noteLength = secondsPerBeat * 2; // Half notes
+  const chordLength = secondsPerBeat * 8; // Very long chords
   
-  // Initialize counterpoint timing if not set
-  if (backgroundMusic.nextCounterpointTime === 0) {
-    backgroundMusic.nextCounterpointTime = currentTime + (secondsPerBeat * 0.25); // Offset by quarter beat
-  }
-  
-  // Schedule ahead by 200ms for fewer iterations
+  // Schedule ahead by 200ms
   while (backgroundMusic.nextNoteTime < currentTime + 0.2) {
-    let actualNoteLength = noteLength;
-    let shouldPlayMelody = false;
-    
-    // Manage melody sparsity (20% presence)
-    if (!backgroundMusic.melodyActive && backgroundMusic.melodyRestLength <= 0) {
-      // Check if we should start a new melody phrase
-      if (Math.random() < 0.2) { // 20% chance each beat
-        backgroundMusic.melodyActive = true;
-        backgroundMusic.melodyPhraseLength = 4 + Math.floor(Math.random() * 8); // 4-12 notes phrase
-      } else {
-        backgroundMusic.melodyRestLength = 2 + Math.floor(Math.random() * 6); // 2-8 beats rest
-      }
-    }
-    
-    if (backgroundMusic.melodyActive) {
-      shouldPlayMelody = true;
-      backgroundMusic.melodyPhraseLength--;
-      
-      if (backgroundMusic.melodyPhraseLength <= 0) {
-        // End melody phrase, start rest period
-        backgroundMusic.melodyActive = false;
-        backgroundMusic.melodyRestLength = 8 + Math.floor(Math.random() * 16); // 8-24 beats rest
-      }
-    } else {
-      // In rest period
-      backgroundMusic.melodyRestLength--;
-    }
-    
-    // Only play melody if it's active
-    if (shouldPlayMelody) {
-      let melodyMidi;
-      
-      // Check if we should start a 16th pattern (only when melody is active)
-      if (!backgroundMusic.sixteenthPatternActive && backgroundMusic.noteIndex % 8 === 0) {
-        // 15% chance to start a 16th pattern (reduced from 25% due to sparsity)
-        if (Math.random() < 0.15) {
-          backgroundMusic.sixteenthPatternActive = true;
-          backgroundMusic.sixteenthPatternIndex = Math.floor(Math.random() * sixteenthPatterns.length);
-          backgroundMusic.sixteenthNoteIndex = 0;
-        }
-      }
-      
-      if (backgroundMusic.sixteenthPatternActive) {
-        // Use 16th note pattern (2x faster relative to new quarter note base)
-        actualNoteLength = noteLength * 0.5; // Half the length for 16th notes
-        const currentPattern = sixteenthPatterns[backgroundMusic.sixteenthPatternIndex];
-        melodyMidi = currentPattern[backgroundMusic.sixteenthNoteIndex];
-        
-        // Advance 16th pattern
-        backgroundMusic.sixteenthNoteIndex++;
-        if (backgroundMusic.sixteenthNoteIndex >= currentPattern.length) {
-          // Pattern complete, return to normal melody
-          backgroundMusic.sixteenthPatternActive = false;
-          backgroundMusic.sixteenthNoteIndex = 0;
-        }
-      } else {
-        // Use normal melody pattern
-        melodyMidi = melodyPattern[backgroundMusic.noteIndex];
-      }
-      
-      // Simplified rhythmic variation for better performance
-      const rhythmVariation = (Math.random() - 0.5) * 0.1 * actualNoteLength;
-      const actualNoteTime = backgroundMusic.nextNoteTime + rhythmVariation;
-      
-      // Simplified duration calculation
-      const actualDuration = actualNoteLength * (backgroundMusic.sixteenthPatternActive ? 1.5 : 2);
-      
-      // Play melody note with rhythmic variation
+    // Play melody note occasionally (30% chance)
+    if (Math.random() < 0.3) {
+      const melodyMidi = melodyPattern[backgroundMusic.noteIndex];
       const melodyFreq = midiToFreq(melodyMidi);
-      createChiptuneMelodyNote(melodyFreq, Math.max(actualNoteTime, currentTime), actualDuration);
+      createSimpleNote(melodyFreq, backgroundMusic.nextNoteTime, noteLength * 1.5);
     }
     
-    // Play chord every 4 notes (4 beats) - keep chords on steady rhythm regardless of melody
+    // Play chord every 8 beats
     if (backgroundMusic.noteIndex % 4 === 0) {
       const chord = chordProgression[backgroundMusic.chordIndex];
-      const chordFreqs = chord.map(midi => midiToFreq(midi - 12)); // Lower octave
-      createChiptuneChord(chordFreqs, backgroundMusic.nextNoteTime, chordLength);
+      const chordFreqs = chord.map(midi => midiToFreq(midi - 12));
+      createSimpleChord(chordFreqs, backgroundMusic.nextNoteTime, chordLength);
       
       backgroundMusic.chordIndex = (backgroundMusic.chordIndex + 1) % chordProgression.length;
     }
     
-    // Advance to next note (maintain steady underlying rhythm)
-    backgroundMusic.nextNoteTime += noteLength; // Always use base note length for timing grid
-    if (!backgroundMusic.sixteenthPatternActive) {
-      backgroundMusic.noteIndex = (backgroundMusic.noteIndex + 1) % melodyPattern.length;
-    }
+    // Advance to next note
+    backgroundMusic.nextNoteTime += noteLength;
+    backgroundMusic.noteIndex = (backgroundMusic.noteIndex + 1) % melodyPattern.length;
   }
   
-  // Schedule counterpoint chords (offset timing for more texture)
-  while (backgroundMusic.nextCounterpointTime < currentTime + 0.2) {
-    const counterpointChord = counterpointProgression[backgroundMusic.counterpointIndex];
-    const counterpointFreqs = counterpointChord.map(midi => midiToFreq(midi - 24)); // Two octaves lower for subtle bass
-    createCounterpointChord(counterpointFreqs, backgroundMusic.nextCounterpointTime, counterpointLength);
-    
-    // Advance counterpoint
-    backgroundMusic.nextCounterpointTime += counterpointLength;
-    backgroundMusic.counterpointIndex = (backgroundMusic.counterpointIndex + 1) % counterpointProgression.length;
-  }
-  
-  // Schedule next batch - optimize timing to reduce CPU load
+  // Schedule next batch
   if (backgroundMusic.isPlaying) {
-    setTimeout(scheduleNextMusicNotes, 100); // Less frequent scheduling for better performance
+    setTimeout(scheduleNextMusicNotes, 200);
   }
 }
 
 function startBackgroundMusic() {
   if (backgroundMusic.isPlaying || !soundEnabled) return;
   
+  // Initialize audio context if needed
+  initAudioContext();
+  
   // Create master gain node for background music
   backgroundMusic.gainNode = audioContext.createGain();
-  backgroundMusic.gainNode.gain.setValueAtTime(0.4, audioContext.currentTime); // Slightly louder for twinkly effect
+  backgroundMusic.gainNode.gain.setValueAtTime(0.1, audioContext.currentTime); // Much quieter
   backgroundMusic.gainNode.connect(audioContext.destination);
-  
-  // Create and connect reverb
-  backgroundMusic.reverbNode = createReverbNode();
-  backgroundMusic.reverbNode.connect(backgroundMusic.gainNode);
   
   backgroundMusic.isPlaying = true;
   backgroundMusic.nextNoteTime = audioContext.currentTime;
-  backgroundMusic.nextCounterpointTime = 0; // Will be initialized in scheduler
   backgroundMusic.noteIndex = 0;
   backgroundMusic.chordIndex = 0;
-  backgroundMusic.counterpointIndex = 0;
-  backgroundMusic.sixteenthPatternActive = false;
-  backgroundMusic.sixteenthPatternIndex = 0;
-  backgroundMusic.sixteenthNoteIndex = 0;
-  backgroundMusic.measureCount = 0;
-  backgroundMusic.melodyActive = false;
-  backgroundMusic.melodyPhraseLength = 0;
-  backgroundMusic.melodyRestLength = Math.floor(Math.random() * 8) + 4; // Start with random rest
   
   scheduleNextMusicNotes();
-  console.log('🎵 Started twinkly background music with reverb');
+  console.log('🎵 Started simple background music');
 }
 
 function stopBackgroundMusic() {
@@ -411,15 +174,10 @@ function stopBackgroundMusic() {
   
   backgroundMusic.isPlaying = false;
   
-  // Clean up gain node and reverb
+  // Clean up gain node
   if (backgroundMusic.gainNode) {
     backgroundMusic.gainNode.disconnect();
     backgroundMusic.gainNode = null;
-  }
-  
-  if (backgroundMusic.reverbNode) {
-    backgroundMusic.reverbNode.disconnect();
-    backgroundMusic.reverbNode = null;
   }
   
   console.log('🎵 Stopped background music');
@@ -433,58 +191,45 @@ soundToggle.addEventListener('click', function() {
   if (soundEnabled) {
     soundToggle.textContent = '🔊 Sound: ON';
     soundToggle.classList.add('enabled');
-    // Resume audio context if needed (browser security)
-    if (audioContext.state === 'suspended') {
-      audioContext.resume();
+    
+    // Initialize and resume audio context if needed (mobile compatibility)
+    const context = initAudioContext();
+    if (context.state === 'suspended') {
+      context.resume().then(() => {
+        startBackgroundMusic();
+      });
+    } else {
+      startBackgroundMusic();
     }
-    // Start background music
-    startBackgroundMusic();
   } else {
     soundToggle.textContent = '🔇 Sound: OFF';
     soundToggle.classList.remove('enabled');
-    // Stop background music
     stopBackgroundMusic();
   }
 });
 
 function playBoingSound() {
-  if (!soundEnabled) return; // Don't play if sound disabled
+  if (!soundEnabled || !audioContext) return;
 
   const now = audioContext.currentTime;
-
-  // Create oscillator for the gentle "tick" sound
   const oscillator = audioContext.createOscillator();
   const gainNode = audioContext.createGain();
-  const filterNode = audioContext.createBiquadFilter();
 
-  // Connect audio nodes
-  oscillator.connect(filterNode);
-  filterNode.connect(gainNode);
+  oscillator.connect(gainNode);
   gainNode.connect(audioContext.destination);
 
-  // Add slight pitch randomization for variation
-  const pitchVariation = 0.9 + Math.random() * 0.2; // 0.9 to 1.1 multiplier (less variation)
-  const tickFreq = 150 * pitchVariation; // Lower, warmer frequency
-
-  // Configure the thick tick sound - single frequency with quick decay
-  oscillator.frequency.setValueAtTime(tickFreq, now);
-  
-  // Low-pass filter for "thick" quality
-  filterNode.type = 'lowpass';
-  filterNode.frequency.setValueAtTime(800, now); // Cut high frequencies for warmth
-  filterNode.Q.setValueAtTime(2, now); // Slight resonance for character
-
-  // Sharp attack, quick decay for tick-like quality
-  gainNode.gain.setValueAtTime(0, now);
-  gainNode.gain.linearRampToValueAtTime(0.08, now + 0.002); // Very quick attack
-  gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.05); // Quick decay
-
-  // Use a sine wave for smooth, gentle sound
+  // Simple bounce sound
+  const frequency = 200 + Math.random() * 100;
+  oscillator.frequency.setValueAtTime(frequency, now);
   oscillator.type = 'sine';
 
-  // Play the sound (short duration for tick effect)
+  // Quick attack and decay
+  gainNode.gain.setValueAtTime(0, now);
+  gainNode.gain.linearRampToValueAtTime(0.05, now + 0.01);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
   oscillator.start(now);
-  oscillator.stop(now + 0.05);
+  oscillator.stop(now + 0.1);
 }
 
 // Mobile Joystick System
