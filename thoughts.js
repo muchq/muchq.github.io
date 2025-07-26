@@ -888,8 +888,12 @@ if (!gl) {
     
     handlePlayerLeave(message) {
       if (message.playerId !== gameState.localPlayerId) {
-        gameState.removePlayer(message.playerId);
-        console.log(`👋 Player ${message.playerId} left`);
+        const player = gameState.players.get(message.playerId);
+        if (player) {
+          console.log(`👋 Player ${message.playerId} left the game`);
+          gameState.removePlayer(message.playerId);
+          console.log(`📊 ${gameState.players.size} players remaining`);
+        }
       }
     }
     
@@ -1022,6 +1026,11 @@ if (!gl) {
       // Update bot positions
       this.updateBotPositions();
       
+      // Occasionally disconnect and reconnect bots for testing
+      if (Math.random() < 0.002) { // 0.2% chance per update (roughly every 2-3 minutes)
+        this.simulateRandomDisconnection();
+      }
+      
       // Send position updates for each bot
       this.botPlayers.forEach(bot => {
         const message = {
@@ -1036,6 +1045,25 @@ if (!gl) {
           networkManager.handleMessage(message);
         }, 10 + Math.random() * 20); // Simulate 10-30ms network latency
       });
+    }
+    
+    simulateRandomDisconnection() {
+      if (this.botPlayers.length === 0) return;
+      
+      // Pick a random bot to disconnect
+      const randomIndex = Math.floor(Math.random() * this.botPlayers.length);
+      const botToRemove = this.botPlayers[randomIndex];
+      
+      console.log(`🤖 Simulating disconnection of bot ${botToRemove.id}`);
+      this.simulatePlayerLeave(botToRemove.id);
+      
+      // After a random delay, add a new bot to maintain population
+      setTimeout(() => {
+        if (this.isRunning && this.botPlayers.length < 3) { // Keep 2-3 bots
+          console.log('🤖 Adding replacement bot after disconnection');
+          this.createBotPlayers(1);
+        }
+      }, 3000 + Math.random() * 5000); // Wait 3-8 seconds before adding replacement
     }
     
     simulatePlayerJoin(player) {
@@ -1073,6 +1101,12 @@ if (!gl) {
   
   // Initialize fake server
   const fakeServer = new FakeServer();
+  
+  // Global function for testing disconnections (available in browser console)
+  window.testDisconnection = () => {
+    console.log('🧪 Testing bot disconnection...');
+    fakeServer.simulateRandomDisconnection();
+  };
 
   // Player Management
   class Player {
