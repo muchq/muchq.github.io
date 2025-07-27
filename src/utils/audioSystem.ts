@@ -626,9 +626,9 @@ export class AudioSystem implements IAudioSystem {
   }
 
   private createMobileBackgroundTrack(): ArrayBuffer {
-    // Create a simple 4-second looping track with peaceful tones
+    // Create a longer track that matches the Web Audio procedural generation
     const sampleRate = 44100
-    const duration = 4 // seconds
+    const duration = 32 // 32 seconds - enough for full chord progression cycle
     const samples = sampleRate * duration
     
     // Create a temporary audio context just for generating the audio
@@ -636,21 +636,102 @@ export class AudioSystem implements IAudioSystem {
     const buffer = tempContext.createBuffer(1, samples, sampleRate)
     const channelData = buffer.getChannelData(0)
     
-    // Generate simple background music - soft arpeggios
-    const frequencies = [261.63, 329.63, 392.00, 523.25] // C, E, G, C (one octave)
-    const noteDuration = sampleRate * 0.5 // 0.5 seconds per note
+    // Use the same melody and chord patterns as Web Audio version
+    const tempo = 60 // Same as backgroundMusic.tempo
+    const secondsPerBeat = 60.0 / tempo
+    const noteLength = secondsPerBeat * 2 // Half notes
+    const chordLength = secondsPerBeat * 8 // Very long chords
     
-    for (let i = 0; i < samples; i++) {
-      const noteIndex = Math.floor(i / noteDuration) % frequencies.length
-      const frequency = frequencies[noteIndex]
-      const noteTime = (i % noteDuration) / sampleRate
+    // Pre-render the procedural music pattern
+    let currentTime = 0
+    let noteIndex = 0
+    let chordIndex = 0
+    
+    // Use a seeded random for consistent generation
+    let seed = 12345 // Fixed seed for consistent audio
+    const seededRandom = () => {
+      seed = (seed * 9301 + 49297) % 233280
+      return seed / 233280
+    }
+    
+    while (currentTime < duration) {
+      // Schedule melody note occasionally (30% chance, same as Web Audio)
+      if (seededRandom() < 0.3) {
+        const melodyMidi = melodyPattern[noteIndex]
+        const melodyFreq = midiToFreq(melodyMidi)
+        this.renderNoteToBuffer(channelData, sampleRate, melodyFreq, currentTime, noteLength * 1.5, 0.03)
+      }
       
-      // Soft sine wave with gentle envelope
-      const envelope = Math.sin(noteTime * Math.PI) * 0.15 // Gentle attack/decay
-      channelData[i] = Math.sin(2 * Math.PI * frequency * noteTime) * envelope
+      // Play chord every 4 beats (same as Web Audio)
+      if (noteIndex % 4 === 0) {
+        const chord = chordProgression[chordIndex]
+        chord.forEach(midi => {
+          const chordFreq = midiToFreq(midi - 12) // Same octave offset as Web Audio
+          this.renderNoteToBuffer(channelData, sampleRate, chordFreq, currentTime, chordLength, 0.02)
+        })
+        chordIndex = (chordIndex + 1) % chordProgression.length
+      }
+      
+      // Advance to next note (same logic as Web Audio)
+      currentTime += noteLength
+      noteIndex = (noteIndex + 1) % melodyPattern.length
+    }
+    
+    // Apply fade-in and fade-out to prevent clicks at loop boundaries
+    const fadeDuration = 0.1 // 100ms fade
+    const fadeSamples = Math.floor(fadeDuration * sampleRate)
+    
+    // Fade in at the beginning
+    for (let i = 0; i < fadeSamples && i < samples; i++) {
+      const fadeGain = i / fadeSamples
+      channelData[i] *= fadeGain
+    }
+    
+    // Fade out at the end
+    for (let i = samples - fadeSamples; i < samples; i++) {
+      const fadeGain = (samples - i) / fadeSamples
+      channelData[i] *= fadeGain
     }
     
     return this.encodeWAV(buffer)
+  }
+
+  private renderNoteToBuffer(
+    channelData: Float32Array, 
+    sampleRate: number, 
+    frequency: number, 
+    startTime: number, 
+    duration: number, 
+    volume: number
+  ): void {
+    const startSample = Math.floor(startTime * sampleRate)
+    const durationSamples = Math.floor(duration * sampleRate)
+    const endSample = Math.min(startSample + durationSamples, channelData.length)
+    
+    for (let i = startSample; i < endSample; i++) {
+      const noteTime = (i - startSample) / sampleRate
+      const progress = noteTime / duration
+      
+      // Same envelope shape as Web Audio version
+      let envelope = 0
+      if (progress < 0.1) {
+        // Attack phase - linear ramp up
+        envelope = progress / 0.1
+      } else if (progress < 0.7) {
+        // Sustain phase
+        envelope = 1.0
+      } else {
+        // Release phase - exponential decay
+        const releaseProgress = (progress - 0.7) / 0.3
+        envelope = Math.exp(-releaseProgress * 5) // Exponential decay
+      }
+      
+      // Generate sine wave with envelope
+      const sample = Math.sin(2 * Math.PI * frequency * noteTime) * envelope * volume
+      
+      // Add to existing sample (for chord mixing)
+      channelData[i] = Math.max(-1, Math.min(1, channelData[i] + sample))
+    }
   }
 
   stopBackgroundMusic(): void {
