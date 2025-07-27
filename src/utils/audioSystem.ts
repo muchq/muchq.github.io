@@ -94,7 +94,134 @@ export class AudioSystem implements IAudioSystem {
           this.playLoudTone()
         })
       }
+      
+      // Add HTML5 Audio test button
+      this.createHtml5TestButton()
     }, 100)
+  }
+
+  private createHtml5TestButton(): void {
+    const debugPanel = document.getElementById('audio-debug')
+    if (!debugPanel) return
+    
+    const html5Button = document.createElement('button')
+    html5Button.textContent = '🎤 HTML5 Test'
+    html5Button.className = 'test-button'
+    html5Button.style.cssText = `
+      margin-top: 8px;
+      padding: 4px 8px;
+      background: rgba(255, 182, 102, 0.2);
+      border: 1px solid #ffb666;
+      color: #fff;
+      border-radius: 4px;
+      font-family: "Lexend Deca", monospace;
+      font-size: 10px;
+      cursor: pointer;
+      pointer-events: auto;
+    `
+    
+    html5Button.addEventListener('click', () => {
+      this.playHtml5TestSound()
+    })
+    
+    debugPanel.appendChild(html5Button)
+  }
+
+  private playHtml5TestSound(): void {
+    this.updateLastEvent('HTML5 audio test started')
+    
+    try {
+      // Create a simple beep using data URL
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const sampleRate = audioContext.sampleRate
+      const duration = 0.5 // 0.5 seconds
+      const frequency = 440 // A4
+      const samples = sampleRate * duration
+      
+      // Create audio buffer
+      const buffer = audioContext.createBuffer(1, samples, sampleRate)
+      const channelData = buffer.getChannelData(0)
+      
+      // Generate sine wave
+      for (let i = 0; i < samples; i++) {
+        channelData[i] = Math.sin(2 * Math.PI * frequency * i / sampleRate) * 0.5
+      }
+      
+      // Convert to WAV and create blob URL
+      const wav = this.encodeWAV(buffer)
+      const blob = new Blob([wav], { type: 'audio/wav' })
+      const url = URL.createObjectURL(blob)
+      
+      // Play using HTML5 Audio
+      const audio = new Audio(url)
+      audio.volume = 1.0
+      
+      audio.addEventListener('canplaythrough', () => {
+        this.updateLastEvent('HTML5 audio ready, attempting play...')
+        const playPromise = audio.play()
+        
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            this.updateLastEvent('HTML5 audio playing successfully!')
+          }).catch((error) => {
+            this.updateLastEvent(`HTML5 play failed: ${error}`)
+          })
+        }
+      })
+      
+      audio.addEventListener('ended', () => {
+        this.updateLastEvent('HTML5 audio finished playing')
+        URL.revokeObjectURL(url)
+      })
+      
+      audio.addEventListener('error', (e) => {
+        this.updateLastEvent(`HTML5 audio error: ${e}`)
+        URL.revokeObjectURL(url)
+      })
+      
+      audio.load()
+      
+    } catch (error) {
+      this.updateLastEvent(`HTML5 test failed: ${error}`)
+    }
+  }
+
+  private encodeWAV(buffer: AudioBuffer): ArrayBuffer {
+    const length = buffer.length
+    const arrayBuffer = new ArrayBuffer(44 + length * 2)
+    const view = new DataView(arrayBuffer)
+    const channelData = buffer.getChannelData(0)
+    
+    // WAV header
+    const writeString = (offset: number, string: string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i))
+      }
+    }
+    
+    writeString(0, 'RIFF')
+    view.setUint32(4, 36 + length * 2, true)
+    writeString(8, 'WAVE')
+    writeString(12, 'fmt ')
+    view.setUint32(16, 16, true)
+    view.setUint16(20, 1, true)
+    view.setUint16(22, 1, true)
+    view.setUint32(24, buffer.sampleRate, true)
+    view.setUint32(28, buffer.sampleRate * 2, true)
+    view.setUint16(32, 2, true)
+    view.setUint16(34, 16, true)
+    writeString(36, 'data')
+    view.setUint32(40, length * 2, true)
+    
+    // Convert float samples to 16-bit PCM
+    let offset = 44
+    for (let i = 0; i < length; i++) {
+      const sample = Math.max(-1, Math.min(1, channelData[i]))
+      view.setInt16(offset, sample * 0x7FFF, true)
+      offset += 2
+    }
+    
+    return arrayBuffer
   }
 
   playTestTone(): void {
