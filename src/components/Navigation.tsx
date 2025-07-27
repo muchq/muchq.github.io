@@ -41,9 +41,9 @@ const Navigation = ({ className }: NavigationProps) => {
           <li className={`${styles.navItem} nav-item`}>
             <Link to="/thoughts" className={styles.navLink}>Thoughts</Link>
           </li>
-          <li className={`${styles.navItem} nav-item`}>
+          {/* <li className={`${styles.navItem} nav-item`}>
             <a href="#" className={styles.navLink}>Resume</a>
-          </li>
+          </li> */}
         </ul>
         <button 
           className={styles.mobileMenuToggle}
