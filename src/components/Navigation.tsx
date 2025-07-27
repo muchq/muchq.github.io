@@ -15,7 +15,7 @@ const Navigation = ({ className }: NavigationProps) => {
 
   return (
     <nav className={`${styles.nav} ${className || ''}`}>
-      <div className={styles.navContainer}>
+      <div className={`${styles.navContainer} nav-container`}>
         <Link to="/" className={`${styles.navLogo} nav-logo`}>MuchQ</Link>
         <ul className={`${styles.navMenu} ${isMobileMenuOpen ? styles.active : ''}`}>
           <li className={`${styles.navItem} nav-item`}>

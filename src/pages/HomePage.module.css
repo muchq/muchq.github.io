@@ -18,10 +18,12 @@
   z-index: 1;
 }
 
-.content h1,
-.content h2,
-.content h3 {
+.content h1 {
   line-height: 1.2;
+}
+
+.content p {
+  font-family: Latin Modern Math, math;
 }
 
 /* Animation keyframes moved to HomePage.css */

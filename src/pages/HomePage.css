@@ -1,4 +1,8 @@
 /* Homepage-specific navigation animations */
+.homepage-nav .nav-container {
+  animation: drift-nav 60s ease-in-out 3s infinite alternate;
+}
+
 .homepage-nav .nav-logo {
   position: relative;
   animation: float-logo 45s ease-in-out 3.5s infinite alternate;
@@ -30,6 +34,18 @@
 }
 
 /* Float Animation Keyframes */
+@keyframes drift-nav {
+  0% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateX(120px) translateY(80px) rotate(8deg);
+  }
+  100% {
+    transform: translateX(-80px) translateY(-60px) rotate(-5deg);
+  }
+}
+
 @keyframes float-logo {
   0% {
     transform: translateX(0) translateY(0) rotate(0deg);

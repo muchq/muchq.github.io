@@ -2,13 +2,15 @@ import styles from './MathAnimations.module.css'
 
 const MathAnimations = () => {
   return (
-    <div className={styles.mathContainer}>
-      <math className={styles.third}>
-        <mfrac>
-          <mn>1</mn>
-          <mn>π</mn>
-        </mfrac>
-      </math>
+    <>
+      <p>
+        <math className={styles.third}>
+          <mfrac>
+            <mn>1</mn>
+            <mn>π</mn>
+          </mfrac>
+        </math>
+      </p>
       
       <math className={styles.fffo}>
         <mi>∀A</mi>
@@ -46,7 +48,7 @@ const MathAnimations = () => {
           </mrow>
         </semantics>
       </math>
-    </div>
+    </>
   )
 }
 

@@ -1,14 +1,5 @@
-.mathContainer {
-  position: relative;
-  z-index: 1;
-}
-
-.mathContainer math {
-  position: absolute;
-  font-family: Latin Modern Math, math;
-}
-
-.mathContainer math.third {
+/* Default math element styles */
+:global(math) {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -18,18 +9,18 @@
   animation: spin 120s linear infinite;
 }
 
-.mathContainer math.third {
+.third {
   left: 40%;
   animation: zoom-in-zoom-out 20s ease infinite;
 }
 
-.mathContainer math.fffo {
+.fffo {
   top: 40%;
   left: 60%;
   animation: spin 50s linear infinite;
 }
 
-.mathContainer math.julia {
+.julia {
   position: fixed;
   color: blue;
   top: 60%;
