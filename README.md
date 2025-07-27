@@ -1,6 +1,6 @@
-# MuchQ Portfolio
+# MuchQ
 
-A modern portfolio website built with React, TypeScript, and Vite, featuring interactive WebGL backgrounds and a 3D thoughts game.
+Just some doodles and a pretty chill game.
 
 ## 🚀 Quick Start
 
@@ -60,61 +60,6 @@ src/
     └── setup.ts         # Test setup
 ```
 
-## 🎮 Features
-
-### Landing Page
-- **Interactive Julia Set Background**: WebGL-powered fractal visualization that responds to mouse movement
-- **Animated Math Equations**: MathML equations floating with CSS animations
-- **Responsive Navigation**: Mobile-friendly navigation with animated dropdowns
-
-### Thoughts Game
-- **Real-time 3D Rendering**: WebGL2 ray-traced graphics engine
-- **Multiplayer Support**: Network architecture for multiplayer gameplay
-- **Mobile Controls**: Touch-friendly virtual joysticks
-- **Audio System**: Background music and sound effects
-- **Mini-map**: Real-time player tracking
-
-## 🛠️ Technology Stack
-
-- **Frontend**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **Styling**: CSS Modules
-- **Testing**: Vitest + React Testing Library
-- **Linting**: ESLint + TypeScript ESLint
-- **Graphics**: WebGL2 + GLSL shaders
-- **Deployment**: GitHub Pages via GitHub Actions
-
-## 📦 Deployment
-
-The site is automatically deployed to GitHub Pages when changes are pushed to the main branch. The GitHub Actions workflow:
-
-1. ✅ Type checks with TypeScript
-2. ✅ Lints code with ESLint
-3. ✅ Runs tests with Vitest
-4. 🏗️ Builds the production bundle
-5. 🚀 Deploys to GitHub Pages
-
-## 🎨 Key Components
-
-### JuliaSetBackground
-Interactive WebGL Julia set fractal renderer with:
-- Mouse-responsive parameter control
-- Retro grid patterns for convergent areas
-- Animated star fields and twinkling effects
-- Smooth color transitions
-
-### ThoughtsGame
-Complete 3D multiplayer game engine featuring:
-- **Ray-traced rendering** with reflections, shadows, and dynamic lighting
-- **Real-time physics** simulation with bouncing spheres and collision detection
-- **Procedural environments** with stormy sky, lightning effects, and animated clouds
-- **Multiplayer networking** with WebSocket support and bot simulation
-- **Shape morphing** - cycle between spheres, cubes, and pyramids (spacebar)
-- **Mobile controls** - virtual joysticks for touch devices
-- **Audio system** - background music generation and bounce sound effects
-- **Mini-map** with real-time player tracking and world boundaries
-- **Advanced graphics** - WebGL2 shaders with 3D noise and atmospheric effects
-
 ## 🧪 Testing
 
 ```bash
@@ -130,16 +75,8 @@ npm run test -- --run
 
 ## 📝 Original Migration
 
-This project was migrated from hand-rolled HTML/CSS/JavaScript to a modern React + TypeScript + Vite setup to enable:
-
-- **Better Code Organization**: Modular components and hooks
-- **Type Safety**: Full TypeScript coverage
-- **Testing Infrastructure**: Comprehensive test suite
-- **Modern Build Pipeline**: Optimized production builds
-- **Development Experience**: Hot reloading, type checking, linting
-
-Original files are preserved in the `backup/` directory.
+Old time-y implementation is preserved in the `backup/` directory.
 
 ## Documentation
 
-- [Thoughts Multiplayer API](THOUGHTS.md) - WebSocket API specification for the multiplayer sphere environment
+- [Thoughts Multiplayer API](THOUGHTS.md) - WebSocket API specification for the multiplayer game environment
