@@ -507,7 +507,7 @@ export class AudioSystem implements IAudioSystem {
     
     try {
       const audio = new Audio(this.mobileBounceAudioUrl)
-      audio.volume = 0.035
+      audio.volume = 0.015
       
       const playPromise = audio.play()
       if (playPromise !== undefined) {
