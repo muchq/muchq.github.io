@@ -45,6 +45,29 @@ export class AudioSystem implements IAudioSystem {
       noteIndex: 0,
       chordIndex: 0
     }
+    
+    // Enable audio on any user interaction (mobile compatibility)
+    this.enableAudioOnInteraction()
+  }
+
+  private enableAudioOnInteraction(): void {
+    // Enable audio context on any touch or click (mobile compatibility)
+    const enableAudio = () => {
+      const context = this.initAudioContext()
+      if (context && context.state === 'suspended') {
+        context.resume().then(() => {
+          console.log('🎵 Audio context ready after user interaction') // eslint-disable-line no-console
+        }).catch((error) => {
+          console.warn('Failed to enable audio context:', error)
+        })
+      }
+    }
+
+    // Add listeners for mobile and desktop interactions
+    document.addEventListener('touchstart', enableAudio, { once: true })
+    document.addEventListener('touchend', enableAudio, { once: true })
+    document.addEventListener('click', enableAudio, { once: true })
+    document.addEventListener('keydown', enableAudio, { once: true })
   }
 
   initAudioContext(): AudioContext | null {
@@ -215,12 +238,17 @@ export class AudioSystem implements IAudioSystem {
 
       // Initialize and resume audio context if needed (mobile compatibility)
       const context = this.initAudioContext()
-      if (context && context.state === 'suspended') {
-        context.resume().then(() => {
+      if (context) {
+        if (context.state === 'suspended') {
+          context.resume().then(() => {
+            console.log('🎵 Audio context resumed, starting background music') // eslint-disable-line no-console
+            this.startBackgroundMusic()
+          }).catch((error) => {
+            console.warn('Failed to resume audio context:', error)
+          })
+        } else {
           this.startBackgroundMusic()
-        })
-      } else {
-        this.startBackgroundMusic()
+        }
       }
     } else {
       soundToggle.textContent = '🔇 Sound: OFF'
