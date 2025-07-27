@@ -363,10 +363,11 @@ if (!gl) {
     uniform float u_time;
     uniform float u_worldBoundary;
 
-    // Multiple sphere support (up to 10 players)
-    uniform int u_numSpheres;
-    uniform vec3 u_sphereCenters[10];
-    uniform vec3 u_sphereColors[10];
+    // Multiple object support (up to 10 players)
+    uniform int u_numObjects;
+    uniform vec3 u_objectCenters[10];
+    uniform vec3 u_objectColors[10];
+    uniform int u_objectShapes[10]; // 0=sphere, 1=cube, 2=pyramid
 
     // Light sources
     const vec3 light1 = vec3(1.0, 1.0, 1.0);   // Main light (top right)
@@ -436,6 +437,47 @@ if (!gl) {
       return t > 0.0 ? t : -1.0;
     }
 
+    // Ray-cube intersection
+    float intersectCube(vec3 rayOrigin, vec3 rayDir, vec3 cubeCenter, float size) {
+      vec3 m = 1.0 / rayDir; // Can cause division by zero
+      vec3 n = m * (rayOrigin - cubeCenter);
+      vec3 k = abs(m) * size;
+      
+      vec3 t1 = -n - k;
+      vec3 t2 = -n + k;
+      
+      float tN = max(max(t1.x, t1.y), t1.z);
+      float tF = min(min(t2.x, t2.y), t2.z);
+      
+      if (tN > tF || tF < 0.0) return -1.0;
+      return tN > 0.0 ? tN : tF;
+    }
+
+    // Ray-pyramid intersection (approximated as cone)
+    float intersectPyramid(vec3 rayOrigin, vec3 rayDir, vec3 pyramidCenter, float height) {
+      vec3 oc = rayOrigin - pyramidCenter;
+      float radius = height * 0.7; // Pyramid base radius
+      
+      float a = rayDir.x * rayDir.x + rayDir.z * rayDir.z - (rayDir.y * rayDir.y) * 0.25;
+      float b = 2.0 * (oc.x * rayDir.x + oc.z * rayDir.z - (oc.y * rayDir.y) * 0.25);
+      float c = oc.x * oc.x + oc.z * oc.z - (oc.y * oc.y) * 0.25;
+      
+      float discriminant = b * b - 4.0 * a * c;
+      if (discriminant < 0.0) return -1.0;
+      
+      float t1 = (-b - sqrt(discriminant)) / (2.0 * a);
+      float t2 = (-b + sqrt(discriminant)) / (2.0 * a);
+      
+      float t = (t1 > 0.0) ? t1 : t2;
+      if (t < 0.0) return -1.0;
+      
+      vec3 hit = rayOrigin + t * rayDir;
+      if (hit.y < pyramidCenter.y - height || hit.y > pyramidCenter.y + height) return -1.0;
+      
+      return t;
+    }
+
+
     // Calculate lighting from a point light
     vec3 calculateLighting(vec3 hitPoint, vec3 normal, vec3 lightPos, vec3 viewDir, vec3 baseColor) {
       vec3 lightDir = normalize(lightPos - hitPoint);
@@ -467,16 +509,44 @@ if (!gl) {
       hit.objectId = 0;
       float closestT = 1e30;
 
-      // Test all spheres
-      for (int i = 0; i < u_numSpheres && i < 10; i++) {
-        float sphereT = intersectSphere(rayOrigin, rayDir, u_sphereCenters[i], 1.0);
-        if (sphereT > 0.0 && sphereT < closestT) {
-          closestT = sphereT;
-          hit.t = sphereT;
-          hit.objectId = i + 1; // sphere indices start at 1
-          hit.point = rayOrigin + sphereT * rayDir;
-          hit.normal = normalize(hit.point - u_sphereCenters[i]);
-          hit.color = u_sphereColors[i];
+      // Test all objects
+      for (int i = 0; i < u_numObjects && i < 10; i++) {
+        float objectT = -1.0;
+        vec3 objectCenter = u_objectCenters[i];
+        int shapeType = u_objectShapes[i];
+        
+        // Test intersection based on shape type
+        if (shapeType == 0) { // Sphere
+          objectT = intersectSphere(rayOrigin, rayDir, objectCenter, 1.0);
+        } else if (shapeType == 1) { // Cube
+          objectT = intersectCube(rayOrigin, rayDir, objectCenter, 1.0);
+        } else if (shapeType == 2) { // Pyramid
+          objectT = intersectPyramid(rayOrigin, rayDir, objectCenter, 2.0);
+        }
+        
+        if (objectT > 0.0 && objectT < closestT) {
+          closestT = objectT;
+          hit.t = objectT;
+          hit.objectId = i + 1; // object indices start at 1
+          hit.point = rayOrigin + objectT * rayDir;
+          
+          // Calculate normal based on shape type
+          if (shapeType == 0) { // Sphere
+            hit.normal = normalize(hit.point - objectCenter);
+          } else if (shapeType == 1) { // Cube
+            vec3 d = abs(hit.point - objectCenter);
+            float maxComp = max(max(d.x, d.y), d.z);
+            if (maxComp == d.x) hit.normal = sign(hit.point.x - objectCenter.x) * vec3(1.0, 0.0, 0.0);
+            else if (maxComp == d.y) hit.normal = sign(hit.point.y - objectCenter.y) * vec3(0.0, 1.0, 0.0);
+            else hit.normal = sign(hit.point.z - objectCenter.z) * vec3(0.0, 0.0, 1.0);
+          } else if (shapeType == 2) { // Pyramid
+            // Simplified pyramid normal (cone-like)
+            vec3 toTip = normalize(vec3(0.0, 1.0, 0.0));
+            vec3 toPoint = normalize(hit.point - objectCenter);
+            hit.normal = normalize(mix(toPoint, toTip, 0.3));
+          }
+          
+          hit.color = u_objectColors[i];
         }
       }
 
@@ -838,10 +908,11 @@ if (!gl) {
   const timeLocation = gl.getUniformLocation(program, 'u_time');
   const worldBoundaryLocation = gl.getUniformLocation(program, 'u_worldBoundary');
 
-  // Multiple spheres support
-  const numSpheresLocation = gl.getUniformLocation(program, 'u_numSpheres');
-  const sphereCentersLocation = gl.getUniformLocation(program, 'u_sphereCenters');
-  const sphereColorsLocation = gl.getUniformLocation(program, 'u_sphereColors');
+  // Multiple objects support
+  const numObjectsLocation = gl.getUniformLocation(program, 'u_numObjects');
+  const objectCentersLocation = gl.getUniformLocation(program, 'u_objectCenters');
+  const objectColorsLocation = gl.getUniformLocation(program, 'u_objectColors');
+  const objectShapesLocation = gl.getUniformLocation(program, 'u_objectShapes');
 
   // Game Configuration
   const GAME_CONFIG = {
@@ -972,6 +1043,7 @@ if (!gl) {
         playerId: localPlayer.id,
         position: localPlayer.position,
         color: localPlayer.color,
+        shape: localPlayer.shape,
         timestamp: Date.now()
       };
 
@@ -1041,6 +1113,9 @@ if (!gl) {
         case 'position_update':
           this.handlePositionUpdate(message);
           break;
+        case 'shape_update':
+          this.handleShapeUpdate(message);
+          break;
         case 'game_state':
           this.handleGameState(message);
           break;
@@ -1051,7 +1126,7 @@ if (!gl) {
 
     handlePlayerJoin(message) {
       if (message.playerId !== gameState.localPlayerId) {
-        gameState.addPlayer(message.playerId, message.position, message.color);
+        gameState.addPlayer(message.playerId, message.position, message.color, message.shape || SHAPE_TYPES.SPHERE);
         console.log(`👋 Player ${message.playerId} joined at [${message.position.join(', ')}]`);
       }
     }
@@ -1073,6 +1148,17 @@ if (!gl) {
       }
     }
 
+    handleShapeUpdate(message) {
+      if (message.playerId !== gameState.localPlayerId) {
+        const player = gameState.players.get(message.playerId);
+        if (player) {
+          player.shape = message.shape;
+          const shapeNames = ['Sphere', 'Cube', 'Pyramid'];
+          console.log(`🔄 Player ${message.playerId} changed to: ${shapeNames[message.shape]}`);
+        }
+      }
+    }
+
     handleGameState(message) {
       // Handle full game state updates
       console.log('🎮 Received game state update:', message);
@@ -1082,7 +1168,7 @@ if (!gl) {
         message.players.forEach(player => {
           // Skip adding the local player (check against gameState.localPlayerId)
           if (player.playerId !== gameState.localPlayerId) {
-            gameState.addPlayer(player.playerId, player.position, player.color);
+            gameState.addPlayer(player.playerId, player.position, player.color, player.shape || SHAPE_TYPES.SPHERE);
             console.log(`🎮 Added player ${player.playerId} from game state at [${player.position.join(', ')}]`);
           }
         });
@@ -1289,12 +1375,20 @@ if (!gl) {
     fakeServer.simulateRandomDisconnection();
   };
 
+  // Shape types
+  const SHAPE_TYPES = {
+    SPHERE: 0,
+    CUBE: 1,
+    PYRAMID: 2
+  };
+
   // Player Management
   class Player {
-    constructor(id, position = [0, 0, 0], color = [1.0, 0.5, 0.2]) {
+    constructor(id, position = [0, 0, 0], color = [1.0, 0.5, 0.2], shape = SHAPE_TYPES.SPHERE) {
       this.id = id;
       this.position = [...position];
       this.color = [...color];
+      this.shape = shape;
       this.lastBounceTime = 0;
     }
 
@@ -1322,8 +1416,8 @@ if (!gl) {
       };
     }
 
-    addPlayer(id, position, color) {
-      const player = new Player(id, position, color);
+    addPlayer(id, position, color, shape = SHAPE_TYPES.SPHERE) {
+      const player = new Player(id, position, color, shape);
       this.players.set(id, player);
       return player;
     }
@@ -1355,11 +1449,44 @@ if (!gl) {
   const keys = {};
   document.addEventListener('keydown', (e) => {
     keys[e.key.toLowerCase()] = true;
+    
+    // Handle spacebar for shape cycling
+    if (e.key === ' ') {
+      e.preventDefault(); // Prevent page scroll
+      cyclePlayerShape();
+    }
   });
 
   document.addEventListener('keyup', (e) => {
     keys[e.key.toLowerCase()] = false;
   });
+
+  // Function to cycle through shapes
+  function cyclePlayerShape() {
+    const localPlayer = gameState.getLocalPlayer();
+    if (!localPlayer) return;
+    
+    // Cycle to next shape
+    const shapeValues = Object.values(SHAPE_TYPES);
+    const currentIndex = shapeValues.indexOf(localPlayer.shape);
+    const nextIndex = (currentIndex + 1) % shapeValues.length;
+    localPlayer.shape = shapeValues[nextIndex];
+    
+    // Get shape name for console
+    const shapeNames = ['Sphere', 'Cube', 'Pyramid'];
+    console.log(`🔄 Shape changed to: ${shapeNames[localPlayer.shape]}`);
+    
+    // Send shape update to server
+    if (networkManager.isConnected) {
+      const message = {
+        type: 'shape_update',
+        playerId: localPlayer.id,
+        shape: localPlayer.shape,
+        timestamp: Date.now()
+      };
+      networkManager.sendMessage(message);
+    }
+  }
 
   function updateLocalPlayer() {
     const localPlayer = gameState.getLocalPlayer();
@@ -1597,26 +1724,31 @@ if (!gl) {
       localPlayer.lastBounceTime = time;
     }
 
-    // Prepare sphere data for all players
+    // Prepare object data for all players
     const allPlayers = Array.from(gameState.players.values());
-    const sphereCenters = [];
-    const sphereColors = [];
+    const objectCenters = [];
+    const objectColors = [];
+    const objectShapes = [];
 
-    // Add all players' sphere data
+    // Add all players' object data
     for (let i = 0; i < Math.min(allPlayers.length, 10); i++) {
       const player = allPlayers[i];
       const playerBobbingY = player.getBouncingY(time);
 
-      // Add sphere center using direct position
-      sphereCenters.push(player.position[0], playerBobbingY, player.position[2]);
+      // Add object center using direct position
+      objectCenters.push(player.position[0], playerBobbingY, player.position[2]);
 
-      // Add sphere color
-      sphereColors.push(player.color[0], player.color[1], player.color[2]);
+      // Add object color
+      objectColors.push(player.color[0], player.color[1], player.color[2]);
+      
+      // Add object shape
+      objectShapes.push(player.shape);
     }
 
     // Pad arrays to size 10 if needed
-    while (sphereCenters.length < 30) sphereCenters.push(0.0); // 10 spheres * 3 components
-    while (sphereColors.length < 30) sphereColors.push(0.0); // 10 spheres * 3 components
+    while (objectCenters.length < 30) objectCenters.push(0.0); // 10 objects * 3 components
+    while (objectColors.length < 30) objectColors.push(0.0); // 10 objects * 3 components
+    while (objectShapes.length < 10) objectShapes.push(0); // 10 objects * 1 component
 
     // Set uniforms for ray tracing
     const sphereZenith = (GAME_CONFIG.groundLevel + GAME_CONFIG.sphereRadius) + (GAME_CONFIG.bounceHeight / 2); // Midpoint of bounce
@@ -1626,10 +1758,11 @@ if (!gl) {
     gl.uniform1f(timeLocation, time * 0.001);
     gl.uniform1f(worldBoundaryLocation, GAME_CONFIG.worldBoundary);
 
-    // Set multiple sphere data
-    gl.uniform1i(numSpheresLocation, Math.min(allPlayers.length, 10));
-    gl.uniform3fv(sphereCentersLocation, sphereCenters);
-    gl.uniform3fv(sphereColorsLocation, sphereColors);
+    // Set multiple object data
+    gl.uniform1i(numObjectsLocation, Math.min(allPlayers.length, 10));
+    gl.uniform3fv(objectCentersLocation, objectCenters);
+    gl.uniform3fv(objectColorsLocation, objectColors);
+    gl.uniform1iv(objectShapesLocation, objectShapes);
 
     // Create fullscreen quad
     const quadVertices = new Float32Array([
