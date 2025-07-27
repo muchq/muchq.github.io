@@ -36,7 +36,7 @@ const melodyPattern = [
 // Simple chord progression (I-V-vi-IV in C major)
 const chordProgression = [
   [60, 64, 67], // C major
-  [67, 71, 74], // G major  
+  [67, 71, 74], // G major
   [57, 60, 64], // A minor
   [65, 69, 72]  // F major
 ];
@@ -50,76 +50,76 @@ function createSimpleReverb() {
   const delay = audioContext.createDelay(0.3);
   const feedback = audioContext.createGain();
   const wetGain = audioContext.createGain();
-  
+
   delay.delayTime.setValueAtTime(0.15, audioContext.currentTime);
   feedback.gain.setValueAtTime(0.3, audioContext.currentTime);
   wetGain.gain.setValueAtTime(0.2, audioContext.currentTime);
-  
+
   delay.connect(feedback);
   feedback.connect(delay);
   delay.connect(wetGain);
-  
+
   return { input: delay, output: wetGain };
 }
 
 function createSimpleNote(frequency, startTime, duration, volume = 0.03) {
   const oscillator = audioContext.createOscillator();
   const gainNode = audioContext.createGain();
-  
+
   oscillator.type = 'sine';
   oscillator.frequency.setValueAtTime(frequency, startTime);
-  
+
   gainNode.gain.setValueAtTime(0, startTime);
   gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.1);
   gainNode.gain.setValueAtTime(volume, startTime + duration * 0.7);
   gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-  
+
   oscillator.connect(gainNode);
   gainNode.connect(backgroundMusic.gainNode);
-  
+
   oscillator.start(startTime);
   oscillator.stop(startTime + duration);
-  
+
   return { oscillator, gainNode };
 }
 
 function createSimpleChord(frequencies, startTime, duration) {
   const chordOscillators = [];
-  
+
   frequencies.forEach((freq, index) => {
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
-    
+
     oscillator.type = 'sine';
     oscillator.frequency.setValueAtTime(freq, startTime);
-    
+
     const volume = 0.02; // Quieter chords
     gainNode.gain.setValueAtTime(0, startTime);
     gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.2);
     gainNode.gain.setValueAtTime(volume, startTime + duration - 0.5);
     gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-    
+
     oscillator.connect(gainNode);
     gainNode.connect(backgroundMusic.gainNode);
-    
+
     oscillator.start(startTime);
     oscillator.stop(startTime + duration);
-    
+
     chordOscillators.push({ oscillator, gainNode });
   });
-  
+
   return chordOscillators;
 }
 
 
 function scheduleNextMusicNotes() {
   if (!backgroundMusic.isPlaying) return;
-  
+
   const currentTime = audioContext.currentTime;
   const secondsPerBeat = 60.0 / backgroundMusic.tempo;
   const noteLength = secondsPerBeat * 2; // Half notes
   const chordLength = secondsPerBeat * 8; // Very long chords
-  
+
   // Schedule ahead by 200ms
   while (backgroundMusic.nextNoteTime < currentTime + 0.2) {
     // Play melody note occasionally (30% chance)
@@ -128,21 +128,21 @@ function scheduleNextMusicNotes() {
       const melodyFreq = midiToFreq(melodyMidi);
       createSimpleNote(melodyFreq, backgroundMusic.nextNoteTime, noteLength * 1.5);
     }
-    
+
     // Play chord every 8 beats
     if (backgroundMusic.noteIndex % 4 === 0) {
       const chord = chordProgression[backgroundMusic.chordIndex];
       const chordFreqs = chord.map(midi => midiToFreq(midi - 12));
       createSimpleChord(chordFreqs, backgroundMusic.nextNoteTime, chordLength);
-      
+
       backgroundMusic.chordIndex = (backgroundMusic.chordIndex + 1) % chordProgression.length;
     }
-    
+
     // Advance to next note
     backgroundMusic.nextNoteTime += noteLength;
     backgroundMusic.noteIndex = (backgroundMusic.noteIndex + 1) % melodyPattern.length;
   }
-  
+
   // Schedule next batch
   if (backgroundMusic.isPlaying) {
     setTimeout(scheduleNextMusicNotes, 200);
@@ -151,35 +151,35 @@ function scheduleNextMusicNotes() {
 
 function startBackgroundMusic() {
   if (backgroundMusic.isPlaying || !soundEnabled) return;
-  
+
   // Initialize audio context if needed
   initAudioContext();
-  
+
   // Create master gain node for background music
   backgroundMusic.gainNode = audioContext.createGain();
   backgroundMusic.gainNode.gain.setValueAtTime(0.1, audioContext.currentTime); // Much quieter
   backgroundMusic.gainNode.connect(audioContext.destination);
-  
+
   backgroundMusic.isPlaying = true;
   backgroundMusic.nextNoteTime = audioContext.currentTime;
   backgroundMusic.noteIndex = 0;
   backgroundMusic.chordIndex = 0;
-  
+
   scheduleNextMusicNotes();
   console.log('🎵 Started simple background music');
 }
 
 function stopBackgroundMusic() {
   if (!backgroundMusic.isPlaying) return;
-  
+
   backgroundMusic.isPlaying = false;
-  
+
   // Clean up gain node
   if (backgroundMusic.gainNode) {
     backgroundMusic.gainNode.disconnect();
     backgroundMusic.gainNode = null;
   }
-  
+
   console.log('🎵 Stopped background music');
 }
 
@@ -191,7 +191,7 @@ soundToggle.addEventListener('click', function() {
   if (soundEnabled) {
     soundToggle.textContent = '🔊 Sound: ON';
     soundToggle.classList.add('enabled');
-    
+
     // Initialize and resume audio context if needed (mobile compatibility)
     const context = initAudioContext();
     if (context.state === 'suspended') {
@@ -225,7 +225,7 @@ function playBoingSound() {
 
   // Quick attack and decay
   gainNode.gain.setValueAtTime(0, now);
-  gainNode.gain.linearRampToValueAtTime(0.05, now + 0.01);
+  gainNode.gain.linearRampToValueAtTime(0.02, now + 0.01);
   gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
 
   oscillator.start(now);
@@ -362,7 +362,7 @@ if (!gl) {
     uniform vec3 u_cameraTarget;
     uniform float u_time;
     uniform float u_worldBoundary;
-    
+
     // Multiple sphere support (up to 10 players)
     uniform int u_numSpheres;
     uniform vec3 u_sphereCenters[10];
@@ -837,7 +837,7 @@ if (!gl) {
   const cameraTargetLocation = gl.getUniformLocation(program, 'u_cameraTarget');
   const timeLocation = gl.getUniformLocation(program, 'u_time');
   const worldBoundaryLocation = gl.getUniformLocation(program, 'u_worldBoundary');
-  
+
   // Multiple spheres support
   const numSpheresLocation = gl.getUniformLocation(program, 'u_numSpheres');
   const sphereCentersLocation = gl.getUniformLocation(program, 'u_sphereCenters');
@@ -861,13 +861,13 @@ if (!gl) {
     const hue = Math.random() * 360; // 0-360 degrees
     const saturation = 0.7 + Math.random() * 0.3; // 70-100% saturation
     const lightness = 0.4 + Math.random() * 0.3; // 40-70% lightness
-    
+
     // Convert HSL to RGB
     const h = hue / 60;
     const c = (1 - Math.abs(2 * lightness - 1)) * saturation;
     const x = c * (1 - Math.abs((h % 2) - 1));
     const m = lightness - c / 2;
-    
+
     let r, g, b;
     if (h < 1) { r = c; g = x; b = 0; }
     else if (h < 2) { r = x; g = c; b = 0; }
@@ -875,23 +875,23 @@ if (!gl) {
     else if (h < 4) { r = 0; g = x; b = c; }
     else if (h < 5) { r = x; g = 0; b = c; }
     else { r = c; g = 0; b = x; }
-    
+
     return [r + m, g + m, b + m];
   }
-  
+
   function generateRandomSpawnPosition() {
     // Generate random position within world boundary
     // Leave some margin from the edges for safety
     const margin = 5;
     const safeZone = GAME_CONFIG.worldBoundary - margin;
-    
+
     const x = (Math.random() - 0.5) * 2 * safeZone; // -safeZone to +safeZone
     const z = (Math.random() - 0.5) * 2 * safeZone; // -safeZone to +safeZone
     const y = 0; // Always spawn at ground level
-    
+
     return [x, y, z];
   }
-  
+
   function generatePlayerId() {
     // Generate unique player ID
     return 'player-' + Math.random().toString(36).substr(2, 9);
@@ -906,11 +906,11 @@ if (!gl) {
       this.positionUpdateThrottle = 50; // Send updates max every 50ms (20fps)
       this.lastPositionSent = 0;
       this.messageHandlers = new Map();
-      
+
       // For testing: simulate server with local storage
       this.isSimulated = false;
     }
-    
+
     connect(url = 'wss://thoughts.muchq.com/ws') {
       if (this.isSimulated) {
         // Simulate successful connection
@@ -919,26 +919,26 @@ if (!gl) {
         this.onConnected();
         return;
       }
-      
+
       try {
         this.ws = new WebSocket(url);
-        
+
         this.ws.onopen = () => {
           console.log('🔌 WebSocket connected to', url);
           this.isConnected = true;
           this.onConnected();
         };
-        
+
         this.ws.onmessage = (event) => {
           this.handleMessage(JSON.parse(event.data));
         };
-        
+
         this.ws.onclose = () => {
           console.log('🔌 WebSocket disconnected');
           this.isConnected = false;
           this.onDisconnected();
         };
-        
+
         this.ws.onerror = (error) => {
           console.error('🔌 WebSocket error:', error);
           this.isConnected = false;
@@ -948,25 +948,25 @@ if (!gl) {
         this.isConnected = false;
       }
     }
-    
+
     onConnected() {
       // Send initial player spawn data
       this.sendPlayerJoin();
-      
+
       // Start fake server if in simulation mode
       if (this.isSimulated) {
         fakeServer.start();
       }
     }
-    
+
     onDisconnected() {
       // Handle disconnection
     }
-    
+
     sendPlayerJoin() {
       const localPlayer = gameState.getLocalPlayer();
       if (!localPlayer) return;
-      
+
       const message = {
         type: 'player_join',
         playerId: localPlayer.id,
@@ -974,63 +974,63 @@ if (!gl) {
         color: localPlayer.color,
         timestamp: Date.now()
       };
-      
+
       this.sendMessage(message);
       console.log('📤 Sent player join:', message);
     }
-    
+
     sendPositionUpdate(position) {
       const now = Date.now();
-      
+
       // Throttle position updates
       if (now - this.lastPositionSent < this.positionUpdateThrottle) {
         return;
       }
-      
+
       // Check if position actually changed significantly
       if (this.lastSentPosition) {
         const dx = position[0] - this.lastSentPosition[0];
         const dz = position[2] - this.lastSentPosition[2];
         const distance = Math.sqrt(dx * dx + dz * dz);
-        
+
         // Only send if moved more than 0.1 units
         if (distance < 0.1) {
           return;
         }
       }
-      
+
       const localPlayer = gameState.getLocalPlayer();
       if (!localPlayer) return;
-      
+
       const message = {
         type: 'position_update',
         playerId: localPlayer.id,
         position: position,
         timestamp: now
       };
-      
+
       this.sendMessage(message);
       this.lastSentPosition = [...position];
       this.lastPositionSent = now;
-      
+
       console.log('📤 Sent position update:', message);
     }
-    
+
     sendMessage(message) {
       if (this.isSimulated) {
         // Simulate sending to server (just log for now)
         console.log('📡 [SIMULATED] Sending to server:', message);
         return;
       }
-      
+
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         this.ws.send(JSON.stringify(message));
       }
     }
-    
+
     handleMessage(message) {
       console.log('📥 Received from server:', message);
-      
+
       switch (message.type) {
         case 'player_join':
           this.handlePlayerJoin(message);
@@ -1048,14 +1048,14 @@ if (!gl) {
           console.warn('Unknown message type:', message.type);
       }
     }
-    
+
     handlePlayerJoin(message) {
       if (message.playerId !== gameState.localPlayerId) {
         gameState.addPlayer(message.playerId, message.position, message.color);
         console.log(`👋 Player ${message.playerId} joined at [${message.position.join(', ')}]`);
       }
     }
-    
+
     handlePlayerLeave(message) {
       if (message.playerId !== gameState.localPlayerId) {
         const player = gameState.players.get(message.playerId);
@@ -1066,17 +1066,17 @@ if (!gl) {
         }
       }
     }
-    
+
     handlePositionUpdate(message) {
       if (message.playerId !== gameState.localPlayerId) {
         gameState.updatePlayer(message.playerId, message.position);
       }
     }
-    
+
     handleGameState(message) {
       // Handle full game state updates
       console.log('🎮 Received game state update:', message);
-      
+
       // Process the players array from the game_state message
       if (message.players && Array.isArray(message.players)) {
         message.players.forEach(player => {
@@ -1088,7 +1088,7 @@ if (!gl) {
         });
       }
     }
-    
+
     disconnect() {
       if (this.ws) {
         this.ws.close();
@@ -1096,7 +1096,7 @@ if (!gl) {
       this.isConnected = false;
     }
   }
-  
+
   // Initialize network manager
   const networkManager = new NetworkManager();
 
@@ -1109,34 +1109,34 @@ if (!gl) {
       this.botPlayers = [];
       this.stateUpdateFrequency = 300; // Send state updates every 300ms for smoother movement
     }
-    
+
     start() {
       if (this.isRunning) return;
       this.isRunning = true;
-      
+
       // Create some bot players for testing
       this.createBotPlayers(2); // Create 2 bot players
-      
+
       // Start sending periodic state updates
       this.updateInterval = setInterval(() => {
         this.sendStateUpdate();
       }, this.stateUpdateFrequency);
-      
+
       console.log('🤖 Fake server started with bot players');
     }
-    
+
     stop() {
       if (!this.isRunning) return;
       this.isRunning = false;
-      
+
       if (this.updateInterval) {
         clearInterval(this.updateInterval);
         this.updateInterval = null;
       }
-      
+
       console.log('🤖 Fake server stopped');
     }
-    
+
     createBotPlayers(count) {
       for (let i = 0; i < count; i++) {
         const botId = `bot-${i + 1}`;
@@ -1149,41 +1149,41 @@ if (!gl) {
           speed: 0.02 + Math.random() * 0.03, // Adjusted for 300ms updates: 0.02-0.05 units per update
           directionChangeTimer: 0
         };
-        
+
         this.players.set(botId, botPlayer);
         this.botPlayers.push(botPlayer);
-        
+
         // Simulate bot joining
         setTimeout(() => {
           this.simulatePlayerJoin(botPlayer);
         }, 1000 + i * 500); // Stagger bot joins
       }
     }
-    
+
     updateBotPositions() {
       this.botPlayers.forEach(bot => {
         // Increment direction change timer
         bot.directionChangeTimer++;
-        
+
         // Change direction less frequently and more smoothly
         if (bot.directionChangeTimer > 10 + Math.random() * 17) { // Change direction every 3-8 seconds (adjusted for 300ms updates)
           bot.direction += (Math.random() - 0.5) * 0.3; // Smaller direction changes
           bot.directionChangeTimer = 0;
         }
-        
+
         // Sometimes pause movement for more natural behavior
         const shouldMove = Math.random() > 0.1; // 90% chance to move each update
-        
+
         if (shouldMove) {
           // Update velocity based on direction (much slower)
           bot.velocity[0] = Math.cos(bot.direction) * bot.speed;
           bot.velocity[2] = Math.sin(bot.direction) * bot.speed;
-          
+
           // Update position
           bot.position[0] += bot.velocity[0];
           bot.position[2] += bot.velocity[2];
         }
-        
+
         // Smoother boundary handling - turn around gradually when approaching edges
         const boundaryBuffer = 10;
         if (Math.abs(bot.position[0]) > GAME_CONFIG.worldBoundary - boundaryBuffer) {
@@ -1193,25 +1193,25 @@ if (!gl) {
           bot.directionChangeTimer = 0;
         }
         if (Math.abs(bot.position[2]) > GAME_CONFIG.worldBoundary - boundaryBuffer) {
-          // Turn away from boundary gradually  
+          // Turn away from boundary gradually
           const turnDirection = bot.position[2] > 0 ? -Math.PI/2 : Math.PI/2;
           bot.direction = bot.direction * 0.8 + turnDirection * 0.2;
           bot.directionChangeTimer = 0;
         }
       });
     }
-    
+
     sendStateUpdate() {
       if (!this.isRunning) return;
-      
+
       // Update bot positions
       this.updateBotPositions();
-      
+
       // Occasionally disconnect and reconnect bots for testing
       if (Math.random() < 0.002) { // 0.2% chance per update (roughly every 2-3 minutes)
         this.simulateRandomDisconnection();
       }
-      
+
       // Send position updates for each bot
       this.botPlayers.forEach(bot => {
         const message = {
@@ -1220,24 +1220,24 @@ if (!gl) {
           position: [...bot.position],
           timestamp: Date.now()
         };
-        
+
         // Simulate receiving the message
         setTimeout(() => {
           networkManager.handleMessage(message);
         }, 10 + Math.random() * 20); // Simulate 10-30ms network latency
       });
     }
-    
+
     simulateRandomDisconnection() {
       if (this.botPlayers.length === 0) return;
-      
+
       // Pick a random bot to disconnect
       const randomIndex = Math.floor(Math.random() * this.botPlayers.length);
       const botToRemove = this.botPlayers[randomIndex];
-      
+
       console.log(`🤖 Simulating disconnection of bot ${botToRemove.id}`);
       this.simulatePlayerLeave(botToRemove.id);
-      
+
       // After a random delay, add a new bot to maintain population
       setTimeout(() => {
         if (this.isRunning && this.botPlayers.length < 3) { // Keep 2-3 bots
@@ -1246,7 +1246,7 @@ if (!gl) {
         }
       }, 3000 + Math.random() * 5000); // Wait 3-8 seconds before adding replacement
     }
-    
+
     simulatePlayerJoin(player) {
       const message = {
         type: 'player_join',
@@ -1255,34 +1255,34 @@ if (!gl) {
         color: [...player.color],
         timestamp: Date.now()
       };
-      
+
       // Simulate receiving the join message
       setTimeout(() => {
         networkManager.handleMessage(message);
       }, 50 + Math.random() * 100); // Simulate 50-150ms network latency
     }
-    
+
     simulatePlayerLeave(playerId) {
       const message = {
         type: 'player_leave',
         playerId: playerId,
         timestamp: Date.now()
       };
-      
+
       // Simulate receiving the leave message
       setTimeout(() => {
         networkManager.handleMessage(message);
       }, 50 + Math.random() * 100);
-      
+
       // Remove from fake server
       this.players.delete(playerId);
       this.botPlayers = this.botPlayers.filter(bot => bot.id !== playerId);
     }
   }
-  
+
   // Initialize fake server
   const fakeServer = new FakeServer();
-  
+
   // Global function for testing disconnections (available in browser console)
   window.testDisconnection = () => {
     console.log('🧪 Testing bot disconnection...');
@@ -1297,11 +1297,11 @@ if (!gl) {
       this.color = [...color];
       this.lastBounceTime = 0;
     }
-    
+
     updatePosition(newPosition) {
       this.position = [...newPosition];
     }
-    
+
     getBouncingY(time) {
       const cycle = (time * 0.001 * GAME_CONFIG.bounceSpeed) % (2 * Math.PI);
       const normalizedTime = cycle / (2 * Math.PI);
@@ -1321,28 +1321,28 @@ if (!gl) {
         height: 4
       };
     }
-    
+
     addPlayer(id, position, color) {
       const player = new Player(id, position, color);
       this.players.set(id, player);
       return player;
     }
-    
+
     removePlayer(id) {
       this.players.delete(id);
     }
-    
+
     updatePlayer(id, position) {
       const player = this.players.get(id);
       if (player) {
         player.updatePosition(position);
       }
     }
-    
+
     getLocalPlayer() {
       return this.players.get(this.localPlayerId);
     }
-    
+
     getAllPlayers() {
       return Array.from(this.players.values());
     }
@@ -1364,7 +1364,7 @@ if (!gl) {
   function updateLocalPlayer() {
     const localPlayer = gameState.getLocalPlayer();
     if (!localPlayer) return;
-    
+
     // Calculate camera-relative movement directions
     const forward = [Math.sin(gameState.camera.angle), 0, Math.cos(gameState.camera.angle)];
     const right = [Math.cos(gameState.camera.angle), 0, -Math.sin(gameState.camera.angle)];
@@ -1404,7 +1404,7 @@ if (!gl) {
       Math.abs(localPlayer.position[0] - oldPosition[0]) > 0.01 ||
       Math.abs(localPlayer.position[2] - oldPosition[2]) > 0.01
     );
-    
+
     if (positionChanged && networkManager.isConnected) {
       networkManager.sendPositionUpdate(localPlayer.position);
     }
@@ -1454,7 +1454,7 @@ if (!gl) {
   // Mini-map elements
   const miniMapPlayer = document.getElementById('mini-map-player');
   const miniMapContent = document.getElementById('mini-map-content');
-  
+
   // Track other player elements on minimap
   const otherPlayerElements = new Map();
 
@@ -1462,7 +1462,7 @@ if (!gl) {
   function updateMiniMap() {
     const localPlayer = gameState.getLocalPlayer();
     if (!localPlayer) return;
-    
+
     // Convert world coordinates to mini-map coordinates
     // Check if we're on mobile (width < 1024px)
     const isMobile = window.innerWidth < 1024;
@@ -1483,16 +1483,16 @@ if (!gl) {
     miniMapPlayer.style.left = `${localMapX}px`;
     miniMapPlayer.style.top = `${localMapZ}px`;
     miniMapPlayer.style.transform = `translate(-50%, -50%) rotate(${directionDegrees}deg)`;
-    
+
     // Update other players
     const allPlayers = Array.from(gameState.players.values());
     const currentOtherPlayerIds = new Set();
-    
+
     allPlayers.forEach(player => {
       if (player.id === gameState.localPlayerId) return; // Skip local player
-      
+
       currentOtherPlayerIds.add(player.id);
-      
+
       // Get or create element for this player
       let playerElement = otherPlayerElements.get(player.id);
       if (!playerElement) {
@@ -1501,18 +1501,18 @@ if (!gl) {
         miniMapContent.appendChild(playerElement);
         otherPlayerElements.set(player.id, playerElement);
       }
-      
+
       // Update position and color
       const [otherMapX, otherMapZ] = worldToMiniMap(player.position);
       playerElement.style.left = `${otherMapX}px`;
       playerElement.style.top = `${otherMapZ}px`;
-      
+
       // Set player color
       const [r, g, b] = player.color;
       playerElement.style.backgroundColor = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
       playerElement.style.boxShadow = `0 0 6px rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, 0.8)`;
     });
-    
+
     // Remove elements for players who are no longer present
     otherPlayerElements.forEach((element, playerId) => {
       if (!currentOtherPlayerIds.has(playerId)) {
@@ -1526,14 +1526,14 @@ if (!gl) {
   gameState.localPlayerId = generatePlayerId();
   const randomSpawnPosition = generateRandomSpawnPosition();
   const randomColor = generateRandomColor();
-  
+
   console.log(`Spawning player ${gameState.localPlayerId} at position [${randomSpawnPosition.map(x => x.toFixed(2)).join(', ')}] with color [${randomColor.map(x => x.toFixed(2)).join(', ')}]`);
-  
+
   gameState.addPlayer(gameState.localPlayerId, randomSpawnPosition, randomColor);
-  
+
   // Connect to server (or simulate connection)
   networkManager.connect();
-  
+
   // Handle page unload - notify server when player leaves
   window.addEventListener('beforeunload', () => {
     if (networkManager.isConnected) {
@@ -1601,19 +1601,19 @@ if (!gl) {
     const allPlayers = Array.from(gameState.players.values());
     const sphereCenters = [];
     const sphereColors = [];
-    
+
     // Add all players' sphere data
     for (let i = 0; i < Math.min(allPlayers.length, 10); i++) {
       const player = allPlayers[i];
       const playerBobbingY = player.getBouncingY(time);
-      
+
       // Add sphere center using direct position
       sphereCenters.push(player.position[0], playerBobbingY, player.position[2]);
-      
+
       // Add sphere color
       sphereColors.push(player.color[0], player.color[1], player.color[2]);
     }
-    
+
     // Pad arrays to size 10 if needed
     while (sphereCenters.length < 30) sphereCenters.push(0.0); // 10 spheres * 3 components
     while (sphereColors.length < 30) sphereColors.push(0.0); // 10 spheres * 3 components
@@ -1625,7 +1625,7 @@ if (!gl) {
     gl.uniform3f(cameraTargetLocation, localPlayer.position[0], sphereZenith, localPlayer.position[2]);
     gl.uniform1f(timeLocation, time * 0.001);
     gl.uniform1f(worldBoundaryLocation, GAME_CONFIG.worldBoundary);
-    
+
     // Set multiple sphere data
     gl.uniform1i(numSpheresLocation, Math.min(allPlayers.length, 10));
     gl.uniform3fv(sphereCentersLocation, sphereCenters);
