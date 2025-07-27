@@ -94,55 +94,81 @@ export class AudioSystem implements IAudioSystem {
     this.updateLastEvent('Test tone button clicked')
     
     if (!this.audioContext) {
+      this.updateLastEvent('Creating audio context for test tone...')
       const context = this.initAudioContext()
       if (!context) {
         this.updateLastEvent('Failed to create audio context for test tone')
         return
       }
+      this.updateLastEvent(`Audio context created with state: ${context.state}`)
     }
 
     if (this.audioContext && this.audioContext.state === 'suspended') {
+      this.updateLastEvent('Audio context is suspended, attempting resume...')
       this.audioContext.resume().then(() => {
-        this.updateLastEvent('Context resumed for test tone')
-        this.createTestTone()
+        this.updateLastEvent(`Context resumed successfully to: ${this.audioContext?.state}`)
+        // Wait a bit for mobile browsers to fully process the resume
+        setTimeout(() => {
+          this.updateLastEvent('Starting test tone after resume delay...')
+          this.createTestTone()
+        }, 50)
       }).catch((error) => {
         this.updateLastEvent(`Test tone resume failed: ${error}`)
       })
-    } else {
+    } else if (this.audioContext && this.audioContext.state === 'running') {
+      this.updateLastEvent('Context already running, creating test tone immediately')
       this.createTestTone()
+    } else {
+      this.updateLastEvent(`Unexpected context state: ${this.audioContext?.state || 'undefined'}`)
     }
   }
 
   private createTestTone(): void {
-    if (!this.audioContext) return
+    if (!this.audioContext) {
+      this.updateLastEvent('No audio context for test tone')
+      return
+    }
+
+    this.updateLastEvent(`Creating test tone - context state: ${this.audioContext.state}`)
 
     try {
-      this.updateLastEvent('Creating test tone...')
-      
       const oscillator = this.audioContext.createOscillator()
       const gainNode = this.audioContext.createGain()
+
+      // Check if nodes were created successfully
+      if (!oscillator || !gainNode) {
+        this.updateLastEvent('Failed to create oscillator or gain node')
+        return
+      }
 
       oscillator.connect(gainNode)
       gainNode.connect(this.audioContext.destination)
 
-      // Audible test tone
+      // More aggressive test tone for mobile
       oscillator.frequency.setValueAtTime(440, this.audioContext.currentTime) // A4 note
       oscillator.type = 'sine'
 
-      // Reasonable volume
-      gainNode.gain.setValueAtTime(0, this.audioContext.currentTime)
-      gainNode.gain.linearRampToValueAtTime(0.1, this.audioContext.currentTime + 0.01)
-      gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 1)
+      // Higher volume for mobile
+      const startTime = this.audioContext.currentTime
+      gainNode.gain.setValueAtTime(0, startTime)
+      gainNode.gain.linearRampToValueAtTime(0.3, startTime + 0.01) // Louder
+      gainNode.gain.setValueAtTime(0.3, startTime + 0.8)
+      gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 1)
 
-      oscillator.start(this.audioContext.currentTime)
-      oscillator.stop(this.audioContext.currentTime + 1)
+      oscillator.start(startTime)
+      oscillator.stop(startTime + 1)
 
       this.notesPlayedCount++
-      this.updateLastEvent('Test tone played (440Hz, 1 sec)')
+      this.updateLastEvent(`Test tone scheduled - vol: 0.3, freq: 440Hz`)
       this.updateDebugDisplay()
+
+      // Set a timeout to check if it actually played
+      setTimeout(() => {
+        this.updateLastEvent(`Test tone should have finished playing`)
+      }, 1100)
       
     } catch (error) {
-      this.updateLastEvent(`Test tone failed: ${error}`)
+      this.updateLastEvent(`Test tone error: ${error}`)
     }
   }
 
