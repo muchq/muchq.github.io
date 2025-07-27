@@ -14,16 +14,18 @@ export class NetworkManager implements INetworkManager {
   lastPositionSent: number
   messageHandlers: Map<string, (message: NetworkMessage) => void>
   gameState: GameState
+  fakeServer: IFakeServer | null
 
   constructor(gameState: GameState) {
     this.ws = null
     this.isConnected = false
-    this.isSimulated = false // For testing: simulate server with local storage
+    this.isSimulated = false
     this.lastSentPosition = null
     this.positionUpdateThrottle = 50 // Send updates max every 50ms (20fps)
     this.lastPositionSent = 0
     this.messageHandlers = new Map()
     this.gameState = gameState
+    this.fakeServer = null
   }
 
   connect(url: string = 'wss://thoughts.muchq.com/ws'): void {
@@ -69,9 +71,13 @@ export class NetworkManager implements INetworkManager {
     this.sendPlayerJoin()
 
     // Start fake server if in simulation mode
-    if (this.isSimulated && window.fakeServer) {
-      window.fakeServer.start()
+    if (this.isSimulated && this.fakeServer) {
+      this.fakeServer.start()
     }
+  }
+
+  setFakeServer(fakeServer: IFakeServer): void {
+    this.fakeServer = fakeServer
   }
 
   private onDisconnected(): void {
@@ -420,17 +426,9 @@ export class FakeServer implements IFakeServer {
   }
 }
 
-// Global function for testing disconnections (available in browser console)
-declare global {
-  interface Window {
-    fakeServer?: FakeServer
-    testDisconnection?: () => void
-  }
-}
-
-export function setupGlobalTestFunctions(fakeServer: FakeServer): void {
-  window.fakeServer = fakeServer
-  window.testDisconnection = () => {
+// Test function for debugging (each tab gets its own instance)
+export function createTestDisconnectionFunction(fakeServer: FakeServer): () => void {
+  return () => {
     console.log('🧪 Testing bot disconnection...')
     fakeServer.simulateRandomDisconnection()
   }

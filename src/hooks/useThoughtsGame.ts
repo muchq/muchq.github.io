@@ -4,7 +4,7 @@ import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
 import { generateRandomColor, generateRandomSpawnPosition, generatePlayerId, createShader, createProgram } from '@/utils/gameUtils'
 import { VirtualJoystick } from '@/utils/virtualJoystick'
 import { AudioSystem } from '@/utils/audioSystem'
-import { NetworkManager, FakeServer, setupGlobalTestFunctions } from '@/utils/networkSystem'
+import { NetworkManager, FakeServer } from '@/utils/networkSystem'
 import { ShapeType } from '@/types/game'
 
 export const useThoughtsGame = () => {
@@ -18,7 +18,8 @@ export const useThoughtsGame = () => {
     const networkManager = new NetworkManager(gameState)
     const fakeServer = new FakeServer(networkManager)
     
-    setupGlobalTestFunctions(fakeServer)
+    // Set up isolated instances (no global state)
+    networkManager.setFakeServer(fakeServer)
     
     // Initialize local player
     gameState.localPlayerId = generatePlayerId()

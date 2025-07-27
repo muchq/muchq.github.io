@@ -109,6 +109,7 @@ export interface NetworkManager {
   sendMessage(message: NetworkMessage): void
   sendPositionUpdate(position: [number, number, number]): void
   sendPlayerJoin(): void
+  setFakeServer(fakeServer: FakeServer): void
 }
 
 export interface BotPlayer {
