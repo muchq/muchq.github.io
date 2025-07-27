@@ -813,7 +813,7 @@ export class AudioSystem implements IAudioSystem {
       for (let i = 0; i < samples; i++) {
         const time = i / sampleRate
         const envelope = Math.exp(-time * 30) // Quick decay
-        channelData[i] = Math.sin(2 * Math.PI * frequency * time) * envelope * 0.3
+        channelData[i] = Math.sin(2 * Math.PI * frequency * time) * envelope * 0.1
       }
       
       const wav = this.encodeWAV(buffer)
@@ -821,7 +821,7 @@ export class AudioSystem implements IAudioSystem {
       const url = URL.createObjectURL(blob)
       
       const audio = new Audio(url)
-      audio.volume = 0.2
+      audio.volume = 0.05
       
       const playPromise = audio.play()
       if (playPromise !== undefined) {
