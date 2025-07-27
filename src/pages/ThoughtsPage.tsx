@@ -1,11 +1,11 @@
-import Navigation from '@/components/Navigation'
+import ThoughtsNavigation from '@/components/ThoughtsNavigation'
 import ThoughtsGame from '@/components/ThoughtsGame'
 
 const ThoughtsPage = () => {
   return (
     <div>
       <ThoughtsGame />
-      <Navigation />
+      <ThoughtsNavigation />
     </div>
   )
 }
