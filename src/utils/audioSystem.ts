@@ -132,7 +132,7 @@ export class AudioSystem implements IAudioSystem {
     
     try {
       // Create a simple beep using data URL
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
       const sampleRate = audioContext.sampleRate
       const duration = 0.5 // 0.5 seconds
       const frequency = 440 // A4
