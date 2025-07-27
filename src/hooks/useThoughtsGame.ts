@@ -9,6 +9,7 @@ import { ShapeType } from '@/types/game'
 
 export const useThoughtsGame = () => {
   const initializeGame = useCallback((canvas: HTMLCanvasElement) => {
+    // eslint-disable-next-line no-console
     console.log('Starting game initialization...')
     
     // Initialize game systems
@@ -24,6 +25,7 @@ export const useThoughtsGame = () => {
     const randomSpawnPosition = generateRandomSpawnPosition(GAME_CONFIG.worldBoundary)
     const randomColor = generateRandomColor()
     
+    // eslint-disable-next-line no-console
     console.log(`Spawning player ${gameState.localPlayerId} at position [${randomSpawnPosition.map(x => x.toFixed(2)).join(', ')}] with color [${randomColor.map(x => x.toFixed(2)).join(', ')}]`)
     
     gameState.addPlayer(gameState.localPlayerId, randomSpawnPosition, randomColor)
@@ -67,6 +69,7 @@ export const useThoughtsGame = () => {
       
       // Get shape name for console
       const shapeNames = ['Sphere', 'Cube', 'Pyramid']
+      // eslint-disable-next-line no-console
       console.log(`🔄 Shape changed to: ${shapeNames[localPlayer.shape]}`)
       
       // Send shape update to server
@@ -178,7 +181,7 @@ export const useThoughtsGame = () => {
       const webglContext = gl
       
       // Resize function
-      function resizeCanvas() {
+      const resizeCanvas = () => {
         const dpr = window.devicePixelRatio || 1
         canvas.width = window.innerWidth * dpr
         canvas.height = window.innerHeight * dpr
@@ -191,7 +194,7 @@ export const useThoughtsGame = () => {
       resizeCanvas()
       
       // Player update function
-      function updateLocalPlayer() {
+      const updateLocalPlayer = () => {
         const localPlayer = gameState.getLocalPlayer()
         if (!localPlayer) return
         
@@ -266,7 +269,7 @@ export const useThoughtsGame = () => {
       }
       
       // Mini-map update function
-      function updateMiniMap() {
+      const updateMiniMap = () => {
         const localPlayer = gameState.getLocalPlayer()
         if (!localPlayer) return
         

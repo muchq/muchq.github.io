@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react'
+import React from 'react'
+import { render, screen as testingScreen } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { describe, it, expect } from 'vitest'
 import Navigation from '../Navigation'
@@ -14,15 +15,15 @@ const renderWithRouter = (component: React.ReactElement) => {
 describe('Navigation', () => {
   it('renders navigation logo', () => {
     renderWithRouter(<Navigation />)
-    expect(screen.getByText('MuchQ')).toBeDefined()
+    expect(testingScreen.getByText('MuchQ')).toBeDefined()
   })
 
   it('renders navigation links', () => {
     renderWithRouter(<Navigation />)
-    expect(screen.getByText('Projects')).toBeDefined()
-    expect(screen.getByText('Interests')).toBeDefined()
-    expect(screen.getByText('Blog')).toBeDefined()
-    expect(screen.getByText('Thoughts')).toBeDefined()
-    expect(screen.getByText('Resume')).toBeDefined()
+    expect(testingScreen.getByText('Projects')).toBeDefined()
+    expect(testingScreen.getByText('Interests')).toBeDefined()
+    expect(testingScreen.getByText('Blog')).toBeDefined()
+    expect(testingScreen.getByText('Thoughts')).toBeDefined()
+    expect(testingScreen.getByText('Resume')).toBeDefined()
   })
 })

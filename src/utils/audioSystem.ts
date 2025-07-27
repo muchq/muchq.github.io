@@ -79,7 +79,7 @@ export class AudioSystem implements IAudioSystem {
   private createSimpleChord(frequencies: number[], startTime: number, duration: number): void {
     if (!this.audioContext || !this.backgroundMusic.gainNode) return
 
-    frequencies.forEach((freq, _index) => {
+    frequencies.forEach((freq) => {
       const oscillator = this.audioContext!.createOscillator()
       const gainNode = this.audioContext!.createGain()
 
@@ -155,6 +155,7 @@ export class AudioSystem implements IAudioSystem {
     this.backgroundMusic.chordIndex = 0
 
     this.scheduleNextMusicNotes()
+    // eslint-disable-next-line no-console
     console.log('🎵 Started simple background music')
   }
 
@@ -169,6 +170,7 @@ export class AudioSystem implements IAudioSystem {
       this.backgroundMusic.gainNode = null
     }
 
+    // eslint-disable-next-line no-console
     console.log('🎵 Stopped background music')
   }
 
