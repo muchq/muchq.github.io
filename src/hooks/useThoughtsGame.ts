@@ -480,7 +480,7 @@ export const useThoughtsGame = () => {
       }
       
       // Clean up game systems
-      audioSystem.stopBackgroundMusic()
+      audioSystem.cleanup()
       networkManager.disconnect()
       if (networkManager.fakeServer) {
         networkManager.fakeServer.stop()

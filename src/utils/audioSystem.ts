@@ -35,6 +35,7 @@ export class AudioSystem implements IAudioSystem {
   notesPlayedCount: number
   private isMobile: boolean
   private html5BackgroundAudio: HTMLAudioElement | null
+  private mobileBounceAudioUrl: string | null
 
   constructor() {
     this.audioContext = null
@@ -53,6 +54,7 @@ export class AudioSystem implements IAudioSystem {
     // Detect mobile device
     this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 1024
     this.html5BackgroundAudio = null
+    this.mobileBounceAudioUrl = null
     
     if (this.isMobile) {
       this.initMobileAudio()
@@ -60,7 +62,38 @@ export class AudioSystem implements IAudioSystem {
   }
 
   private initMobileAudio(): void {
-    // Mobile audio will be initialized when sound is enabled
+    // Pre-generate bounce sound for mobile
+    this.createMobileBounceSound()
+  }
+
+  private createMobileBounceSound(): void {
+    try {
+      // Create a bounce sound template
+      const sampleRate = 44100
+      const duration = 0.1 // 100ms
+      const samples = Math.floor(sampleRate * duration)
+      
+      const tempContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      const buffer = tempContext.createBuffer(1, samples, sampleRate)
+      const channelData = buffer.getChannelData(0)
+      
+      // Use a fixed frequency for consistent bounce sound
+      const frequency = 250 // Fixed frequency for consistency
+      
+      for (let i = 0; i < samples; i++) {
+        const time = i / sampleRate
+        const envelope = Math.exp(-time * 30) // Quick decay
+        channelData[i] = Math.sin(2 * Math.PI * frequency * time) * envelope * 0.1
+      }
+      
+      const wav = this.encodeWAV(buffer)
+      const blob = new Blob([wav], { type: 'audio/wav' })
+      this.mobileBounceAudioUrl = URL.createObjectURL(blob)
+      
+    } catch {
+      // Silent failure for bounce sound creation
+      this.mobileBounceAudioUrl = null
+    }
   }
 
 
@@ -470,29 +503,10 @@ export class AudioSystem implements IAudioSystem {
   }
 
   private playMobileBoingSound(): void {
+    if (!this.mobileBounceAudioUrl) return
+    
     try {
-      // Create a quick bounce sound
-      const sampleRate = 44100
-      const duration = 0.1 // 100ms
-      const samples = Math.floor(sampleRate * duration)
-      
-      const tempContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
-      const buffer = tempContext.createBuffer(1, samples, sampleRate)
-      const channelData = buffer.getChannelData(0)
-      
-      const frequency = 200 + Math.random() * 100
-      
-      for (let i = 0; i < samples; i++) {
-        const time = i / sampleRate
-        const envelope = Math.exp(-time * 30) // Quick decay
-        channelData[i] = Math.sin(2 * Math.PI * frequency * time) * envelope * 0.1
-      }
-      
-      const wav = this.encodeWAV(buffer)
-      const blob = new Blob([wav], { type: 'audio/wav' })
-      const url = URL.createObjectURL(blob)
-      
-      const audio = new Audio(url)
+      const audio = new Audio(this.mobileBounceAudioUrl)
       audio.volume = 0.035
       
       const playPromise = audio.play()
@@ -501,11 +515,6 @@ export class AudioSystem implements IAudioSystem {
           // Silently fail - bounce sounds are not critical
         })
       }
-      
-      // Clean up after playing
-      audio.addEventListener('ended', () => {
-        URL.revokeObjectURL(url)
-      })
       
     } catch {
       // Silently fail for bounce sounds
@@ -551,5 +560,15 @@ export class AudioSystem implements IAudioSystem {
       this.stopBackgroundMusic()
     }
     
+  }
+
+  cleanup(): void {
+    // Clean up resources when audio system is destroyed
+    this.stopBackgroundMusic()
+    
+    if (this.mobileBounceAudioUrl) {
+      URL.revokeObjectURL(this.mobileBounceAudioUrl)
+      this.mobileBounceAudioUrl = null
+    }
   }
 }
