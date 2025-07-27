@@ -1453,7 +1453,6 @@ if (!gl) {
 
   // Mini-map elements
   const miniMapPlayer = document.getElementById('mini-map-player');
-  const miniMapDirection = document.getElementById('mini-map-direction');
   const miniMapContent = document.getElementById('mini-map-content');
   
   // Track other player elements on minimap
@@ -1478,14 +1477,12 @@ if (!gl) {
       return [mapX, mapZ];
     }
 
-    // Update local player position
+    // Update local player position and rotation
     const [localMapX, localMapZ] = worldToMiniMap(localPlayer.position);
+    const directionDegrees = -gameState.camera.angle * 180 / Math.PI; // Convert to degrees, pointing forward
     miniMapPlayer.style.left = `${localMapX}px`;
     miniMapPlayer.style.top = `${localMapZ}px`;
-
-    // Update direction indicator to point forward (camera direction)
-    const directionDegrees = -gameState.camera.angle * 180 / Math.PI; // Convert to degrees, pointing forward
-    miniMapDirection.style.transform = `translate(-50%, -50%) rotate(${directionDegrees}deg)`;
+    miniMapPlayer.style.transform = `translate(-50%, -50%) rotate(${directionDegrees}deg)`;
     
     // Update other players
     const allPlayers = Array.from(gameState.players.values());

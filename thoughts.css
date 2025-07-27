@@ -255,13 +255,13 @@ body {
 
 .mini-map-player {
   position: absolute;
-  width: 8px;
-  height: 8px;
-  background: #ff6b35;
-  border: 1px solid #fff;
-  border-radius: 50%;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 14px solid #ff6b35;
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 8px rgba(255, 107, 53, 0.8);
+  filter: drop-shadow(0 0 4px rgba(255, 107, 53, 0.8)) drop-shadow(0 0 1px #fff);
 }
 
 .mini-map-other-player {
@@ -274,15 +274,6 @@ body {
   box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
 }
 
-.mini-map-direction {
-  position: absolute;
-  width: 2px;
-  height: 12px;
-  background: #fff;
-  transform-origin: bottom center;
-  transform: translate(-50%, -100%);
-  border-radius: 1px;
-}
 
 /* Sound toggle button */
 #sound-toggle {
