@@ -30,7 +30,7 @@ const ThoughtsNavigation = () => {
         setCurrentThoughtIndex((prevIndex) => (prevIndex + 1) % thoughts.length)
         setIsVisible(true)
       }, 10000) // Wait 5 seconds for fade out to complete
-    }, 30000) // Total cycle: 10s visible + 5s fade out + 5s fade in = 20s
+    }, 28000) // Total cycle: 10s visible + 5s fade out + 5s fade in = 20s
 
     return () => {
       clearTimeout(initialTimeout)
