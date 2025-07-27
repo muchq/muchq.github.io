@@ -31,17 +31,6 @@ const ThoughtsGame = () => {
       
       <button id="sound-toggle" className={styles.soundToggle}>🔇 Sound: OFF</button>
       
-      {/* Audio Debug Panel - remove this after testing */}
-      <div id="audio-debug" className={styles.audioDebug}>
-        <div>Audio Status: <span id="audio-status">Loading...</span></div>
-        <div>Context State: <span id="audio-context-state">-</span></div>
-        <div>Last Event: <span id="audio-last-event">-</span></div>
-        <div>Music Playing: <span id="audio-music-playing">-</span></div>
-        <div>Notes Played: <span id="audio-notes-count">0</span></div>
-        <button id="test-tone-button" className={styles.testButton}>🎵 Test Tone</button>
-        <button id="loud-tone-button" className={styles.testButton}>🔊 LOUD Tone</button>
-      </div>
-      
       <div id="left-joystick" className={`${styles.mobileJoystick} ${styles.leftJoystick}`}>
         <div className={styles.joystickKnob} id="left-knob"></div>
       </div>
