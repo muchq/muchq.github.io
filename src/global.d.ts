@@ -1,19 +1,21 @@
 /// <reference types="react" />
 
+import type { DetailedHTMLProps, HTMLAttributes } from 'react'
+
 declare module 'react/jsx-runtime' {
   namespace JSX {
     interface IntrinsicElements {
       // MathML elements
-      math: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
-      mfrac: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
-      mn: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
-      mi: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
-      mo: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & { stretchy?: string }, HTMLElement>
-      mspace: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
-      semantics: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
-      mrow: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
-      msub: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
-      msubsup: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
+      math: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
+      mfrac: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
+      mn: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
+      mi: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
+      mo: DetailedHTMLProps<HTMLAttributes<HTMLElement> & { stretchy?: string }, HTMLElement>
+      mspace: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
+      semantics: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
+      mrow: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
+      msub: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
+      msubsup: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
     }
   }
 }
