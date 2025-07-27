@@ -1,0 +1,50 @@
+/* Thoughts Page Navigation Styles */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(68, 68, 68, 0.1);
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.navContainer {
+  max-width: 650px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 60px;
+}
+
+.navLogo {
+  font-size: 20px;
+  font-weight: 200;
+  color: #444;
+  text-decoration: none;
+}
+
+.thought {
+  font-size: 16px;
+  color: #666;
+  opacity: 0;
+  transition: opacity 5s ease-in-out;
+  font-style: italic;
+}
+
+.thought.visible {
+  opacity: 1;
+}
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+  .thought {
+    font-size: 14px;
+    max-width: 200px;
+    text-align: right;
+  }
+}
