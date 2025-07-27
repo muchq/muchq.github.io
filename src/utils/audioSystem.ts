@@ -32,11 +32,13 @@ export class AudioSystem implements IAudioSystem {
     chordIndex: number
   }
   lastBounceTime: number
+  notesPlayedCount: number
 
   constructor() {
     this.audioContext = null
     this.soundEnabled = false
     this.lastBounceTime = 0
+    this.notesPlayedCount = 0
     this.backgroundMusic = {
       isPlaying: false,
       gainNode: null,
@@ -46,8 +48,9 @@ export class AudioSystem implements IAudioSystem {
       chordIndex: 0
     }
     
-    // Initialize debug display
+    // Initialize debug display and test button
     this.updateDebugDisplay()
+    this.setupTestButton()
   }
 
   private updateDebugDisplay(): void {
@@ -56,6 +59,7 @@ export class AudioSystem implements IAudioSystem {
       const statusEl = document.getElementById('audio-status')
       const contextStateEl = document.getElementById('audio-context-state')
       const musicPlayingEl = document.getElementById('audio-music-playing')
+      const notesCountEl = document.getElementById('audio-notes-count')
       
       if (statusEl) {
         statusEl.textContent = this.soundEnabled ? 'Enabled' : 'Disabled'
@@ -68,7 +72,78 @@ export class AudioSystem implements IAudioSystem {
       if (musicPlayingEl) {
         musicPlayingEl.textContent = this.backgroundMusic.isPlaying ? 'Yes' : 'No'
       }
+      
+      if (notesCountEl) {
+        notesCountEl.textContent = this.notesPlayedCount.toString()
+      }
     }, 10)
+  }
+
+  private setupTestButton(): void {
+    setTimeout(() => {
+      const testButton = document.getElementById('test-tone-button')
+      if (testButton) {
+        testButton.addEventListener('click', () => {
+          this.playTestTone()
+        })
+      }
+    }, 100)
+  }
+
+  playTestTone(): void {
+    this.updateLastEvent('Test tone button clicked')
+    
+    if (!this.audioContext) {
+      const context = this.initAudioContext()
+      if (!context) {
+        this.updateLastEvent('Failed to create audio context for test tone')
+        return
+      }
+    }
+
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      this.audioContext.resume().then(() => {
+        this.updateLastEvent('Context resumed for test tone')
+        this.createTestTone()
+      }).catch((error) => {
+        this.updateLastEvent(`Test tone resume failed: ${error}`)
+      })
+    } else {
+      this.createTestTone()
+    }
+  }
+
+  private createTestTone(): void {
+    if (!this.audioContext) return
+
+    try {
+      this.updateLastEvent('Creating test tone...')
+      
+      const oscillator = this.audioContext.createOscillator()
+      const gainNode = this.audioContext.createGain()
+
+      oscillator.connect(gainNode)
+      gainNode.connect(this.audioContext.destination)
+
+      // Audible test tone
+      oscillator.frequency.setValueAtTime(440, this.audioContext.currentTime) // A4 note
+      oscillator.type = 'sine'
+
+      // Reasonable volume
+      gainNode.gain.setValueAtTime(0, this.audioContext.currentTime)
+      gainNode.gain.linearRampToValueAtTime(0.1, this.audioContext.currentTime + 0.01)
+      gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 1)
+
+      oscillator.start(this.audioContext.currentTime)
+      oscillator.stop(this.audioContext.currentTime + 1)
+
+      this.notesPlayedCount++
+      this.updateLastEvent('Test tone played (440Hz, 1 sec)')
+      this.updateDebugDisplay()
+      
+    } catch (error) {
+      this.updateLastEvent(`Test tone failed: ${error}`)
+    }
   }
 
   private testAudioWithSilentSound(): void {
@@ -110,48 +185,68 @@ export class AudioSystem implements IAudioSystem {
 
 
   private createSimpleNote(frequency: number, startTime: number, duration: number, volume: number = 0.03): void {
-    if (!this.audioContext || !this.backgroundMusic.gainNode) return
+    if (!this.audioContext || !this.backgroundMusic.gainNode) {
+      this.updateLastEvent('createSimpleNote failed - no context or gain node')
+      return
+    }
 
-    const oscillator = this.audioContext.createOscillator()
-    const gainNode = this.audioContext.createGain()
-
-    oscillator.type = 'sine'
-    oscillator.frequency.setValueAtTime(frequency, startTime)
-
-    gainNode.gain.setValueAtTime(0, startTime)
-    gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.1)
-    gainNode.gain.setValueAtTime(volume, startTime + duration * 0.7)
-    gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
-
-    oscillator.connect(gainNode)
-    gainNode.connect(this.backgroundMusic.gainNode)
-
-    oscillator.start(startTime)
-    oscillator.stop(startTime + duration)
-  }
-
-  private createSimpleChord(frequencies: number[], startTime: number, duration: number): void {
-    if (!this.audioContext || !this.backgroundMusic.gainNode) return
-
-    frequencies.forEach((freq) => {
-      const oscillator = this.audioContext!.createOscillator()
-      const gainNode = this.audioContext!.createGain()
+    try {
+      const oscillator = this.audioContext.createOscillator()
+      const gainNode = this.audioContext.createGain()
 
       oscillator.type = 'sine'
-      oscillator.frequency.setValueAtTime(freq, startTime)
+      oscillator.frequency.setValueAtTime(frequency, startTime)
 
-      const volume = 0.02 // Quieter chords
       gainNode.gain.setValueAtTime(0, startTime)
-      gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.2)
-      gainNode.gain.setValueAtTime(volume, startTime + duration - 0.5)
+      gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.1)
+      gainNode.gain.setValueAtTime(volume, startTime + duration * 0.7)
       gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
 
       oscillator.connect(gainNode)
-      gainNode.connect(this.backgroundMusic.gainNode!)
+      gainNode.connect(this.backgroundMusic.gainNode)
 
       oscillator.start(startTime)
       oscillator.stop(startTime + duration)
-    })
+      
+      this.notesPlayedCount++
+      this.updateDebugDisplay()
+    } catch (error) {
+      this.updateLastEvent(`Note creation failed: ${error}`)
+    }
+  }
+
+  private createSimpleChord(frequencies: number[], startTime: number, duration: number): void {
+    if (!this.audioContext || !this.backgroundMusic.gainNode) {
+      this.updateLastEvent('createSimpleChord failed - no context or gain node')
+      return
+    }
+
+    try {
+      frequencies.forEach((freq) => {
+        const oscillator = this.audioContext!.createOscillator()
+        const gainNode = this.audioContext!.createGain()
+
+        oscillator.type = 'sine'
+        oscillator.frequency.setValueAtTime(freq, startTime)
+
+        const volume = 0.02 // Quieter chords
+        gainNode.gain.setValueAtTime(0, startTime)
+        gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.2)
+        gainNode.gain.setValueAtTime(volume, startTime + duration - 0.5)
+        gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+        oscillator.connect(gainNode)
+        gainNode.connect(this.backgroundMusic.gainNode!)
+
+        oscillator.start(startTime)
+        oscillator.stop(startTime + duration)
+        
+        this.notesPlayedCount++
+      })
+      this.updateDebugDisplay()
+    } catch (error) {
+      this.updateLastEvent(`Chord creation failed: ${error}`)
+    }
   }
 
   private scheduleNextMusicNotes(): void {

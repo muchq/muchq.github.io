@@ -37,6 +37,8 @@ const ThoughtsGame = () => {
         <div>Context State: <span id="audio-context-state">-</span></div>
         <div>Last Event: <span id="audio-last-event">-</span></div>
         <div>Music Playing: <span id="audio-music-playing">-</span></div>
+        <div>Notes Played: <span id="audio-notes-count">0</span></div>
+        <button id="test-tone-button" className={styles.testButton}>🎵 Test Tone</button>
       </div>
       
       <div id="left-joystick" className={`${styles.mobileJoystick} ${styles.leftJoystick}`}>
