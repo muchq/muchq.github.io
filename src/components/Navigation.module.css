@@ -1,0 +1,155 @@
+/* Navigation Styles */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(68, 68, 68, 0.1);
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.navContainer {
+  max-width: 650px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 60px;
+}
+
+.navLogo {
+  font-size: 20px;
+  font-weight: 200;
+  color: #444;
+  text-decoration: none;
+}
+
+.navMenu {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 30px;
+}
+
+.navItem {
+  position: relative;
+  background: rgba(255, 255, 255, 0.50);
+  border-radius: 5px;
+}
+
+.navLink {
+  color: #444;
+  text-decoration: none;
+  font-size: 16px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  display: block;
+}
+
+.navLink:hover {
+  background: rgba(68, 68, 68, 0.05);
+}
+
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid rgba(68, 68, 68, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  min-width: 150px;
+  padding: 8px 0;
+}
+
+.navItem:hover .dropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dropdownItem {
+  display: block;
+  padding: 8px 16px;
+  color: #444;
+  text-decoration: none;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.dropdownItem:hover {
+  background: rgba(68, 68, 68, 0.05);
+}
+
+.mobileMenuToggle {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #444;
+  cursor: pointer;
+}
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+  .navMenu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: white;
+    flex-direction: column;
+    gap: 0;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-20px);
+    transition: all 0.3s ease;
+  }
+
+  .navMenu.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+
+  .mobileMenuToggle {
+    display: block;
+  }
+
+  .navItem {
+    width: 100%;
+  }
+
+  .navLink {
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(68, 68, 68, 0.1);
+  }
+
+  .dropdown {
+    position: static;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    box-shadow: none;
+    border: none;
+    background: rgba(68, 68, 68, 0.02);
+    margin-top: 8px;
+    border-radius: 4px;
+  }
+
+  .navItem:hover .dropdown {
+    transform: none;
+  }
+}

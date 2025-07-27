@@ -1,0 +1,27 @@
+.homePage {
+  height: 100vh;
+  width: 100vw;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Navigation styling moved to HomePage.css for global class targeting */
+
+.content {
+  margin: 40px auto;
+  max-width: 650px;
+  line-height: 1.6;
+  font-size: 18px;
+  color: #444;
+  padding: 80px 10px 10px 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.content h1,
+.content h2,
+.content h3 {
+  line-height: 1.2;
+}
+
+/* Animation keyframes moved to HomePage.css */

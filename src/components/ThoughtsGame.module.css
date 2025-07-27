@@ -1,0 +1,207 @@
+/* Import the original thoughts.css content */
+.gameContainer {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* WebGL Canvas */
+.sceneCanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  pointer-events: none;
+  display: block;
+}
+
+/* FPS Counter */
+.fpsCounter {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-family: "Lexend Deca", monospace;
+  font-size: 12px;
+  font-weight: 100;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+/* Mini-map */
+.miniMap {
+  position: fixed;
+  top: 80px;
+  left: 20px;
+  width: 150px;
+  height: 150px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.miniMapContent {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.miniMapGrid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 15px 15px;
+}
+
+.miniMapBoundary {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 130px;
+  height: 130px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 2px;
+}
+
+.miniMapPlayer {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 14px solid #ff6b35;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 0 4px rgba(255, 107, 53, 0.8)) drop-shadow(0 0 1px #fff);
+}
+
+:global(.mini-map-other-player) {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+}
+
+/* Sound toggle button */
+.soundToggle {
+  position: fixed;
+  top: 240px;
+  left: 20px;
+  width: 150px;
+  height: 30px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  color: #fff;
+  font-family: "Lexend Deca", sans-serif;
+  font-size: 12px;
+  font-weight: 100;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: all 0.2s ease;
+}
+
+.soundToggle:hover {
+  background: rgba(0, 0, 0, 0.9);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.soundToggle.enabled {
+  background: rgba(0, 100, 0, 0.8);
+  border-color: rgba(0, 255, 0, 0.5);
+}
+
+/* Mobile Joysticks */
+.mobileJoystick {
+  position: fixed;
+  width: 120px;
+  height: 120px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  display: none;
+  z-index: 1001;
+  touch-action: none;
+  user-select: none;
+}
+
+.joystickKnob {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: none;
+}
+
+.leftJoystick {
+  bottom: 40px;
+  left: 40px;
+}
+
+.rightJoystick {
+  bottom: 40px;
+  right: 40px;
+}
+
+/* Show joysticks on mobile */
+@media (max-width: 1024px) {
+  .mobileJoystick {
+    display: block;
+  }
+  
+  .miniMap {
+    top: 70px;
+    left: 10px;
+    width: 75px;
+    height: 75px;
+  }
+  
+  .miniMapBoundary {
+    top: 5px;
+    left: 5px;
+    width: 65px;
+    height: 65px;
+  }
+  
+  .miniMapGrid {
+    background-size: 7.5px 7.5px;
+  }
+  
+  .soundToggle {
+    top: 155px;
+    left: 10px;
+    width: 75px;
+    height: 25px;
+    font-size: 9px;
+    z-index: 1002;
+  }
+  
+  .fpsCounter {
+    font-size: 10px;
+  }
+}
