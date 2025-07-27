@@ -596,7 +596,7 @@ export class AudioSystem implements IAudioSystem {
       
       this.html5BackgroundAudio = new Audio(url)
       this.html5BackgroundAudio.loop = true
-      this.html5BackgroundAudio.volume = 0.3
+      this.html5BackgroundAudio.volume = 0.1
       
       this.html5BackgroundAudio.addEventListener('canplaythrough', () => {
         this.updateLastEvent('Mobile background music ready, starting...')
@@ -659,7 +659,7 @@ export class AudioSystem implements IAudioSystem {
       if (seededRandom() < 0.3) {
         const melodyMidi = melodyPattern[noteIndex]
         const melodyFreq = midiToFreq(melodyMidi)
-        this.renderNoteToBuffer(channelData, sampleRate, melodyFreq, currentTime, noteLength * 1.5, 0.03)
+        this.renderNoteToBuffer(channelData, sampleRate, melodyFreq, currentTime, noteLength * 1.5, 0.015)
       }
       
       // Play chord every 4 beats (same as Web Audio)
@@ -667,7 +667,7 @@ export class AudioSystem implements IAudioSystem {
         const chord = chordProgression[chordIndex]
         chord.forEach(midi => {
           const chordFreq = midiToFreq(midi - 12) // Same octave offset as Web Audio
-          this.renderNoteToBuffer(channelData, sampleRate, chordFreq, currentTime, chordLength, 0.02)
+          this.renderNoteToBuffer(channelData, sampleRate, chordFreq, currentTime, chordLength, 0.01)
         })
         chordIndex = (chordIndex + 1) % chordProgression.length
       }
@@ -821,7 +821,7 @@ export class AudioSystem implements IAudioSystem {
       const url = URL.createObjectURL(blob)
       
       const audio = new Audio(url)
-      audio.volume = 0.5
+      audio.volume = 0.2
       
       const playPromise = audio.play()
       if (playPromise !== undefined) {
