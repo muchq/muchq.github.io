@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import type { NetworkManager as INetworkManager, NetworkMessage, BotPlayer, FakeServer as IFakeServer, GameState } from '@/types/game'
 import { generateRandomColor, generateRandomSpawnPosition } from './gameUtils'
 import { GAME_CONFIG } from './gameClasses'
