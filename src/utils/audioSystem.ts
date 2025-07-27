@@ -50,12 +50,12 @@ export class AudioSystem implements IAudioSystem {
       noteIndex: 0,
       chordIndex: 0
     }
-    
+
     // Detect mobile device
     this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 1024
     this.html5BackgroundAudio = null
     this.mobileBounceAudioUrl = null
-    
+
     if (this.isMobile) {
       this.initMobileAudio()
     }
@@ -72,24 +72,24 @@ export class AudioSystem implements IAudioSystem {
       const sampleRate = 44100
       const duration = 0.1 // 100ms
       const samples = Math.floor(sampleRate * duration)
-      
+
       const tempContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
       const buffer = tempContext.createBuffer(1, samples, sampleRate)
       const channelData = buffer.getChannelData(0)
-      
+
       // Use a fixed frequency for consistent bounce sound
       const frequency = 250 // Fixed frequency for consistency
-      
+
       for (let i = 0; i < samples; i++) {
         const time = i / sampleRate
         const envelope = Math.exp(-time * 30) // Quick decay
         channelData[i] = Math.sin(2 * Math.PI * frequency * time) * envelope * 0.1
       }
-      
+
       const wav = this.encodeWAV(buffer)
       const blob = new Blob([wav], { type: 'audio/wav' })
       this.mobileBounceAudioUrl = URL.createObjectURL(blob)
-      
+
     } catch {
       // Silent failure for bounce sound creation
       this.mobileBounceAudioUrl = null
@@ -102,14 +102,14 @@ export class AudioSystem implements IAudioSystem {
     const arrayBuffer = new ArrayBuffer(44 + length * 2)
     const view = new DataView(arrayBuffer)
     const channelData = buffer.getChannelData(0)
-    
+
     // WAV header
     const writeString = (offset: number, string: string) => {
       for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i))
       }
     }
-    
+
     writeString(0, 'RIFF')
     view.setUint32(4, 36 + length * 2, true)
     writeString(8, 'WAVE')
@@ -123,7 +123,7 @@ export class AudioSystem implements IAudioSystem {
     view.setUint16(34, 16, true)
     writeString(36, 'data')
     view.setUint32(40, length * 2, true)
-    
+
     // Convert float samples to 16-bit PCM
     let offset = 44
     for (let i = 0; i < length; i++) {
@@ -131,7 +131,7 @@ export class AudioSystem implements IAudioSystem {
       view.setInt16(offset, sample * 0x7FFF, true)
       offset += 2
     }
-    
+
     return arrayBuffer
   }
 
@@ -139,20 +139,20 @@ export class AudioSystem implements IAudioSystem {
   private testAudioWithSilentSound(): void {
     // Play a brief silent sound to unlock audio on iOS
     if (!this.audioContext) return
-    
+
     try {
       const oscillator = this.audioContext.createOscillator()
       const gainNode = this.audioContext.createGain()
-      
+
       oscillator.connect(gainNode)
       gainNode.connect(this.audioContext.destination)
-      
+
       gainNode.gain.setValueAtTime(0, this.audioContext.currentTime)
       oscillator.frequency.setValueAtTime(440, this.audioContext.currentTime)
-      
+
       oscillator.start(this.audioContext.currentTime)
       oscillator.stop(this.audioContext.currentTime + 0.01)
-      
+
     } catch {
       // Silent failure for iOS compatibility test
     }
@@ -189,7 +189,7 @@ export class AudioSystem implements IAudioSystem {
 
       oscillator.start(startTime)
       oscillator.stop(startTime + duration)
-      
+
       this.notesPlayedCount++
     } catch {
       // Silent failure for note creation
@@ -220,7 +220,7 @@ export class AudioSystem implements IAudioSystem {
 
         oscillator.start(startTime)
         oscillator.stop(startTime + duration)
-        
+
         this.notesPlayedCount++
       })
     } catch {
@@ -298,17 +298,17 @@ export class AudioSystem implements IAudioSystem {
   }
 
   private startMobileBackgroundMusic(): void {
-    
+
     try {
       // Create a simple looping background music track
       const musicBuffer = this.createMobileBackgroundTrack()
       const blob = new Blob([musicBuffer], { type: 'audio/wav' })
       const url = URL.createObjectURL(blob)
-      
+
       this.html5BackgroundAudio = new Audio(url)
       this.html5BackgroundAudio.loop = true
       this.html5BackgroundAudio.volume = 0.03
-      
+
       this.html5BackgroundAudio.addEventListener('canplaythrough', () => {
         if (this.html5BackgroundAudio) {
           const playPromise = this.html5BackgroundAudio.play()
@@ -321,13 +321,13 @@ export class AudioSystem implements IAudioSystem {
           }
         }
       })
-      
+
       this.html5BackgroundAudio.addEventListener('error', () => {
         // Silent failure for mobile audio error
       })
-      
+
       this.html5BackgroundAudio.load()
-      
+
     } catch {
       // Silent failure for mobile music creation
     }
@@ -338,30 +338,30 @@ export class AudioSystem implements IAudioSystem {
     const sampleRate = 44100
     const duration = 32 // 32 seconds - enough for full chord progression cycle
     const samples = sampleRate * duration
-    
+
     // Create a temporary audio context just for generating the audio
     const tempContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
     const buffer = tempContext.createBuffer(1, samples, sampleRate)
     const channelData = buffer.getChannelData(0)
-    
+
     // Use the same melody and chord patterns as Web Audio version
     const tempo = 60 // Same as backgroundMusic.tempo
     const secondsPerBeat = 60.0 / tempo
     const noteLength = secondsPerBeat * 2 // Half notes
     const chordLength = secondsPerBeat * 8 // Very long chords
-    
+
     // Pre-render the procedural music pattern
     let currentTime = 0
     let noteIndex = 0
     let chordIndex = 0
-    
+
     // Use a seeded random for consistent generation
     let seed = 12345 // Fixed seed for consistent audio
     const seededRandom = () => {
       seed = (seed * 9301 + 49297) % 233280
       return seed / 233280
     }
-    
+
     while (currentTime < duration) {
       // Schedule melody note occasionally (30% chance, same as Web Audio)
       if (seededRandom() < 0.3) {
@@ -369,7 +369,7 @@ export class AudioSystem implements IAudioSystem {
         const melodyFreq = midiToFreq(melodyMidi)
         this.renderNoteToBuffer(channelData, sampleRate, melodyFreq, currentTime, noteLength * 1.5, 0.005)
       }
-      
+
       // Play chord every 4 beats (same as Web Audio)
       if (noteIndex % 4 === 0) {
         const chord = chordProgression[chordIndex]
@@ -379,47 +379,47 @@ export class AudioSystem implements IAudioSystem {
         })
         chordIndex = (chordIndex + 1) % chordProgression.length
       }
-      
+
       // Advance to next note (same logic as Web Audio)
       currentTime += noteLength
       noteIndex = (noteIndex + 1) % melodyPattern.length
     }
-    
+
     // Apply fade-in and fade-out to prevent clicks at loop boundaries
     const fadeDuration = 0.1 // 100ms fade
     const fadeSamples = Math.floor(fadeDuration * sampleRate)
-    
+
     // Fade in at the beginning
     for (let i = 0; i < fadeSamples && i < samples; i++) {
       const fadeGain = i / fadeSamples
       channelData[i] *= fadeGain
     }
-    
+
     // Fade out at the end
     for (let i = samples - fadeSamples; i < samples; i++) {
       const fadeGain = (samples - i) / fadeSamples
       channelData[i] *= fadeGain
     }
-    
+
     return this.encodeWAV(buffer)
   }
 
   private renderNoteToBuffer(
-    channelData: Float32Array, 
-    sampleRate: number, 
-    frequency: number, 
-    startTime: number, 
-    duration: number, 
+    channelData: Float32Array,
+    sampleRate: number,
+    frequency: number,
+    startTime: number,
+    duration: number,
     volume: number
   ): void {
     const startSample = Math.floor(startTime * sampleRate)
     const durationSamples = Math.floor(duration * sampleRate)
     const endSample = Math.min(startSample + durationSamples, channelData.length)
-    
+
     for (let i = startSample; i < endSample; i++) {
       const noteTime = (i - startSample) / sampleRate
       const progress = noteTime / duration
-      
+
       // Same envelope shape as Web Audio version
       let envelope = 0
       if (progress < 0.1) {
@@ -433,10 +433,10 @@ export class AudioSystem implements IAudioSystem {
         const releaseProgress = (progress - 0.7) / 0.3
         envelope = Math.exp(-releaseProgress * 5) // Exponential decay
       }
-      
+
       // Generate sine wave with envelope
       const sample = Math.sin(2 * Math.PI * frequency * noteTime) * envelope * volume
-      
+
       // Add to existing sample (for chord mixing)
       channelData[i] = Math.max(-1, Math.min(1, channelData[i] + sample))
     }
@@ -466,7 +466,7 @@ export class AudioSystem implements IAudioSystem {
     if (!this.soundEnabled) return
 
     const now = performance.now()
-    
+
     // Throttle bounce sounds
     if (now - this.lastBounceTime < 200) return
     this.lastBounceTime = now
@@ -504,18 +504,18 @@ export class AudioSystem implements IAudioSystem {
 
   private playMobileBoingSound(): void {
     if (!this.mobileBounceAudioUrl) return
-    
+
     try {
       const audio = new Audio(this.mobileBounceAudioUrl)
-      audio.volume = 0.015
-      
+      audio.volume = 0.005
+
       const playPromise = audio.play()
       if (playPromise !== undefined) {
         playPromise.catch(() => {
           // Silently fail - bounce sounds are not critical
         })
       }
-      
+
     } catch {
       // Silently fail for bounce sounds
     }
@@ -536,13 +536,13 @@ export class AudioSystem implements IAudioSystem {
       // Initialize audio context on user interaction (mobile requirement)
       const context = this.initAudioContext()
       if (context) {
-        
+
         if (context.state === 'suspended') {
           context.resume().then(() => {
-            
+
             // Play silent sound first for iOS compatibility
             this.testAudioWithSilentSound()
-            
+
             // Start background music after a brief delay
             setTimeout(() => {
               this.startBackgroundMusic()
@@ -559,13 +559,13 @@ export class AudioSystem implements IAudioSystem {
       soundToggle.classList.remove('enabled')
       this.stopBackgroundMusic()
     }
-    
+
   }
 
   cleanup(): void {
     // Clean up resources when audio system is destroyed
     this.stopBackgroundMusic()
-    
+
     if (this.mobileBounceAudioUrl) {
       URL.revokeObjectURL(this.mobileBounceAudioUrl)
       this.mobileBounceAudioUrl = null
