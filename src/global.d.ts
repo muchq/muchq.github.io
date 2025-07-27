@@ -1,5 +1,3 @@
-/// <reference types="react" />
-
 import type { DetailedHTMLProps, HTMLAttributes } from 'react'
 
 declare module 'react/jsx-runtime' {

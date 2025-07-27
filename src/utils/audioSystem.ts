@@ -72,7 +72,7 @@ export class AudioSystem implements IAudioSystem {
 
   initAudioContext(): AudioContext | null {
     if (!this.audioContext) {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      this.audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
     }
     return this.audioContext
   }
