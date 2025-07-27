@@ -46,28 +46,59 @@ export class AudioSystem implements IAudioSystem {
       chordIndex: 0
     }
     
-    // Enable audio on any user interaction (mobile compatibility)
-    this.enableAudioOnInteraction()
+    // Initialize debug display
+    this.updateDebugDisplay()
   }
 
-  private enableAudioOnInteraction(): void {
-    // Enable audio context on any touch or click (mobile compatibility)
-    const enableAudio = () => {
-      const context = this.initAudioContext()
-      if (context && context.state === 'suspended') {
-        context.resume().then(() => {
-          console.log('🎵 Audio context ready after user interaction') // eslint-disable-line no-console
-        }).catch((error) => {
-          console.warn('Failed to enable audio context:', error)
-        })
+  private updateDebugDisplay(): void {
+    // Update the debug panel with current audio status
+    setTimeout(() => {
+      const statusEl = document.getElementById('audio-status')
+      const contextStateEl = document.getElementById('audio-context-state')
+      const musicPlayingEl = document.getElementById('audio-music-playing')
+      
+      if (statusEl) {
+        statusEl.textContent = this.soundEnabled ? 'Enabled' : 'Disabled'
       }
-    }
+      
+      if (contextStateEl) {
+        contextStateEl.textContent = this.audioContext ? this.audioContext.state : 'Not Created'
+      }
+      
+      if (musicPlayingEl) {
+        musicPlayingEl.textContent = this.backgroundMusic.isPlaying ? 'Yes' : 'No'
+      }
+    }, 10)
+  }
 
-    // Add listeners for mobile and desktop interactions
-    document.addEventListener('touchstart', enableAudio, { once: true })
-    document.addEventListener('touchend', enableAudio, { once: true })
-    document.addEventListener('click', enableAudio, { once: true })
-    document.addEventListener('keydown', enableAudio, { once: true })
+  private testAudioWithSilentSound(): void {
+    // Play a brief silent sound to unlock audio on iOS
+    if (!this.audioContext) return
+    
+    try {
+      const oscillator = this.audioContext.createOscillator()
+      const gainNode = this.audioContext.createGain()
+      
+      oscillator.connect(gainNode)
+      gainNode.connect(this.audioContext.destination)
+      
+      gainNode.gain.setValueAtTime(0, this.audioContext.currentTime)
+      oscillator.frequency.setValueAtTime(440, this.audioContext.currentTime)
+      
+      oscillator.start(this.audioContext.currentTime)
+      oscillator.stop(this.audioContext.currentTime + 0.01)
+      
+      this.updateLastEvent('Silent test sound played')
+    } catch (error) {
+      this.updateLastEvent(`Test sound failed: ${error}`)
+    }
+  }
+
+  private updateLastEvent(message: string): void {
+    const lastEventEl = document.getElementById('audio-last-event')
+    if (lastEventEl) {
+      lastEventEl.textContent = message
+    }
   }
 
   initAudioContext(): AudioContext | null {
@@ -161,11 +192,21 @@ export class AudioSystem implements IAudioSystem {
   }
 
   startBackgroundMusic(): void {
-    if (this.backgroundMusic.isPlaying || !this.soundEnabled) return
+    this.updateLastEvent(`Starting music - enabled: ${this.soundEnabled}, playing: ${this.backgroundMusic.isPlaying}`)
+    
+    if (this.backgroundMusic.isPlaying || !this.soundEnabled) {
+      this.updateLastEvent('Music start blocked - already playing or disabled')
+      return
+    }
 
     // Initialize audio context if needed
     const context = this.initAudioContext()
-    if (!context) return
+    if (!context) {
+      this.updateLastEvent('Failed to get audio context')
+      return
+    }
+
+    this.updateLastEvent(`Starting music with context state: ${context.state}`)
 
     // Create master gain node for background music
     this.backgroundMusic.gainNode = context.createGain()
@@ -178,8 +219,8 @@ export class AudioSystem implements IAudioSystem {
     this.backgroundMusic.chordIndex = 0
 
     this.scheduleNextMusicNotes()
-    // eslint-disable-next-line no-console
-    console.log('🎵 Started simple background music')
+    this.updateLastEvent('Background music started successfully')
+    this.updateDebugDisplay()
   }
 
   stopBackgroundMusic(): void {
@@ -228,32 +269,56 @@ export class AudioSystem implements IAudioSystem {
 
   toggleSound(): void {
     this.soundEnabled = !this.soundEnabled
+    this.updateLastEvent('Sound toggle clicked')
 
     const soundToggle = document.getElementById('sound-toggle')
-    if (!soundToggle) return
+    if (!soundToggle) {
+      this.updateLastEvent('Sound button not found!')
+      return
+    }
 
     if (this.soundEnabled) {
       soundToggle.textContent = '🔊 Sound: ON'
       soundToggle.classList.add('enabled')
+      this.updateLastEvent('Enabling sound...')
 
-      // Initialize and resume audio context if needed (mobile compatibility)
+      // Initialize audio context on user interaction (mobile requirement)
       const context = this.initAudioContext()
       if (context) {
+        this.updateLastEvent(`Context created, state: ${context.state}`)
+        
         if (context.state === 'suspended') {
+          this.updateLastEvent('Resuming suspended context...')
           context.resume().then(() => {
-            console.log('🎵 Audio context resumed, starting background music') // eslint-disable-line no-console
-            this.startBackgroundMusic()
+            this.updateLastEvent('Context resumed successfully')
+            
+            // Play silent sound first for iOS compatibility
+            this.testAudioWithSilentSound()
+            
+            // Start background music after a brief delay
+            setTimeout(() => {
+              this.startBackgroundMusic()
+              this.updateDebugDisplay()
+            }, 100)
           }).catch((error) => {
-            console.warn('Failed to resume audio context:', error)
+            this.updateLastEvent(`Resume failed: ${error}`)
           })
-        } else {
+        } else if (context.state === 'running') {
+          this.updateLastEvent('Context already running')
           this.startBackgroundMusic()
+        } else {
+          this.updateLastEvent(`Unexpected state: ${context.state}`)
         }
+      } else {
+        this.updateLastEvent('Failed to create audio context')
       }
     } else {
       soundToggle.textContent = '🔇 Sound: OFF'
       soundToggle.classList.remove('enabled')
+      this.updateLastEvent('Sound disabled')
       this.stopBackgroundMusic()
     }
+    
+    this.updateDebugDisplay()
   }
 }
