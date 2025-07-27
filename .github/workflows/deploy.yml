@@ -43,6 +43,9 @@ jobs:
 
     - name: Build
       run: npm run build
+      
+    - name: Copy CNAME to dist
+      run: cp CNAME dist/
 
     - name: Setup Pages
       if: github.ref == 'refs/heads/main'
