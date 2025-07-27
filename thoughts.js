@@ -225,7 +225,7 @@ function playBoingSound() {
 
   // Quick attack and decay
   gainNode.gain.setValueAtTime(0, now);
-  gainNode.gain.linearRampToValueAtTime(0.02, now + 0.01);
+  gainNode.gain.linearRampToValueAtTime(0.015, now + 0.01);
   gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
 
   oscillator.start(now);
