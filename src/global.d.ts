@@ -1,9 +1,10 @@
-import React from 'react'
+/// <reference types="react" />
 
-declare global {
+declare module 'react/jsx-runtime' {
   namespace JSX {
     interface IntrinsicElements {
-      math: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement> & { className?: string }, HTMLElement>
+      // MathML elements
+      math: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
       mfrac: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
       mn: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
       mi: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
