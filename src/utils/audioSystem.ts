@@ -87,6 +87,13 @@ export class AudioSystem implements IAudioSystem {
           this.playTestTone()
         })
       }
+      
+      const loudButton = document.getElementById('loud-tone-button')
+      if (loudButton) {
+        loudButton.addEventListener('click', () => {
+          this.playLoudTone()
+        })
+      }
     }, 100)
   }
 
@@ -169,6 +176,85 @@ export class AudioSystem implements IAudioSystem {
       
     } catch (error) {
       this.updateLastEvent(`Test tone error: ${error}`)
+    }
+  }
+
+  playLoudTone(): void {
+    this.updateLastEvent('LOUD tone button clicked')
+    
+    if (!this.audioContext) {
+      this.updateLastEvent('Creating audio context for LOUD tone...')
+      const context = this.initAudioContext()
+      if (!context) {
+        this.updateLastEvent('Failed to create audio context for LOUD tone')
+        return
+      }
+      this.updateLastEvent(`Audio context created with state: ${context.state}`)
+    }
+
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      this.updateLastEvent('Audio context is suspended, attempting resume...')
+      this.audioContext.resume().then(() => {
+        this.updateLastEvent(`Context resumed successfully to: ${this.audioContext?.state}`)
+        setTimeout(() => {
+          this.updateLastEvent('Starting LOUD tone after resume delay...')
+          this.createLoudTone()
+        }, 50)
+      }).catch((error) => {
+        this.updateLastEvent(`LOUD tone resume failed: ${error}`)
+      })
+    } else if (this.audioContext && this.audioContext.state === 'running') {
+      this.updateLastEvent('Context already running, creating LOUD tone immediately')
+      this.createLoudTone()
+    } else {
+      this.updateLastEvent(`Unexpected context state: ${this.audioContext?.state || 'undefined'}`)
+    }
+  }
+
+  private createLoudTone(): void {
+    if (!this.audioContext) {
+      this.updateLastEvent('No audio context for LOUD tone')
+      return
+    }
+
+    this.updateLastEvent(`Creating LOUD tone - context state: ${this.audioContext.state}`)
+
+    try {
+      const oscillator = this.audioContext.createOscillator()
+      const gainNode = this.audioContext.createGain()
+
+      if (!oscillator || !gainNode) {
+        this.updateLastEvent('Failed to create oscillator or gain node for LOUD tone')
+        return
+      }
+
+      oscillator.connect(gainNode)
+      gainNode.connect(this.audioContext.destination)
+
+      // Maximum volume LOUD tone for mobile testing
+      oscillator.frequency.setValueAtTime(880, this.audioContext.currentTime) // A5 note (higher pitch)
+      oscillator.type = 'square' // More aggressive waveform
+
+      // MAXIMUM volume
+      const startTime = this.audioContext.currentTime
+      gainNode.gain.setValueAtTime(0, startTime)
+      gainNode.gain.linearRampToValueAtTime(1.0, startTime + 0.01) // Maximum volume (1.0)
+      gainNode.gain.setValueAtTime(1.0, startTime + 0.8)
+      gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 1)
+
+      oscillator.start(startTime)
+      oscillator.stop(startTime + 1)
+
+      this.notesPlayedCount++
+      this.updateLastEvent(`LOUD tone scheduled - vol: 1.0, freq: 880Hz, wave: square`)
+      this.updateDebugDisplay()
+
+      setTimeout(() => {
+        this.updateLastEvent(`LOUD tone should have finished playing`)
+      }, 1100)
+      
+    } catch (error) {
+      this.updateLastEvent(`LOUD tone error: ${error}`)
     }
   }
 
