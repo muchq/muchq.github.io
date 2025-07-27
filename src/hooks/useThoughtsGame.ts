@@ -268,6 +268,9 @@ export const useThoughtsGame = () => {
         }
       }
       
+      // Track other player elements on minimap (moved outside updateMiniMap to persist between frames)
+      const otherPlayerElements = new Map<string, HTMLElement>()
+      
       // Mini-map update function
       const updateMiniMap = () => {
         const localPlayer = gameState.getLocalPlayer()
@@ -300,12 +303,12 @@ export const useThoughtsGame = () => {
         // Update other players
         const allPlayers = Array.from(gameState.players.values())
         const miniMapContent = document.getElementById('mini-map-content')
-        
-        // Track other player elements on minimap
-        const otherPlayerElements = new Map<string, HTMLElement>()
+        const currentOtherPlayerIds = new Set<string>()
         
         allPlayers.forEach(player => {
           if (player.id === gameState.localPlayerId) return // Skip local player
+          
+          currentOtherPlayerIds.add(player.id)
           
           // Get or create element for this player
           let playerElement = otherPlayerElements.get(player.id)
@@ -325,6 +328,14 @@ export const useThoughtsGame = () => {
           const [r, g, b] = player.color
           playerElement.style.backgroundColor = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`
           playerElement.style.boxShadow = `0 0 6px rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, 0.8)`
+        })
+        
+        // Remove elements for players who are no longer present
+        otherPlayerElements.forEach((element, playerId) => {
+          if (!currentOtherPlayerIds.has(playerId)) {
+            element.remove()
+            otherPlayerElements.delete(playerId)
+          }
         })
       }
       
