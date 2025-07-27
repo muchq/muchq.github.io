@@ -16,10 +16,14 @@ export const useThoughtsGame = () => {
     const gameState = new GameState()
     const audioSystem = new AudioSystem()
     const networkManager = new NetworkManager(gameState)
-    const fakeServer = new FakeServer(networkManager)
     
-    // Set up isolated instances (no global state)
-    networkManager.setFakeServer(fakeServer)
+    // Only create fake server in development mode
+    if (import.meta.env.DEV) {
+      const fakeServer = new FakeServer(networkManager)
+      networkManager.setFakeServer(fakeServer)
+      // Enable simulation mode for development
+      networkManager.isSimulated = true
+    }
     
     // Initialize local player
     gameState.localPlayerId = generatePlayerId()
@@ -478,7 +482,9 @@ export const useThoughtsGame = () => {
       // Clean up game systems
       audioSystem.stopBackgroundMusic()
       networkManager.disconnect()
-      fakeServer.stop()
+      if (networkManager.fakeServer) {
+        networkManager.fakeServer.stop()
+      }
     }
   }, [])
   
