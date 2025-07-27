@@ -33,6 +33,14 @@ export interface Player {
   getBouncingY(time: number): number
 }
 
+// Player data as received from server in game_state messages
+export interface GameStatePlayer {
+  playerId: string
+  position: [number, number, number]
+  color: [number, number, number]
+  shape: ShapeType
+}
+
 export interface NetworkMessage {
   type: 'player_join' | 'player_leave' | 'position_update' | 'shape_update' | 'game_state'
   playerId: string
@@ -40,7 +48,7 @@ export interface NetworkMessage {
   color?: [number, number, number]
   shape?: ShapeType
   timestamp: number
-  players?: Player[]
+  players?: GameStatePlayer[]  // For game_state messages
 }
 
 export interface VirtualJoystickState {

@@ -221,10 +221,10 @@ export class NetworkManager implements INetworkManager {
     // Process the players array from the game_state message
     if (message.players && Array.isArray(message.players)) {
       message.players.forEach(player => {
-        // Skip adding the local player
-        if (player.id !== this.gameState.localPlayerId) {
-          this.gameState.addPlayer(player.id, player.position, player.color, player.shape || ShapeType.SPHERE)
-          console.log(`🎮 Added player ${player.id} from game state at [${player.position.join(', ')}]`)
+        // Skip adding the local player (server uses "playerId" field)
+        if (player.playerId !== this.gameState.localPlayerId) {
+          this.gameState.addPlayer(player.playerId, player.position, player.color, player.shape || ShapeType.SPHERE)
+          console.log(`🎮 Added player ${player.playerId} from game state at [${player.position.join(', ')}]`)
         }
       })
     }
