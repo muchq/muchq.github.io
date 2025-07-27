@@ -4,6 +4,7 @@ import styles from './ThoughtsNavigation.module.css'
 
 const thoughts = [
   "Hello.",
+  "Are you a nice smelling breeze?",
   "You look nice today.",
   "What is wood made of?",
   "Let's all drink more water",
