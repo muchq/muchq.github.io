@@ -33,6 +33,8 @@ export class AudioSystem implements IAudioSystem {
   }
   lastBounceTime: number
   notesPlayedCount: number
+  private isMobile: boolean
+  private html5BackgroundAudio: HTMLAudioElement | null
 
   constructor() {
     this.audioContext = null
@@ -48,9 +50,17 @@ export class AudioSystem implements IAudioSystem {
       chordIndex: 0
     }
     
+    // Detect mobile device
+    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 1024
+    this.html5BackgroundAudio = null
+    
     // Initialize debug display and test button
     this.updateDebugDisplay()
     this.setupTestButton()
+    
+    if (this.isMobile) {
+      this.initMobileAudio()
+    }
   }
 
   private updateDebugDisplay(): void {
@@ -62,11 +72,16 @@ export class AudioSystem implements IAudioSystem {
       const notesCountEl = document.getElementById('audio-notes-count')
       
       if (statusEl) {
-        statusEl.textContent = this.soundEnabled ? 'Enabled' : 'Disabled'
+        const mode = this.isMobile ? ' (Mobile/HTML5)' : ' (Desktop/WebAudio)'
+        statusEl.textContent = (this.soundEnabled ? 'Enabled' : 'Disabled') + mode
       }
       
       if (contextStateEl) {
-        contextStateEl.textContent = this.audioContext ? this.audioContext.state : 'Not Created'
+        if (this.isMobile) {
+          contextStateEl.textContent = this.html5BackgroundAudio ? 'HTML5 Ready' : 'HTML5 Not Ready'
+        } else {
+          contextStateEl.textContent = this.audioContext ? this.audioContext.state : 'Not Created'
+        }
       }
       
       if (musicPlayingEl) {
@@ -77,6 +92,11 @@ export class AudioSystem implements IAudioSystem {
         notesCountEl.textContent = this.notesPlayedCount.toString()
       }
     }, 10)
+  }
+
+  private initMobileAudio(): void {
+    this.updateLastEvent('Initializing mobile HTML5 audio system')
+    // Mobile audio will be initialized when sound is enabled
   }
 
   private setupTestButton(): void {
@@ -533,6 +553,14 @@ export class AudioSystem implements IAudioSystem {
       return
     }
 
+    if (this.isMobile) {
+      this.startMobileBackgroundMusic()
+    } else {
+      this.startWebAudioBackgroundMusic()
+    }
+  }
+
+  private startWebAudioBackgroundMusic(): void {
     // Initialize audio context if needed
     const context = this.initAudioContext()
     if (!context) {
@@ -557,30 +585,117 @@ export class AudioSystem implements IAudioSystem {
     this.updateDebugDisplay()
   }
 
+  private startMobileBackgroundMusic(): void {
+    this.updateLastEvent('Starting mobile background music...')
+    
+    try {
+      // Create a simple looping background music track
+      const musicBuffer = this.createMobileBackgroundTrack()
+      const blob = new Blob([musicBuffer], { type: 'audio/wav' })
+      const url = URL.createObjectURL(blob)
+      
+      this.html5BackgroundAudio = new Audio(url)
+      this.html5BackgroundAudio.loop = true
+      this.html5BackgroundAudio.volume = 0.3
+      
+      this.html5BackgroundAudio.addEventListener('canplaythrough', () => {
+        this.updateLastEvent('Mobile background music ready, starting...')
+        if (this.html5BackgroundAudio) {
+          const playPromise = this.html5BackgroundAudio.play()
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              this.backgroundMusic.isPlaying = true
+              this.updateLastEvent('Mobile background music playing!')
+              this.updateDebugDisplay()
+            }).catch((error) => {
+              this.updateLastEvent(`Mobile music play failed: ${error}`)
+            })
+          }
+        }
+      })
+      
+      this.html5BackgroundAudio.addEventListener('error', (e) => {
+        this.updateLastEvent(`Mobile music error: ${e}`)
+      })
+      
+      this.html5BackgroundAudio.load()
+      
+    } catch (error) {
+      this.updateLastEvent(`Mobile music creation failed: ${error}`)
+    }
+  }
+
+  private createMobileBackgroundTrack(): ArrayBuffer {
+    // Create a simple 4-second looping track with peaceful tones
+    const sampleRate = 44100
+    const duration = 4 // seconds
+    const samples = sampleRate * duration
+    
+    // Create a temporary audio context just for generating the audio
+    const tempContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+    const buffer = tempContext.createBuffer(1, samples, sampleRate)
+    const channelData = buffer.getChannelData(0)
+    
+    // Generate simple background music - soft arpeggios
+    const frequencies = [261.63, 329.63, 392.00, 523.25] // C, E, G, C (one octave)
+    const noteDuration = sampleRate * 0.5 // 0.5 seconds per note
+    
+    for (let i = 0; i < samples; i++) {
+      const noteIndex = Math.floor(i / noteDuration) % frequencies.length
+      const frequency = frequencies[noteIndex]
+      const noteTime = (i % noteDuration) / sampleRate
+      
+      // Soft sine wave with gentle envelope
+      const envelope = Math.sin(noteTime * Math.PI) * 0.15 // Gentle attack/decay
+      channelData[i] = Math.sin(2 * Math.PI * frequency * noteTime) * envelope
+    }
+    
+    return this.encodeWAV(buffer)
+  }
+
   stopBackgroundMusic(): void {
     if (!this.backgroundMusic.isPlaying) return
 
     this.backgroundMusic.isPlaying = false
 
-    // Clean up gain node
-    if (this.backgroundMusic.gainNode) {
-      this.backgroundMusic.gainNode.disconnect()
-      this.backgroundMusic.gainNode = null
+    if (this.isMobile && this.html5BackgroundAudio) {
+      // Stop HTML5 audio
+      this.html5BackgroundAudio.pause()
+      this.html5BackgroundAudio.currentTime = 0
+      this.html5BackgroundAudio = null
+      this.updateLastEvent('Mobile background music stopped')
+    } else {
+      // Clean up Web Audio gain node
+      if (this.backgroundMusic.gainNode) {
+        this.backgroundMusic.gainNode.disconnect()
+        this.backgroundMusic.gainNode = null
+      }
+      this.updateLastEvent('Desktop background music stopped')
     }
 
-    // eslint-disable-next-line no-console
-    console.log('🎵 Stopped background music')
+    this.updateDebugDisplay()
   }
 
   playBoingSound(): void {
-    if (!this.soundEnabled || !this.audioContext) return
+    if (!this.soundEnabled) return
 
-    const now = this.audioContext.currentTime
+    const now = performance.now()
     
     // Throttle bounce sounds
-    if (now - this.lastBounceTime < 0.2) return
+    if (now - this.lastBounceTime < 200) return
     this.lastBounceTime = now
 
+    if (this.isMobile) {
+      this.playMobileBoingSound()
+    } else {
+      this.playWebAudioBoingSound()
+    }
+  }
+
+  private playWebAudioBoingSound(): void {
+    if (!this.audioContext) return
+
+    const now = this.audioContext.currentTime
     const oscillator = this.audioContext.createOscillator()
     const gainNode = this.audioContext.createGain()
 
@@ -599,6 +714,49 @@ export class AudioSystem implements IAudioSystem {
 
     oscillator.start(now)
     oscillator.stop(now + 0.1)
+  }
+
+  private playMobileBoingSound(): void {
+    try {
+      // Create a quick bounce sound
+      const sampleRate = 44100
+      const duration = 0.1 // 100ms
+      const samples = Math.floor(sampleRate * duration)
+      
+      const tempContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      const buffer = tempContext.createBuffer(1, samples, sampleRate)
+      const channelData = buffer.getChannelData(0)
+      
+      const frequency = 200 + Math.random() * 100
+      
+      for (let i = 0; i < samples; i++) {
+        const time = i / sampleRate
+        const envelope = Math.exp(-time * 30) // Quick decay
+        channelData[i] = Math.sin(2 * Math.PI * frequency * time) * envelope * 0.3
+      }
+      
+      const wav = this.encodeWAV(buffer)
+      const blob = new Blob([wav], { type: 'audio/wav' })
+      const url = URL.createObjectURL(blob)
+      
+      const audio = new Audio(url)
+      audio.volume = 0.5
+      
+      const playPromise = audio.play()
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          // Silently fail - bounce sounds are not critical
+        })
+      }
+      
+      // Clean up after playing
+      audio.addEventListener('ended', () => {
+        URL.revokeObjectURL(url)
+      })
+      
+    } catch {
+      // Silently fail for bounce sounds
+    }
   }
 
   toggleSound(): void {
