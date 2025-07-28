@@ -9,6 +9,7 @@ export class VirtualJoystick implements VirtualJoystickState {
   active: boolean
   x: number // -1 to 1
   y: number // -1 to 1
+  touchId: number | null // Track which touch belongs to this joystick
 
   constructor(container: HTMLElement, knob: HTMLElement) {
     this.container = container
@@ -19,6 +20,10 @@ export class VirtualJoystick implements VirtualJoystickState {
     this.active = false
     this.x = 0
     this.y = 0
+    this.touchId = null
+
+    // Prevent default touch behavior to avoid passive event listener issues
+    this.container.style.touchAction = 'none'
 
     this.setupEvents()
   }
@@ -27,22 +32,58 @@ export class VirtualJoystick implements VirtualJoystickState {
     // Touch events
     this.container.addEventListener('touchstart', (e) => {
       e.preventDefault()
-      this.active = true
-      this.handleMove(e.touches[0])
-    })
-
-    this.container.addEventListener('touchmove', (e) => {
-      e.preventDefault()
-      if (this.active) {
-        this.handleMove(e.touches[0])
+      // Only accept new touch if not already active
+      if (!this.active) {
+        this.active = true
+        this.touchId = e.changedTouches[0].identifier
+        this.handleMove(e.changedTouches[0])
       }
-    })
+    }, { passive: false })
 
-    this.container.addEventListener('touchend', (e) => {
-      e.preventDefault()
-      this.active = false
-      this.resetPosition()
-    })
+    // Listen to document for touchmove - this is key for multi-touch
+    document.addEventListener('touchmove', (e) => {
+      if (this.active && this.touchId !== null) {
+        // Find the touch that belongs to this joystick
+        for (let i = 0; i < e.touches.length; i++) {
+          if (e.touches[i].identifier === this.touchId) {
+            e.preventDefault()
+            this.handleMove(e.touches[i])
+            break
+          }
+        }
+      }
+    }, { passive: false })
+
+    document.addEventListener('touchend', (e) => {
+      if (this.touchId !== null) {
+        // Check if the ended touch belongs to this joystick
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === this.touchId) {
+            e.preventDefault()
+            this.active = false
+            this.touchId = null
+            this.resetPosition()
+            break
+          }
+        }
+      }
+    }, { passive: false })
+
+    // Handle touch cancel event (e.g., when touch is interrupted)
+    document.addEventListener('touchcancel', (e) => {
+      if (this.touchId !== null) {
+        // Check if the cancelled touch belongs to this joystick
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === this.touchId) {
+            e.preventDefault()
+            this.active = false
+            this.touchId = null
+            this.resetPosition()
+            break
+          }
+        }
+      }
+    }, { passive: false })
 
     // Mouse events for testing on desktop
     this.container.addEventListener('mousedown', (e) => {
@@ -55,7 +96,7 @@ export class VirtualJoystick implements VirtualJoystickState {
       if (this.active) {
         this.handleMove(e)
       }
-    })
+    }, { passive: false })
 
     document.addEventListener('mouseup', () => {
       this.active = false

@@ -83,7 +83,7 @@ export class AudioSystem implements IAudioSystem {
       for (let i = 0; i < samples; i++) {
         const time = i / sampleRate
         const envelope = Math.exp(-time * 30) // Quick decay
-        channelData[i] = Math.sin(2 * Math.PI * frequency * time) * envelope * 0.1
+        channelData[i] = Math.sin(2 * Math.PI * frequency * time) * envelope * 0.05
       }
 
       const wav = this.encodeWAV(buffer)
