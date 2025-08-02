@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateRandomColor, generateRandomSpawnPosition, generatePlayerId, midiToFreq } from '../gameUtils'
+import { generateRandomColor, generateRandomSpawnPosition, midiToFreq } from '../gameUtils'
 
 describe('gameUtils', () => {
   describe('generateRandomColor', () => {
@@ -25,17 +25,6 @@ describe('gameUtils', () => {
       expect(Math.abs(position[0])).toBeLessThanOrEqual(worldBoundary - 5) // Account for margin
       expect(position[1]).toBe(0) // Always spawn at ground level
       expect(Math.abs(position[2])).toBeLessThanOrEqual(worldBoundary - 5) // Account for margin
-    })
-  })
-
-  describe('generatePlayerId', () => {
-    it('generates unique player IDs', () => {
-      const id1 = generatePlayerId()
-      const id2 = generatePlayerId()
-      
-      expect(id1).toMatch(/^player-[a-z0-9]+$/)
-      expect(id2).toMatch(/^player-[a-z0-9]+$/)
-      expect(id1).not.toBe(id2)
     })
   })
 

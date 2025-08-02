@@ -32,9 +32,6 @@ export function generateRandomSpawnPosition(worldBoundary: number): [number, num
   return [x, y, z]
 }
 
-export function generatePlayerId(): string {
-  return 'player-' + Math.random().toString(36).substr(2, 9)
-}
 
 export function midiToFreq(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12)

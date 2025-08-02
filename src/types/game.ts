@@ -42,8 +42,8 @@ export interface GameStatePlayer {
 }
 
 export interface NetworkMessage {
-  type: 'player_join' | 'player_leave' | 'position_update' | 'shape_update' | 'game_state'
-  playerId: string
+  type: 'player_join' | 'player_leave' | 'position_update' | 'shape_update' | 'game_state' | 'welcome'
+  playerId?: string  // Optional - only used in server-to-client messages
   position?: [number, number, number]
   color?: [number, number, number]
   shape?: ShapeType
@@ -111,8 +111,14 @@ export interface NetworkManager {
   lastSentPosition: [number, number, number] | null
   positionUpdateThrottle: number
   lastPositionSent: number
+  pendingPlayerData?: {
+    position: [number, number, number]
+    color: [number, number, number]
+    shape: ShapeType
+  }
+  onPlayerIdReceived?: (playerId: string) => void
   
-  connect(url?: string): void
+  connect(url: string): void
   disconnect(): void
   sendMessage(message: NetworkMessage): void
   sendPositionUpdate(position: [number, number, number]): void

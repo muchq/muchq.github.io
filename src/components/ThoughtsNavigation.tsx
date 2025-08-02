@@ -11,7 +11,11 @@ const thoughts = [
   "Read any good books lately?"
 ]
 
-const ThoughtsNavigation = () => {
+interface ThoughtsNavigationProps {
+  playerId: string | null
+}
+
+const ThoughtsNavigation = ({ playerId }: ThoughtsNavigationProps) => {
   const [currentThoughtIndex, setCurrentThoughtIndex] = useState(0)
   const [isVisible, setIsVisible] = useState(false)
 
@@ -43,8 +47,15 @@ const ThoughtsNavigation = () => {
     <nav className={styles.nav}>
       <div className={styles.navContainer}>
         <Link to="/" className={styles.navLogo}>MuchQ</Link>
-        <div className={`${styles.thought} ${isVisible ? styles.visible : ''}`}>
-          {thoughts[currentThoughtIndex]}
+        <div className={styles.centerContent}>
+          {playerId && (
+            <div className={styles.playerId}>
+              Player: {playerId}
+            </div>
+          )}
+          <div className={`${styles.thought} ${isVisible ? styles.visible : ''}`}>
+            {thoughts[currentThoughtIndex]}
+          </div>
         </div>
       </div>
     </nav>

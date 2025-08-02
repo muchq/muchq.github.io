@@ -2,7 +2,11 @@ import { useEffect, useRef } from 'react'
 import { useThoughtsGame } from '@/hooks/useThoughtsGame'
 import styles from './ThoughtsGame.module.css'
 
-const ThoughtsGame = () => {
+interface ThoughtsGameProps {
+  onPlayerIdReceived: (playerId: string) => void
+}
+
+const ThoughtsGame = ({ onPlayerIdReceived }: ThoughtsGameProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { initializeGame } = useThoughtsGame()
 
@@ -10,14 +14,16 @@ const ThoughtsGame = () => {
     const canvas = canvasRef.current
     if (!canvas) return
 
-    const cleanup = initializeGame(canvas)
+    const cleanup = initializeGame(canvas, onPlayerIdReceived)
     
     return cleanup
-  }, [initializeGame])
+  }, [initializeGame, onPlayerIdReceived])
 
   return (
     <div className={styles.gameContainer}>
       <canvas ref={canvasRef} className={styles.sceneCanvas} id="scene-canvas" />
+      
+      <div id="player-labels-container" className={styles.playerLabelsContainer}></div>
       
       <div id="fps-counter" className={styles.fpsCounter}>FPS: --</div>
       
