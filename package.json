@@ -14,7 +14,8 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "typecheck": "tsc --noEmit",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "local-server": "cross-env VITE_THOUGHTS_WEBSOCKET_URL=ws://localhost:8080/ws VITE_THOUGHTS_SIMULATED=false vite"
   },
   "dependencies": {
     "react": "^19.1.0",
@@ -28,6 +29,7 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/ui": "^3.2.4",
+    "cross-env": "^10.0.0",
     "eslint": "^9.0.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.20",

@@ -15,6 +15,12 @@ export class NetworkManager implements INetworkManager {
   messageHandlers: Map<string, (message: NetworkMessage) => void>
   gameState: GameState
   fakeServer: IFakeServer | null
+  pendingPlayerData?: {
+    position: [number, number, number]
+    color: [number, number, number]
+    shape: ShapeType
+  }
+  onPlayerIdReceived?: (playerId: string) => void
 
   constructor(gameState: GameState) {
     this.ws = null
@@ -28,7 +34,7 @@ export class NetworkManager implements INetworkManager {
     this.fakeServer = null
   }
 
-  connect(url: string = 'wss://thoughts.muchq.com/ws'): void {
+  connect(url: string): void {
     if (this.isSimulated) {
       // Simulate successful connection
       console.log('🔌 Simulating WebSocket connection to', url)
@@ -67,12 +73,22 @@ export class NetworkManager implements INetworkManager {
   }
 
   private onConnected(): void {
-    // Send initial player spawn data
-    this.sendPlayerJoin()
-
+    // Don't send player_join yet - wait for welcome message with server-assigned ID
+    
     // Start fake server if in simulation mode
     if (this.isSimulated && this.fakeServer) {
       this.fakeServer.start()
+      // In simulation mode, immediately simulate a welcome message
+      console.log('🤖 Simulation mode: scheduling welcome message')
+      setTimeout(() => {
+        const simPlayerId = 'sim-' + Math.random().toString(36).substr(2, 9)
+        console.log(`🤖 Simulation mode: sending welcome message with ID ${simPlayerId}`)
+        this.handleMessage({
+          type: 'welcome',
+          playerId: simPlayerId,
+          timestamp: Date.now()
+        })
+      }, 100)
     }
   }
 
@@ -90,7 +106,6 @@ export class NetworkManager implements INetworkManager {
 
     const message: NetworkMessage = {
       type: 'player_join',
-      playerId: localPlayer.id,
       position: localPlayer.position,
       color: localPlayer.color,
       shape: localPlayer.shape,
@@ -121,12 +136,8 @@ export class NetworkManager implements INetworkManager {
       }
     }
 
-    const localPlayer = this.gameState.getLocalPlayer()
-    if (!localPlayer) return
-
     const message: NetworkMessage = {
       type: 'position_update',
-      playerId: localPlayer.id,
       position: position,
       timestamp: now
     }
@@ -154,6 +165,9 @@ export class NetworkManager implements INetworkManager {
     console.log('📥 Received from server:', message)
 
     switch (message.type) {
+      case 'welcome':
+        this.handleWelcome(message)
+        break
       case 'player_join':
         this.handlePlayerJoin(message)
         break
@@ -174,7 +188,46 @@ export class NetworkManager implements INetworkManager {
     }
   }
 
+  private handleWelcome(message: NetworkMessage): void {
+    if (!message.playerId) {
+      console.error('Welcome message missing playerId')
+      return
+    }
+
+    // Set the local player ID assigned by the server
+    this.gameState.localPlayerId = message.playerId
+    console.log(`🎉 Received player ID from server: ${message.playerId}`)
+    
+    // Call the callback if provided
+    if (this.onPlayerIdReceived) {
+      this.onPlayerIdReceived(message.playerId)
+    }
+
+    // Now add the local player with the pending data
+    if (this.pendingPlayerData) {
+      this.gameState.addPlayer(
+        message.playerId,
+        this.pendingPlayerData.position,
+        this.pendingPlayerData.color,
+        this.pendingPlayerData.shape
+      )
+      
+      console.log(`Spawning player ${message.playerId} at position [${this.pendingPlayerData.position.map(x => x.toFixed(2)).join(', ')}] with color [${this.pendingPlayerData.color.map(x => x.toFixed(2)).join(', ')}]`)
+
+      // Now send the player_join message
+      this.sendPlayerJoin()
+      
+      // Clear pending data
+      this.pendingPlayerData = undefined
+    }
+  }
+
   private handlePlayerJoin(message: NetworkMessage): void {
+    if (!message.playerId) {
+      console.error('Player join message missing playerId')
+      return
+    }
+    
     if (message.playerId !== this.gameState.localPlayerId) {
       this.gameState.addPlayer(
         message.playerId,
@@ -187,6 +240,11 @@ export class NetworkManager implements INetworkManager {
   }
 
   private handlePlayerLeave(message: NetworkMessage): void {
+    if (!message.playerId) {
+      console.error('Player leave message missing playerId')
+      return
+    }
+    
     if (message.playerId !== this.gameState.localPlayerId) {
       const player = this.gameState.players.get(message.playerId)
       if (player) {
@@ -198,12 +256,22 @@ export class NetworkManager implements INetworkManager {
   }
 
   private handlePositionUpdate(message: NetworkMessage): void {
+    if (!message.playerId) {
+      console.error('Position update message missing playerId')
+      return
+    }
+    
     if (message.playerId !== this.gameState.localPlayerId) {
       this.gameState.updatePlayer(message.playerId, message.position!)
     }
   }
 
   private handleShapeUpdate(message: NetworkMessage): void {
+    if (!message.playerId) {
+      console.error('Shape update message missing playerId')
+      return
+    }
+    
     if (message.playerId !== this.gameState.localPlayerId) {
       const player = this.gameState.players.get(message.playerId)
       if (player) {
