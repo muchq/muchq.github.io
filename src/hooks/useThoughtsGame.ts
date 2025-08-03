@@ -438,8 +438,9 @@ export const useThoughtsGame = () => {
               playerLabelElements.set(player.id, labelElement)
             }
 
-            // Get player's Y position with bounce
-            const playerY = player.getBouncingY(time) + 0.5 // Add small offset above player
+            // Use fixed height matching camera target instead of bouncing position
+            const sphereZenith = (GAME_CONFIG.groundLevel + GAME_CONFIG.sphereRadius) + (GAME_CONFIG.bounceHeight / 2)
+            const playerY = sphereZenith + GAME_CONFIG.sphereRadius + 0.3 // Position above sphere at fixed height
 
 
             // Project 3D position to 2D screen
@@ -460,12 +461,24 @@ export const useThoughtsGame = () => {
               const rightDot = relPos[0] * right[0] + relPos[1] * right[1] + relPos[2] * right[2]
               const upDot = relPos[0] * up[0] + relPos[1] * up[1] + relPos[2] * up[2]
 
-              // Calculate normalized device coordinates (matching shader)
-              const ndcX = (rightDot / dotForward) / shaderFov
-              const ndcY = (upDot / dotForward) / shaderFov
-
+              // Calculate projection matching the shader's inverse process
+              // In shader: rayDir = normalize(forward + ndc.x * right * fov + ndc.y * up * fov)
+              // We need to reverse this to get NDC from world position
+              
+              // First get the projected position in camera space
+              const projX = rightDot / dotForward
+              const projY = upDot / dotForward
+              
+              // Apply FOV (inverse of shader's multiplication)
+              const ndcX = projX / shaderFov
+              const ndcY = projY / shaderFov
+              
+              // The shader applies aspect ratio to NDC.x before ray calculation
+              // So we need to divide by aspect ratio to get screen NDC
+              const screenNdcX = ndcX / aspectRatio
+              
               // Convert to screen coordinates
-              const screenX = (ndcX * aspectRatio + 1) * 0.5 * window.innerWidth
+              const screenX = (screenNdcX + 1) * 0.5 * window.innerWidth
               const screenY = (1 - ndcY) * 0.5 * window.innerHeight
 
               labelElement.style.left = screenX + 'px'
