@@ -356,7 +356,7 @@ export const useThoughtsGame = () => {
       }
 
       // Update player labels function
-      const updatePlayerLabels = (cameraPosition: [number, number, number], cameraTarget: [number, number, number], time: number) => {
+      const updatePlayerLabels = (cameraPosition: [number, number, number], cameraTarget: [number, number, number]) => {
         const localPlayer = gameState.getLocalPlayer()
         if (!localPlayer) return
 
@@ -600,7 +600,7 @@ export const useThoughtsGame = () => {
         webglContext.uniform1f(worldBoundaryLocation, GAME_CONFIG.worldBoundary)
 
         // Update player labels after setting up camera
-        updatePlayerLabels(cameraPosition, cameraTargetPos, time)
+        updatePlayerLabels(cameraPosition, cameraTargetPos)
 
         // Set multiple object data
         webglContext.uniform1i(numObjectsLocation, Math.min(allPlayers.length, 10))
