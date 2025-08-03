@@ -617,7 +617,7 @@ export const useThoughtsGame = () => {
     }
 
     // Connect to server (or simulate connection)
-    const websocketUrl = import.meta.env.VITE_THOUGHTS_WEBSOCKET_URL || 'wss://thoughts.muchq.com/ws'
+    const websocketUrl = import.meta.env.VITE_THOUGHTS_WEBSOCKET_URL || 'wss://api.muchq.com/thoughts-ws'
     networkManager.connect(websocketUrl)
 
     // Handle page unload - notify server when player leaves
