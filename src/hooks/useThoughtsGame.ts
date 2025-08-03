@@ -429,7 +429,7 @@ export const useThoughtsGame = () => {
                 font-weight: 300;
                 white-space: nowrap;
                 transform: translate(-50%, -100%);
-                margin-top: -10px;
+                margin-top: -5px;
                 pointer-events: none;
                 transition: opacity 0.2s ease;
               `
@@ -439,7 +439,7 @@ export const useThoughtsGame = () => {
             }
 
             // Get player's Y position with bounce
-            const playerY = player.getBouncingY(time) + 1.5 // Add offset above player
+            const playerY = player.getBouncingY(time) + 0.5 // Add small offset above player
 
 
             // Project 3D position to 2D screen
