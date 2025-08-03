@@ -29,7 +29,7 @@
   border-radius: 4px;
   font-family: "Lexend Deca", monospace;
   font-size: 12px;
-  font-weight: 400;
+  font-weight: 300;
   z-index: 1000;
   pointer-events: none;
 }
@@ -54,7 +54,7 @@
   border-radius: 4px;
   font-family: "Lexend Deca", sans-serif;
   font-size: 12px;
-  font-weight: 400;
+  font-weight: 300;
   white-space: nowrap;
   transform: translate(-50%, -100%);
   margin-top: -5px;
@@ -141,7 +141,7 @@
   color: #fff;
   font-family: "Lexend Deca", sans-serif;
   font-size: 12px;
-  font-weight: 400;
+  font-weight: 300;
   cursor: pointer;
   display: flex;
   align-items: center;
