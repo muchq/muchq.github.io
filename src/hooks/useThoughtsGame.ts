@@ -426,7 +426,7 @@ export const useThoughtsGame = () => {
                 border-radius: 4px;
                 font-family: "Lexend Deca", sans-serif;
                 font-size: 12px;
-                font-weight: 300;
+                font-weight: 400;
                 white-space: nowrap;
                 transform: translate(-50%, -100%);
                 margin-top: -5px;
