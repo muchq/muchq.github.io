@@ -18,14 +18,14 @@
     "local-server": "cross-env VITE_THOUGHTS_WEBSOCKET_URL=ws://localhost:8080/ws VITE_THOUGHTS_SIMULATED=false vite"
   },
   "dependencies": {
-    "react": "^19.1.0",
+    "react": "^19.1.1",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.7.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.1.5",
     "@testing-library/react": "^16.0.0",
-    "@types/react": "^19.0.0",
+    "@types/react": "^19.1.9",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/ui": "^3.2.4",
