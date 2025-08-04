@@ -39,13 +39,13 @@ const Navigation = ({ className }: NavigationProps) => {
             <a href="#" className={styles.navLink}>Blog</a>
           </li>
           <li className={`${styles.navItem} nav-item`}>
-            <Link to="/thoughts" className={styles.navLink}>Thoughts</Link>
+            <a href="#" className={styles.navLink}>Games</a>
+            <div className={styles.dropdown}>
+              <Link to="/thoughts" className={styles.navLink}>Thoughts</Link>
+            </div>
           </li>
-          {/* <li className={`${styles.navItem} nav-item`}>
-            <a href="#" className={styles.navLink}>Resume</a>
-          </li> */}
         </ul>
-        <button 
+        <button
           className={styles.mobileMenuToggle}
           onClick={toggleMobileMenu}
           aria-label="Toggle mobile menu"
