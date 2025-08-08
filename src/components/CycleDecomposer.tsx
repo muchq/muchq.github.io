@@ -112,6 +112,8 @@ const CycleDecomposer = () => {
                     className={styles.cycle}
                     onMouseEnter={() => setHighlightedCycle(idx)}
                     onMouseLeave={() => setHighlightedCycle(null)}
+                    onTouchStart={() => setHighlightedCycle(idx)}
+                    onTouchEnd={() => setTimeout(() => setHighlightedCycle(null), 1000)}
                     style={{
                       color: `hsl(${idx * 60}, 70%, 50%)`
                     }}

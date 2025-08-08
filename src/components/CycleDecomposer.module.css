@@ -172,3 +172,91 @@
   border-radius: 4px;
   font-family: 'Courier New', monospace;
 }
+
+@media (max-width: 600px) {
+  .decomposer {
+    padding: 15px;
+  }
+
+  .input {
+    padding: 10px;
+    font-size: 1rem;
+  }
+
+  .hint {
+    font-size: 0.85rem;
+  }
+
+  .permutationGrid {
+    padding: 10px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+
+  .row {
+    gap: 10px;
+    min-width: fit-content;
+  }
+
+  .cell {
+    width: 35px;
+    height: 35px;
+    font-size: 1.1rem;
+  }
+
+  .results {
+    padding: 15px;
+  }
+
+  .cycles {
+    font-size: 1.1rem;
+    gap: 8px;
+  }
+
+  .transpositions {
+    font-size: 1rem;
+    word-break: break-all;
+  }
+
+  .order {
+    font-size: 1.3rem;
+  }
+
+  .explanation {
+    font-size: 0.85rem;
+    display: block;
+    margin-top: 5px;
+  }
+
+  .toggleButton {
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    width: 100%;
+  }
+
+  .steps {
+    padding: 15px;
+  }
+
+  .step {
+    padding: 8px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Touch enhancements */
+@media (hover: none) and (pointer: coarse) {
+  .cycle {
+    padding: 5px;
+    -webkit-tap-highlight-color: rgba(255, 235, 59, 0.3);
+  }
+
+  .cycle:active {
+    background: rgba(255, 235, 59, 0.2);
+    border-radius: 4px;
+  }
+
+  .toggleButton:active {
+    transform: translateY(0);
+  }
+}

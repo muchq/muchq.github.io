@@ -145,12 +145,77 @@
 }
 
 @media (max-width: 600px) {
+  .quiz {
+    padding: 15px;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .header h3 {
+    font-size: 1.1rem;
+  }
+
+  .score {
+    align-self: flex-end;
+    padding: 6px 12px;
+    font-size: 0.9rem;
+  }
+
+  .question {
+    padding: 15px;
+    font-size: 1rem;
+  }
+
+  .input {
+    padding: 10px;
+    font-size: 1rem;
+  }
+
   .buttons {
     flex-direction: column;
+    gap: 8px;
   }
   
   .submitButton,
+  .hintButton,
   .nextButton {
     width: 100%;
+    padding: 12px 20px;
+  }
+
+  .hint {
+    padding: 12px;
+    font-size: 0.95rem;
+  }
+
+  .feedback {
+    padding: 15px;
+  }
+
+  .feedback h4 {
+    font-size: 1.1rem;
+  }
+
+  .explanation {
+    font-size: 0.95rem;
+  }
+}
+
+/* Touch enhancements */
+@media (hover: none) and (pointer: coarse) {
+  .submitButton:active,
+  .hintButton:active,
+  .nextButton:active {
+    transform: translateY(0);
+  }
+
+  .submitButton,
+  .hintButton,
+  .nextButton {
+    -webkit-tap-highlight-color: rgba(255, 152, 0, 0.2);
   }
 }

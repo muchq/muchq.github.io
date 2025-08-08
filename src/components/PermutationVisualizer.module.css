@@ -99,6 +99,8 @@
   gap: 40px;
   position: relative;
   z-index: 2;
+  margin: 0 auto;
+  width: fit-content;
 }
 
 .position {
@@ -149,14 +151,27 @@
   transition: all 0.3s ease;
 }
 
+.element.selected {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.5), 0 5px 15px rgba(0, 0, 0, 0.3);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1.15); }
+  50% { transform: scale(1.2); }
+}
+
 .arrows {
   position: absolute;
   top: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 320px;
+  width: 480px;
   height: 150px;
   pointer-events: none;
+  display: flex;
+  justify-content: center;
 }
 
 .arrow {
@@ -175,35 +190,91 @@
   margin: 5px 0;
 }
 
+.instructions .hint {
+  color: #3498db;
+  font-weight: 500;
+  margin-top: 10px;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @media (max-width: 600px) {
   .visualizer {
-    padding: 20px;
+    padding: 15px;
+  }
+
+  .controls {
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .button {
+    padding: 12px 20px;
+    font-size: 0.95rem;
+  }
+
+  .permutationDisplay {
+    padding: 15px;
+    margin-bottom: 20px;
   }
 
   .positions {
-    gap: 20px;
+    gap: 15px;
   }
 
   .position {
-    width: 60px;
-    height: 60px;
+    width: 65px;
+    height: 65px;
+    border-width: 2px;
   }
 
   .element {
-    width: 45px;
-    height: 45px;
-    font-size: 1.2rem;
+    width: 50px;
+    height: 50px;
+    font-size: 1.3rem;
   }
 
   .arrows {
-    width: 240px;
+    display: none; /* Hide arrows on mobile for clarity */
   }
 
   .twoLineNotation {
-    font-size: 1rem;
+    font-size: 0.95rem;
+  }
+
+  .number {
+    width: 35px;
+  }
+
+  .label {
+    font-size: 0.85rem;
+    min-width: 70px;
   }
 
   .cycle {
-    font-size: 1.1rem;
+    font-size: 1rem;
+  }
+
+  .instructions p {
+    font-size: 0.9rem;
+  }
+}
+
+/* Touch-specific enhancements */
+@media (hover: none) and (pointer: coarse) {
+  .element {
+    cursor: pointer;
+  }
+
+  .element:active:not(.selected) {
+    transform: scale(0.95);
+  }
+
+  .button:active {
+    transform: translateY(0);
   }
 }
