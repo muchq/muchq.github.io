@@ -16,6 +16,8 @@ const PermutationVisualizer = () => {
   const [draggingId, setDraggingId] = useState<number | null>(null)
   const [dragOverPosition, setDragOverPosition] = useState<number | null>(null)
   const [isAnimating, setIsAnimating] = useState(false)
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [isTouchDevice] = useState(() => 'ontouchstart' in window)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const handleDragStart = (e: React.DragEvent, id: number) => {
@@ -40,8 +42,9 @@ const PermutationVisualizer = () => {
     const newElements = [...elements]
     const draggedElement = newElements.find(el => el.id === draggingId)
     const targetElement = newElements.find(el => el.position === targetPosition)
-
+    
     if (draggedElement && targetElement) {
+      // Swap positions to maintain bijection
       const tempPosition = draggedElement.position
       draggedElement.position = targetElement.position
       targetElement.position = tempPosition
@@ -55,6 +58,34 @@ const PermutationVisualizer = () => {
   const handleDragEnd = () => {
     setDraggingId(null)
     setDragOverPosition(null)
+  }
+
+  const handleElementClick = (clickedId: number, clickedPosition: number) => {
+    if (!isTouchDevice) return
+    
+    if (selectedId === null) {
+      // First tap: select an element to move
+      setSelectedId(clickedId)
+    } else if (selectedId === clickedId) {
+      // Tapped same element: deselect
+      setSelectedId(null)
+    } else {
+      // Second tap: move the selected element to this position
+      const newElements = [...elements]
+      const selectedElement = newElements.find(el => el.id === selectedId)
+      const elementAtTarget = newElements.find(el => el.position === clickedPosition)
+      
+      if (selectedElement && elementAtTarget) {
+        // Swap positions: selected element goes to clicked position,
+        // element at clicked position goes to selected element's old position
+        const tempPosition = selectedElement.position
+        selectedElement.position = elementAtTarget.position
+        elementAtTarget.position = tempPosition
+        setElements(newElements)
+      }
+      
+      setSelectedId(null)
+    }
   }
 
   const resetPermutation = () => {
@@ -165,12 +196,17 @@ const PermutationVisualizer = () => {
                     draggingId === sortedElements.find(el => el.position === position)?.id
                       ? styles.dragging
                       : ''
+                  } ${
+                    selectedId === sortedElements.find(el => el.position === position)?.id
+                      ? styles.selected
+                      : ''
                   }`}
-                  draggable
+                  draggable={!isTouchDevice}
                   onDragStart={(e) =>
-                    handleDragStart(e, sortedElements.find(el => el.position === position)!.id)
+                    !isTouchDevice && handleDragStart(e, sortedElements.find(el => el.position === position)!.id)
                   }
                   onDragEnd={handleDragEnd}
+                  onClick={() => handleElementClick(sortedElements.find(el => el.position === position)!.id, position)}
                   style={{
                     backgroundColor: `hsl(${(sortedElements.find(el => el.position === position)!.id - 1) * 90}, 70%, 60%)`
                   }}
@@ -183,24 +219,34 @@ const PermutationVisualizer = () => {
         </div>
 
         <div className={styles.arrows}>
-          {elements.map(el => {
-            const from = el.id - 1
-            const to = el.position
+          {sortedElements.map((_, idx) => {
+            // idx is the position in the top row (0, 1, 2, 3) - this is what we're mapping FROM
+            // el.id is what's at that position - we want to show where position idx+1 maps to
+            const from = idx  // Visual position index
+            const to = sortedElements.findIndex(e => e.id === idx + 1)  // Find where element (idx+1) ended up
             if (from === to) return null
+            
+            // 80px box width + 40px gap = 120px between centers
+            const spacing = 120
+            const startX = from * spacing + 40  // Center of the "from" box
+            const endX = to * spacing + 40  // Center of the "to" box
+            const width = Math.abs(endX - startX)
+            const leftPos = Math.min(startX, endX)
             
             return (
               <svg
-                key={el.id}
+                key={`arrow-${idx}`}
                 className={styles.arrow}
                 style={{
-                  left: `${from * 80 + 40}px`,
-                  width: `${Math.abs(to - from) * 80}px`,
-                  top: '100px'
+                  left: `${leftPos}px`,
+                  width: `${width + 10}px`,
+                  top: '90px',
+                  height: '40px'
                 }}
               >
                 <defs>
                   <marker
-                    id={`arrowhead-${el.id}`}
+                    id={`arrowhead-${idx}`}
                     markerWidth="10"
                     markerHeight="10"
                     refX="9"
@@ -209,19 +255,16 @@ const PermutationVisualizer = () => {
                   >
                     <polygon
                       points="0 0, 10 3, 0 6"
-                      fill={`hsl(${(el.id - 1) * 90}, 70%, 60%)`}
+                      fill={`hsl(${idx * 90}, 70%, 60%)`}
                     />
                   </marker>
                 </defs>
                 <path
-                  d={`M 5 5 Q ${Math.abs(to - from) * 40} ${Math.abs(to - from) * 20}, ${
-                    Math.abs(to - from) * 80 - 5
-                  } 5`}
-                  stroke={`hsl(${(el.id - 1) * 90}, 70%, 60%)`}
+                  d={`M ${startX < endX ? 5 : width + 5} 5 Q ${width/2 + 5} ${Math.min(width * 0.3, 30)}, ${startX < endX ? width + 5 : 5} 5`}
+                  stroke={`hsl(${idx * 90}, 70%, 60%)`}
                   strokeWidth="2"
                   fill="none"
-                  markerEnd={`url(#arrowhead-${el.id})`}
-                  transform={to < from ? 'scale(-1, 1) translate(-' + Math.abs(to - from) * 80 + ', 0)' : ''}
+                  markerEnd={`url(#arrowhead-${idx})`}
                 />
               </svg>
             )
@@ -230,8 +273,11 @@ const PermutationVisualizer = () => {
       </div>
 
       <div className={styles.instructions}>
-        <p>🎯 Drag and drop the colored numbers to create different permutations</p>
+        <p>🎯 {isTouchDevice ? 'Tap a number, then tap where it should map to' : 'Drag and drop the colored numbers to create permutations'}</p>
         <p>📝 Watch how the two-line and cycle notations update in real-time</p>
+        {isTouchDevice && selectedId !== null && (
+          <p className={styles.hint}>✨ Now tap the position where {selectedId} should map to</p>
+        )}
       </div>
     </div>
   )

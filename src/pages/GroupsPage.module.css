@@ -371,9 +371,31 @@
   line-height: 1.6;
 }
 
+/* Mobile tap highlights */
+@media (hover: none) and (pointer: coarse) {
+  .tab,
+  .completeButton,
+  .chapterCard {
+    -webkit-tap-highlight-color: rgba(52, 152, 219, 0.2);
+  }
+
+  .tab:active {
+    background: rgba(52, 152, 219, 0.1);
+  }
+
+  .chapterCard:active {
+    transform: scale(0.98);
+  }
+}
+
 @media (max-width: 768px) {
+  .content {
+    padding: 70px 15px 30px;
+  }
+
   .title {
-    font-size: 2rem;
+    font-size: 1.8rem;
+    margin-bottom: 8px;
   }
   
   .subtitle {
@@ -381,24 +403,121 @@
   }
   
   .tabContent {
-    padding: 20px;
+    padding: 20px 15px;
+    border-radius: 8px;
   }
   
   .tabs {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    padding-bottom: 8px;
+    margin-bottom: 20px;
+    position: relative;
+  }
+
+  .tabs::after {
+    content: '→';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #7f8c8d;
+    font-size: 1.2rem;
+    pointer-events: none;
+    animation: slideHint 2s ease-in-out infinite;
+  }
+
+  @keyframes slideHint {
+    0%, 100% { transform: translateY(-50%) translateX(0); }
+    50% { transform: translateY(-50%) translateX(5px); }
   }
   
   .tab {
-    padding: 10px 16px;
+    padding: 12px 18px;
     font-size: 0.9rem;
+    min-width: fit-content;
+  }
+
+  .tab.completed::before {
+    top: 2px;
+    right: 2px;
+    font-size: 0.7rem;
   }
   
   .chapters {
     grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .chapterCard {
+    padding: 15px;
+  }
+
+  .chapterCard h4 {
+    font-size: 1rem;
+  }
+
+  .chapterCard p {
+    font-size: 0.9rem;
   }
   
   .applications {
     grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .application {
+    padding: 15px;
+  }
+
+  .section h2 {
+    font-size: 1.6rem;
+    margin-bottom: 15px;
+  }
+
+  .section h3 {
+    font-size: 1.2rem;
+    margin-bottom: 12px;
+  }
+
+  .section p {
+    font-size: 0.95rem;
+    line-height: 1.7;
+  }
+
+  .definition,
+  .example,
+  .important,
+  .theorem {
+    padding: 15px;
+    margin: 15px 0;
+  }
+
+  .progressBar {
+    max-width: 300px;
+    height: 16px;
+    margin: 15px auto;
+  }
+
+  .progressText {
+    font-size: 0.8rem;
+  }
+
+  .completeButton {
+    padding: 10px 24px;
+    font-size: 1rem;
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .objectives li {
+    font-size: 0.95rem;
+    padding: 8px 0;
+    padding-left: 25px;
+  }
+
+  .lead {
+    font-size: 1.05rem;
   }
 }
