@@ -1,0 +1,174 @@
+.decomposer {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  border-radius: 12px;
+  padding: 25px;
+  margin: 20px 0;
+}
+
+.inputSection {
+  margin-bottom: 25px;
+}
+
+.label {
+  display: block;
+  font-weight: 500;
+  color: #2e7d32;
+  margin-bottom: 10px;
+}
+
+.input {
+  width: 100%;
+  padding: 12px;
+  font-size: 1.1rem;
+  border: 2px solid #81c784;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  transition: border-color 0.3s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #4caf50;
+}
+
+.hint {
+  font-size: 0.9rem;
+  color: #558b2f;
+  margin-top: 8px;
+}
+
+.visualization {
+  margin: 25px 0;
+}
+
+.permutationGrid {
+  display: inline-block;
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.row {
+  display: flex;
+  gap: 15px;
+}
+
+.row:first-child {
+  border-bottom: 2px solid #388e3c;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+
+.cell {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.2rem;
+  color: #1b5e20;
+  transition: all 0.3s;
+}
+
+.cell.highlighted {
+  background: #ffeb3b;
+  border-radius: 4px;
+  transform: scale(1.1);
+}
+
+.results {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.resultItem {
+  margin-bottom: 20px;
+}
+
+.resultItem:last-child {
+  margin-bottom: 0;
+}
+
+.resultItem h4 {
+  color: #2e7d32;
+  margin-bottom: 10px;
+}
+
+.cycles {
+  font-family: 'Courier New', monospace;
+  font-size: 1.3rem;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cycle {
+  cursor: pointer;
+  transition: transform 0.2s;
+  font-weight: bold;
+}
+
+.cycle:hover {
+  transform: scale(1.1);
+}
+
+.transpositions {
+  font-family: 'Courier New', monospace;
+  font-size: 1.2rem;
+  color: #388e3c;
+  font-weight: bold;
+}
+
+.order {
+  font-size: 1.5rem;
+  color: #1b5e20;
+  font-weight: bold;
+  display: inline-block;
+  margin-right: 10px;
+}
+
+.explanation {
+  font-size: 0.9rem;
+  color: #689f38;
+}
+
+.toggleButton {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #66bb6a, #4caf50);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s;
+}
+
+.toggleButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.steps {
+  background: #f1f8e9;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+.steps h4 {
+  color: #33691e;
+  margin-bottom: 15px;
+}
+
+.step {
+  padding: 10px;
+  background: white;
+  border-left: 3px solid #689f38;
+  margin-bottom: 10px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+}
