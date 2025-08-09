@@ -1,15 +1,9 @@
 import styles from './GolfGame.module.css'
 import { useGolfGame } from '@/hooks/useGolfGame'
-import { useState, useEffect } from 'react'
 
 interface Card {
   rank: string
   suit: string
-}
-
-interface FinalScore {
-  playerName: string
-  score: number
 }
 
 
@@ -30,7 +24,6 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
     isMyTurn,
     peekCountdown,
     winner,
-    finalScores,
     createGame,
     joinGame,
     startGame,
@@ -45,7 +38,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
 
   const renderCard = (card: Card | null, index: number, isRevealed: boolean, isPlayer: boolean) => {
     const isSelected = selectedCardIndex === index
-    
+
     return (
       <div
         key={index}
@@ -77,9 +70,9 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
             <button onClick={createGame} className={styles.primaryButton}>
               Create New Game
             </button>
-            
+
             <div className={styles.divider}>OR</div>
-            
+
             <div className={styles.joinSection}>
               <input
                 type="text"
@@ -95,13 +88,13 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
             </div>
           </div>
         </div>
-        
+
         {notification && (
           <div className={styles.notification}>
             {notification}
           </div>
         )}
-        
+
         {peekCountdown !== null && (
           <div className={styles.peekCountdown}>
             <div className={styles.countdownNumber}>{peekCountdown}</div>
@@ -181,7 +174,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
                   <span className={styles.cardCount}>{gameState.drawPile}</span>
                 </div>
               </div>
-              
+
               <div className={styles.pile}>
                 <h3>Discard Pile</h3>
                 {gameState.discardPile.length > 0 ? (
@@ -203,11 +196,11 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
           <div className={styles.playerArea}>
             <h3>Your Cards</h3>
             <div className={styles.cardGrid}>
-              {currentPlayer.cards.map((card, index) => 
+              {currentPlayer.cards.map((card, index) =>
                 renderCard(card, index, currentPlayer.revealedCards.includes(index), true)
               )}
             </div>
-            
+
             {isMyTurn && (
               <div className={styles.actions}>
                 {!gameState.drawnCard ? (
@@ -231,7 +224,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
                     </button>
                   </>
                 )}
-                
+
                 {gameState.gamePhase === 'playing' && !gameState.drawnCard && (
                   <button onClick={knock} className={styles.knockButton}>
                     Knock
@@ -254,7 +247,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
           {notification}
         </div>
       )}
-      
+
       {peekCountdown !== null && (
         <div className={styles.peekCountdown}>
           <div className={styles.countdownNumber}>{peekCountdown}</div>
