@@ -46,7 +46,7 @@ const ThoughtsNavigation = ({ playerId }: ThoughtsNavigationProps) => {
   return (
     <nav className={styles.nav}>
       <div className={styles.navContainer}>
-        <Link to="/" className={styles.navLogo}>MuchQ</Link>
+        <Link to="/" className={styles.navLogo}>MuchQ : Thoughts</Link>
         <div className={styles.centerContent}>
           {playerId && (
             <div className={styles.playerId}>

@@ -1,0 +1,552 @@
+.lobby {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  padding: 2rem;
+}
+
+.title {
+  font-family: 'Lexend', sans-serif;
+  font-size: 3rem;
+  font-weight: 300;
+  margin-bottom: 2rem;
+  color: white;
+}
+
+.lobbyContent {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  padding: 2rem;
+  border-radius: 1rem;
+  min-width: 400px;
+}
+
+.inputGroup {
+  margin-bottom: 1.5rem;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  font-family: 'Lexend', sans-serif;
+}
+
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.input:focus {
+  outline: none;
+  border-color: #90ee90;
+}
+
+.lobbyActions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.primaryButton,
+.secondaryButton {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-family: 'Lexend', sans-serif;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.primaryButton {
+  background: #90ee90;
+  color: #0d5016;
+  font-weight: 500;
+}
+
+.primaryButton:hover {
+  background: #7dd87d;
+  transform: translateY(-2px);
+}
+
+.secondaryButton {
+  background: transparent;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.secondaryButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.divider {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 1rem 0;
+}
+
+.joinSection {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.joinSection .input {
+  flex: 1;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  font-size: 1.5rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.gameContainer {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.gameHeader {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.playerList {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.playerInfo {
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.playerInfo.active {
+  background: rgba(144, 238, 144, 0.2);
+  border: 1px solid #90ee90;
+}
+
+.score {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.waitingRoom {
+  text-align: center;
+  padding: 3rem;
+}
+
+.gameArea {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  padding: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.card {
+  width: 80px;
+  height: 120px;
+  background: white;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1.5rem;
+  color: #333;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.card.selected {
+  border: 3px solid #90ee90;
+  transform: scale(1.05);
+}
+
+.card.revealed {
+  background: white;
+}
+
+.cardBack {
+  font-size: 2rem;
+  color: #0d5016;
+}
+
+.cardRank {
+  font-weight: bold;
+  font-size: 2rem;
+}
+
+.cardRank.red,
+.cardSuit.red {
+  color: #e53935;
+}
+
+.cardSuit {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  font-size: 1.5rem;
+}
+
+.cardCount {
+  position: absolute;
+  bottom: -1.5rem;
+  right: 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.tableArea {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.piles {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.pile {
+  text-align: center;
+}
+
+.pile h3 {
+  margin: 0 0 0.5rem 0;
+  font-weight: 400;
+  font-size: 1rem;
+}
+
+.emptyPile {
+  width: 80px;
+  height: 120px;
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.playerArea {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2rem;
+  border-radius: 0.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.playerArea h3 {
+  margin: 0 0 1rem 0;
+  font-weight: 400;
+  font-size: 1.2rem;
+}
+
+.playerArea .cardGrid {
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  max-width: 200px;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.actionButton,
+.knockButton {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-family: 'Lexend', sans-serif;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.actionButton {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.actionButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.knockButton {
+  background: #ff6b6b;
+  color: white;
+}
+
+.knockButton:hover {
+  background: #ff5252;
+  transform: translateY(-2px);
+}
+
+.peekHint {
+  margin-top: 1rem;
+  color: #90ee90;
+  font-size: 0.9rem;
+}
+
+.notification {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 1rem 2rem;
+  border-radius: 0.5rem;
+  font-family: 'Lexend', sans-serif;
+  animation: slideUp 0.3s ease;
+}
+
+.peekCountdown {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  padding: 2rem 3rem;
+  border-radius: 1rem;
+  text-align: center;
+  z-index: 1000;
+  animation: slideDown 0.3s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.countdownNumber {
+  font-size: 5rem;
+  font-weight: bold;
+  color: #90ee90;
+  font-family: 'Lexend', sans-serif;
+  line-height: 1;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.countdownText {
+  font-size: 1.2rem;
+  color: white;
+  margin-top: 0.5rem;
+  font-family: 'Lexend', sans-serif;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translate(-50%, 100%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .lobbyContent {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .card {
+    width: 60px;
+    height: 90px;
+    font-size: 1.2rem;
+  }
+
+  .cardRank {
+    font-size: 1.5rem;
+  }
+
+  .cardSuit {
+    font-size: 1.2rem;
+  }
+
+  .piles {
+    gap: 1rem;
+  }
+}
+
+/* Game End Overlay Styles */
+.gameEndOverlay {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  animation: slideDownOverlay 0.5s ease-out;
+  width: 100%;
+  max-width: 380px;
+  pointer-events: all;
+}
+
+.gameEndContent {
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 1rem 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.gameEndContent h3 {
+  color: white;
+  font-family: 'Lexend', sans-serif;
+  font-size: 1.5rem;
+  text-align: center;
+  margin: 0 0 0.75rem 0;
+}
+
+@keyframes slideDownOverlay {
+  from {
+    transform: translateX(-50%) translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+.winner {
+  text-align: center;
+  color: #ffd700;
+  font-size: 1.1rem;
+  margin: 0 0 0.75rem 0;
+  font-family: 'Lexend', sans-serif;
+  font-weight: bold;
+}
+
+.finalScores {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.scoreRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.2rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.4rem;
+  color: white;
+  font-family: 'Lexend', sans-serif;
+  font-size: 0.9rem;
+}
+
+.scoreRow:last-child {
+  margin-bottom: 0;
+}
+
+.scoreRow:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.rank {
+  font-weight: bold;
+  color: #90ee90;
+  min-width: 30px;
+  font-size: 0.85rem;
+}
+
+.playerName {
+  flex: 1;
+  margin: 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+.finalScore {
+  font-weight: bold;
+  color: #ffd700;
+  font-size: 0.9rem;
+}
+
+.gameEndInfo {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.75rem;
+  margin: 0;
+  font-family: 'Lexend', sans-serif;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
