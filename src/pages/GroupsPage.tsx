@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import Navigation from '@/components/Navigation'
+import GroupsNavigation from '@/components/GroupsNavigation'
 import PermutationVisualizer from '@/components/PermutationVisualizer'
 import CycleDecomposer from '@/components/CycleDecomposer'
 import PermutationQuiz from '@/components/PermutationQuiz'
@@ -29,7 +29,7 @@ const GroupsPage = () => {
 
   return (
     <div className={styles.groupsPage}>
-      <Navigation />
+      <GroupsNavigation />
       
       <main className={styles.content}>
         <header className={styles.header}>
