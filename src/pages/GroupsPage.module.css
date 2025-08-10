@@ -37,6 +37,8 @@
   border-bottom: 2px solid rgba(52, 73, 94, 0.1);
   padding-bottom: 2px;
   overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
 
 .tab {

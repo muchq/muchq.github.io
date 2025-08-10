@@ -15,18 +15,26 @@ const questions: Record<number, Question[]> = {
       {
         id: '1-1',
         type: 'composition',
-        question: 'In S₃, let σ = (1 2 3) → (2 3 1) and τ = (1 2 3) → (1 3 2). What is στ?',
-        answer: '3 1 2',
-        hint: 'Remember: στ means apply τ first, then σ',
-        explanation: 'τ sends 1→1, 2→3, 3→2. Then σ sends 1→2, 3→1, 2→3. So στ: 1→1→2, 2→3→1, 3→2→3'
+        question: 'In S₄, let σ = (1 2) and τ = (2 3). What is στ in cycle notation?',
+        answer: '(1 2 3)',
+        hint: 'Remember: στ means apply τ first, then σ. Track where each element goes.',
+        explanation: 'First apply τ = (2 3): 1→1, 2→3, 3→2, 4→4. Then apply σ = (1 2): 1→2, 2→1, 3→3, 4→4. Computing στ: 1→τ(1)=1→σ(1)=2, 2→τ(2)=3→σ(3)=3, 3→τ(3)=2→σ(2)=1, 4→τ(4)=4→σ(4)=4. Result: 1→2→3→1, so στ = (1 2 3).'
       },
       {
         id: '1-2',
         type: 'inverse',
-        question: 'What is the inverse of σ = (1 2 3 4) → (3 1 4 2)?',
-        answer: '2 4 1 3',
-        hint: 'The inverse undoes the permutation. If σ(1)=3, then σ⁻¹(3)=1',
-        explanation: 'To find the inverse, swap the rows and sort by the top row: (3 1 4 2) → (1 2 3 4) becomes (1 2 3 4) → (2 4 1 3)'
+        question: 'What is the inverse of σ = (1 3 4 2) in cycle notation?',
+        answer: '(1 2 4 3)',
+        hint: 'To find the inverse of a cycle, reverse the order of elements (keeping the first fixed)',
+        explanation: 'The cycle (1 3 4 2) means 1→3→4→2→1. The inverse reverses these arrows: 1←3←4←2←1, which means 1→2→4→3→1, written as (1 2 4 3). You can verify: (1 3 4 2)(1 2 4 3) = identity.'
+      },
+      {
+        id: '1-3',
+        type: 'composition',
+        question: 'In S₅, compute (1 2)(3 4)(1 2) in cycle notation.',
+        answer: '(3 4)',
+        hint: 'Notice that (1 2) appears twice. What is (1 2)(1 2)?',
+        explanation: 'Since (1 2) is its own inverse, (1 2)(1 2) = identity. So (1 2)(3 4)(1 2) = (3 4). The cycles (1 2) and (3 4) are disjoint, so they commute: (1 2)(3 4) = (3 4)(1 2).'
       }
     ],
     2: [

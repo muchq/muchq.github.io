@@ -209,56 +209,86 @@ const PermutationVisualizer = () => {
         </div>
 
         <div className={styles.arrows}>
-          {permutation.getMappingArray().map((targetValue, sourceIdx) => {
-            // sourceIdx is the position we're mapping FROM (0-indexed)
-            // targetValue is what it maps TO (1-indexed)
-            const from = sourceIdx
-            const to = targetValue - 1  // Convert to 0-indexed for position
-            if (from === to) return null  // Don't show arrow if it maps to itself
+          {(() => {
+            // Calculate arrow paths and detect overlaps
+            const arrows: Array<{from: number, to: number, idx: number}> = []
+            permutation.getMappingArray().forEach((targetValue, sourceIdx) => {
+              const from = sourceIdx
+              const to = targetValue - 1
+              if (from !== to) {
+                arrows.push({from, to, idx: sourceIdx})
+              }
+            })
             
-            // 80px box width + 40px gap = 120px between centers
-            const spacing = 120
-            const startX = from * spacing + 40  // Center of the "from" box
-            const endX = to * spacing + 40  // Center of the "to" box
-            const width = Math.abs(endX - startX)
-            const leftPos = Math.min(startX, endX)
+            // Group arrows by their span to detect overlaps
+            const arrowGroups = new Map<string, typeof arrows>()
+            arrows.forEach(arrow => {
+              const key = `${Math.min(arrow.from, arrow.to)}-${Math.max(arrow.from, arrow.to)}`
+              if (!arrowGroups.has(key)) {
+                arrowGroups.set(key, [])
+              }
+              arrowGroups.get(key)!.push(arrow)
+            })
             
-            return (
-              <svg
-                key={`arrow-${sourceIdx}`}
-                className={styles.arrow}
-                style={{
-                  left: `${leftPos}px`,
-                  width: `${width + 10}px`,
-                  top: '90px',
-                  height: '40px'
-                }}
-              >
-                <defs>
-                  <marker
-                    id={`arrowhead-${sourceIdx}`}
-                    markerWidth="10"
-                    markerHeight="10"
-                    refX="9"
-                    refY="3"
-                    orient="auto"
-                  >
-                    <polygon
-                      points="0 0, 10 3, 0 6"
-                      fill={`hsl(${sourceIdx * 90}, 70%, 60%)`}
-                    />
-                  </marker>
-                </defs>
-                <path
-                  d={`M ${startX < endX ? 5 : width + 5} 5 Q ${width/2 + 5} ${Math.min(width * 0.3, 30)}, ${startX < endX ? width + 5 : 5} 5`}
-                  stroke={`hsl(${sourceIdx * 90}, 70%, 60%)`}
-                  strokeWidth="2"
-                  fill="none"
-                  markerEnd={`url(#arrowhead-${sourceIdx})`}
-                />
-              </svg>
-            )
-          })}
+            return arrows.map(arrow => {
+              const { from, to, idx } = arrow
+              const spacing = 120
+              const startX = from * spacing + 40
+              const endX = to * spacing + 40
+              const width = Math.abs(endX - startX)
+              const leftPos = Math.min(startX, endX)
+              
+              // Get the group this arrow belongs to
+              const key = `${Math.min(from, to)}-${Math.max(from, to)}`
+              const group = arrowGroups.get(key) || []
+              const groupIndex = group.findIndex(a => a.idx === idx)
+              const groupSize = group.length
+              
+              // Calculate vertical offset based on position in group
+              const baseHeight = Math.min(width * 0.3, 35)
+              const heightOffset = groupSize > 1 ? (groupIndex - (groupSize - 1) / 2) * 15 : 0
+              const curveHeight = baseHeight + Math.abs(heightOffset)
+              const svgHeight = curveHeight + 20
+              
+              return (
+                <svg
+                  key={`arrow-${idx}`}
+                  className={styles.arrow}
+                  style={{
+                    left: `${leftPos}px`,
+                    width: `${width + 10}px`,
+                    top: `${90 - Math.max(0, heightOffset)}px`,
+                    height: `${svgHeight}px`,
+                    zIndex: groupSize - groupIndex
+                  }}
+                >
+                  <defs>
+                    <marker
+                      id={`arrowhead-${idx}`}
+                      markerWidth="10"
+                      markerHeight="10"
+                      refX="9"
+                      refY="3"
+                      orient="auto"
+                    >
+                      <polygon
+                        points="0 0, 10 3, 0 6"
+                        fill={`hsl(${idx * 90}, 70%, 60%)`}
+                      />
+                    </marker>
+                  </defs>
+                  <path
+                    d={`M ${startX < endX ? 5 : width + 5} 5 Q ${width/2 + 5} ${curveHeight}, ${startX < endX ? width + 5 : 5} 5`}
+                    stroke={`hsl(${idx * 90}, 70%, 60%)`}
+                    strokeWidth="2"
+                    fill="none"
+                    markerEnd={`url(#arrowhead-${idx})`}
+                    opacity="0.8"
+                  />
+                </svg>
+              )
+            })
+          })()}
         </div>
       </div>
 
