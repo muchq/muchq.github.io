@@ -4,6 +4,7 @@ import ThoughtsPage from './pages/ThoughtsPage'
 import GroupsPage from './pages/GroupsPage'
 import SetsPage from './pages/SetsPage'
 import GolfPage from './pages/GolfPage'
+import AurumSiphonPage from './pages/AurumSiphonPage'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
       <Route path="/groups" element={<GroupsPage />} />
       <Route path="/sets" element={<SetsPage />} />
       <Route path="/golf" element={<GolfPage />} />
+      <Route path="/aurum-siphon" element={<AurumSiphonPage />} />
     </Routes>
   )
 }
