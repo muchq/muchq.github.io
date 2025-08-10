@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import styles from './GolfGame.module.css'
 import { useGolfGame } from '@/hooks/useGolfGame'
 
@@ -14,6 +15,8 @@ interface GolfGameProps {
 }
 
 const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: GolfGameProps) => {
+  const [showRules, setShowRules] = useState(false)
+  
   const {
     gameState,
     roomCode,
@@ -86,6 +89,13 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
                 Join Game
               </button>
             </div>
+            
+            <button 
+              onClick={() => setShowRules(true)} 
+              className={styles.rulesButton}
+            >
+              How to Play
+            </button>
           </div>
         </div>
 
@@ -99,6 +109,64 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
           <div className={styles.peekCountdown}>
             <div className={styles.countdownNumber}>{peekCountdown}</div>
             <div className={styles.countdownText}>All players have peeked!</div>
+          </div>
+        )}
+        
+        {showRules && (
+          <div className={styles.rulesModal} onClick={() => setShowRules(false)}>
+            <div className={styles.rulesContent} onClick={(e) => e.stopPropagation()}>
+              <button 
+                className={styles.closeButton} 
+                onClick={() => setShowRules(false)}
+              >
+                ×
+              </button>
+              <h2>How to Play Golf</h2>
+              
+              <div className={styles.rulesSection}>
+                <h3>Goal</h3>
+                <p>Get the lowest score by the end of the game. Lower is better!</p>
+              </div>
+              
+              <div className={styles.rulesSection}>
+                <h3>Setup</h3>
+                <ul>
+                  <li>Each player gets 6 cards face down in a 2×3 grid</li>
+                  <li>Players peek at any 2 of their cards at the start</li>
+                  <li>Try to remember your cards!</li>
+                </ul>
+              </div>
+              
+              <div className={styles.rulesSection}>
+                <h3>Your Turn</h3>
+                <ul>
+                  <li>Draw from the deck OR take the top discard card</li>
+                  <li>Swap it with one of your cards OR discard it</li>
+                  <li>Swapped cards are revealed and stay face up</li>
+                </ul>
+              </div>
+              
+              <div className={styles.rulesSection}>
+                <h3>Card Values</h3>
+                <ul>
+                  <li>Number cards: Face value (2 = 2 points, etc.)</li>
+                  <li>Jacks: 0 points</li>
+                  <li>Queens & Kings: 10 points</li>
+                  <li>Aces: 1 point</li>
+                  <li>Pairs in same column cancel out (0 points)!</li>
+                </ul>
+              </div>
+              
+              <div className={styles.rulesSection}>
+                <h3>Ending the Game</h3>
+                <ul>
+                  <li>Any player can "knock" to trigger the last round</li>
+                  <li>After a knock, each other player gets one more turn</li>
+                  <li>All cards are revealed and scored</li>
+                  <li>Lowest total score wins!</li>
+                </ul>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -159,6 +227,20 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
             <div className={styles.gameEndInfo}>
               <small>Lower scores win • Pairs cancel out</small>
             </div>
+            <div className={styles.gameEndActions}>
+              <button 
+                onClick={() => window.location.reload()} 
+                className={styles.primaryButton}
+              >
+                Back to Home
+              </button>
+              <button 
+                onClick={startGame} 
+                className={styles.secondaryButton}
+              >
+                New Game
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -169,7 +251,10 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
             <div className={styles.piles}>
               <div className={styles.pile}>
                 <h3>Draw Pile</h3>
-                <div className={styles.card}>
+                <div 
+                  className={`${styles.card} ${isMyTurn && !gameState.drawnCard ? styles.clickable : ''}`}
+                  onClick={() => isMyTurn && !gameState.drawnCard && drawCard()}
+                >
                   <span className={styles.cardBack}>?</span>
                   <span className={styles.cardCount}>{gameState.drawPile}</span>
                 </div>
@@ -178,13 +263,18 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
               <div className={styles.pile}>
                 <h3>Discard Pile</h3>
                 {gameState.discardPile.length > 0 ? (
-                  renderCard(gameState.discardPile[gameState.discardPile.length - 1], -1, true, false)
+                  <div 
+                    className={`${isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0 ? styles.clickable : ''}`}
+                    onClick={() => isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0 && takeFromDiscard()}
+                  >
+                    {renderCard(gameState.discardPile[gameState.discardPile.length - 1], -1, true, false)}
+                  </div>
                 ) : (
                   <div className={styles.emptyPile}>Empty</div>
                 )}
               </div>
 
-              {gameState.drawnCard && (
+              {gameState.drawnCard && isMyTurn && (
                 <div className={styles.pile}>
                   <h3>Drawn Card</h3>
                   {renderCard(gameState.drawnCard, -2, true, false)}
