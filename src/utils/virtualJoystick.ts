@@ -130,4 +130,14 @@ export class VirtualJoystick implements VirtualJoystickState {
     this.x = 0
     this.y = 0
   }
+
+  getInput(): { x: number; y: number } {
+    return { x: this.x, y: this.y }
+  }
+
+  destroy(): void {
+    this.resetPosition()
+    this.active = false
+    this.touchId = null
+  }
 }

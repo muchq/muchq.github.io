@@ -18,9 +18,11 @@
     "local-server": "cross-env VITE_THOUGHTS_WEBSOCKET_URL=ws://localhost:8080/thoughts-ws VITE_GOLF_WEBSOCKET_URL=ws://localhost:8080/golf-ws VITE_THOUGHTS_SIMULATED=false vite"
   },
   "dependencies": {
+    "@types/three": "^0.179.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.1",
-    "react-router-dom": "^7.7.1"
+    "react-router-dom": "^7.7.1",
+    "three": "^0.179.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.1.5",
