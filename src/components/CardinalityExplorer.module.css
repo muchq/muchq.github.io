@@ -1,0 +1,292 @@
+.container {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.header h2 {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
+  font-size: 2rem;
+}
+
+.modeIndicator {
+  padding: 10px 20px;
+  background: #f0f4ff;
+  border-radius: 20px;
+  border: 2px solid #667eea;
+}
+
+.mode {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #667eea;
+}
+
+.mode.active {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.instructions {
+  text-align: center;
+  margin-bottom: 30px;
+  padding: 15px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  color: #666;
+}
+
+.setsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+.column h3 {
+  color: #333;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.setsList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.setCard {
+  padding: 15px;
+  border: 2px solid;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.setCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.setCard.selected {
+  background: rgba(102, 126, 234, 0.1);
+  border-width: 3px;
+  transform: scale(1.02);
+}
+
+.setCard.selected::before {
+  content: '✓';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #4caf50;
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.setCard h4 {
+  margin: 0 0 10px 0;
+  font-size: 1.1rem;
+}
+
+.cardinality {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.elements {
+  font-family: 'Courier New', monospace;
+  color: #555;
+  background: #f5f5f5;
+  padding: 8px;
+  border-radius: 4px;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+}
+
+.emptySet {
+  color: #999;
+  font-size: 1.5rem;
+}
+
+.element {
+  background: #fff;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid #ddd;
+  margin: 1px;
+  font-size: 0.9rem;
+}
+
+.infiniteCard {
+  min-height: 140px;
+}
+
+.notation {
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  color: #667eea;
+  background: #f0f4ff;
+  padding: 5px 8px;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.description {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.exampleElement {
+  background: #fff;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid #ddd;
+  font-size: 0.8rem;
+  font-family: 'Courier New', monospace;
+}
+
+.comparisonResult {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  padding: 20px;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+  margin-bottom: 30px;
+  animation: slideIn 0.5s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.comparisonResult h4 {
+  margin: 0 0 10px 0;
+  color: #667eea;
+}
+
+.result {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #333;
+}
+
+.educational {
+  background: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+.concepts h4 {
+  margin: 0 0 15px 0;
+  color: #667eea;
+}
+
+.concepts ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.concepts li {
+  margin-bottom: 8px;
+  line-height: 1.5;
+  color: #555;
+}
+
+.concepts li strong {
+  color: #333;
+}
+
+/* Mathematical symbols styling */
+.cardinality {
+  font-family: 'Times New Roman', serif;
+}
+
+/* Special styling for infinite cardinalities */
+.infiniteCard .cardinality {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-size: 1.3rem;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 15px;
+  }
+  
+  .header {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+  
+  .setsGrid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .setCard {
+    padding: 12px;
+  }
+  
+  .infiniteCard {
+    min-height: auto;
+  }
+  
+  .comparisonResult {
+    padding: 15px;
+  }
+  
+  .educational {
+    padding: 15px;
+  }
+}

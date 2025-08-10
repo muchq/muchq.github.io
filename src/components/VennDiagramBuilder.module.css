@@ -1,0 +1,195 @@
+.container {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.controls {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 150px;
+}
+
+.inputGroup label {
+  font-size: 0.9rem;
+  color: #555;
+  font-weight: 500;
+}
+
+.input {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.updateButton {
+  padding: 8px 20px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.3s ease;
+}
+
+.updateButton:hover {
+  background: #5a67d8;
+}
+
+.operationSelector {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.opButton {
+  padding: 10px 20px;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  flex: 1;
+  min-width: 120px;
+}
+
+.opButton:hover {
+  background: #e8e8e8;
+}
+
+.opButton.active {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.vennContainer {
+  display: flex;
+  justify-content: center;
+  margin: 30px 0;
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.vennDiagram {
+  max-width: 400px;
+  width: 100%;
+  height: auto;
+}
+
+.circleA {
+  animation: fadeIn 0.5s ease;
+}
+
+.circleB {
+  animation: fadeIn 0.5s ease 0.2s both;
+}
+
+.intersection {
+  animation: fadeIn 0.5s ease 0.4s both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.setLabel {
+  font-size: 18px;
+  font-weight: bold;
+  fill: #333;
+}
+
+.element {
+  font-size: 14px;
+  fill: #666;
+  transition: all 0.3s ease;
+}
+
+.element.highlighted {
+  fill: #667eea;
+  font-weight: bold;
+}
+
+.result {
+  background: #f0f4ff;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.result h4 {
+  margin: 0 0 10px 0;
+  color: #667eea;
+}
+
+.resultSet {
+  font-family: 'Courier New', monospace;
+  font-size: 1.1rem;
+  color: #333;
+  background: white;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #667eea;
+}
+
+.explanation {
+  padding: 15px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  border-left: 3px solid #667eea;
+}
+
+.explanation p {
+  margin: 0;
+  color: #555;
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  .controls {
+    flex-direction: column;
+  }
+  
+  .inputGroup {
+    width: 100%;
+  }
+  
+  .updateButton {
+    width: 100%;
+  }
+  
+  .operationSelector {
+    flex-direction: column;
+  }
+  
+  .opButton {
+    width: 100%;
+  }
+}

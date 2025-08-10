@@ -32,6 +32,7 @@ const Navigation = ({ className }: NavigationProps) => {
               <a href="#" className={styles.dropdownItem}>Music</a>
               <a href="#" className={styles.dropdownItem}>Math</a>
               <Link to="/groups" className={styles.dropdownItem}>→ Groups</Link>
+              <Link to="/sets" className={styles.dropdownItem}>→ Sets</Link>
               <a href="#" className={styles.dropdownItem}>Chess</a>
               <a href="#" className={styles.dropdownItem}>Space</a>
             </div>
