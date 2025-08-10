@@ -1,31 +1,19 @@
-import { useState, useEffect } from 'react'
 import GroupsNavigation from '@/components/GroupsNavigation'
 import PermutationVisualizer from '@/components/PermutationVisualizer'
 import CycleDecomposer from '@/components/CycleDecomposer'
 import PermutationQuiz from '@/components/PermutationQuiz'
 import SignCalculator from '@/components/SignCalculator'
+import { useGroupsLearning } from '@/hooks/useGroupsLearning'
 import styles from './GroupsPage.module.css'
 
 const GroupsPage = () => {
-  const [activeTab, setActiveTab] = useState('overview')
-  const [completedSections, setCompletedSections] = useState<Set<string>>(new Set())
-  const [progress, setProgress] = useState(0)
-
-  useEffect(() => {
-    const saved = localStorage.getItem('groupsProgress')
-    if (saved) {
-      setCompletedSections(new Set(JSON.parse(saved)))
-    }
-  }, [])
-
-  useEffect(() => {
-    localStorage.setItem('groupsProgress', JSON.stringify(Array.from(completedSections)))
-    setProgress((completedSections.size / 5) * 100)
-  }, [completedSections])
-
-  const markComplete = (section: string) => {
-    setCompletedSections(new Set([...completedSections, section]))
-  }
+  const {
+    activeTab,
+    setActiveTab,
+    progress,
+    markComplete,
+    isCompleted
+  } = useGroupsLearning()
 
   return (
     <div className={styles.groupsPage}>
@@ -50,7 +38,7 @@ const GroupsPage = () => {
           </button>
           <button
             className={`${styles.tab} ${activeTab === 'chapter1' ? styles.active : ''} ${
-              completedSections.has('chapter1') ? styles.completed : ''
+              isCompleted('chapter1') ? styles.completed : ''
             }`}
             onClick={() => setActiveTab('chapter1')}
           >
@@ -58,7 +46,7 @@ const GroupsPage = () => {
           </button>
           <button
             className={`${styles.tab} ${activeTab === 'chapter2' ? styles.active : ''} ${
-              completedSections.has('chapter2') ? styles.completed : ''
+              isCompleted('chapter2') ? styles.completed : ''
             }`}
             onClick={() => setActiveTab('chapter2')}
           >
@@ -66,7 +54,7 @@ const GroupsPage = () => {
           </button>
           <button
             className={`${styles.tab} ${activeTab === 'chapter3' ? styles.active : ''} ${
-              completedSections.has('chapter3') ? styles.completed : ''
+              isCompleted('chapter3') ? styles.completed : ''
             }`}
             onClick={() => setActiveTab('chapter3')}
           >
@@ -74,7 +62,7 @@ const GroupsPage = () => {
           </button>
           <button
             className={`${styles.tab} ${activeTab === 'chapter4' ? styles.active : ''} ${
-              completedSections.has('chapter4') ? styles.completed : ''
+              isCompleted('chapter4') ? styles.completed : ''
             }`}
             onClick={() => setActiveTab('chapter4')}
           >
@@ -82,7 +70,7 @@ const GroupsPage = () => {
           </button>
           <button
             className={`${styles.tab} ${activeTab === 'chapter5' ? styles.active : ''} ${
-              completedSections.has('chapter5') ? styles.completed : ''
+              isCompleted('chapter5') ? styles.completed : ''
             }`}
             onClick={() => setActiveTab('chapter5')}
           >
@@ -116,30 +104,30 @@ const GroupsPage = () => {
               <section className={styles.section}>
                 <h3>Course Structure</h3>
                 <div className={styles.chapters}>
-                  <div className={`${styles.chapterCard} ${completedSections.has('chapter1') ? styles.completedCard : ''}`}>
+                  <div className={`${styles.chapterCard} ${isCompleted('chapter1') ? styles.completedCard : ''}`}>
                     <h4>Chapter 1: Foundations</h4>
                     <p>Introduction to permutations, two-line notation, composition, and the symmetric group S<sub>n</sub></p>
-                    {completedSections.has('chapter1') && <span className={styles.checkmark}>✓</span>}
+                    {isCompleted('chapter1') && <span className={styles.checkmark}>✓</span>}
                   </div>
-                  <div className={`${styles.chapterCard} ${completedSections.has('chapter2') ? styles.completedCard : ''}`}>
+                  <div className={`${styles.chapterCard} ${isCompleted('chapter2') ? styles.completedCard : ''}`}>
                     <h4>Chapter 2: Cycle Notation</h4>
                     <p>Disjoint cycle decomposition, transpositions, and cycle structure</p>
-                    {completedSections.has('chapter2') && <span className={styles.checkmark}>✓</span>}
+                    {isCompleted('chapter2') && <span className={styles.checkmark}>✓</span>}
                   </div>
-                  <div className={`${styles.chapterCard} ${completedSections.has('chapter3') ? styles.completedCard : ''}`}>
+                  <div className={`${styles.chapterCard} ${isCompleted('chapter3') ? styles.completedCard : ''}`}>
                     <h4>Chapter 3: Group Properties</h4>
                     <p>Identity, inverses, order of permutations, and subgroups</p>
-                    {completedSections.has('chapter3') && <span className={styles.checkmark}>✓</span>}
+                    {isCompleted('chapter3') && <span className={styles.checkmark}>✓</span>}
                   </div>
-                  <div className={`${styles.chapterCard} ${completedSections.has('chapter4') ? styles.completedCard : ''}`}>
+                  <div className={`${styles.chapterCard} ${isCompleted('chapter4') ? styles.completedCard : ''}`}>
                     <h4>Chapter 4: Special Topics</h4>
                     <p>The alternating group, sign of a permutation, and conjugacy classes</p>
-                    {completedSections.has('chapter4') && <span className={styles.checkmark}>✓</span>}
+                    {isCompleted('chapter4') && <span className={styles.checkmark}>✓</span>}
                   </div>
-                  <div className={`${styles.chapterCard} ${completedSections.has('chapter5') ? styles.completedCard : ''}`}>
+                  <div className={`${styles.chapterCard} ${isCompleted('chapter5') ? styles.completedCard : ''}`}>
                     <h4>Chapter 5: Advanced Concepts</h4>
                     <p>Group actions, Cayley's theorem, and applications</p>
-                    {completedSections.has('chapter5') && <span className={styles.checkmark}>✓</span>}
+                    {isCompleted('chapter5') && <span className={styles.checkmark}>✓</span>}
                   </div>
                 </div>
               </section>
@@ -200,7 +188,7 @@ const GroupsPage = () => {
               </section>
 
               <div className={styles.chapterComplete}>
-                {!completedSections.has('chapter1') ? (
+                {!isCompleted('chapter1') ? (
                   <button
                     onClick={() => markComplete('chapter1')}
                     className={styles.completeButton}
@@ -265,7 +253,7 @@ const GroupsPage = () => {
               </section>
 
               <div className={styles.chapterComplete}>
-                {!completedSections.has('chapter2') ? (
+                {!isCompleted('chapter2') ? (
                   <button
                     onClick={() => markComplete('chapter2')}
                     className={styles.completeButton}
@@ -348,7 +336,7 @@ const GroupsPage = () => {
               </section>
 
               <div className={styles.chapterComplete}>
-                {!completedSections.has('chapter3') ? (
+                {!isCompleted('chapter3') ? (
                   <button
                     onClick={() => markComplete('chapter3')}
                     className={styles.completeButton}
@@ -431,7 +419,7 @@ const GroupsPage = () => {
               </section>
 
               <div className={styles.chapterComplete}>
-                {!completedSections.has('chapter4') ? (
+                {!isCompleted('chapter4') ? (
                   <button
                     onClick={() => markComplete('chapter4')}
                     className={styles.completeButton}
@@ -536,7 +524,7 @@ const GroupsPage = () => {
               </section>
 
               <div className={styles.chapterComplete}>
-                {!completedSections.has('chapter5') ? (
+                {!isCompleted('chapter5') ? (
                   <button
                     onClick={() => markComplete('chapter5')}
                     className={styles.completeButton}

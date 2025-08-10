@@ -44,13 +44,24 @@ src/
 │   ├── JuliaSetBackground.tsx # WebGL Julia set renderer
 │   ├── MathAnimations.tsx     # Floating math equations
 │   ├── ThoughtsGame.tsx       # 3D thoughts game
+│   ├── ThoughtsNavigation.tsx # Thoughts page navigation
+│   ├── GolfGame.tsx     # Golf game component
+│   ├── GolfNavigation.tsx     # Golf page navigation
+│   ├── GroupsNavigation.tsx   # Groups page navigation
+│   ├── PermutationVisualizer.tsx # Interactive permutation tool
+│   ├── CycleDecomposer.tsx    # Cycle decomposition calculator
+│   ├── PermutationQuiz.tsx    # Interactive quiz component
+│   ├── SignCalculator.tsx     # Permutation sign calculator
 │   └── __tests__/       # Component tests
 ├── hooks/               # Custom React hooks
 │   ├── useWebGL.ts      # WebGL Julia set logic
-│   └── useThoughtsGame.ts # Game engine logic
+│   ├── useThoughtsGame.ts # Thoughts game engine logic
+│   └── useGolfGame.ts   # Golf game engine logic
 ├── pages/               # Page components
 │   ├── HomePage.tsx     # Landing page
-│   └── ThoughtsPage.tsx # Thoughts game page
+│   ├── ThoughtsPage.tsx # Thoughts game page
+│   ├── GolfPage.tsx     # Golf game page
+│   └── GroupsPage.tsx   # Permutation groups learning module
 ├── types/               # TypeScript type definitions
 │   ├── game.ts          # Game-related types
 │   └── vite-env.d.ts    # Vite environment types
