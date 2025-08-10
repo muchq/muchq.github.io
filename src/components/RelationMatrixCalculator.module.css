@@ -1,0 +1,315 @@
+.container {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.header h2 {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 10px 0;
+  font-size: 2rem;
+}
+
+.header p {
+  color: #666;
+  margin: 0;
+}
+
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.presets {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.presets span {
+  color: #666;
+  font-weight: 500;
+}
+
+.presetButton {
+  padding: 6px 12px;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.presetButton:hover {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.clearButton {
+  padding: 8px 16px;
+  background: #ff6b6b;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.3s ease;
+}
+
+.clearButton:hover {
+  background: #ff5252;
+}
+
+.matrixSection {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 40px;
+}
+
+.matrixContainer {
+  background: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+.labels {
+  margin-bottom: 10px;
+}
+
+.topLabels {
+  display: grid;
+  grid-template-columns: 40px repeat(4, 60px);
+  gap: 2px;
+  margin-bottom: 5px;
+}
+
+.matrixWithSideLabels {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.sideLabels {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.label {
+  width: 40px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #667eea;
+  font-size: 1.1rem;
+}
+
+.matrix {
+  display: grid;
+  grid-template-columns: repeat(4, 60px);
+  gap: 2px;
+}
+
+.row {
+  display: contents;
+}
+
+.cell {
+  width: 60px;
+  height: 60px;
+  border: 2px solid #ddd;
+  background: white;
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cell:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.cell.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+}
+
+.cell.inactive {
+  background: white;
+  color: #999;
+}
+
+.cell.diagonal {
+  border-color: #ffd700;
+  box-shadow: 0 0 0 1px #ffd700 inset;
+}
+
+.properties {
+  margin-bottom: 30px;
+}
+
+.properties h3 {
+  color: #333;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.propertiesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 15px;
+}
+
+.property {
+  padding: 15px;
+  border-radius: 8px;
+  border: 2px solid;
+  transition: all 0.3s ease;
+}
+
+.property.satisfied {
+  background: rgba(76, 175, 80, 0.1);
+  border-color: #4caf50;
+}
+
+.property.notSatisfied {
+  background: rgba(244, 67, 54, 0.1);
+  border-color: #f44336;
+}
+
+.propertyHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.propertyName {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.checkmark {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.checkmark.true {
+  color: #4caf50;
+}
+
+.checkmark.false {
+  color: #f44336;
+}
+
+.description {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.relationInfo {
+  background: #f0f4ff;
+  padding: 20px;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.specialRelations h4 {
+  margin: 0 0 15px 0;
+  color: #667eea;
+}
+
+.specialType {
+  background: white;
+  padding: 10px 15px;
+  border-radius: 6px;
+  border: 1px solid #667eea;
+  margin-bottom: 10px;
+  font-weight: 500;
+  color: #667eea;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 15px;
+  }
+  
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .presets {
+    justify-content: center;
+  }
+  
+  .matrixContainer {
+    padding: 15px;
+  }
+  
+  .cell {
+    width: 50px;
+    height: 50px;
+    font-size: 1rem;
+  }
+  
+  .matrix {
+    grid-template-columns: repeat(4, 50px);
+  }
+  
+  .topLabels {
+    grid-template-columns: 35px repeat(4, 50px);
+  }
+  
+  .label {
+    width: 35px;
+    height: 50px;
+    font-size: 1rem;
+  }
+  
+  .propertiesGrid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,124 @@
+.container {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stepControls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+.stepButton {
+  padding: 8px 16px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.stepButton:hover:not(:disabled) {
+  background: #5a67d8;
+}
+
+.stepButton:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.stepIndicator {
+  font-weight: 600;
+  color: #333;
+}
+
+.visualization {
+  text-align: center;
+  padding: 20px;
+}
+
+.visualization h3 {
+  color: #667eea;
+  margin-bottom: 10px;
+}
+
+.visualization p {
+  color: #666;
+  margin-bottom: 30px;
+}
+
+.setDisplay {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 30px;
+}
+
+.set {
+  background: #f0f4ff;
+  padding: 20px;
+  border-radius: 8px;
+  border: 2px solid #667eea;
+  min-width: 150px;
+}
+
+.set.animated {
+  animation: pulse 0.5s ease;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.set h4 {
+  color: #667eea;
+  margin-bottom: 15px;
+}
+
+.elements {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.element {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border: 2px solid #ddd;
+  border-radius: 50%;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.element.highlight {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+  transform: scale(1.1);
+}
+
+.operator {
+  font-size: 2rem;
+  color: #667eea;
+  font-weight: bold;
+}
+
+@media (max-width: 768px) {
+  .setDisplay {
+    flex-direction: column;
+  }
+}
