@@ -8,9 +8,9 @@ export class MagneticFunnel {
   private fieldLines: THREE.LineSegments
   public isActive: boolean = true
   public efficiency: number = 1.0
-  private attractionRadius: number = 20
-  private collectionRadius: number = 3
-  private fieldStrength: number = 0.5
+  private attractionRadius: number = 40  // Doubled attraction range
+  private collectionRadius: number = 8   // Increased collection range
+  private fieldStrength: number = 1.0    // Doubled field strength
 
   constructor(scene: THREE.Scene, spaceship: SpaceshipController) {
     this.scene = scene
@@ -170,5 +170,18 @@ export class MagneticFunnel {
 
   recharge() {
     this.efficiency = Math.min(1.0, this.efficiency + 0.1)
+  }
+  
+  cleanup() {
+    this.scene.remove(this.funnelMesh)
+    this.scene.remove(this.fieldLines)
+    this.funnelMesh.geometry.dispose()
+    if (this.funnelMesh.material instanceof THREE.Material) {
+      this.funnelMesh.material.dispose()
+    }
+    this.fieldLines.geometry.dispose()
+    if (this.fieldLines.material instanceof THREE.Material) {
+      this.fieldLines.material.dispose()
+    }
   }
 }
