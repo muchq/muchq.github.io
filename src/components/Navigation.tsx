@@ -94,7 +94,7 @@ const Navigation = ({ className }: NavigationProps) => {
             <div className={styles.dropdown}>
               <Link to="/thoughts" className={styles.dropdownItem}>Thoughts</Link>
               <Link to="/golf" className={styles.dropdownItem}>Golf</Link>
-              <Link to="/aurum-siphon" className={styles.dropdownItem}>Aurum Siphon</Link>
+              <Link to="/aurum" className={styles.dropdownItem}>Aurum Siphon</Link>
             </div>
           </li>
         </ul>

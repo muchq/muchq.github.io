@@ -16,11 +16,12 @@ export class SpaceshipController {
   constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
     this.scene = scene
     this.cameraController = new CameraController(camera, {
-      minDistance: 20,
-      maxDistance: 100,
-      minPolarAngle: 0.2,
-      maxPolarAngle: Math.PI / 3,
-      offsetY: 15
+      minDistance: 15,
+      maxDistance: 50,
+      minPolarAngle: Math.PI / 3,  // Don't let camera go too high (above)
+      maxPolarAngle: Math.PI / 2 - 0.1,  // Keep camera mostly behind (almost horizontal)
+      offsetY: 5,  // Slight elevation to see over the ship
+      followSpeed: 0.15  // Slightly smoother following
     })
     this.velocity = new THREE.Vector3()
     this.spaceship = this.createSpaceship()

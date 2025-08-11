@@ -16,13 +16,13 @@ export class CameraController {
   private target: THREE.Vector3
   private distance: number
   private azimuthAngle: number = 0  // Horizontal rotation
-  private polarAngle: number = Math.PI / 6  // Vertical angle (30 degrees down)
+  private polarAngle: number = Math.PI / 2.5  // Around 72 degrees - more behind than above
   private options: Required<CameraControllerOptions>
   
   constructor(camera: THREE.PerspectiveCamera, options: CameraControllerOptions = {}) {
     this.camera = camera
     this.target = new THREE.Vector3()
-    this.distance = options.minDistance || 30
+    this.distance = 20  // Closer for racing game feel
     
     this.options = {
       minDistance: options.minDistance ?? 10,
@@ -137,8 +137,8 @@ export class CameraController {
    */
   reset() {
     this.azimuthAngle = 0
-    this.polarAngle = Math.PI / 6
-    this.distance = 30
+    this.polarAngle = Math.PI / 2.5
+    this.distance = 20
   }
   
   /**

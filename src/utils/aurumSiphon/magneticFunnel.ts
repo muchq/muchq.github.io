@@ -99,16 +99,26 @@ export class MagneticFunnel {
     this.funnelMesh.rotation.set(0, 0, -Math.PI / 2)  // Point cone toward -X (sun direction)
     
     this.fieldLines.position.copy(this.funnelMesh.position)
-    this.fieldLines.rotation.copy(this.funnelMesh.rotation)
-
+    
     if (this.isActive) {
-      // Only spin the field lines, not the whole funnel
-      this.fieldLines.rotation.y += 0.005
+      // Rotate field lines around the cone's axis (which is along X after rotation)
+      const time = Date.now() * 0.001
+      this.fieldLines.rotation.set(
+        time * 0.5,  // Rotate around X axis (along the cone)
+        0,
+        -Math.PI / 2  // Keep base orientation toward sun
+      )
       
-      const pulseFactor = Math.sin(Date.now() * 0.001) * 0.1 + 1
+      const pulseFactor = Math.sin(time) * 0.1 + 1
       this.funnelMesh.scale.setScalar(pulseFactor)
       
+      // Also pulse the field lines slightly
+      this.fieldLines.scale.setScalar(pulseFactor * 0.95)
+      
       this.efficiency = Math.max(0.3, this.efficiency - 0.001)
+    } else {
+      // Keep field lines aligned when inactive
+      this.fieldLines.rotation.copy(this.funnelMesh.rotation)
     }
     
     this.funnelMesh.visible = this.isActive

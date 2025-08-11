@@ -22,14 +22,12 @@ export const useAurumSiphonGame = () => {
     scene.fog = new THREE.Fog(0x000033, 100, 1500)
     
     const camera = new THREE.PerspectiveCamera(
-      60, // Wider FOV for more dramatic perspective
+      75, // Wider FOV for racing game feel
       container.clientWidth / container.clientHeight,
       0.1,
       3000
     )
-    // Start with a more dynamic angle
-    camera.position.set(20, 25, 40)
-    camera.lookAt(0, 0, 0)
+    // Camera position will be set by CameraController
 
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(container.clientWidth, container.clientHeight)
