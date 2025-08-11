@@ -1,23 +1,27 @@
 import * as THREE from 'three'
+import { CameraController } from '../shared/cameraController'
 
 export class SpaceshipController {
   private spaceship: THREE.Group
   private velocity: THREE.Vector3
   private scene: THREE.Scene
-  private camera: THREE.PerspectiveCamera
+  private cameraController: CameraController
   public power: number = 100
   public shield: number = 100
   private boostActive: boolean = false
   private boostCooldown: number = 0
   private engineLight: THREE.PointLight
   private trailParticles: THREE.Points
-  private cameraDistance: number = 50
-  private cameraRotation: number = 0
-  private cameraHeight: number = 20
 
   constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
     this.scene = scene
-    this.camera = camera
+    this.cameraController = new CameraController(camera, {
+      minDistance: 20,
+      maxDistance: 100,
+      minPolarAngle: 0.2,
+      maxPolarAngle: Math.PI / 3,
+      offsetY: 15
+    })
     this.velocity = new THREE.Vector3()
     this.spaceship = this.createSpaceship()
     this.scene.add(this.spaceship)
@@ -162,9 +166,10 @@ export class SpaceshipController {
     const cameraForward = new THREE.Vector3()
     const cameraRight = new THREE.Vector3()
     
-    // Get camera's forward direction (projected on XZ plane for horizontal movement)
+    // Get camera's forward direction from the camera controller's camera
+    const camera = this.cameraController.getCamera()
     const cameraDir = new THREE.Vector3()
-    this.camera.getWorldDirection(cameraDir)
+    camera.getWorldDirection(cameraDir)
     cameraForward.set(cameraDir.x, 0, cameraDir.z).normalize()
     
     // Get camera's right direction
@@ -197,34 +202,13 @@ export class SpaceshipController {
     this.spaceship.rotation.z = THREE.MathUtils.lerp(this.spaceship.rotation.z, targetBankZ, 0.15)
     this.spaceship.rotation.x = THREE.MathUtils.lerp(this.spaceship.rotation.x, targetPitchX, 0.15)
 
-    // Update camera controls
-    if (cameraInput.zoom !== 0) {
-      this.cameraDistance = THREE.MathUtils.clamp(this.cameraDistance + cameraInput.zoom * 3, 15, 120)
-    }
-    
-    if (cameraInput.rotate !== 0) {
-      this.cameraRotation += cameraInput.rotate * 0.08
-    }
-
-    // Camera positioning with user control
-    const time = Date.now() * 0.0001
-    
-    // Calculate camera position based on user-controlled rotation and distance
-    const idealCameraPosition = new THREE.Vector3()
-    
-    // Position camera around ship using spherical coordinates
-    idealCameraPosition.x = Math.sin(this.cameraRotation) * this.cameraDistance
-    idealCameraPosition.y = this.cameraHeight + Math.sin(time * 0.3) * 2 // Gentle vertical bob
-    idealCameraPosition.z = Math.cos(this.cameraRotation) * this.cameraDistance
-    
-    // Add to spaceship position
-    idealCameraPosition.add(this.spaceship.position)
-    
-    // Smooth camera movement with faster lerp for responsiveness
-    this.camera.position.lerp(idealCameraPosition, 0.15)
-    
-    // Always look at the spaceship
-    this.camera.lookAt(this.spaceship.position)
+    // Update camera controller
+    this.cameraController.handleInput({
+      rotate: cameraInput.rotate,
+      zoom: cameraInput.zoom
+    })
+    this.cameraController.followTarget(this.spaceship.position)
+    this.cameraController.update()
 
     this.updateTrail()
 
@@ -299,5 +283,17 @@ export class SpaceshipController {
 
   repair(amount: number) {
     this.shield = Math.min(100, this.shield + amount)
+  }
+  
+  cleanup() {
+    this.scene.remove(this.spaceship)
+    this.spaceship.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.geometry?.dispose()
+        if (child.material instanceof THREE.Material) {
+          child.material.dispose()
+        }
+      }
+    })
   }
 }

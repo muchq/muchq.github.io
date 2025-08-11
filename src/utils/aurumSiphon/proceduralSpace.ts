@@ -350,4 +350,21 @@ export class ProceduralSpace {
   getSpaceObjects(): SpaceObject[] {
     return this.spaceObjects
   }
+  
+  cleanup() {
+    this.spaceObjects.forEach(obj => {
+      this.scene.remove(obj.mesh)
+      obj.mesh.traverse((child: THREE.Object3D) => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry?.dispose()
+          if (child.material instanceof THREE.Material) {
+            child.material.dispose()
+          } else if (Array.isArray(child.material)) {
+            child.material.forEach((m: THREE.Material) => m.dispose())
+          }
+        }
+      })
+    })
+    this.spaceObjects = []
+  }
 }

@@ -11,8 +11,8 @@ export class SolarWindSystem {
   private scene: THREE.Scene
   private particles: Particle[] = []
   private particlePool: THREE.Mesh[] = []
-  private maxParticles: number = 500
-  private spawnRate: number = 5
+  private maxParticles: number = 5000  // Massive particle count
+  private spawnRate: number = 100      // Extreme spawn rate
   private windSpeed: number = 1
   private currentLevel: number = 1
 
@@ -23,11 +23,11 @@ export class SolarWindSystem {
 
   private initializeParticlePool() {
     const geometries = {
-      gold: new THREE.SphereGeometry(0.4, 8, 8),
-      platinum: new THREE.SphereGeometry(0.35, 8, 8),
-      iron: new THREE.SphereGeometry(0.3, 6, 6),
-      helium: new THREE.SphereGeometry(0.25, 6, 6),
-      hydrogen: new THREE.SphereGeometry(0.2, 6, 6)
+      gold: new THREE.SphereGeometry(1.2, 8, 8),  // Much larger gold
+      platinum: new THREE.SphereGeometry(1.0, 8, 8),
+      iron: new THREE.SphereGeometry(0.8, 6, 6),
+      helium: new THREE.SphereGeometry(0.5, 6, 6),
+      hydrogen: new THREE.SphereGeometry(0.4, 6, 6)
     }
 
     const materials = {
@@ -77,10 +77,11 @@ export class SolarWindSystem {
   private getRandomParticleType(): 'gold' | 'platinum' | 'iron' | 'helium' | 'hydrogen' {
     const rand = Math.random() * 100
     
-    const goldChance = 0.2 * this.currentLevel
-    const platinumChance = 0.1 * this.currentLevel
+    // MASSIVE gold increase - mostly gold now!
+    const goldChance = 70 + (5 * this.currentLevel)  // 70% base + 5% per level
+    const platinumChance = 10
     const ironChance = 5
-    const heliumChance = 20
+    const heliumChance = 5
     
     if (rand < goldChance) return 'gold'
     if (rand < goldChance + platinumChance) return 'platinum'
@@ -96,8 +97,11 @@ export class SolarWindSystem {
     if (!availableMesh) return
 
     const x = -100
-    const y = (Math.random() - 0.5) * 80
-    const z = (Math.random() - 0.5) * 80
+    // Create stream patterns - concentrate gold in specific bands
+    const streamAngle = Date.now() * 0.001
+    const streamRadius = 30 + Math.sin(streamAngle) * 20
+    const y = Math.cos(streamAngle * 2) * streamRadius + (Math.random() - 0.5) * 10
+    const z = Math.sin(streamAngle * 2) * streamRadius + (Math.random() - 0.5) * 10
 
     availableMesh.position.set(x, y, z)
     availableMesh.visible = true
@@ -105,9 +109,9 @@ export class SolarWindSystem {
     const particle: Particle = {
       mesh: availableMesh,
       velocity: new THREE.Vector3(
-        this.windSpeed + Math.random() * 0.5,
-        (Math.random() - 0.5) * 0.1,
-        (Math.random() - 0.5) * 0.1
+        this.windSpeed * 2 + Math.random() * 0.5,  // Faster flow
+        (Math.random() - 0.5) * 0.2,
+        (Math.random() - 0.5) * 0.2
       ),
       type: availableMesh.userData.type,
       mass: this.getParticleMass(availableMesh.userData.type)
@@ -129,9 +133,8 @@ export class SolarWindSystem {
 
   update() {
     for (let i = 0; i < this.spawnRate; i++) {
-      if (Math.random() < 0.3) {
-        this.spawnParticle()
-      }
+      // Always spawn particles (100% chance)
+      this.spawnParticle()
     }
 
     for (let i = this.particles.length - 1; i >= 0; i--) {

@@ -19,7 +19,7 @@ export class LevelManager {
     {
       level: 1,
       name: 'Solar Wind Introduction',
-      goldTarget: 0.5,
+      goldTarget: 10000000,  // 10 million mg = 10 kg
       windSpeed: 1,
       particleSpawnRate: 5,
       goldChanceMultiplier: 1,
@@ -28,7 +28,7 @@ export class LevelManager {
     {
       level: 2,
       name: 'Increased Activity',
-      goldTarget: 1.0,
+      goldTarget: 100000000,  // 100 kg
       windSpeed: 1.5,
       particleSpawnRate: 8,
       goldChanceMultiplier: 1.2,
@@ -37,7 +37,7 @@ export class LevelManager {
     {
       level: 3,
       name: 'Solar Storm',
-      goldTarget: 2.0,
+      goldTarget: 500000000,  // 500 kg
       windSpeed: 2,
       particleSpawnRate: 12,
       goldChanceMultiplier: 1.5,
@@ -46,7 +46,7 @@ export class LevelManager {
     {
       level: 4,
       name: 'Precious Metals Rush',
-      goldTarget: 3.0,
+      goldTarget: 2000000000,  // 2 tons
       windSpeed: 2.5,
       particleSpawnRate: 15,
       goldChanceMultiplier: 2,
@@ -55,7 +55,7 @@ export class LevelManager {
     {
       level: 5,
       name: 'Coronal Mass Ejection',
-      goldTarget: 5.0,
+      goldTarget: 10000000000,  // 10 tons
       timeLimit: 180,
       windSpeed: 3,
       particleSpawnRate: 20,
@@ -65,7 +65,7 @@ export class LevelManager {
     {
       level: 6,
       name: 'Deep Space Mining',
-      goldTarget: 7.5,
+      goldTarget: 50000000000,  // 50 tons
       windSpeed: 2,
       particleSpawnRate: 25,
       goldChanceMultiplier: 3,
@@ -74,7 +74,7 @@ export class LevelManager {
     {
       level: 7,
       name: 'Magnetic Anomaly',
-      goldTarget: 10,
+      goldTarget: 200000000000,  // 200 tons
       windSpeed: 2.5,
       particleSpawnRate: 30,
       goldChanceMultiplier: 3.5,
@@ -83,7 +83,7 @@ export class LevelManager {
     {
       level: 8,
       name: 'Solar Maximum',
-      goldTarget: 15,
+      goldTarget: 1000000000000,  // 1000 tons
       timeLimit: 240,
       windSpeed: 3.5,
       particleSpawnRate: 35,
@@ -93,7 +93,7 @@ export class LevelManager {
     {
       level: 9,
       name: 'Heliopause Approach',
-      goldTarget: 20,
+      goldTarget: 5000000000000,  // 5000 tons
       windSpeed: 4,
       particleSpawnRate: 40,
       goldChanceMultiplier: 4.5,
@@ -102,7 +102,7 @@ export class LevelManager {
     {
       level: 10,
       name: 'Master Collector',
-      goldTarget: 30,
+      goldTarget: 50000000000000,  // 50,000 tons
       timeLimit: 300,
       windSpeed: 5,
       particleSpawnRate: 50,

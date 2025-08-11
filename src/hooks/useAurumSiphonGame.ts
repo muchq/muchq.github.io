@@ -9,6 +9,10 @@ import { VirtualJoystick } from '@/utils/virtualJoystick'
 import { LevelManager } from '@/utils/aurumSiphon/levelManager'
 import { ProceduralSpace } from '@/utils/aurumSiphon/proceduralSpace'
 import { LaserSystem } from '@/utils/aurumSiphon/laserSystem'
+import { BlackHoleTransition } from '@/utils/aurumSiphon/blackHoleTransition'
+import { BroomstickController } from '@/utils/witchGame/broomstickController'
+import { NightSkyEnvironment } from '@/utils/witchGame/nightSkyEnvironment'
+import { BirdSystem } from '@/utils/witchGame/birdSystem'
 
 export const useAurumSiphonGame = () => {
   const initializeGame = useCallback((container: HTMLDivElement, onPlayerIdReceived?: (playerId: string) => void) => {
@@ -253,12 +257,79 @@ export const useAurumSiphonGame = () => {
       funnelToggle.textContent = magneticFunnel.isActive ? 'FUNNEL: ON' : 'FUNNEL: OFF'
     })
 
+    // Game mode state
+    let gameMode: 'spaceship' | 'witch' = 'spaceship'
+    let broomstickController: BroomstickController | null = null
+    let nightSkyEnvironment: NightSkyEnvironment | null = null
+    let birdSystem: BirdSystem | null = null
+    let birdsCollected = 0
+    
+    const switchToWitchMode = () => {
+      // Clean up spaceship mode
+      spaceshipController.cleanup()
+      solarWindSystem.reset()
+      magneticFunnel.cleanup()
+      proceduralSpace.cleanup()
+      laserSystem.cleanup()
+      
+      // Clear the scene except camera and renderer
+      while(scene.children.length > 0) {
+        const child = scene.children[0]
+        scene.remove(child)
+        if (child instanceof THREE.Mesh || child instanceof THREE.Group) {
+          child.traverse((node) => {
+            if (node instanceof THREE.Mesh) {
+              node.geometry?.dispose()
+              if (node.material instanceof THREE.Material) {
+                node.material.dispose()
+              }
+            }
+          })
+        }
+      }
+      
+      // Initialize witch mode
+      gameMode = 'witch'
+      nightSkyEnvironment = new NightSkyEnvironment(scene)
+      broomstickController = new BroomstickController(scene, camera)
+      birdSystem = new BirdSystem(scene)
+      birdsCollected = 0
+      
+      // Update HUD labels for witch mode
+      const goldLabel = document.querySelector('#gold-display')?.previousElementSibling
+      if (goldLabel) goldLabel.textContent = 'Birds:'
+      
+      const powerLabel = document.querySelector('#power-display')?.previousElementSibling
+      if (powerLabel) powerLabel.textContent = 'Speed:'
+      
+      const magneticLabel = document.querySelector('#magnetic-display')?.previousElementSibling
+      if (magneticLabel) magneticLabel.textContent = 'Magic:'
+      
+      const shieldLabel = document.querySelector('#shield-display')?.previousElementSibling
+      if (shieldLabel) shieldLabel.textContent = 'Health:'
+      
+      // Hide spaceship-specific buttons
+      const funnelToggle = document.getElementById('funnel-toggle')
+      if (funnelToggle) funnelToggle.style.display = 'none'
+    }
+    
     nextLevelButton?.addEventListener('click', () => {
-      levelManager.nextLevel()
-      solarWindSystem.setLevel(levelManager.currentLevel)
       const levelCompleteDiv = document.getElementById('level-complete')
       if (levelCompleteDiv) {
         levelCompleteDiv.style.display = 'none'
+      }
+      
+      if (levelManager.currentLevel === 1) {
+        // Trigger transition to witch mode
+        const transition = new BlackHoleTransition(scene, camera, () => {
+          switchToWitchMode()
+        })
+        transition.start()
+      }
+      
+      levelManager.nextLevel()
+      if (gameMode === 'spaceship') {
+        solarWindSystem.setLevel(levelManager.currentLevel)
       }
     })
 
@@ -287,9 +358,9 @@ export const useAurumSiphonGame = () => {
         e.preventDefault()
       }
       
-      if (key === ' ') {
+      if (key === ' ' && gameMode === 'spaceship') {
         e.preventDefault()
-        // Shoot laser instead of boost
+        // Shoot laser only in spaceship mode
         const shipPos = spaceshipController.getPosition()
         const cameraDir = new THREE.Vector3()
         camera.getWorldDirection(cameraDir)
@@ -342,13 +413,43 @@ export const useAurumSiphonGame = () => {
       const shieldDisplay = document.getElementById('shield-display')
 
       if (levelDisplay) levelDisplay.textContent = levelManager.currentLevel.toString()
-      if (goldDisplay) {
-        const pos = spaceshipController.getPosition()
-        goldDisplay.textContent = `${gameState.goldCollected.toFixed(2)} mg | Pos: ${pos.x.toFixed(0)}, ${pos.y.toFixed(0)}, ${pos.z.toFixed(0)}`
+      
+      if (gameMode === 'witch') {
+        // Witch mode HUD
+        if (goldDisplay) {
+          goldDisplay.textContent = `${birdsCollected}`
+        }
+        if (powerDisplay) {
+          const speed = keys['Shift'] || keys['b'] ? 'FAST' : 'Normal'
+          powerDisplay.textContent = speed
+        }
+        if (magneticDisplay) {
+          magneticDisplay.textContent = '✨'
+        }
+        if (shieldDisplay) {
+          shieldDisplay.textContent = '100%'
+        }
+      } else {
+        // Spaceship mode HUD
+        if (goldDisplay) {
+          const pos = spaceshipController.getPosition()
+          // Display in kg when over 1000000, tons when over 1000000000
+          let goldText = ''
+          if (gameState.goldCollected >= 1000000000) {
+            goldText = `${(gameState.goldCollected / 1000000000).toFixed(2)} tons`
+          } else if (gameState.goldCollected >= 1000000) {
+            goldText = `${(gameState.goldCollected / 1000000).toFixed(2)} kg`
+          } else if (gameState.goldCollected >= 1000) {
+            goldText = `${(gameState.goldCollected / 1000).toFixed(2)} g`
+          } else {
+            goldText = `${gameState.goldCollected.toFixed(2)} mg`
+          }
+          goldDisplay.textContent = `${goldText} | Pos: ${pos.x.toFixed(0)}, ${pos.y.toFixed(0)}, ${pos.z.toFixed(0)}`
+        }
+        if (powerDisplay) powerDisplay.textContent = `${Math.round(spaceshipController.power)}%`
+        if (magneticDisplay) magneticDisplay.textContent = `${Math.round(magneticFunnel.efficiency * 100)}%`
+        if (shieldDisplay) shieldDisplay.textContent = `${Math.round(spaceshipController.shield)}%`
       }
-      if (powerDisplay) powerDisplay.textContent = `${Math.round(spaceshipController.power)}%`
-      if (magneticDisplay) magneticDisplay.textContent = `${Math.round(magneticFunnel.efficiency * 100)}%`
-      if (shieldDisplay) shieldDisplay.textContent = `${Math.round(spaceshipController.shield)}%`
     }
 
     const updateMiniMap = () => {
@@ -427,51 +528,87 @@ export const useAurumSiphonGame = () => {
       if (keys['ArrowLeft']) cameraInput.rotate = 1   // Left arrow rotates camera left (positive rotation)
       if (keys['ArrowRight']) cameraInput.rotate = -1  // Right arrow rotates camera right (negative rotation)
 
-      spaceshipController.update(moveInput, cameraInput)
-      solarWindSystem.update()
-      magneticFunnel.update()
-      proceduralSpace.update(spaceshipController.getPosition())
-      laserSystem.update(proceduralSpace.getSpaceObjects())
-      animateStation()
+      if (gameMode === 'spaceship') {
+        spaceshipController.update(moveInput, cameraInput)
+        solarWindSystem.update()
+        magneticFunnel.update()
+        proceduralSpace.update(spaceshipController.getPosition())
+        laserSystem.update(proceduralSpace.getSpaceObjects())
+        animateStation()
+      } else if (gameMode === 'witch' && broomstickController && nightSkyEnvironment && birdSystem) {
+        // Update witch mode
+        // For witch: A/D turns, W/S controls pitch (up/down), arrow keys rotate camera
+        const broomInput = {
+          move: new THREE.Vector2(moveInput.x, -moveInput.z), // W/S mapped to pitch
+          rotate: cameraInput.rotate,
+          zoom: cameraInput.zoom,
+          boost: keys['Shift'] || keys['b']
+        }
+        
+        broomstickController.update(broomInput)
+        nightSkyEnvironment.update()
+        birdSystem.update(0.016, broomstickController.getPosition())
+        
+        // Check bird collection
+        const collectedBirds = birdSystem.checkCollection(broomstickController.getPosition())
+        collectedBirds.forEach(birdType => {
+          birdsCollected++
+          gameState.score += birdType === 'phoenix' ? 1000 : 
+                             birdType === 'owl' ? 500 :
+                             birdType === 'bat' ? 300 : 200
+        })
+      }
       
-      // Animate parallax star layers
-      const shipVel = spaceshipController.getVelocity()
-      starLayers.forEach((layer, index) => {
-        const parallaxSpeed = 0.1 * (index + 1) * 0.3  // Different speeds for each layer
-        layer.position.x -= shipVel.x * parallaxSpeed
-        layer.position.z -= shipVel.z * parallaxSpeed
-        
-        // Wrap around when too far
-        if (Math.abs(layer.position.x) > 1000) layer.position.x *= -0.9
-        if (Math.abs(layer.position.z) > 1000) layer.position.z *= -0.9
-        
-        // Rotate slowly for hyperspace effect
-        if (index === 3) { // Streaks layer
-          layer.rotation.z += 0.0002
-        }
-      })
+      if (gameMode === 'spaceship') {
+        // Animate parallax star layers
+        const shipVel = spaceshipController.getVelocity()
+        starLayers.forEach((layer, index) => {
+          const parallaxSpeed = 0.1 * (index + 1) * 0.3  // Different speeds for each layer
+          layer.position.x -= shipVel.x * parallaxSpeed
+          layer.position.z -= shipVel.z * parallaxSpeed
+          
+          // Wrap around when too far
+          if (Math.abs(layer.position.x) > 1000) layer.position.x *= -0.9
+          if (Math.abs(layer.position.z) > 1000) layer.position.z *= -0.9
+          
+          // Rotate slowly for hyperspace effect
+          if (index === 3) { // Streaks layer
+            layer.rotation.z += 0.0002
+          }
+        })
 
-      const collectedParticles = magneticFunnel.checkCollection(solarWindSystem.getParticles())
-      collectedParticles.forEach(particle => {
-        if (particle.userData.type === 'gold') {
-          gameState.goldCollected += 0.01
-          gameState.score += 100
-        } else if (particle.userData.type === 'platinum') {
-          gameState.platinumCollected += 0.005
-          gameState.score += 200
-        } else {
-          gameState.otherMetalsCollected += 0.02
-          gameState.score += 50
-        }
-        solarWindSystem.removeParticle(particle)
-      })
+        const collectedParticles = magneticFunnel.checkCollection(solarWindSystem.getParticles())
+        collectedParticles.forEach(particle => {
+          if (particle.userData.type === 'gold') {
+            gameState.goldCollected += 1000.0  // Massive gold collection
+            gameState.score += 100
+          } else if (particle.userData.type === 'platinum') {
+            gameState.platinumCollected += 500.0
+            gameState.score += 200
+          } else {
+            gameState.otherMetalsCollected += 100.0
+            gameState.score += 50
+          }
+          solarWindSystem.removeParticle(particle)
+        })
+      }
 
       if (levelManager.checkLevelComplete()) {
         const levelCompleteDiv = document.getElementById('level-complete')
         const levelStats = document.getElementById('level-stats')
         if (levelCompleteDiv && levelStats) {
           levelCompleteDiv.style.display = 'block'
-          levelStats.textContent = `Gold collected: ${gameState.goldCollected.toFixed(2)} mg | Score: ${gameState.score}`
+          let goldText = ''
+          if (gameState.goldCollected >= 1000000000) {
+            goldText = `${(gameState.goldCollected / 1000000000).toFixed(2)} tons`
+          } else if (gameState.goldCollected >= 1000000) {
+            goldText = `${(gameState.goldCollected / 1000000).toFixed(2)} kg`
+          } else if (gameState.goldCollected >= 1000) {
+            goldText = `${(gameState.goldCollected / 1000).toFixed(2)} g`
+          } else {
+            goldText = `${gameState.goldCollected.toFixed(2)} mg`
+          }
+          levelStats.textContent = `Gold collected: ${goldText} | Score: ${gameState.score}`
         }
       }
 
