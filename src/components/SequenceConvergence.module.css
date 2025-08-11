@@ -1,0 +1,285 @@
+@import '../styles/retro-theme.css';
+
+.convergence {
+  color: var(--retro-text-primary);
+  font-family: var(--retro-font);
+}
+
+.instructions {
+  margin-bottom: 2rem;
+}
+
+.instructions h3 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: var(--retro-green);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px var(--retro-green), 0 0 20px var(--retro-green);
+  font-family: var(--retro-font);
+}
+
+.instructions p {
+  color: var(--retro-text-secondary);
+  line-height: 1.6;
+  font-family: var(--retro-font);
+}
+
+.controls {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 0, 0.1);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border-radius: 0;
+}
+
+.controlRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.controlRow:last-child {
+  margin-bottom: 0;
+}
+
+.controlGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.controlGroup label {
+  font-weight: bold;
+  color: var(--retro-text-primary);
+  font-family: var(--retro-font);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.select {
+  padding: 0.5rem;
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-border);
+  border-radius: 0;
+  color: var(--retro-text-primary);
+  cursor: pointer;
+  font-family: var(--retro-font);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.select:hover {
+  border-color: var(--retro-green);
+  box-shadow: inset 0 0 20px rgba(0, 255, 0, 0.1), 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+.select option {
+  background: var(--retro-bg-dark);
+  color: var(--retro-text-primary);
+}
+
+.selectWrapper {
+  position: relative;
+}
+
+.slider {
+  width: 100%;
+  cursor: pointer;
+}
+
+.toggles {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.playbackControls {
+  display: flex;
+  gap: 1rem;
+}
+
+.playButton,
+.resetButton {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0;
+  color: var(--retro-text-secondary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: bold;
+  font-family: var(--retro-font);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: 2px solid var(--retro-border);
+}
+
+.playButton {
+  background: var(--retro-bg-dark);
+  border-color: var(--retro-success);
+  color: var(--retro-success);
+  box-shadow: inset 0 0 10px rgba(0, 255, 136, 0.1), 0 0 10px rgba(0, 255, 136, 0.2);
+}
+
+.playButton:hover {
+  background: rgba(0, 255, 136, 0.2);
+  transform: translateY(-2px);
+  box-shadow: inset 0 0 20px rgba(0, 255, 136, 0.2), 0 0 20px rgba(0, 255, 136, 0.4);
+  text-shadow: 0 0 10px currentColor;
+}
+
+.resetButton {
+  background: var(--retro-bg-dark);
+  border-color: var(--retro-yellow);
+  color: var(--retro-yellow);
+  box-shadow: inset 0 0 10px rgba(255, 215, 0, 0.1), 0 0 10px rgba(255, 215, 0, 0.2);
+}
+
+.resetButton:hover {
+  background: rgba(255, 215, 0, 0.2);
+  transform: translateY(-2px);
+  box-shadow: inset 0 0 20px rgba(255, 215, 0, 0.2), 0 0 20px rgba(255, 215, 0, 0.4);
+  text-shadow: 0 0 10px currentColor;
+}
+
+.info {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--retro-border);
+}
+
+.info p {
+  margin: 0.25rem 0;
+  color: var(--retro-text-secondary);
+  font-family: var(--retro-font);
+}
+
+.convergenceInfo {
+  color: var(--retro-green);
+  font-weight: bold;
+  text-shadow: 0 0 5px var(--retro-green);
+}
+
+.canvasContainer {
+  background: var(--retro-bg-dark);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+  padding: 1rem;
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: center;
+  border-radius: 0;
+}
+
+.canvas {
+  border: 2px solid var(--retro-green);
+  border-radius: 0;
+  max-width: 100%;
+  height: auto;
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+.analysis {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 0, 0.1);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border-radius: 0;
+}
+
+.analysis h4 {
+  margin-bottom: 1rem;
+  color: var(--retro-text-primary);
+  font-family: var(--retro-font);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.analysisGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.analysisItem {
+  background: var(--retro-bg-dark);
+  padding: 1rem;
+  border-radius: 0;
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.analysisItem strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--retro-text-secondary);
+  font-size: 0.9rem;
+  font-family: var(--retro-font);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.analysisItem p {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--retro-green);
+  font-family: var(--retro-font);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.tips {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 0, 0.1);
+  padding: 1.5rem;
+  border-radius: 0;
+  border-left: 4px solid var(--retro-green);
+}
+
+.tips h4 {
+  margin-bottom: 1rem;
+  color: var(--retro-text-primary);
+  font-family: var(--retro-font);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.tips ul {
+  list-style: none;
+  padding: 0;
+}
+
+.tips li {
+  padding-left: 1.5rem;
+  position: relative;
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+  color: var(--retro-text-secondary);
+  font-family: var(--retro-font);
+}
+
+.tips li:before {
+  content: '•';
+  position: absolute;
+  left: 0.5rem;
+  color: var(--retro-green);
+}

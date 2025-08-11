@@ -1,0 +1,180 @@
+/* TopologyQuest Navigation - Clean Theme Matching ThoughtsNav */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(68, 68, 68, 0.1);
+  z-index: 1000;
+  transition: all 0.3s ease;
+  font-family: "Lexend Deca", sans-serif;
+}
+
+.navContainer {
+  max-width: 650px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 60px;
+}
+
+.navLogo {
+  font-size: 20px;
+  font-weight: 300;
+  color: #444;
+  text-decoration: none;
+}
+
+.phaseButtons {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 30px;
+}
+
+.phaseDropdown {
+  position: relative;
+  background: rgba(255, 255, 255, 0.50);
+  border-radius: 5px;
+}
+
+.phaseButton {
+  color: #444;
+  text-decoration: none;
+  font-size: 16px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  display: block;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+/* Arrow removed to match main nav */
+
+.phaseButton:hover {
+  background: rgba(68, 68, 68, 0.05);
+}
+
+.activePhase {
+  color: #444;
+  background: rgba(68, 68, 68, 0.08);
+  font-weight: 500;
+}
+
+.dropdownMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid rgba(68, 68, 68, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  min-width: 150px;
+  padding: 8px 0;
+  z-index: 1001;
+  pointer-events: none;
+}
+
+.phaseDropdown:hover .dropdownMenu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* Animation removed - using transitions instead */
+
+.moduleOption {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  text-decoration: none;
+}
+
+.moduleOption::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: transparent;
+  transition: background 0.2s ease;
+}
+
+.moduleOption:hover {
+  background: rgba(68, 68, 68, 0.05);
+  color: #444;
+  padding-left: 20px;
+}
+
+.moduleOption:hover::before {
+  background: #667eea;
+}
+
+.activeModule {
+  background: rgba(103, 126, 234, 0.08);
+  color: #444;
+  font-weight: 500;
+}
+
+.activeModule::before {
+  background: #667eea;
+}
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+  .navContainer {
+    height: auto;
+    padding: 12px 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .navLogo {
+    font-size: 18px;
+  }
+
+  .phaseButtons {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .phaseButton {
+    font-size: 13px;
+    padding: 6px 10px;
+  }
+
+  .dropdownMenu {
+    position: fixed;
+    left: 20px;
+    right: 20px;
+    top: auto;
+    min-width: unset;
+  }
+
+  .moduleOption {
+    font-size: 13px;
+    padding: 8px 14px;
+  }
+}

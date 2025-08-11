@@ -1,0 +1,553 @@
+@import '../styles/retro-theme.css';
+
+.visualizer {
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--retro-pink);
+  border-radius: 0;
+}
+
+.controls {
+  margin-bottom: 2rem;
+}
+
+.spaceSelector {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.selectorGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.selectorGroup label {
+  color: var(--retro-cyan);
+  font-family: var(--retro-font);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 5px currentColor;
+}
+
+.selectorGroup select {
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-border);
+  color: var(--retro-text);
+  font-family: var(--retro-font);
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.selectorGroup select:hover {
+  border-color: var(--retro-pink);
+  box-shadow: 0 0 10px rgba(255, 0, 128, 0.3);
+}
+
+.selectorGroup select:focus {
+  outline: none;
+  border-color: var(--retro-yellow);
+  box-shadow: 0 0 15px rgba(255, 255, 0, 0.4);
+}
+
+.visualizeBtn {
+  width: 100%;
+  padding: 1rem;
+  background: linear-gradient(135deg, var(--retro-bg-dark), rgba(255, 0, 128, 0.1));
+  border: 2px solid var(--retro-pink);
+  color: var(--retro-pink);
+  font-family: var(--retro-font);
+  font-size: 1rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.visualizeBtn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--retro-pink),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.visualizeBtn:hover::before {
+  left: 100%;
+}
+
+.visualizeBtn:hover {
+  background: linear-gradient(135deg, rgba(255, 0, 128, 0.2), var(--retro-bg-dark));
+  text-shadow: 0 0 15px currentColor;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(255, 0, 128, 0.4);
+}
+
+.visualization {
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid var(--retro-border);
+  padding: 1rem;
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 550px;
+  position: relative;
+}
+
+.visualization::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--retro-pink),
+    var(--retro-cyan),
+    var(--retro-yellow),
+    var(--retro-pink)
+  );
+  animation: gradient-shift 3s linear infinite;
+}
+
+@keyframes gradient-shift {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(100px);
+  }
+}
+
+.canvas {
+  display: block;
+  cursor: crosshair;
+  image-rendering: pixelated;
+}
+
+.info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.theorem {
+  background: rgba(255, 255, 0, 0.05);
+  border: 2px solid var(--retro-yellow);
+  padding: 1.5rem;
+  position: relative;
+}
+
+.theorem::before {
+  content: '★';
+  position: absolute;
+  top: -10px;
+  left: 20px;
+  background: var(--retro-bg-dark);
+  color: var(--retro-yellow);
+  padding: 0 10px;
+  font-size: 1.2rem;
+}
+
+.theorem h3 {
+  color: var(--retro-yellow);
+  font-family: var(--retro-font);
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.theorem p {
+  color: var(--retro-text);
+  font-family: var(--retro-font);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin-bottom: 0.75rem;
+}
+
+.formula {
+  color: var(--retro-cyan) !important;
+  font-size: 1rem !important;
+  text-align: center;
+  padding: 0.75rem;
+  background: rgba(0, 255, 255, 0.05);
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  margin-top: 1rem;
+}
+
+.currentProduct {
+  background: rgba(255, 0, 255, 0.05);
+  border: 2px solid var(--retro-magenta);
+  padding: 1.5rem;
+}
+
+.currentProduct h4 {
+  color: var(--retro-magenta);
+  font-family: var(--retro-font);
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.currentProduct p {
+  color: var(--retro-text);
+  font-family: var(--retro-font);
+  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+}
+
+.compact {
+  color: var(--retro-green);
+  font-weight: bold;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.notCompact {
+  color: var(--retro-red);
+  font-weight: bold;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.reason {
+  color: var(--retro-text-secondary) !important;
+  font-style: italic;
+  font-size: 0.85rem !important;
+}
+
+.examples {
+  background: rgba(0, 255, 255, 0.05);
+  border: 2px solid var(--retro-cyan);
+  padding: 1.5rem;
+}
+
+.examples h4 {
+  color: var(--retro-cyan);
+  font-family: var(--retro-font);
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.examples ul {
+  list-style: none;
+  padding: 0;
+}
+
+.examples li {
+  color: var(--retro-text);
+  font-family: var(--retro-font);
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
+  padding-left: 1.5rem;
+  position: relative;
+}
+
+.examples li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--retro-pink);
+  text-shadow: 0 0 5px currentColor;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid var(--retro-border);
+  padding-bottom: 1rem;
+}
+
+.tab {
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  border: 2px solid transparent;
+  color: var(--retro-text-secondary);
+  font-family: var(--retro-font);
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.tab:hover {
+  color: var(--retro-pink);
+  text-shadow: 0 0 10px currentColor;
+}
+
+.activeTab {
+  color: var(--retro-pink);
+  border-color: var(--retro-pink);
+  background: rgba(255, 0, 128, 0.05);
+  text-shadow: 0 0 10px currentColor;
+}
+
+.activeTab::after {
+  content: '';
+  position: absolute;
+  bottom: -1.75rem;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--retro-pink);
+  box-shadow: 0 0 10px var(--retro-pink);
+}
+
+/* Proof Section */
+.proofSection {
+  padding: 1.5rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.proofSection h2 {
+  color: var(--retro-pink);
+  font-family: var(--retro-font);
+  font-size: 1.8rem;
+  text-align: center;
+  margin-bottom: 2rem;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  text-shadow: 0 0 15px currentColor;
+}
+
+.proofSection h3 {
+  color: var(--retro-cyan);
+  font-family: var(--retro-font);
+  font-size: 1.3rem;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.proofSection h4 {
+  color: var(--retro-yellow);
+  font-family: var(--retro-font);
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.statement {
+  font-size: 1.1rem;
+  line-height: 1.8;
+  margin-bottom: 1rem;
+  color: var(--retro-text);
+}
+
+.proofOutline {
+  margin-top: 2rem;
+}
+
+.proofStep {
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 3px solid var(--retro-pink);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.proofStep::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--retro-pink), transparent);
+}
+
+.proofStep p {
+  color: var(--retro-text);
+  line-height: 1.7;
+  margin-bottom: 1rem;
+  font-family: var(--retro-font);
+  font-size: 0.95rem;
+}
+
+.proofStep strong {
+  color: var(--retro-magenta);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.proofStep em {
+  color: var(--retro-cyan);
+  font-style: italic;
+}
+
+.proofStep ol {
+  margin-left: 1.5rem;
+  color: var(--retro-text);
+  font-family: var(--retro-font);
+  font-size: 0.95rem;
+}
+
+.proofStep ol li {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.proofStep ul {
+  list-style: none;
+  padding: 0;
+}
+
+.proofStep ul li {
+  padding: 0.5rem 0;
+  padding-left: 1.5rem;
+  position: relative;
+  color: var(--retro-text);
+  font-family: var(--retro-font);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.proofStep ul li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--retro-pink);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.definition {
+  background: rgba(0, 255, 255, 0.05);
+  border: 1px solid var(--retro-cyan);
+  padding: 1rem;
+  margin: 1rem 0;
+  font-style: italic;
+  color: var(--retro-text);
+  font-family: var(--retro-font);
+  position: relative;
+}
+
+.definition::before {
+  content: 'DEFINITION';
+  position: absolute;
+  top: -10px;
+  left: 20px;
+  background: var(--retro-bg-dark);
+  color: var(--retro-cyan);
+  padding: 0 10px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.example {
+  background: rgba(255, 255, 0, 0.05);
+  border: 1px solid var(--retro-yellow);
+  padding: 1rem;
+  margin: 1rem 0;
+  font-family: var(--retro-font);
+  font-size: 0.9rem;
+  color: var(--retro-text);
+}
+
+.applications {
+  background: rgba(255, 0, 255, 0.03);
+  border: 2px solid var(--retro-magenta);
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.applications ul {
+  list-style: none;
+  padding: 0;
+}
+
+.applications li {
+  padding: 0.75rem 0;
+  padding-left: 1.5rem;
+  position: relative;
+  color: var(--retro-text);
+  font-family: var(--retro-font);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.applications li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--retro-magenta);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.applications strong {
+  color: var(--retro-magenta);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .spaceSelector {
+    grid-template-columns: 1fr;
+  }
+
+  .info {
+    grid-template-columns: 1fr;
+  }
+
+  .canvas {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .tabs {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .tab {
+    width: 100%;
+    text-align: center;
+  }
+
+  .proofSection {
+    padding: 1rem;
+  }
+
+  .proofSection h2 {
+    font-size: 1.4rem;
+  }
+
+  .proofSection h3 {
+    font-size: 1.1rem;
+  }
+
+  .proofSection h4 {
+    font-size: 1rem;
+  }
+
+  .proofStep {
+    padding: 1rem;
+  }
+}

@@ -1,0 +1,248 @@
+@import '../styles/retro-theme.css';
+
+.explorer {
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--retro-pink);
+  border-radius: 0;
+}
+
+.controls {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.sequenceSelector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sequenceSelector label {
+  color: var(--retro-cyan);
+  font-family: var(--retro-font);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.sequenceSelector select {
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-border);
+  color: var(--retro-text);
+  font-family: var(--retro-font);
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.sequenceSelector select:hover {
+  border-color: var(--retro-pink);
+  box-shadow: 0 0 10px rgba(255, 0, 128, 0.3);
+}
+
+.generateBtn,
+.findBtn,
+.animateBtn {
+  padding: 0.75rem 1.5rem;
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-cyan);
+  color: var(--retro-cyan);
+  font-family: var(--retro-font);
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.findBtn {
+  border-color: var(--retro-magenta);
+  color: var(--retro-magenta);
+}
+
+.animateBtn {
+  border-color: var(--retro-yellow);
+  color: var(--retro-yellow);
+}
+
+.generateBtn::before,
+.findBtn::before,
+.animateBtn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    currentColor,
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.generateBtn:hover::before,
+.findBtn:hover::before,
+.animateBtn:hover::before {
+  left: 100%;
+}
+
+.generateBtn:hover {
+  background: rgba(0, 255, 255, 0.1);
+  text-shadow: 0 0 10px currentColor;
+  transform: translateY(-2px);
+}
+
+.findBtn:hover {
+  background: rgba(255, 0, 255, 0.1);
+  text-shadow: 0 0 10px currentColor;
+  transform: translateY(-2px);
+}
+
+.animateBtn:hover {
+  background: rgba(255, 255, 0, 0.1);
+  text-shadow: 0 0 10px currentColor;
+  transform: translateY(-2px);
+}
+
+.visualization {
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid var(--retro-border);
+  padding: 1rem;
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  position: relative;
+  overflow: hidden;
+}
+
+.visualization::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--retro-pink),
+    transparent
+  );
+  animation: scan-line 3s linear infinite;
+}
+
+@keyframes scan-line {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+
+.info {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+.legend {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--retro-border);
+  padding: 1rem;
+  min-width: 200px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  color: var(--retro-text);
+  font-family: var(--retro-font);
+  font-size: 0.9rem;
+}
+
+.legendItem:last-child {
+  margin-bottom: 0;
+}
+
+.legendDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.explanation {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--retro-border);
+  padding: 1.5rem;
+}
+
+.explanation h3 {
+  color: var(--retro-pink);
+  font-family: var(--retro-font);
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.explanation p {
+  color: var(--retro-text);
+  font-family: var(--retro-font);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.theorem {
+  color: var(--retro-yellow) !important;
+  font-weight: bold;
+  padding: 1rem;
+  background: rgba(255, 255, 0, 0.05);
+  border-left: 3px solid var(--retro-yellow);
+  margin-top: 1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sequenceSelector {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .info {
+    grid-template-columns: 1fr;
+  }
+
+  .canvas {
+    max-width: 100%;
+    height: auto;
+  }
+}

@@ -1,0 +1,584 @@
+@import '../styles/retro-theme.css';
+
+.container {
+  background: linear-gradient(135deg, var(--retro-bg-panel), var(--retro-bg-light));
+  border: 2px solid var(--retro-pink);
+  border-radius: 0;
+  padding: 2rem;
+  box-shadow: 
+    inset 0 0 30px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(255, 0, 128, 0.2);
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.container::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  background: linear-gradient(
+    45deg,
+    var(--retro-pink) 0%,
+    transparent 25%,
+    transparent 75%,
+    var(--retro-pink) 100%
+  );
+  z-index: -1;
+  opacity: 0.3;
+  animation: border-glow 3s linear infinite;
+}
+
+@keyframes border-glow {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.title {
+  font-family: var(--retro-font-display);
+  font-size: 2rem;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+  text-shadow: 
+    0 0 10px var(--retro-cyan),
+    2px 2px 0 var(--retro-pink);
+}
+
+.subtitle {
+  color: var(--retro-text-dim);
+  margin-bottom: 1.5rem;
+  font-family: var(--retro-font-mono);
+}
+
+.controls {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.spaceSelectors {
+  display: flex;
+  gap: 1rem;
+}
+
+.spaceControl {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.spaceControl label {
+  color: var(--retro-yellow);
+  font-family: var(--retro-font-mono);
+  text-transform: uppercase;
+  font-size: 0.9rem;
+}
+
+.spaceControl select {
+  padding: 0.5rem 1rem;
+  background: var(--retro-bg-dark);
+  color: var(--retro-cyan);
+  border: 1px solid var(--retro-cyan);
+  font-family: var(--retro-font-mono);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.spaceControl select:hover {
+  background: var(--retro-cyan);
+  color: var(--retro-bg-dark);
+  box-shadow: 0 0 10px var(--retro-cyan);
+}
+
+.functionSelector {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.functionSelector label {
+  color: var(--retro-yellow);
+  font-family: var(--retro-font-mono);
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.selectContainer {
+  min-width: 250px;
+}
+
+.viewSelector {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.viewButton {
+  padding: 0.75rem 1.5rem;
+  background: var(--retro-bg-dark);
+  color: var(--retro-text);
+  border: 2px solid var(--retro-purple);
+  font-family: var(--retro-font-mono);
+  font-weight: bold;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.viewButton:hover {
+  background: var(--retro-purple);
+  color: var(--retro-bg-dark);
+  box-shadow: 0 0 15px var(--retro-purple);
+}
+
+.viewButton.active {
+  background: linear-gradient(135deg, var(--retro-pink), var(--retro-purple));
+  color: var(--retro-bg-dark);
+  box-shadow: 
+    0 4px 0 rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(255, 0, 128, 0.5);
+}
+
+.visualizationContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.mainVisualization {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 2rem;
+}
+
+.diagram {
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-cyan);
+  padding: 1rem;
+  box-shadow: 
+    inset 0 0 20px rgba(0, 0, 0, 0.8),
+    0 0 15px rgba(0, 255, 255, 0.2);
+  position: relative;
+}
+
+.diagram::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 255, 255, 0.03) 2px,
+    rgba(0, 255, 255, 0.03) 4px
+  );
+  pointer-events: none;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.formula {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-pink);
+  padding: 1rem;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.formula h3 {
+  font-family: var(--retro-font-display);
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  text-shadow: 0 0 5px currentColor;
+}
+
+.equation {
+  font-family: var(--retro-font-mono);
+  color: var(--retro-yellow);
+  font-size: 1.5rem;
+  text-align: center;
+  padding: 1rem;
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-yellow);
+  margin-bottom: 1rem;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.explanation {
+  color: var(--retro-text-dim);
+  font-family: var(--retro-font-mono);
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.mappingList {
+  margin: 0;
+  padding-left: 1.5rem;
+  list-style: none;
+}
+
+.mappingList li {
+  color: var(--retro-text-dim);
+  font-family: var(--retro-font-mono);
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+  position: relative;
+  padding-left: 1rem;
+}
+
+.mappingList li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--retro-cyan);
+  text-shadow: 0 0 3px currentColor;
+}
+
+.operations {
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-cyan);
+  padding: 1rem;
+  box-shadow: 
+    inset 0 0 10px rgba(0, 0, 0, 0.8),
+    0 0 10px rgba(0, 255, 255, 0.2);
+}
+
+.operations h3 {
+  font-family: var(--retro-font-display);
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  text-shadow: 0 0 5px currentColor;
+}
+
+.operation {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.operation:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.operation h4 {
+  color: var(--retro-yellow);
+  font-family: var(--retro-font-mono);
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+.operation p {
+  color: var(--retro-green);
+  font-family: var(--retro-font-mono);
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.5);
+  border-left: 2px solid var(--retro-green);
+}
+
+.operationDesc {
+  color: var(--retro-text-dim) !important;
+  font-size: 0.8rem !important;
+  border-left: none !important;
+  padding: 0 !important;
+  background: none !important;
+}
+
+.examples {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-pink);
+  padding: 1rem;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.examples h3 {
+  font-family: var(--retro-font-display);
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  text-shadow: 0 0 5px currentColor;
+}
+
+.exampleFunc {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  background: var(--retro-bg-dark);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: var(--retro-font-mono);
+  font-size: 0.85rem;
+}
+
+.exampleFunc:hover {
+  transform: translateX(5px);
+  box-shadow: 0 0 10px currentColor;
+}
+
+.funcIndicator {
+  width: 12px;
+  height: 12px;
+  box-shadow: 0 0 5px currentColor;
+}
+
+.properties {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-pink);
+  padding: 1rem;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.properties h3 {
+  font-family: var(--retro-font-display);
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  text-shadow: 0 0 5px currentColor;
+}
+
+.properties ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  list-style: none;
+}
+
+.properties li {
+  color: var(--retro-text-dim);
+  font-family: var(--retro-font-mono);
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+  position: relative;
+  padding-left: 1rem;
+}
+
+.properties li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--retro-yellow);
+  text-shadow: 0 0 3px currentColor;
+}
+
+.inputControls {
+  display: flex;
+  gap: 2rem;
+}
+
+.sliderGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sliderGroup label {
+  color: var(--retro-yellow);
+  font-family: var(--retro-font-mono);
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  min-width: 60px;
+}
+
+.sliderGroup input[type="range"] {
+  width: 120px;
+  background: var(--retro-bg-dark);
+  outline: none;
+}
+
+.resultComparison {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-pink);
+  padding: 1rem;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.resultComparison h3 {
+  font-family: var(--retro-font-display);
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  text-shadow: 0 0 5px currentColor;
+}
+
+.resultGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.resultItem {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: var(--retro-bg-dark);
+  border: 1px solid var(--retro-cyan);
+  font-family: var(--retro-font-mono);
+  font-size: 0.85rem;
+}
+
+.resultItem .label {
+  color: var(--retro-yellow);
+  text-transform: uppercase;
+}
+
+.resultItem .value {
+  color: var(--retro-green);
+  text-shadow: 0 0 3px currentColor;
+}
+
+.demoContainer {
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-cyan);
+  padding: 2rem;
+  box-shadow: 
+    inset 0 0 20px rgba(0, 0, 0, 0.8),
+    0 0 15px rgba(0, 255, 255, 0.2);
+}
+
+.demoContainer h3 {
+  font-family: var(--retro-font-display);
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.demoSteps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.step {
+  background: var(--retro-bg-panel);
+  border: 2px solid var(--retro-purple);
+  padding: 1.5rem;
+  opacity: 0.4;
+  transition: all 0.3s ease;
+}
+
+.step.active {
+  opacity: 1;
+  border-color: var(--retro-cyan);
+  box-shadow: 
+    0 0 20px rgba(0, 255, 255, 0.3),
+    inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.step h4 {
+  color: var(--retro-yellow);
+  font-family: var(--retro-font-mono);
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.codeBlock {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--retro-green);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  font-family: var(--retro-font-mono);
+  color: var(--retro-green);
+  font-size: 0.9rem;
+  text-shadow: 0 0 3px currentColor;
+  word-break: break-all;
+}
+
+.step p {
+  color: var(--retro-text-dim);
+  font-family: var(--retro-font-mono);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.stepControls {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.stepControls .button {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, var(--retro-pink), var(--retro-purple));
+  color: var(--retro-bg-dark);
+  border: none;
+  font-family: var(--retro-font-mono);
+  font-weight: bold;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 
+    0 4px 0 rgba(0, 0, 0, 0.5),
+    0 0 10px rgba(255, 0, 128, 0.3);
+}
+
+.stepControls .button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 6px 0 rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(255, 0, 128, 0.5);
+}
+
+.stepControls .button:disabled {
+  background: var(--retro-bg-panel);
+  color: var(--retro-text-dim);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (max-width: 1200px) {
+  .mainVisualization {
+    grid-template-columns: 1fr;
+  }
+  
+  .info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  }
+  
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .demoSteps {
+    grid-template-columns: 1fr;
+  }
+  
+  .inputControls {
+    flex-direction: column;
+  }
+}

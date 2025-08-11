@@ -1,0 +1,385 @@
+@import '../styles/retro-theme.css';
+
+.designer {
+  color: var(--retro-text-primary);
+  font-family: var(--retro-font);
+}
+
+.instructions {
+  margin-bottom: 2rem;
+}
+
+.instructions h3 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: var(--retro-green);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px var(--retro-green), 0 0 20px var(--retro-green);
+  font-family: var(--retro-font);
+}
+
+.instructions p {
+  color: var(--retro-text-secondary);
+  line-height: 1.6;
+  font-family: var(--retro-font);
+}
+
+.controls {
+  margin-bottom: 2rem;
+}
+
+.metricSelector {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+    padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.metricSelector h4 {
+  margin-bottom: 1rem;
+  color: var(--retro-text-primary);
+  font-family: var(--retro-font);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.metricButtons {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.metricButton {
+  flex: 1;
+  padding: 0.75rem;
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-border);
+  color: var(--retro-text-secondary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  font-family: var(--retro-font);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.metricButton:hover {
+  background: var(--retro-bg-light);
+  border-color: var(--retro-green);
+  color: var(--retro-green);
+  transform: translateY(-2px);
+  box-shadow: inset 0 0 20px rgba(0, 255, 0, 0.1), 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+.metricButton.active {
+  background: rgba(0, 255, 0, 0.1);
+  border-color: var(--retro-green);
+  color: var(--retro-green);
+  box-shadow: inset 0 0 20px rgba(0, 255, 0, 0.2), 0 0 20px rgba(0, 255, 0, 0.4);
+  text-shadow: 0 0 10px var(--retro-green);
+}
+
+.metricDescription {
+  font-size: 0.9rem;
+  color: var(--retro-text-dim);
+  font-style: italic;
+}
+
+.customFormulaSection {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+    padding: 1.5rem;
+  margin-top: 1rem;
+}
+
+.customFormulaSection h4 {
+  margin-bottom: 1rem;
+  color: var(--retro-text-primary);
+  font-family: var(--retro-font);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.formulaInput {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-border);
+  color: var(--retro-text-primary);
+  font-family: var(--retro-font);
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.formulaInput:focus {
+  outline: none;
+  border-color: var(--retro-green);
+  box-shadow: inset 0 0 20px rgba(0, 255, 0, 0.1), 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+.formulaInput::placeholder {
+  color: var(--retro-text-dim);
+}
+
+.formulaHelp {
+  font-size: 0.85rem;
+  color: var(--retro-text-dim);
+}
+
+.testSection {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.testPoints {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+    padding: 1.5rem;
+}
+
+.testPoints h4 {
+  margin-bottom: 1rem;
+  color: var(--retro-text-primary);
+  font-family: var(--retro-font);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.pointsList {
+  margin-bottom: 1rem;
+}
+
+.pointRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.pointLabel {
+  min-width: 40px;
+  font-weight: bold;
+  font-family: var(--retro-font);
+  color: var(--retro-green);
+  text-shadow: 0 0 5px var(--retro-green);
+}
+
+.coordinateInput {
+  width: 80px;
+  padding: 0.5rem;
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-border);
+  color: var(--retro-text-primary);
+  text-align: center;
+  font-family: var(--retro-font);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.coordinateInput:focus {
+  outline: none;
+  border-color: var(--retro-green);
+  box-shadow: inset 0 0 20px rgba(0, 255, 0, 0.1), 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+.removeButton {
+  width: 30px;
+  height: 30px;
+  border-radius: 0;
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-error);
+  color: var(--retro-error);
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-family: var(--retro-font);
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.removeButton:hover {
+  background: rgba(255, 0, 64, 0.2);
+  box-shadow: 0 0 10px rgba(255, 0, 64, 0.5);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.addButton {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-success);
+  color: var(--retro-success);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: var(--retro-font);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.addButton:hover {
+  background: rgba(0, 255, 136, 0.2);
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.distanceMatrix {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+    padding: 1.5rem;
+}
+
+.distanceMatrix h4 {
+  margin-bottom: 1rem;
+  color: var(--retro-text-primary);
+  font-family: var(--retro-font);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.matrix {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.matrix th,
+.matrix td {
+  padding: 0.5rem;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.matrix th {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+  font-weight: 600;
+}
+
+.matrix td {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.matrix td.diagonal {
+  background: rgba(255, 255, 255, 0.15);
+  font-weight: 600;
+}
+
+.verification {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+    padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.verification h4 {
+  margin-bottom: 1rem;
+  color: var(--retro-text-primary);
+  font-family: var(--retro-font);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.axiomsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.axiom {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.axiom.passed {
+  border-color: rgba(76, 175, 80, 0.5);
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.axiom.failed {
+  border-color: rgba(255, 67, 67, 0.5);
+  background: rgba(255, 67, 67, 0.1);
+}
+
+.axiomIcon {
+  font-size: 1.5rem;
+  min-width: 30px;
+  text-align: center;
+}
+
+.counterExample {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(255, 67, 67, 0.2);
+    font-size: 0.9rem;
+  font-family: var(--retro-font);
+}
+
+.result {
+  padding: 1rem;
+    text-align: center;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.result.isMetric {
+  background: rgba(76, 175, 80, 0.3);
+  border: 2px solid rgba(76, 175, 80, 0.5);
+}
+
+.result.notMetric {
+  background: rgba(255, 67, 67, 0.3);
+  border: 2px solid rgba(255, 67, 67, 0.5);
+}
+
+.tips {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+    padding: 1.5rem;
+}
+
+.tips h4 {
+  margin-bottom: 1rem;
+}
+
+.tips ul {
+  list-style: none;
+  padding: 0;
+}
+
+.tips li {
+  padding-left: 1.5rem;
+  position: relative;
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+  color: var(--retro-text-secondary);
+}
+
+.tips li:before {
+  content: '•';
+  position: absolute;
+  left: 0.5rem;
+}

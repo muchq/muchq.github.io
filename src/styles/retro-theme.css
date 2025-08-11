@@ -1,0 +1,269 @@
+/* Retro Console Theme for Topology Quest */
+
+:root {
+  /* Retro Console Color Palette */
+  --retro-bg-dark: #0c0e14;
+  --retro-bg-medium: #1a1d2e;
+  --retro-bg-light: #2a2d3a;
+  --retro-bg-panel: #16213e;
+  
+  /* Neon accent colors */
+  --retro-cyan: #00ffff;
+  --retro-magenta: #ff00ff;
+  --retro-yellow: #ffff00;
+  --retro-green: #00ff00;
+  --retro-orange: #ff8800;
+  --retro-pink: #ff0080;
+  --retro-purple: #8800ff;
+  --retro-blue: #0088ff;
+  
+  /* Muted versions for backgrounds */
+  --retro-cyan-dim: #00ffff20;
+  --retro-magenta-dim: #ff00ff20;
+  --retro-yellow-dim: #ffff0020;
+  --retro-green-dim: #00ff0020;
+  
+  /* Text colors */
+  --retro-text-primary: #ffffff;
+  --retro-text-secondary: #b8b8b8;
+  --retro-text-dim: #808080;
+  
+  /* UI states */
+  --retro-success: #00ff88;
+  --retro-error: #ff0040;
+  --retro-warning: #ffaa00;
+  --retro-info: #00aaff;
+  
+  /* Borders and shadows */
+  --retro-border: #333333;
+  --retro-glow: 0 0 20px;
+  
+  /* Font */
+  --retro-font: 'Courier New', 'Consolas', 'Monaco', monospace;
+}
+
+/* Retro CRT Screen Effect (optional) */
+@keyframes scanline {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
+.retro-scanline::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(0, 255, 255, 0.1),
+    transparent
+  );
+  animation: scanline 8s linear infinite;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* Retro Button Styles */
+.retro-button {
+  background: var(--retro-bg-panel);
+  border: 2px solid var(--retro-cyan);
+  color: var(--retro-cyan);
+  padding: 0.75rem 1.5rem;
+  font-family: var(--retro-font);
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s ease;
+  box-shadow: 
+    inset 0 0 10px rgba(0, 255, 255, 0.1),
+    0 0 10px rgba(0, 255, 255, 0.2);
+}
+
+.retro-button:hover {
+  background: var(--retro-cyan-dim);
+  box-shadow: 
+    inset 0 0 20px rgba(0, 255, 255, 0.3),
+    0 0 20px rgba(0, 255, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+.retro-button:active {
+  transform: translateY(0);
+}
+
+/* Retro Panel */
+.retro-panel {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: 
+    inset 0 0 20px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(0, 255, 255, 0.1);
+  position: relative;
+}
+
+.retro-panel::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  background: linear-gradient(
+    45deg,
+    var(--retro-cyan) 0%,
+    var(--retro-magenta) 50%,
+    var(--retro-cyan) 100%
+  );
+  opacity: 0.1;
+  z-index: -1;
+}
+
+/* Retro Text Glow */
+.retro-glow-text {
+  text-shadow: 
+    0 0 10px currentColor,
+    0 0 20px currentColor,
+    0 0 30px currentColor;
+}
+
+/* Retro Grid Background */
+.retro-grid {
+  background-image: 
+    linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 50px 50px;
+  background-position: -1px -1px;
+}
+
+/* Retro Select Styles */
+.retro-select {
+  padding: 0.5rem 1rem;
+  background: var(--retro-bg-dark);
+  color: var(--retro-cyan);
+  border: 1px solid var(--retro-cyan);
+  font-family: var(--retro-font-mono);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 200px;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300ffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+  background-size: 1.2em;
+  padding-right: 2.5rem;
+}
+
+.retro-select:hover {
+  background-color: var(--retro-bg-dark);
+  box-shadow: 0 0 10px var(--retro-cyan);
+  border-color: var(--retro-cyan);
+}
+
+.retro-select:focus {
+  outline: none;
+  box-shadow: 0 0 15px var(--retro-cyan);
+  border-color: var(--retro-cyan);
+}
+
+.retro-select option {
+  background: var(--retro-bg-dark);
+  color: var(--retro-cyan);
+  padding: 0.5rem;
+}
+
+/* For Firefox */
+.retro-select option:hover,
+.retro-select option:focus,
+.retro-select option:checked {
+  background: linear-gradient(var(--retro-bg-dark), var(--retro-bg-dark));
+  background-color: rgba(0, 255, 255, 0.2) !important;
+}
+
+/* Pixel Perfect Borders */
+.retro-border-top {
+  border-top: 2px solid var(--retro-cyan);
+  box-shadow: 0 -2px 10px rgba(0, 255, 255, 0.3);
+}
+
+.retro-border-bottom {
+  border-bottom: 2px solid var(--retro-cyan);
+  box-shadow: 0 2px 10px rgba(0, 255, 255, 0.3);
+}
+
+/* Retro Terminal Style */
+.retro-terminal {
+  background: var(--retro-bg-dark);
+  color: var(--retro-green);
+  font-family: var(--retro-font);
+  padding: 1rem;
+  border: 2px solid var(--retro-green);
+  box-shadow: 
+    inset 0 0 20px rgba(0, 255, 0, 0.1),
+    0 0 20px rgba(0, 255, 0, 0.2);
+}
+
+.retro-terminal::before {
+  content: '> ';
+  color: var(--retro-green);
+}
+
+/* Flicker Animation */
+@keyframes flicker {
+  0%, 100% {
+    opacity: 1;
+  }
+  92% {
+    opacity: 0.9;
+  }
+  95% {
+    opacity: 0.7;
+  }
+  97% {
+    opacity: 0.9;
+  }
+}
+
+.retro-flicker {
+  animation: flicker 3s infinite;
+}
+
+/* Neon Text Effect */
+@keyframes neon-pulse {
+  0%, 100% {
+    text-shadow: 
+      0 0 5px currentColor,
+      0 0 10px currentColor,
+      0 0 15px currentColor,
+      0 0 20px currentColor;
+  }
+  50% {
+    text-shadow: 
+      0 0 10px currentColor,
+      0 0 20px currentColor,
+      0 0 30px currentColor,
+      0 0 40px currentColor;
+  }
+}
+
+.retro-neon {
+  animation: neon-pulse 2s infinite;
+}
+
+/* Module Color Assignments */
+.module-sets { --module-color: var(--retro-cyan); }
+.module-functions { --module-color: var(--retro-magenta); }
+.module-infinite { --module-color: var(--retro-yellow); }
+.module-metric { --module-color: var(--retro-green); }
+.module-topological { --module-color: var(--retro-orange); }
+.module-continuity { --module-color: var(--retro-purple); }
