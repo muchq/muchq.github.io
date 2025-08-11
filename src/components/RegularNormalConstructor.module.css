@@ -1,0 +1,493 @@
+.container {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  color: #ffffff;
+  padding: 2rem;
+  border-radius: 12px;
+  border: 2px solid #00ff88;
+  box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+  font-family: 'Courier New', monospace;
+  min-height: 800px;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 2.5rem;
+  color: #00ff88;
+  text-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
+  margin: 0 0 0.5rem 0;
+  font-weight: bold;
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  color: #b0b0b0;
+  margin: 0;
+}
+
+.controls {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.modeSelector {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.modeButton {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid #00ff88;
+  border-radius: 6px;
+  padding: 0.75rem 1.5rem;
+  color: #ffffff;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.modeButton:hover {
+  background: rgba(0, 255, 136, 0.1);
+  transform: translateY(-2px);
+}
+
+.modeButton.active {
+  background: linear-gradient(45deg, #00ff88, #00cc66);
+  color: #000000;
+  box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+}
+
+.exampleSelector,
+.propertySelector {
+  flex: 1;
+}
+
+.label {
+  color: #ffffff;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.select {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid #00ff88;
+  border-radius: 4px;
+  padding: 0.5rem;
+  color: #ffffff;
+  font-family: 'Courier New', monospace;
+  min-width: 150px;
+}
+
+.select:focus {
+  outline: none;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+}
+
+.hintButton {
+  background: linear-gradient(45deg, #4ecdc4, #44a08d);
+  border: none;
+  border-radius: 6px;
+  padding: 0.75rem 1.5rem;
+  color: #ffffff;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Courier New', monospace;
+}
+
+.hintButton:hover {
+  background: linear-gradient(45deg, #44a08d, #3a8a7a);
+  transform: translateY(-2px);
+}
+
+.mainContent {
+  display: flex;
+  gap: 2rem;
+  height: 100%;
+}
+
+.workspace {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.spaceViewer {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #00ff88;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.spaceViewer h3 {
+  color: #00ff88;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.4rem;
+}
+
+.description {
+  color: #b0b0b0;
+  font-style: italic;
+  margin: 0 0 1rem 0;
+  font-size: 0.95rem;
+}
+
+.spaceSvg {
+  background: #0a0a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  width: 100%;
+  height: 300px;
+  cursor: crosshair;
+}
+
+.point {
+  cursor: pointer;
+  transition: filter 0.2s ease, stroke-width 0.2s ease, stroke 0.2s ease;
+}
+
+.point:hover {
+  filter: brightness(1.5) drop-shadow(0 0 8px rgba(0, 255, 136, 0.8));
+  stroke: #00ff88 !important;
+  stroke-width: 4 !important;
+}
+
+.pointLabel {
+  font-weight: bold;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.closedSet {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.closedSet:hover {
+  filter: brightness(1.2);
+}
+
+.setLabel {
+  font-weight: bold;
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.openSetLabel {
+  font-weight: bold;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.constructionPanel {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #00ff88;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.constructionPanel h4 {
+  color: #00ff88;
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+}
+
+.constructionPanel p {
+  color: #b0b0b0;
+  margin: 0 0 1.5rem 0;
+}
+
+.constructActions {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.actionButton {
+  background: linear-gradient(45deg, #00ff88, #00cc66);
+  border: none;
+  border-radius: 6px;
+  padding: 0.75rem 1.5rem;
+  color: #000000;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Courier New', monospace;
+}
+
+.actionButton:hover:not(:disabled) {
+  background: linear-gradient(45deg, #00cc66, #00aa55);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 255, 136, 0.4);
+}
+
+.actionButton:disabled {
+  background: #555;
+  color: #aaa;
+  cursor: not-allowed;
+}
+
+.clearButton {
+  background: linear-gradient(45deg, #ff6b35, #ff5722);
+  border: none;
+  border-radius: 6px;
+  padding: 0.75rem 1.5rem;
+  color: #ffffff;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Courier New', monospace;
+}
+
+.clearButton:hover {
+  background: linear-gradient(45deg, #ff5722, #e64a19);
+  transform: translateY(-2px);
+}
+
+.selectionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.selection {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+  display: flex;
+  justify-content: space-between;
+}
+
+.sidebar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.hint {
+  background: rgba(76, 175, 80, 0.1);
+  border: 1px solid #4caf50;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.hint h4 {
+  color: #4caf50;
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+}
+
+.hint p {
+  color: #e0e0e0;
+  margin: 0;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.feedback {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #00ff88;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.feedback h4 {
+  color: #00ff88;
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+}
+
+.feedback p {
+  color: #ffffff;
+  margin: 0;
+  font-weight: bold;
+  line-height: 1.4;
+}
+
+.theoryPanel {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #00ff88;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.theoryPanel h4 {
+  color: #00ff88;
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+}
+
+.definition p {
+  color: #e0e0e0;
+  margin: 0 0 1rem 0;
+  line-height: 1.4;
+}
+
+.definition p:first-of-type {
+  font-weight: bold;
+  color: #ffffff;
+  margin-bottom: 0.5rem;
+}
+
+.definition p:nth-of-type(2) {
+  margin-bottom: 1.5rem;
+}
+
+.definition p:nth-of-type(3) {
+  font-weight: bold;
+  color: #ffffff;
+  margin-bottom: 0.5rem;
+}
+
+.propertiesPanel {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #00ff88;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.propertiesPanel h4 {
+  color: #00ff88;
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+}
+
+.propertyStatus {
+  margin-bottom: 1rem;
+}
+
+.property {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.propertyName {
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.yes {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+.no {
+  color: #f44336;
+  font-weight: bold;
+}
+
+.explanation {
+  color: #b0b0b0;
+  font-style: italic;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.examplesInfo {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #00ff88;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.examplesInfo h4 {
+  color: #00ff88;
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+}
+
+.examplesList {
+  color: #e0e0e0;
+  margin: 0;
+  padding-left: 1.2rem;
+  line-height: 1.6;
+}
+
+.examplesList li {
+  margin-bottom: 0.3rem;
+}
+
+.examplesList strong {
+  color: #ffffff;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+  .mainContent {
+    flex-direction: column;
+  }
+  
+  .workspace {
+    flex: none;
+  }
+  
+  .sidebar {
+    flex: none;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  
+  .sidebar > div {
+    flex: 1;
+    min-width: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+  
+  .title {
+    font-size: 2rem;
+  }
+  
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .modeSelector {
+    justify-content: center;
+  }
+  
+  .exampleSelector,
+  .propertySelector {
+    flex: none;
+  }
+  
+  .spaceSvg {
+    height: 250px;
+  }
+  
+  .constructActions {
+    flex-direction: column;
+  }
+  
+  .sidebar {
+    flex-direction: column;
+  }
+  
+  .sidebar > div {
+    min-width: auto;
+  }
+}

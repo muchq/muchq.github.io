@@ -1,0 +1,1224 @@
+/* Shared Module Styles for Topology Quest */
+/* This file contains reusable styles for all learning modules */
+
+@import './retro-theme.css';
+
+/* ==================== Base Module Container ==================== */
+.module {
+  background: linear-gradient(135deg, var(--retro-bg-panel), var(--retro-bg-light));
+  border: 2px solid var(--retro-pink);
+  border-radius: 0;
+  padding: 2rem;
+  box-shadow: 
+    inset 0 0 30px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(255, 0, 128, 0.2);
+  position: relative;
+}
+
+.module::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  background: linear-gradient(
+    45deg,
+    var(--retro-pink) 0%,
+    transparent 25%,
+    transparent 75%,
+    var(--retro-pink) 100%
+  );
+  z-index: -1;
+  opacity: 0.3;
+  animation: border-glow 3s linear infinite;
+}
+
+@keyframes border-glow {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* ==================== Tab Navigation ==================== */
+.tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.tab {
+  padding: 0.75rem 1.5rem;
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-border);
+  color: var(--retro-text-secondary);
+  font-family: var(--retro-font);
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.tab::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--retro-pink),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.tab:hover::before {
+  left: 100%;
+}
+
+.tab:hover {
+  color: var(--retro-pink);
+  border-color: var(--retro-pink);
+  text-shadow: 0 0 10px currentColor;
+  transform: translateY(-2px);
+}
+
+.tab.active, .tab.activeTab {
+  background: rgba(255, 0, 128, 0.1);
+  color: var(--retro-pink);
+  border-color: var(--retro-pink);
+  box-shadow: 
+    inset 0 0 20px rgba(255, 0, 128, 0.2),
+    0 0 15px rgba(255, 0, 128, 0.3);
+  text-shadow: 0 0 10px currentColor;
+}
+
+/* ==================== Content Container ==================== */
+.content {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--retro-border);
+  padding: 2rem;
+  min-height: 400px;
+  position: relative;
+}
+
+/* ==================== Instruction/Header Sections ==================== */
+.instructions {
+  text-align: left;
+  padding: 1rem;
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+  font-family: var(--retro-font);
+}
+
+.instructions h3 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 5px var(--retro-cyan);
+  margin-bottom: 0.5rem;
+  font-family: var(--retro-font);
+}
+
+.instructions p {
+  font-size: 1rem;
+  color: var(--retro-text-secondary);
+  font-weight: normal;
+  font-family: var(--retro-font);
+}
+
+/* ==================== Selector/Control Sections ==================== */
+.selector {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+  padding: 1.5rem;
+  font-family: var(--retro-font);
+}
+
+.selector h4 {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 5px var(--retro-cyan);
+  margin-bottom: 1rem;
+}
+
+.selectorRow {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5rem;
+}
+
+.selectorLabel {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 5px var(--retro-cyan);
+  margin: 0;
+  white-space: nowrap;
+  padding-top: 0.5rem; /* Adjust vertical position */
+}
+
+.selectorControl {
+  min-width: 250px;
+  max-width: 400px;
+}
+
+/* ==================== Button Groups ==================== */
+.bijectionButtons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.bijectionButton {
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-border);
+  color: var(--retro-text-secondary);
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  font-family: var(--retro-font);
+  position: relative;
+  overflow: hidden;
+}
+
+/* ==================== Set Builder Styles ==================== */
+.setBuilder {
+  padding: 1rem;
+}
+
+.universe {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid var(--retro-border);
+  border-radius: 0;
+}
+
+.universe h4 {
+  color: var(--retro-cyan);
+  margin-bottom: 1rem;
+  font-family: var(--retro-font);
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+}
+
+.elementGrid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.75rem;
+  max-width: 500px;
+}
+
+.element {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--retro-border);
+  font-family: var(--retro-font);
+  font-weight: bold;
+  font-size: 1.2rem;
+  cursor: grab;
+  transition: all 0.3s ease;
+  color: #000;
+}
+
+.element:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+.element:active {
+  cursor: grabbing;
+}
+
+.definitionToggle {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  justify-content: center;
+}
+
+.toggleButton {
+  padding: 0.75rem 1.5rem;
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-border);
+  color: var(--retro-text-secondary);
+  font-family: var(--retro-font);
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.toggleButton:hover {
+  background: rgba(255, 0, 128, 0.1);
+  color: var(--retro-pink);
+  border-color: var(--retro-pink);
+  transform: translateY(-2px);
+}
+
+.toggleButton.active {
+  background: rgba(255, 0, 128, 0.2);
+  color: var(--retro-pink);
+  border-color: var(--retro-pink);
+  box-shadow: 0 0 10px rgba(255, 0, 128, 0.3);
+}
+
+.sets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.setContainer {
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid var(--retro-border);
+  padding: 1rem;
+  border-radius: 0;
+}
+
+.setHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.setHeader h4 {
+  color: var(--retro-cyan);
+  font-family: var(--retro-font);
+  margin: 0;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+}
+
+.clearButton {
+  padding: 0.4rem 0.8rem;
+  background: var(--retro-bg-dark);
+  border: 1px solid var(--retro-border);
+  color: var(--retro-text-secondary);
+  font-family: var(--retro-font);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+}
+
+.clearButton:hover {
+  background: rgba(255, 0, 128, 0.1);
+  color: var(--retro-pink);
+  border-color: var(--retro-pink);
+}
+
+.setDropZone {
+  min-height: 120px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 2px dashed var(--retro-border);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.setDropZone:hover {
+  border-color: var(--retro-pink);
+  background: rgba(255, 0, 128, 0.05);
+}
+
+.emptyMessage {
+  color: var(--retro-text-secondary);
+  font-family: var(--retro-font);
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.setElements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.setElement {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--retro-border);
+  font-family: var(--retro-font);
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #000;
+}
+
+.setElement:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  border-color: #ff0000;
+}
+
+.setDefinition {
+  color: var(--retro-green);
+  font-family: var(--retro-font);
+  font-size: 0.9rem;
+  padding: 0.5rem;
+  background: rgba(0, 255, 0, 0.05);
+  border: 1px solid var(--retro-border);
+  text-align: center;
+}
+
+.bijectionButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--retro-pink),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.bijectionButton:hover::before {
+  left: 100%;
+}
+
+.bijectionButton:hover {
+  color: var(--retro-pink);
+  border-color: var(--retro-pink);
+  text-shadow: 0 0 10px currentColor;
+  transform: translateY(-2px);
+}
+
+.bijectionButton.active {
+  background: rgba(255, 0, 128, 0.1);
+  color: var(--retro-pink);
+  border-color: var(--retro-pink);
+  box-shadow: 
+    inset 0 0 20px rgba(255, 0, 128, 0.2),
+    0 0 15px rgba(255, 0, 128, 0.3);
+  text-shadow: 0 0 10px currentColor;
+}
+
+/* ==================== Info Cards ==================== */
+.setInfo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+  padding: 2rem;
+}
+
+.setCard {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1.5rem;
+  text-align: left;
+  min-width: 200px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  flex: 1;
+}
+
+.setCard h4 {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 5px var(--retro-cyan);
+  margin-bottom: 1rem;
+}
+
+.setCard h5 {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 3px var(--retro-cyan);
+  margin: 1rem 0 0.5rem;
+}
+
+/* ==================== Insights/Explanation Sections ==================== */
+.insights {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+  padding: 1.5rem;
+  border-left: 4px solid rgba(69, 183, 209, 0.6);
+  font-family: var(--retro-font);
+}
+
+.insights h4 {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 5px var(--retro-cyan);
+  margin-bottom: 1rem;
+  font-family: var(--retro-font);
+}
+
+.insights h5 {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 3px var(--retro-cyan);
+  margin: 1rem 0 0.5rem;
+  font-family: var(--retro-font);
+}
+
+.insights ul {
+  list-style: none;
+  padding: 0;
+}
+
+.insights li {
+  padding: 0.5rem 0;
+  padding-left: 1.5rem;
+  position: relative;
+  font-weight: normal;
+  color: var(--retro-text-secondary);
+  font-family: var(--retro-font);
+}
+
+.insights li:before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: rgba(69, 183, 209, 0.8);
+}
+
+/* ==================== Formula/Code Display ==================== */
+.formula {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+  padding: 1rem;
+  margin: 1rem 0;
+  text-align: left;
+}
+
+.formulaDisplay {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1rem;
+  text-align: left;
+  margin: 1rem 0;
+  border: 1px solid var(--retro-border);
+  font-family: var(--retro-font);
+}
+
+.formulaText {
+  color: var(--retro-yellow);
+  font-size: 1.1rem;
+  font-family: var(--retro-font);
+  text-shadow: 0 0 5px currentColor;
+}
+
+/* ==================== Visualization Container ==================== */
+.visualization {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+  padding: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.canvas {
+  border: 2px solid var(--retro-border);
+  background: var(--retro-bg-dark);
+  max-width: 100%;
+  height: auto;
+}
+
+/* ==================== Mapping/Grid Displays ==================== */
+.mappingGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.mappingPair {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mappingFrom, .mappingTo {
+  flex: 1;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: left;
+  font-family: var(--retro-font);
+  color: var(--retro-text-secondary);
+}
+
+.arrow {
+  color: var(--retro-cyan);
+  font-size: 1.5rem;
+  text-shadow: 0 0 5px currentColor;
+}
+
+/* ==================== Explanation Sections (Compactness/Function Spaces) ==================== */
+.explanation {
+  background: rgba(0, 255, 0, 0.05);
+  border: 2px solid var(--retro-border);
+  border-radius: 4px;
+  padding: 20px;
+  margin-bottom: 30px;
+  font-family: var(--retro-font);
+  color: var(--retro-green);
+}
+
+.explanation h3 {
+  color: var(--retro-green-bright);
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.3em;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+}
+
+.explanation p {
+  line-height: 1.6;
+  margin-bottom: 15px;
+}
+
+.explanation ul {
+  margin: 15px 0;
+  padding-left: 25px;
+}
+
+.explanation li {
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.explanation strong {
+  color: var(--retro-green-bright);
+  font-weight: bold;
+}
+
+/* ==================== Learn Tab Styles ==================== */
+.learnContent {
+  color: var(--retro-text);
+}
+
+.concept {
+  margin-bottom: 2.5rem;
+}
+
+.concept h2 {
+  color: var(--retro-pink);
+  font-family: var(--retro-font);
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.concept h3 {
+  color: var(--retro-cyan);
+  font-family: var(--retro-font);
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.concept p {
+  line-height: 1.8;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+}
+
+.concept strong {
+  color: var(--retro-pink);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.concept em {
+  color: var(--retro-yellow);
+  font-style: italic;
+}
+
+/* ==================== Definition/Theorem Boxes ==================== */
+.definition,
+.theorem {
+  background: rgba(0, 255, 255, 0.05);
+  border: 1px solid var(--retro-cyan);
+  padding: 1.25rem;
+  margin: 1.5rem 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.theorem {
+  background: rgba(255, 255, 0, 0.05);
+  border-color: var(--retro-yellow);
+}
+
+.definition::before,
+.theorem::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--retro-cyan),
+    transparent
+  );
+  animation: scan-line 2s linear infinite;
+}
+
+.theorem::before {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--retro-yellow),
+    transparent
+  );
+}
+
+@keyframes scan-line {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ==================== Examples Grid ==================== */
+.examples {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.example {
+  background: rgba(255, 0, 255, 0.05);
+  border: 1px solid var(--retro-magenta);
+  padding: 1.25rem;
+}
+
+.example h3 {
+  color: var(--retro-magenta);
+  font-family: var(--retro-font);
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.example ul {
+  list-style: none;
+  padding: 0;
+}
+
+.example li {
+  padding: 0.5rem 0;
+  padding-left: 1.5rem;
+  position: relative;
+  color: var(--retro-text-secondary);
+}
+
+.example li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--retro-pink);
+  text-shadow: 0 0 5px currentColor;
+}
+
+/* ==================== Compact Hausdorff Explorer Specific Styles ==================== */
+.container {
+  padding: 20px;
+  color: var(--retro-text);
+  font-family: var(--retro-font);
+}
+
+.header {
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid var(--retro-border);
+}
+
+.header h2 {
+  color: var(--retro-cyan);
+  margin-bottom: 10px;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+}
+
+.header p {
+  line-height: 1.6;
+  color: var(--retro-text-secondary);
+}
+
+.controls {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 30px;
+  padding: 15px;
+  background: rgba(0, 255, 0, 0.05);
+  border: 1px solid var(--retro-border);
+  border-radius: 4px;
+}
+
+.label {
+  font-weight: bold;
+  color: var(--retro-cyan);
+}
+
+.select {
+  padding: 8px 12px;
+  background: var(--retro-bg-dark);
+  color: var(--retro-text-secondary);
+  border: 2px solid var(--retro-border);
+  border-radius: 0;
+  font-family: var(--retro-font);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.select:hover {
+  background: rgba(255, 0, 128, 0.05);
+  border-color: var(--retro-pink);
+  color: var(--retro-pink);
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--retro-pink);
+  box-shadow: 0 0 10px rgba(255, 0, 128, 0.3);
+}
+
+.button {
+  padding: 8px 16px;
+  background: var(--retro-bg-dark);
+  color: var(--retro-text-secondary);
+  border: 2px solid var(--retro-border);
+  border-radius: 0;
+  font-family: var(--retro-font);
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.button:hover {
+  background: rgba(255, 0, 128, 0.1);
+  color: var(--retro-pink);
+  border-color: var(--retro-pink);
+  box-shadow: 0 0 10px rgba(255, 0, 128, 0.3);
+  transform: translateY(-2px);
+}
+
+.gridContent {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+.spaceInfo {
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--retro-border);
+  border-radius: 0;
+}
+
+.spaceInfo h3 {
+  color: var(--retro-cyan);
+  margin-bottom: 15px;
+  text-shadow: 0 0 3px rgba(0, 255, 255, 0.5);
+}
+
+.description {
+  line-height: 1.6;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+}
+
+.section {
+  margin-bottom: 25px;
+}
+
+.section h4 {
+  color: var(--retro-cyan);
+  margin-bottom: 10px;
+  font-size: 1.1em;
+}
+
+.list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.list li {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.theorems {
+  padding: 25px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px solid var(--retro-border);
+  border-radius: 0;
+}
+
+.theorems h3 {
+  color: var(--retro-cyan);
+  margin-bottom: 20px;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+}
+
+.theoremItem {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: rgba(255, 255, 0, 0.05);
+  border-left: 3px solid var(--retro-yellow);
+  border-radius: 0;
+}
+
+.theoremItem h4 {
+  color: var(--retro-yellow);
+  margin-bottom: 10px;
+}
+
+.theoremItem p {
+  line-height: 1.6;
+  margin: 0;
+}
+
+.theoremItem:last-child {
+  margin-bottom: 0;
+}
+
+/* ==================== Hierarchy and Special Containers ==================== */
+.hierarchyContainer {
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+  padding: 2rem;
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+}
+
+.hierarchyTitle {
+  text-align: left;
+  color: var(--retro-cyan);
+  margin-bottom: 2rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-family: var(--retro-font);
+}
+
+.hierarchyContent {
+  position: relative;
+  min-height: 400px;
+}
+
+.axisLabel {
+  position: absolute;
+  left: -1rem;
+  top: 50%;
+  transform: rotate(-90deg) translateX(-50%);
+  transform-origin: center;
+  color: var(--retro-cyan);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  font-family: var(--retro-font);
+}
+
+.levelContainer {
+  padding-left: 2rem;
+  position: relative;
+}
+
+.cardinalLevel {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: rgba(0, 255, 255, 0.02);
+  border: 1px solid var(--retro-border);
+  border-left: 3px solid var(--retro-cyan);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.cardinalLevel:hover {
+  background: rgba(0, 255, 255, 0.08);
+  transform: translateX(5px);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+}
+
+.cardinalLevelActive {
+  background: rgba(0, 255, 255, 0.12);
+  border-left-color: var(--retro-pink);
+  box-shadow: 0 0 30px rgba(255, 0, 128, 0.3);
+}
+
+.cardinalHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.cardinalName {
+  color: var(--retro-cyan);
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-shadow: 0 0 5px currentColor;
+  font-family: var(--retro-font);
+}
+
+.cardinalProperties {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.propertyTag {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  font-size: 0.85rem;
+  color: var(--retro-text-secondary);
+  font-family: var(--retro-font);
+}
+
+.strengthIndicator {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--retro-yellow);
+  font-size: 0.9rem;
+  font-family: var(--retro-font);
+}
+
+.legendBox {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--retro-border);
+  text-align: left;
+}
+
+.legendText {
+  margin: 0.25rem;
+  color: var(--retro-text-secondary);
+  font-family: var(--retro-font);
+}
+
+.philosophicalSection {
+  margin-top: 2rem;
+}
+
+.philosophicalContent {
+  margin-bottom: 1rem;
+  line-height: 1.6;
+  font-family: var(--retro-font);
+}
+
+.philosophicalQuote {
+  border-left: 3px solid var(--retro-cyan);
+  padding-left: 1rem;
+  font-style: italic;
+  color: var(--retro-text-secondary);
+  font-family: var(--retro-font);
+}
+
+.symbol {
+  display: block;
+  font-size: 2rem;
+  color: var(--retro-yellow);
+  text-align: left;
+  margin: 1rem 0;
+  text-shadow: 0 0 10px currentColor;
+  font-family: var(--retro-font);
+}
+
+.setCardLarge {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1.5rem;
+  text-align: left;
+  min-width: 200px;
+  min-height: 400px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  flex: 1;
+  font-family: var(--retro-font);
+}
+
+.setCardLarge h4 {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 5px var(--retro-cyan);
+  margin-bottom: 1rem;
+  font-family: var(--retro-font);
+}
+
+.setCardLarge p {
+  font-family: var(--retro-font);
+  color: var(--retro-text-secondary);
+}
+
+/* ==================== Module Wrapper/Container Styles ==================== */
+.modulesWrapper {
+  width: 100%;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.moduleContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 1rem 0;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==================== Responsive Design ==================== */
+@media (max-width: 900px) {
+  .gridContent {
+    grid-template-columns: 1fr;
+  }
+  
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .select, .button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .module {
+    padding: 1rem;
+  }
+
+  .tabs {
+    flex-direction: column;
+  }
+
+  .tab {
+    width: 100%;
+    text-align: center;
+  }
+
+  .content {
+    padding: 1rem;
+  }
+
+  .setInfo {
+    flex-direction: column;
+  }
+
+  .bijectionButtons {
+    flex-direction: column;
+  }
+
+  .bijectionButton {
+    width: 100%;
+  }
+
+  .concept {
+    padding: 1rem;
+  }
+
+  .examples {
+    grid-template-columns: 1fr;
+  }
+
+  .moduleContainer {
+    gap: 1.5rem;
+    padding: 0.5rem 0;
+  }
+
+  .selectorRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .selectorControl {
+    width: 100%;
+    max-width: none;
+  }
+}

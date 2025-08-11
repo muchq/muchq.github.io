@@ -32,8 +32,8 @@ const Navigation = ({ className }: NavigationProps) => {
         <Link to="/" className={`${styles.navLogo} nav-logo`}>MuchQ</Link>
         <ul className={`${styles.navMenu} ${isMobileMenuOpen ? styles.active : ''}`}>
           <li className={`${styles.navItem} nav-item ${expandedItems.has('projects') ? styles.expanded : ''}`}>
-            <a 
-              href="#" 
+            <a
+              href="#"
               className={styles.navLink}
               onClick={(e) => {
                 if (window.innerWidth <= 768) {
@@ -52,8 +52,8 @@ const Navigation = ({ className }: NavigationProps) => {
             </div>
           </li>
           <li className={`${styles.navItem} nav-item ${expandedItems.has('interests') ? styles.expanded : ''}`}>
-            <a 
-              href="#" 
+            <a
+              href="#"
               className={styles.navLink}
               onClick={(e) => {
                 if (window.innerWidth <= 768) {
@@ -68,8 +68,9 @@ const Navigation = ({ className }: NavigationProps) => {
             <div className={styles.dropdown}>
               <a href="#" className={styles.dropdownItem}>Music</a>
               <a href="#" className={styles.dropdownItem}>Math</a>
-              <Link to="/groups" className={styles.dropdownItem}>→ Groups</Link>
-              <Link to="/sets" className={styles.dropdownItem}>→ Sets</Link>
+              <Link to="/groups" className={styles.dropdownItem}>→ Grp</Link>
+              <Link to="/sets" className={styles.dropdownItem}>→ Set</Link>
+              <Link to="/top" className={styles.dropdownItem}>→ Top</Link>
               <a href="#" className={styles.dropdownItem}>Chess</a>
               <a href="#" className={styles.dropdownItem}>Space</a>
             </div>
@@ -78,8 +79,8 @@ const Navigation = ({ className }: NavigationProps) => {
             <a href="#" className={styles.navLink}>Blog</a>
           </li>
           <li className={`${styles.navItem} nav-item ${expandedItems.has('games') ? styles.expanded : ''}`}>
-            <a 
-              href="#" 
+            <a
+              href="#"
               className={styles.navLink}
               onClick={(e) => {
                 if (window.innerWidth <= 768) {
