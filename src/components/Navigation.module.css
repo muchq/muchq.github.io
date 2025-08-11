@@ -72,6 +72,14 @@
   padding: 8px 0;
 }
 
+.accordionIcon {
+  display: none;
+  float: right;
+  transition: transform 0.3s ease;
+  font-size: 20px;
+  line-height: 1;
+}
+
 .navItem:hover .dropdown {
   opacity: 1;
   visibility: visible;
@@ -116,6 +124,8 @@
     visibility: hidden;
     transform: translateY(-20px);
     transition: all 0.3s ease;
+    max-height: 80vh;
+    overflow-y: auto;
   }
 
   .navMenu.active {
@@ -135,21 +145,50 @@
   .navLink {
     padding: 12px 0;
     border-bottom: 1px solid rgba(68, 68, 68, 0.1);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .accordionIcon {
+    display: inline-block;
+  }
+
+  .navItem.expanded .accordionIcon {
+    transform: rotate(90deg);
   }
 
   .dropdown {
     position: static;
-    opacity: 1;
-    visibility: visible;
+    opacity: 0;
+    visibility: hidden;
     transform: none;
     box-shadow: none;
     border: none;
     background: rgba(68, 68, 68, 0.02);
-    margin-top: 8px;
+    margin-top: 0;
     border-radius: 4px;
+    max-height: 0;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    padding: 0;
+  }
+
+  .navItem.expanded .dropdown {
+    opacity: 1;
+    visibility: visible;
+    max-height: 500px;
+    margin-top: 8px;
+    padding: 8px 0;
   }
 
   .navItem:hover .dropdown {
     transform: none;
+  }
+
+  .dropdownItem {
+    padding: 10px 20px;
+    font-size: 14px;
   }
 }

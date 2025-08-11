@@ -37,10 +37,6 @@ const SetsPage = () => {
         <header className={styles.header}>
           <h1 className={styles.title}>Foundations of Set Theory</h1>
           <p className={styles.subtitle}>Interactive Learning Experience</p>
-          <div className={styles.progressBar}>
-            <div className={styles.progressFill} style={{ width: `${progress}%` }} />
-            <span className={styles.progressText}>{Math.round(progress)}% Complete</span>
-          </div>
         </header>
 
         <nav className={styles.tabs}>
@@ -138,12 +134,7 @@ const SetsPage = () => {
               <section className={styles.section}>
                 <h2>Welcome to Set Theory</h2>
                 <p className={styles.lead}>
-                  Embark on a journey through the foundations of mathematics. This comprehensive course
-                  progresses from basic concepts to advanced topics, with interactive tools and
-                  visualizations to build deep understanding.
-                </p>
-                <p className={styles.citation}>
-                  Based on Charles Pinter's "A Book of Set Theory"
+                  Embark on a journey through the foundations of mathematics.
                 </p>
               </section>
 

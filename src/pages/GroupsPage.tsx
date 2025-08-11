@@ -23,10 +23,6 @@ const GroupsPage = () => {
         <header className={styles.header}>
           <h1 className={styles.title}>Permutation Groups</h1>
           <p className={styles.subtitle}>Interactive Learning Module</p>
-          <div className={styles.progressBar}>
-            <div className={styles.progressFill} style={{ width: `${progress}%` }} />
-            <span className={styles.progressText}>{Math.round(progress)}% Complete</span>
-          </div>
         </header>
 
         <nav className={styles.tabs}>
