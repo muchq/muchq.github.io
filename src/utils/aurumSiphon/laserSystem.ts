@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { ProceduralSpace } from './proceduralSpace'
 
 interface Laser {
-  mesh: THREE.Mesh
+  mesh: THREE.Object3D
   velocity: THREE.Vector3
   lifeTime: number
 }
@@ -10,53 +10,78 @@ interface Laser {
 export class LaserSystem {
   private scene: THREE.Scene
   private lasers: Laser[] = []
-  private laserGeometry: THREE.CylinderGeometry
+  private laserGeometry: THREE.SphereGeometry
   private laserMaterial: THREE.MeshBasicMaterial
   private explosionParticles: THREE.Points[] = []
   
   constructor(scene: THREE.Scene) {
     this.scene = scene
     
-    this.laserGeometry = new THREE.CylinderGeometry(0.1, 0.1, 5, 8)
+    // Make MUCH larger glowing spheres
+    this.laserGeometry = new THREE.SphereGeometry(8, 16, 16)
     this.laserMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff0000,
-      transparent: true,
-      opacity: 0.9
+      color: 0x00ff00,  // Bright green for maximum visibility
+      transparent: false,
+      opacity: 1.0
     })
   }
   
   shoot(position: THREE.Vector3, direction: THREE.Vector3) {
+    // Normalize direction
+    const normalizedDir = direction.clone().normalize()
+    
+    // Create a group for the laser bolt with trail
+    const laserGroup = new THREE.Group()
+    
+    // Main laser sphere
     const laser = new THREE.Mesh(this.laserGeometry.clone(), this.laserMaterial.clone())
+    laserGroup.add(laser)
     
-    laser.position.copy(position)
-    laser.position.add(direction.clone().multiplyScalar(5))
+    // Add trail spheres - make them proportionally larger too
+    for (let i = 1; i <= 3; i++) {
+      const trailGeometry = new THREE.SphereGeometry(8 - i * 1.5, 8, 8)
+      const trailMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00ff00,
+        transparent: true,
+        opacity: 1.0 - i * 0.25
+      })
+      const trail = new THREE.Mesh(trailGeometry, trailMaterial)
+      trail.position.z = -i * 10  // Position behind the main sphere
+      laserGroup.add(trail)
+    }
     
-    laser.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction)
+    // Start the laser further in front of the ship due to its larger size
+    laserGroup.position.copy(position)
+    laserGroup.position.add(normalizedDir.clone().multiplyScalar(25))
     
-    const laserLight = new THREE.PointLight(0xff0000, 2, 10)
-    laser.add(laserLight)
+    // Orient the group to face the direction of travel
+    laserGroup.lookAt(laserGroup.position.clone().add(normalizedDir))
     
-    this.scene.add(laser)
+    // Add a VERY bright light to make the laser glow
+    const laserLight = new THREE.PointLight(0x00ff00, 50, 100)
+    laserGroup.add(laserLight)
+    
+    this.scene.add(laserGroup)
     
     this.lasers.push({
-      mesh: laser,
-      velocity: direction.clone().multiplyScalar(5),
-      lifeTime: 100
+      mesh: laserGroup,
+      velocity: normalizedDir.clone().multiplyScalar(50),
+      lifeTime: 200
     })
     
     this.createMuzzleFlash(position, direction)
   }
   
   private createMuzzleFlash(position: THREE.Vector3, direction: THREE.Vector3) {
-    const flashGeometry = new THREE.SphereGeometry(1, 8, 8)
+    const flashGeometry = new THREE.SphereGeometry(3, 8, 8)
     const flashMaterial = new THREE.MeshBasicMaterial({
       color: 0xffaa00,
       transparent: true,
-      opacity: 0.8
+      opacity: 1.0
     })
     const flash = new THREE.Mesh(flashGeometry, flashMaterial)
     flash.position.copy(position)
-    flash.position.add(direction.clone().multiplyScalar(3))
+    flash.position.add(direction.clone().normalize().multiplyScalar(5))
     this.scene.add(flash)
     
     let flashTime = 0
@@ -90,7 +115,8 @@ export class LaserSystem {
           ((spaceObject.mesh.children[0] as THREE.Mesh)?.geometry as THREE.SphereGeometry)?.parameters?.radius || 20 :
           spaceObject.type === 'asteroid' ? 5 : 8
         
-        if (distance < hitRadius) {
+        // Add laser radius (8) to hit detection
+        if (distance < hitRadius + 8) {
           this.createExplosion(spaceObject.mesh.position.clone(), spaceObject.type)
           spaceObject.destroyed = true
           hit = true
@@ -98,9 +124,9 @@ export class LaserSystem {
         }
       }
       
-      if (hit || laser.lifeTime <= 0 || laser.mesh.position.length() > 500) {
+      if (hit || laser.lifeTime <= 0 || laser.mesh.position.length() > 2000) {
         this.scene.remove(laser.mesh)
-        laser.mesh.traverse((child) => {
+        laser.mesh.traverse((child: THREE.Object3D) => {
           if (child instanceof THREE.Mesh) {
             child.geometry?.dispose()
             if (child.material instanceof THREE.Material) {
@@ -201,7 +227,7 @@ export class LaserSystem {
   cleanup() {
     this.lasers.forEach(laser => {
       this.scene.remove(laser.mesh)
-      laser.mesh.traverse((child) => {
+      laser.mesh.traverse((child: THREE.Object3D) => {
         if (child instanceof THREE.Mesh) {
           child.geometry?.dispose()
           if (child.material instanceof THREE.Material) {

@@ -283,13 +283,13 @@ export class ProceduralSpace {
       // Remove if destroyed
       if (obj.destroyed) {
         this.scene.remove(obj.mesh)
-        obj.mesh.traverse((child) => {
+        obj.mesh.traverse((child: THREE.Object3D) => {
           if (child instanceof THREE.Mesh) {
             child.geometry?.dispose()
             if (child.material instanceof THREE.Material) {
               child.material.dispose()
             } else if (Array.isArray(child.material)) {
-              child.material.forEach(m => m.dispose())
+              child.material.forEach((m: THREE.Material) => m.dispose())
             }
           }
         })
@@ -307,7 +307,7 @@ export class ProceduralSpace {
 
       // Animate UFO lights
       if (obj.type === 'ufo') {
-        obj.mesh.children.forEach((child, index) => {
+        obj.mesh.children.forEach((child: THREE.Object3D, index: number) => {
           if (index > 1 && child instanceof THREE.Mesh) { // Skip body and dome
             const material = child.material as THREE.MeshBasicMaterial
             material.opacity = Math.sin(now * 0.01 + index) * 0.3 + 0.7
