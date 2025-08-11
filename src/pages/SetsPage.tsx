@@ -11,7 +11,6 @@ import styles from './SetsPage.module.css'
 const SetsPage = () => {
   const [activeModule, setActiveModule] = useState('overview')
   const [completedModules, setCompletedModules] = useState<Set<string>>(new Set())
-  const [progress, setProgress] = useState(0)
 
   useEffect(() => {
     const saved = localStorage.getItem('setsProgress')
@@ -22,7 +21,6 @@ const SetsPage = () => {
 
   useEffect(() => {
     localStorage.setItem('setsProgress', JSON.stringify(Array.from(completedModules)))
-    setProgress((completedModules.size / 10) * 100)
   }, [completedModules])
 
   const markComplete = (module: string) => {

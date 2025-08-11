@@ -10,7 +10,6 @@ const GroupsPage = () => {
   const {
     activeTab,
     setActiveTab,
-    progress,
     markComplete,
     isCompleted
   } = useGroupsLearning()
