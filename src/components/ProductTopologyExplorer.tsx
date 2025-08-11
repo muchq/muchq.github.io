@@ -41,7 +41,6 @@ const ProductTopologyExplorer: React.FC = () => {
   const [selectedPoint, setSelectedPoint] = useState<{ x: number; y: number } | null>(null);
   const [highlightedSet, setHighlightedSet] = useState<OpenSet | null>(null);
   // const [continuousOpenSets] = useState<ContinuousOpenSet[]>([]);
-  // @ts-expect-error - animationTime is set but not currently used
   const [_animationTime, setAnimationTime] = useState(0);
   
   // 3D visualization state
@@ -341,7 +340,7 @@ const ProductTopologyExplorer: React.FC = () => {
         const elevation = 0.3 * (1 - setSize / maxSize) + 0.1;
         
         // Draw the open set as elevated colored regions
-        const setPoints: Array<{x: number, y: number, projected: {x: number, y: number}}> = [];
+        const setPoints: Array<{x: number, y: number, projected: {x: number, y: number, z: number, scale: number}}> = [];
         projectedPoints.forEach(p => {
           if (isPointInOpenSet({ x: p.gridX, y: p.gridY }, set)) {
             const elevated = project3D(p.original.x, p.original.y, elevation, width, height);
@@ -1018,7 +1017,7 @@ const ProductTopologyExplorer: React.FC = () => {
             <label>Space Type:</label>
             <Select
               value={spaceTypeOptions.find(o => o.value === spaceType)}
-              onChange={(option) => option && setSpaceType(option.value)}
+              onChange={(option) => option && setSpaceType(option.value as SpaceType)}
               options={spaceTypeOptions}
               styles={customSelectStyles}
               isSearchable={false}
@@ -1031,7 +1030,7 @@ const ProductTopologyExplorer: React.FC = () => {
                 <label>X Topology:</label>
                 <Select
                   value={topologyOptions.find(o => o.value === xTopology)}
-                  onChange={(option) => option && setXTopology(option.value)}
+                  onChange={(option) => option && setXTopology(option.value as TopologyType)}
                   options={topologyOptions}
                   styles={customSelectStyles}
                   isSearchable={false}
@@ -1042,7 +1041,7 @@ const ProductTopologyExplorer: React.FC = () => {
                 <label>Y Topology:</label>
                 <Select
                   value={topologyOptions.find(o => o.value === yTopology)}
-                  onChange={(option) => option && setYTopology(option.value)}
+                  onChange={(option) => option && setYTopology(option.value as TopologyType)}
                   options={topologyOptions}
                   styles={customSelectStyles}
                   isSearchable={false}
@@ -1053,7 +1052,7 @@ const ProductTopologyExplorer: React.FC = () => {
                 <label>Product Type:</label>
                 <Select
                   value={productTypeOptions.find(o => o.value === productType)}
-                  onChange={(option) => option && setProductType(option.value)}
+                  onChange={(option) => option && setProductType(option.value as ProductType)}
                   options={productTypeOptions}
                   styles={customSelectStyles}
                   isSearchable={false}
@@ -1066,7 +1065,7 @@ const ProductTopologyExplorer: React.FC = () => {
                 <label>First Space (X):</label>
                 <Select
                   value={continuousSpaceOptions.find(o => o.value === xContinuousSpace)}
-                  onChange={(option) => option && setXContinuousSpace(option.value)}
+                  onChange={(option) => option && setXContinuousSpace(option.value as ContinuousSpaceType)}
                   options={continuousSpaceOptions}
                   styles={customSelectStyles}
                   isSearchable={false}
@@ -1077,7 +1076,7 @@ const ProductTopologyExplorer: React.FC = () => {
                 <label>Second Space (Y):</label>
                 <Select
                   value={continuousSpaceOptions.find(o => o.value === yContinuousSpace)}
-                  onChange={(option) => option && setYContinuousSpace(option.value)}
+                  onChange={(option) => option && setYContinuousSpace(option.value as ContinuousSpaceType)}
                   options={continuousSpaceOptions}
                   styles={customSelectStyles}
                   isSearchable={false}
@@ -1088,7 +1087,7 @@ const ProductTopologyExplorer: React.FC = () => {
                 <label>Product Type:</label>
                 <Select
                   value={productTypeOptions.find(o => o.value === productType)}
-                  onChange={(option) => option && setProductType(option.value)}
+                  onChange={(option) => option && setProductType(option.value as ProductType)}
                   options={productTypeOptions}
                   styles={customSelectStyles}
                   isSearchable={false}

@@ -1,7 +1,7 @@
 import { StylesConfig } from 'react-select';
 
 // Base styles that work with any option type
-const createBaseSelectStyles = <OptionType extends { value: string; label: string }>(): StylesConfig<OptionType, false> => ({
+const createBaseSelectStyles = <OptionType extends { value: string | number; label: string }>(): StylesConfig<OptionType, false> => ({
   control: (provided, state) => ({
     ...provided,
     backgroundColor: '#0a0a0a',
@@ -105,7 +105,7 @@ const createBaseSelectStyles = <OptionType extends { value: string; label: strin
 });
 
 // Pink/Magenta variant for special modules
-const createPinkSelectStyles = <OptionType extends { value: string; label: string }>(): StylesConfig<OptionType, false> => ({
+const createPinkSelectStyles = <OptionType extends { value: string | number; label: string }>(): StylesConfig<OptionType, false> => ({
   control: (provided, state) => ({
     ...provided,
     backgroundColor: '#0a0a0a',
