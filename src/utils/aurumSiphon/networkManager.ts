@@ -57,7 +57,7 @@ export class NetworkManager {
       return
     }
 
-    const wsUrl = url || import.meta.env.VITE_AURUM_SIPHON_WEBSOCKET_URL || 'ws://localhost:8080/aurum-siphon-ws'
+    const wsUrl = url || import.meta.env.VITE_AURUM_SIPHON_WEBSOCKET_URL || 'ws://localhost:8080/aurum-ws'
     
     try {
       this.ws = new WebSocket(wsUrl)

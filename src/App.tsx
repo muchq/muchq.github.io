@@ -14,7 +14,7 @@ function App() {
       <Route path="/groups" element={<GroupsPage />} />
       <Route path="/sets" element={<SetsPage />} />
       <Route path="/golf" element={<GolfPage />} />
-      <Route path="/aurum-siphon" element={<AurumSiphonPage />} />
+      <Route path="/aurum" element={<AurumSiphonPage />} />
     </Routes>
   )
 }
