@@ -13,6 +13,7 @@
   align-items: flex-start;
   justify-content: center;
   padding: 1rem;
+  padding-top: 60px;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
@@ -20,8 +21,10 @@
 
 @media (max-width: 768px) {
   .content {
-    padding: 0.5rem;
+    padding: 0;
+    padding-top: 60px;
     align-items: flex-start;
-    padding-top: 1rem;
+    overflow-y: hidden;
+    height: 100vh;
   }
 }

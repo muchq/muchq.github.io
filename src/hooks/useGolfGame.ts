@@ -219,7 +219,7 @@ export const useGolfGame = ({
         clearTimeout(notificationTimeoutRef.current)
       }
     }
-  }, [onGameIdChange, onPlayerIdChange, onConnectionChange, showNotification])
+  }, [onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, showNotification])
 
   // Handle peek countdown when all players have peeked
   useEffect(() => {
