@@ -41,12 +41,17 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
 
   const renderCard = (card: Card | null, index: number, isRevealed: boolean, isPlayer: boolean) => {
     const isSelected = selectedCardIndex === index
+    const canInteract = isPlayer && (isMyTurn || (currentPlayer && !currentPlayer.hasPeeked && gameState?.gamePhase === 'playing'))
 
     return (
       <div
         key={index}
-        className={`${styles.card} ${isSelected ? styles.selected : ''} ${isRevealed ? styles.revealed : ''}`}
-        onClick={() => isPlayer && handleCardClick(index)}
+        className={`${styles.card} ${isSelected ? styles.selected : ''} ${isRevealed ? styles.revealed : ''} ${canInteract ? styles.interactive : ''}`}
+        onClick={() => canInteract && handleCardClick(index)}
+        onTouchEnd={(e) => {
+          e.preventDefault()
+          if (canInteract) handleCardClick(index)
+        }}
       >
         {isRevealed && card ? (
           <>
@@ -254,6 +259,10 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
                 <div 
                   className={`${styles.card} ${isMyTurn && !gameState.drawnCard ? styles.clickable : ''}`}
                   onClick={() => isMyTurn && !gameState.drawnCard && drawCard()}
+                  onTouchEnd={(e) => {
+                    e.preventDefault()
+                    if (isMyTurn && !gameState.drawnCard) drawCard()
+                  }}
                 >
                   <span className={styles.cardBack}>?</span>
                   <span className={styles.cardCount}>{gameState.drawPile}</span>
@@ -266,6 +275,10 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
                   <div 
                     className={`${isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0 ? styles.clickable : ''}`}
                     onClick={() => isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0 && takeFromDiscard()}
+                    onTouchEnd={(e) => {
+                      e.preventDefault()
+                      if (isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0) takeFromDiscard()
+                    }}
                   >
                     {renderCard(gameState.discardPile[gameState.discardPile.length - 1], -1, true, false)}
                   </div>
