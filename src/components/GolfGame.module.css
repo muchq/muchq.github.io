@@ -514,15 +514,12 @@
   }
 
   .gameContainer {
-    padding: 0.25rem;
-    height: calc(100vh - 60px);
-    display: flex;
-    flex-direction: column;
+    padding: 0.5rem;
   }
 
   .gameHeader {
-    margin-bottom: 0.5rem;
-    padding: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
   }
 
   .gameHeader h2 {
@@ -542,13 +539,9 @@
   }
 
   .gameArea {
-    gap: 0.75rem;
+    gap: 1rem;
     padding: 0.5rem;
     width: 100%;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
   }
 
   .tableArea {
@@ -569,14 +562,14 @@
   }
 
   .pile h3 {
-    font-size: 0.7rem;
-    margin-bottom: 0.25rem;
+    font-size: 0.8rem;
+    margin-bottom: 0.4rem;
   }
 
   .card {
-    width: 60px;
-    height: 85px;
-    font-size: 1rem;
+    width: 70px;
+    height: 100px;
+    font-size: 1.1rem;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
@@ -597,50 +590,46 @@
   }
 
   .cardRank {
-    font-size: 1.3rem;
-  }
-
-  .cardSuit {
-    font-size: 1rem;
-    bottom: 0.3rem;
-    right: 0.3rem;
-  }
-
-  .cardBack {
     font-size: 1.5rem;
   }
 
+  .cardSuit {
+    font-size: 1.2rem;
+    bottom: 0.4rem;
+    right: 0.4rem;
+  }
+
+  .cardBack {
+    font-size: 1.8rem;
+  }
+
   .cardGrid {
-    gap: 0.5rem;
+    gap: 0.8rem;
     grid-template-columns: repeat(2, 1fr);
-    max-width: 140px;
+    max-width: 170px;
     margin: 0 auto;
     padding: 0;
   }
 
   .emptyPile {
-    width: 60px;
-    height: 85px;
+    width: 70px;
+    height: 100px;
   }
 
   .playerArea {
-    padding: 0.75rem;
+    padding: 1rem;
     width: 100%;
     max-width: 100%;
   }
 
   .playerArea h3 {
-    font-size: 0.9rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .playerArea .cardGrid {
+    font-size: 1rem;
     margin-bottom: 0.75rem;
   }
 
   .actions {
-    gap: 0.5rem;
-    margin-top: 0;
+    gap: 0.75rem;
+    margin-top: 1rem;
     width: 100%;
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -648,11 +637,11 @@
 
   .actionButton,
   .knockButton {
-    padding: 0.6rem 0.75rem;
-    font-size: 0.85rem;
-    min-height: 40px;
+    padding: 0.9rem 1rem;
+    font-size: 0.95rem;
+    min-height: 48px;
     width: 100%;
-    border-radius: 0.5rem;
+    border-radius: 0.75rem;
   }
 
   .knockButton {
@@ -736,8 +725,7 @@
 
 @media (max-width: 480px) {
   .title {
-    font-size: 1.5rem;
-    margin-bottom: 0.75rem;
+    font-size: 1.75rem;
   }
 
   .lobbyContent {
@@ -745,49 +733,47 @@
   }
 
   .gameContainer {
-    padding: 0.2rem;
+    padding: 0.5rem;
   }
 
   .gameHeader {
-    margin-bottom: 0.25rem;
-    padding: 0.4rem;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
   }
 
   .gameHeader h2 {
-    font-size: 0.8rem;
+    font-size: 1rem;
   }
 
   .playerList {
-    gap: 0.2rem;
+    gap: 0.5rem;
   }
 
   .playerInfo {
-    font-size: 0.7rem;
-    padding: 0.15rem 0.3rem;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.5rem;
   }
 
   .gameArea {
-    gap: 0.5rem;
-    padding: 0.25rem;
+    gap: 1rem;
+    padding: 0.5rem;
   }
 
   .card {
-    width: 50px;
-    height: 70px;
+    width: 55px;
+    height: 80px;
   }
 
   .cardRank {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
   }
 
   .cardSuit {
-    font-size: 0.9rem;
-    bottom: 0.2rem;
-    right: 0.2rem;
+    font-size: 1rem;
   }
 
   .cardBack {
-    font-size: 1.2rem;
+    font-size: 1.4rem;
   }
 
   .piles {
@@ -795,18 +781,17 @@
   }
 
   .pile h3 {
-    font-size: 0.65rem;
-    margin-bottom: 0.2rem;
+    font-size: 0.75rem;
   }
 
   .emptyPile {
-    width: 50px;
-    height: 70px;
+    width: 55px;
+    height: 80px;
   }
 
   .cardGrid {
-    max-width: 110px;
-    gap: 0.4rem;
+    max-width: 130px;
+    gap: 0.6rem;
   }
 
   .primaryButton,
@@ -819,40 +804,23 @@
   }
 
   .playerArea {
-    padding: 0.5rem;
-  }
-
-  .playerArea h3 {
-    font-size: 0.8rem;
-    margin-bottom: 0.4rem;
+    padding: 0.75rem;
   }
 
   .playerArea .cardGrid {
-    max-width: 110px;
-    margin-bottom: 0.5rem;
+    max-width: 130px;
   }
 
   .actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
   }
 
   .actionButton,
   .knockButton {
     width: 100%;
-    padding: 0.5rem 0.6rem;
-    font-size: 0.8rem;
-    min-height: 36px;
-  }
-
-  .knockButton {
-    grid-column: span 2;
-  }
-
-  .peekHint {
-    margin-top: 0.4rem;
-    font-size: 0.75rem;
+    padding: 0.85rem;
   }
 }
 

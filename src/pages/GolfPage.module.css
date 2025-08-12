@@ -21,10 +21,8 @@
 
 @media (max-width: 768px) {
   .content {
-    padding: 0;
+    padding: 0.5rem;
     padding-top: 60px;
     align-items: flex-start;
-    overflow-y: hidden;
-    height: 100vh;
   }
 }
