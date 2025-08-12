@@ -216,16 +216,31 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
       {gameState.gamePhase === 'ended' && (
         <div className={styles.gameEndOverlay}>
           <div className={styles.gameEndContent}>
-            <h3>🏆 Game Over!</h3>
-            {winner && <div className={styles.winner}>Winner: {winner}</div>}
+            <div className={styles.celebration}>
+              <span className={styles.trophy}>🏆</span>
+              <h2 className={styles.gameOverTitle}>Game Over!</h2>
+            </div>
+            {winner && (
+              <div className={styles.winnerSection}>
+                <div className={styles.confetti}>🎉 🎊 🎉</div>
+                <div className={styles.winner}>
+                  <span className={styles.winnerLabel}>Congratulations</span>
+                  <span className={styles.winnerName}>{winner}!</span>
+                  <span className={styles.winnerMessage}>You've won with the lowest score!</span>
+                </div>
+              </div>
+            )}
             <div className={styles.finalScores}>
+              <h3 className={styles.scoresTitle}>Final Scores</h3>
               {gameState.players
                 .sort((a, b) => a.score - b.score)
                 .map((player, index) => (
-                  <div key={player.id} className={styles.scoreRow}>
-                    <span className={styles.rank}>#{index + 1}</span>
+                  <div key={player.id} className={`${styles.scoreRow} ${index === 0 ? styles.winnerRow : ''}`}>
+                    <span className={styles.rank}>
+                      {index === 0 ? '👑' : `#${index + 1}`}
+                    </span>
                     <span className={styles.playerName}>{player.name}</span>
-                    <span className={styles.finalScore}>{player.score}</span>
+                    <span className={styles.finalScore}>{player.score} pts</span>
                   </div>
                 ))}
             </div>
@@ -243,7 +258,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
                 onClick={startGame} 
                 className={styles.secondaryButton}
               >
-                New Game
+                Play Again
               </button>
             </div>
           </div>
