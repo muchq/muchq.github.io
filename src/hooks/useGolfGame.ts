@@ -5,6 +5,7 @@ import { GolfNetworkAdapter } from '@/utils/networkAdapter'
 interface UseGolfGameProps {
   onGameIdChange?: (id: string | null) => void
   onPlayerIdChange?: (id: string | null) => void
+  onPlayerNameChange?: (name: string | null) => void
   onConnectionChange?: (connected: boolean) => void
 }
 
@@ -42,6 +43,7 @@ interface UseGolfGameReturn {
 export const useGolfGame = ({
   onGameIdChange,
   onPlayerIdChange,
+  onPlayerNameChange,
   onConnectionChange
 }: UseGolfGameProps = {}): UseGolfGameReturn => {
   const [gameState, setGameState] = useState<GameState | null>(null)
@@ -181,6 +183,8 @@ export const useGolfGame = ({
         setIsInLobby(false)
         onGameIdChange?.(newGameState.id)
         onPlayerIdChange?.(newPlayerId)
+        const player = newGameState.players.find(p => p.id === newPlayerId)
+        onPlayerNameChange?.(player?.name || null)
         showNotification('Joined game successfully!')
       },
       onGameStateUpdate: (newGameState) => {

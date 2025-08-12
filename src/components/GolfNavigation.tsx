@@ -8,7 +8,7 @@ interface GolfNavigationProps {
   isConnected: boolean
 }
 
-const GolfNavigation = ({ gameId, playerId, playerName, isConnected }: GolfNavigationProps) => {
+const GolfNavigation = ({ gameId, playerName, isConnected }: GolfNavigationProps) => {
   return (
     <nav className={styles.nav}>
       <div className={styles.navContainer}>
