@@ -4,10 +4,11 @@ import styles from './GolfNavigation.module.css'
 interface GolfNavigationProps {
   gameId: string | null
   playerId: string | null
+  playerName: string | null
   isConnected: boolean
 }
 
-const GolfNavigation = ({ gameId, playerId, isConnected }: GolfNavigationProps) => {
+const GolfNavigation = ({ gameId, playerName, isConnected }: GolfNavigationProps) => {
   return (
     <nav className={styles.nav}>
       <div className={styles.navContainer}>
@@ -18,9 +19,9 @@ const GolfNavigation = ({ gameId, playerId, isConnected }: GolfNavigationProps) 
               Room: {gameId}
             </div>
           )}
-          {playerId && (
+          {playerName && (
             <div className={styles.playerId}>
-              Player: {playerId}
+              Player: {playerName}
             </div>
           )}
           <div className={styles.status}>

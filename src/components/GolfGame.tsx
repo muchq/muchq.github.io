@@ -11,10 +11,11 @@ interface Card {
 interface GolfGameProps {
   onGameIdChange: (id: string | null) => void
   onPlayerIdChange: (id: string | null) => void
+  onPlayerNameChange: (name: string | null) => void
   onConnectionChange: (connected: boolean) => void
 }
 
-const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: GolfGameProps) => {
+const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange }: GolfGameProps) => {
   const [showRules, setShowRules] = useState(false)
   
   const {
@@ -37,7 +38,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
     knock,
     handleCardClick,
     setRoomCode
-  } = useGolfGame({ onGameIdChange, onPlayerIdChange, onConnectionChange })
+  } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange })
 
   const renderCard = (card: Card | null, index: number, isRevealed: boolean, isPlayer: boolean) => {
     const isSelected = selectedCardIndex === index
@@ -224,9 +225,18 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onConnectionChange }: Golf
               <div className={styles.winnerSection}>
                 <div className={styles.confetti}>🎉 🎊 🎉</div>
                 <div className={styles.winner}>
-                  <span className={styles.winnerLabel}>Congratulations</span>
-                  <span className={styles.winnerName}>{winner}!</span>
-                  <span className={styles.winnerMessage}>You've won with the lowest score!</span>
+                  {currentPlayer?.name === winner ? (
+                    <>
+                      <span className={styles.winnerLabel}>Congratulations!</span>
+                      <span className={styles.winnerMessage}>You've won with the lowest score!</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className={styles.winnerLabel}>Game Over</span>
+                      <span className={styles.winnerName}>{winner} wins!</span>
+                      <span className={styles.winnerMessage}>Better luck next time!</span>
+                    </>
+                  )}
                 </div>
               </div>
             )}
