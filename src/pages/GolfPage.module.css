@@ -10,8 +10,18 @@
 .content {
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 2rem;
+  padding: 1rem;
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .content {
+    padding: 0.5rem;
+    align-items: flex-start;
+    padding-top: 1rem;
+  }
 }
