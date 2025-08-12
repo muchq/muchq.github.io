@@ -240,16 +240,20 @@
     padding: 0;
   }
 
+  /* Disable hover on mobile to prevent interference with touch events */
+  .navItem:hover .dropdown {
+    opacity: 0;
+    visibility: hidden;
+    transform: none;
+  }
+
+  /* Expanded state must come after hover to override it */
   .navItem.expanded .dropdown {
     opacity: 1;
     visibility: visible;
     max-height: 500px;
     margin-top: 8px;
     padding: 8px 0;
-  }
-
-  .navItem:hover .dropdown {
-    transform: none;
   }
 
   .dropdownItem {
