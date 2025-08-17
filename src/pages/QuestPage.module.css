@@ -1,0 +1,20 @@
+.questPage {
+  background: #1a1a2e;
+  min-height: 100vh;
+}
+
+.content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 80px 20px 20px 20px;
+  box-sizing: border-box;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .content {
+    padding: 80px 10px 10px 10px;
+  }
+}

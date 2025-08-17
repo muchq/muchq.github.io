@@ -5,6 +5,7 @@ import GroupsPage from './pages/GroupsPage'
 import SetsPage from './pages/SetsPage'
 import GolfPage from './pages/GolfPage'
 import AurumSiphonPage from './pages/AurumSiphonPage'
+import QuestPage from './pages/QuestPage'
 import LearningPage from './pages/LearningPage'
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
       <Route path="/sets" element={<SetsPage />} />
       <Route path="/golf" element={<GolfPage />} />
       <Route path="/aurum" element={<AurumSiphonPage />} />
+      <Route path="/quest" element={<QuestPage />} />
       <Route path="/top" element={<Navigate to="/top/sets" replace />} />
       <Route path="/top/:module" element={<LearningPage />} />
     </Routes>
