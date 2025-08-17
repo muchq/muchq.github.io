@@ -1,0 +1,74 @@
+/* Quest Page Navigation Styles */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(68, 68, 68, 0.1);
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.navContainer {
+  max-width: 650px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 60px;
+}
+
+.centerContent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.navLogo {
+  font-size: 20px;
+  font-weight: 300;
+  color: #444;
+  text-decoration: none;
+}
+
+.gameInfo {
+  font-size: 12px;
+  color: #888;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.score {
+  font-size: 12px;
+  color: #ffd700;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 2px rgba(255, 215, 0, 0.3);
+}
+
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+  .gameInfo,
+  .score {
+    font-size: 10px;
+  }
+  
+  .centerContent {
+    gap: 2px;
+  }
+  
+  .navContainer {
+    padding: 0 15px;
+  }
+  
+  .navLogo {
+    font-size: 18px;
+  }
+}
