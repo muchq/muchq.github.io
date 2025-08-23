@@ -86,6 +86,9 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
   const lastBoostTimeRef = useRef<number>(0)
   const animationIdRef = useRef<number>(0)
   const audioContextRef = useRef<AudioContext | null>(null)
+  const gainNodeRef = useRef<GainNode | null>(null)
+  const conversationGainNodeRef = useRef<GainNode | null>(null)
+  const musicPlayingRef = useRef<boolean>(false)
 
   const initAudio = useCallback(() => {
     if (audioContextRef.current) return
@@ -94,6 +97,15 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
       (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).webkitAudioContext
     if (AudioContextClass) {
       audioContextRef.current = new AudioContextClass()
+      
+      // Set up gain nodes for volume control
+      gainNodeRef.current = audioContextRef.current.createGain()
+      gainNodeRef.current.gain.value = 0.15 // Overall volume
+      gainNodeRef.current.connect(audioContextRef.current.destination)
+      
+      conversationGainNodeRef.current = audioContextRef.current.createGain()
+      conversationGainNodeRef.current.gain.value = 0.05 // Conversation volume
+      conversationGainNodeRef.current.connect(audioContextRef.current.destination)
     }
   }, [])
 
@@ -331,6 +343,11 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
       .filter(p => p.life > 0)
   }, [])
 
+  // Stop soundtrack
+  const stopSoundtrack = useCallback(() => {
+    musicPlayingRef.current = false
+  }, [])
+
   const gameLoop = useCallback(() => {
     if (!canvasRef.current || !gameState.gameRunning) return
 
@@ -389,6 +406,7 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
       const newFunLevel = Math.max(0, prev.funLevel - 0.1 + rescueResult.funIncrease - collisionResult.funDecrease)
       
       if (newFunLevel <= 0) {
+        stopSoundtrack()
         return {
           ...prev,
           barge: finalBarge,
@@ -414,12 +432,166 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
     })
 
     animationIdRef.current = requestAnimationFrame(gameLoop)
-  }, [canvasRef, gameState.gameRunning, updateBarge, updateGuests, checkRescues, checkCollisions, updateParticles])
+  }, [canvasRef, gameState.gameRunning, updateBarge, updateGuests, checkRescues, checkCollisions, updateParticles, stopSoundtrack])
+
+  // 8-bit style oscillator with envelope
+  const play8BitNote = useCallback((frequency: number, startTime: number, duration: number, type: OscillatorType = 'square', gainTarget?: GainNode) => {
+    if (!audioContextRef.current || !gainNodeRef.current) return
+    
+    const target = gainTarget || gainNodeRef.current
+    const osc = audioContextRef.current.createOscillator()
+    const noteGain = audioContextRef.current.createGain()
+    
+    osc.type = type
+    osc.frequency.value = frequency
+    
+    // ADSR envelope for 8-bit feel
+    noteGain.gain.setValueAtTime(0, startTime)
+    noteGain.gain.linearRampToValueAtTime(0.3, startTime + 0.01) // Attack
+    noteGain.gain.linearRampToValueAtTime(0.2, startTime + 0.05) // Decay
+    noteGain.gain.exponentialRampToValueAtTime(0.01, startTime + duration) // Release
+    
+    osc.connect(noteGain)
+    noteGain.connect(target)
+    
+    osc.start(startTime)
+    osc.stop(startTime + duration)
+  }, [])
+
+  // Start the chill jazz loop
+  const startSoundtrack = useCallback(() => {
+    if (!audioContextRef.current || musicPlayingRef.current) return
+    musicPlayingRef.current = true
+    
+    // Jazz chord progressions (ii-V-I in C major)
+    const chords = [
+      [146.83, 174.61, 220.00, 261.63], // Dm7
+      [196.00, 246.94, 293.66, 349.23], // G7
+      [130.81, 164.81, 196.00, 246.94], // Cmaj7
+      [110.00, 130.81, 164.81, 196.00], // Am7
+    ]
+    
+    // Melody notes for jazzy licks
+    const melodyScale = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25] // C major scale
+    
+    const bpm = 70 // Slow, chill tempo
+    const beatLength = 60 / bpm
+    let currentTime = audioContextRef.current.currentTime
+    
+    // Main music loop
+    const scheduleMusic = () => {
+      if (!musicPlayingRef.current || !audioContextRef.current) return
+      
+      const lookahead = 0.1
+      const scheduleAheadTime = 0.2
+      
+      while (currentTime < audioContextRef.current.currentTime + scheduleAheadTime) {
+        // Play chord progression
+        const chordIndex = Math.floor((currentTime / (beatLength * 4)) % chords.length)
+        const currentChord = chords[chordIndex]
+        
+        // Strum the chord with slight delay for jazz feel
+        currentChord.forEach((note, i) => {
+          play8BitNote(note, currentTime + i * 0.02, beatLength * 2, 'triangle')
+        })
+        
+        // Add jazzy melody on top (random walk through scale)
+        if (Math.random() > 0.3) {
+          const melodyNote = melodyScale[Math.floor(Math.random() * melodyScale.length)]
+          play8BitNote(melodyNote * 2, currentTime + beatLength * Math.random(), beatLength * 0.3, 'square')
+        }
+        
+        // Bass line (root notes)
+        const bassNote = currentChord[0] / 2
+        play8BitNote(bassNote, currentTime, beatLength * 2, 'sine')
+        
+        // Walking bass pattern occasionally
+        if (Math.random() > 0.5) {
+          play8BitNote(bassNote * 1.125, currentTime + beatLength, beatLength * 0.5, 'sine')
+        }
+        
+        currentTime += beatLength * 4
+      }
+      
+      setTimeout(scheduleMusic, lookahead * 1000)
+    }
+    
+    // Background conversation sounds
+    const scheduleConversation = () => {
+      if (!musicPlayingRef.current || !audioContextRef.current || !conversationGainNodeRef.current) return
+      
+      // Create mumbling conversation sounds
+      setInterval(() => {
+        if (!musicPlayingRef.current || !audioContextRef.current || !conversationGainNodeRef.current) return
+        
+        // Random conversation "words" using filtered noise and tones
+        for (let i = 0; i < 3; i++) {
+          setTimeout(() => {
+            if (!audioContextRef.current || !conversationGainNodeRef.current) return
+            
+            const freq = 100 + Math.random() * 200 // Human voice range
+            const duration = 0.1 + Math.random() * 0.2
+            
+            // Create formant-like sound
+            const osc1 = audioContextRef.current.createOscillator()
+            const osc2 = audioContextRef.current.createOscillator()
+            const conversationGain = audioContextRef.current.createGain()
+            
+            osc1.type = 'sawtooth'
+            osc1.frequency.value = freq
+            osc2.type = 'sawtooth'
+            osc2.frequency.value = freq * 2.1
+            
+            // Envelope for speech-like sound
+            conversationGain.gain.setValueAtTime(0, audioContextRef.current.currentTime)
+            conversationGain.gain.linearRampToValueAtTime(0.05, audioContextRef.current.currentTime + 0.01)
+            conversationGain.gain.exponentialRampToValueAtTime(0.001, audioContextRef.current.currentTime + duration)
+            
+            // Bandpass filter for voice-like quality
+            const filter = audioContextRef.current.createBiquadFilter()
+            filter.type = 'bandpass'
+            filter.frequency.value = freq * 3
+            filter.Q.value = 5
+            
+            osc1.connect(filter)
+            osc2.connect(filter)
+            filter.connect(conversationGain)
+            conversationGain.connect(conversationGainNodeRef.current)
+            
+            osc1.start(audioContextRef.current.currentTime)
+            osc1.stop(audioContextRef.current.currentTime + duration)
+            osc2.start(audioContextRef.current.currentTime)
+            osc2.stop(audioContextRef.current.currentTime + duration)
+          }, i * 200 + Math.random() * 500)
+        }
+        
+        // Occasional laughter
+        if (Math.random() > 0.9) {
+          for (let j = 0; j < 5; j++) {
+            setTimeout(() => {
+              if (!conversationGainNodeRef.current) return
+              play8BitNote(
+                300 + Math.random() * 100,
+                audioContextRef.current!.currentTime,
+                0.05,
+                'square',
+                conversationGainNodeRef.current
+              )
+            }, j * 50)
+          }
+        }
+      }, 3000 + Math.random() * 4000)
+    }
+    
+    scheduleMusic()
+    scheduleConversation()
+  }, [play8BitNote])
 
   const startGame = useCallback(() => {
     initAudio()
     initGame()
-  }, [initAudio, initGame])
+    startSoundtrack()
+  }, [initAudio, initGame, startSoundtrack])
 
   const restartGame = useCallback(() => {
     setGameState(prev => ({ ...prev, gameOver: false }))

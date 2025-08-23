@@ -2,20 +2,9 @@ import { useRef, useEffect } from 'react'
 import { usePartyGame } from '@/hooks/usePartyGame'
 import styles from './PartyGame.module.css'
 
-interface PartyGameProps {
-  onGameIdChange: (id: string | null) => void
-  onPlayerIdChange: (id: string | null) => void
-  onPlayerNameChange: (name: string | null) => void
-  onConnectionChange: (connected: boolean) => void
-}
-
-const PartyGame = ({ onConnectionChange }: PartyGameProps) => {
+const PartyGame = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { gameState, startGame, restartGame } = usePartyGame(canvasRef)
-
-  useEffect(() => {
-    onConnectionChange(gameState.gameRunning)
-  }, [gameState.gameRunning, onConnectionChange])
 
   useEffect(() => {
     const canvas = canvasRef.current
