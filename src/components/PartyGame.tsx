@@ -1,10 +1,23 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { usePartyGame } from '@/hooks/usePartyGame'
 import styles from './PartyGame.module.css'
 
 const PartyGame = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const { gameState, startGame, restartGame } = usePartyGame(canvasRef)
+  const { gameState, startGame, restartGame, handleMobileInput } = usePartyGame(canvasRef)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 769
+      setIsMobile(isMobileDevice)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -13,15 +26,20 @@ const PartyGame = () => {
     if (!ctx) return
 
     const resizeCanvas = () => {
-      canvas.width = Math.min(window.innerWidth - 40, 1200)
-      canvas.height = Math.min(window.innerHeight - 200, 800)
+      if (isMobile) {
+        canvas.width = window.innerWidth
+        canvas.height = window.innerHeight - 120 // Account for mobile UI
+      } else {
+        canvas.width = Math.min(window.innerWidth - 40, 1200)
+        canvas.height = Math.min(window.innerHeight - 200, 800)
+      }
     }
 
     resizeCanvas()
     window.addEventListener('resize', resizeCanvas)
 
     return () => window.removeEventListener('resize', resizeCanvas)
-  }, [])
+  }, [isMobile])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -178,11 +196,13 @@ const PartyGame = () => {
         </div>
       </div>
 
-      <div className={styles.instructions}>
-        <strong>Controls:</strong><br/>
-        Arrow Keys or WASD to fly<br/>
-        Space to boost party vibes!
-      </div>
+      {!isMobile && (
+        <div className={styles.instructions}>
+          <strong>Controls:</strong><br/>
+          Arrow Keys or WASD to fly<br/>
+          Space to boost party vibes!
+        </div>
+      )}
 
       {!gameState.gameRunning && !gameState.gameOver && (
         <div className={styles.startScreen}>
@@ -190,10 +210,18 @@ const PartyGame = () => {
           <div className={styles.instructionsPanel}>
             <strong>Your Mission:</strong><br/>
             • Fly your party barge through the desert<br/>
-            • Keep the fun level high with music boosts (SPACE)<br/>
+            • Keep the fun level high with music boosts {isMobile ? '(🎉 button)' : '(SPACE)'}<br/>
             • Rescue stranded party-goers (fly into them)<br/>
             • Avoid crashes and keep everyone happy!<br/>
             • Fun decreases over time - keep the party alive!
+            {isMobile && (
+              <>
+                <br/><br/>
+                <strong>Mobile Controls:</strong><br/>
+                • Use the arrow pad to fly<br/>
+                • Tap 🎉 to boost party vibes!
+              </>
+            )}
           </div>
           <button onClick={startGame} className={styles.gameButton}>
             Start Party!
@@ -210,6 +238,63 @@ const PartyGame = () => {
           </div>
           <button onClick={restartGame} className={styles.gameButton}>
             Party Again!
+          </button>
+        </div>
+      )}
+
+      {isMobile && gameState.gameRunning && (
+        <div className={styles.mobileControls}>
+          <div className={styles.directionPad}>
+            <button 
+              className={`${styles.directionButton} ${styles.up}`}
+              onTouchStart={() => handleMobileInput('up', true)}
+              onTouchEnd={() => handleMobileInput('up', false)}
+              onMouseDown={() => handleMobileInput('up', true)}
+              onMouseUp={() => handleMobileInput('up', false)}
+              onMouseLeave={() => handleMobileInput('up', false)}
+            >
+              ↑
+            </button>
+            <button 
+              className={`${styles.directionButton} ${styles.left}`}
+              onTouchStart={() => handleMobileInput('left', true)}
+              onTouchEnd={() => handleMobileInput('left', false)}
+              onMouseDown={() => handleMobileInput('left', true)}
+              onMouseUp={() => handleMobileInput('left', false)}
+              onMouseLeave={() => handleMobileInput('left', false)}
+            >
+              ←
+            </button>
+            <button 
+              className={`${styles.directionButton} ${styles.right}`}
+              onTouchStart={() => handleMobileInput('right', true)}
+              onTouchEnd={() => handleMobileInput('right', false)}
+              onMouseDown={() => handleMobileInput('right', true)}
+              onMouseUp={() => handleMobileInput('right', false)}
+              onMouseLeave={() => handleMobileInput('right', false)}
+            >
+              →
+            </button>
+            <button 
+              className={`${styles.directionButton} ${styles.down}`}
+              onTouchStart={() => handleMobileInput('down', true)}
+              onTouchEnd={() => handleMobileInput('down', false)}
+              onMouseDown={() => handleMobileInput('down', true)}
+              onMouseUp={() => handleMobileInput('down', false)}
+              onMouseLeave={() => handleMobileInput('down', false)}
+            >
+              ↓
+            </button>
+          </div>
+          <button 
+            className={styles.mobileControlButton}
+            onTouchStart={() => handleMobileInput('boost', true)}
+            onTouchEnd={() => handleMobileInput('boost', false)}
+            onMouseDown={() => handleMobileInput('boost', true)}
+            onMouseUp={() => handleMobileInput('boost', false)}
+            onMouseLeave={() => handleMobileInput('boost', false)}
+          >
+            🎉
           </button>
         </div>
       )}

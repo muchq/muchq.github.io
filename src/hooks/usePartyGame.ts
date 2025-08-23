@@ -89,8 +89,44 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
   const gainNodeRef = useRef<GainNode | null>(null)
   const conversationGainNodeRef = useRef<GainNode | null>(null)
   const musicPlayingRef = useRef<boolean>(false)
+  const isMobile = useRef<boolean>(
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 769
+  )
+  const html5BackgroundAudio = useRef<HTMLAudioElement | null>(null)
+
+  const handleMobileInput = useCallback((direction: 'up' | 'down' | 'left' | 'right' | 'boost', isPressed: boolean) => {
+    switch (direction) {
+      case 'up':
+        keysRef.current['ArrowUp'] = isPressed
+        keysRef.current['w'] = isPressed
+        break
+      case 'down':
+        keysRef.current['ArrowDown'] = isPressed
+        keysRef.current['s'] = isPressed
+        break
+      case 'left':
+        keysRef.current['ArrowLeft'] = isPressed
+        keysRef.current['a'] = isPressed
+        break
+      case 'right':
+        keysRef.current['ArrowRight'] = isPressed
+        keysRef.current['d'] = isPressed
+        break
+      case 'boost':
+        keysRef.current[' '] = isPressed
+        break
+    }
+  }, [])
 
   const initAudio = useCallback(() => {
+    if (isMobile.current) {
+      return initMobileAudio()
+    } else {
+      return initWebAudio()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const initWebAudio = useCallback(() => {
     if (audioContextRef.current) return
     
     const AudioContextClass = (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ||
@@ -107,6 +143,119 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
       conversationGainNodeRef.current.gain.value = 0.05 // Conversation volume
       conversationGainNodeRef.current.connect(audioContextRef.current.destination)
     }
+  }, [])
+
+  const initMobileAudio = useCallback(() => {
+    // Create audio context for mobile
+    const AudioContextClass = (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ||
+      (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (AudioContextClass) {
+      audioContextRef.current = new AudioContextClass()
+    }
+
+    // Create HTML5 audio for background music on mobile
+    const musicBuffer = createMobileBackgroundTrack()
+    const blob = new Blob([musicBuffer], { type: 'audio/wav' })
+    const url = URL.createObjectURL(blob)
+    
+    html5BackgroundAudio.current = new Audio(url)
+    html5BackgroundAudio.current.loop = true
+    html5BackgroundAudio.current.volume = 0.1
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const createMobileBackgroundTrack = useCallback((): ArrayBuffer => {
+    const sampleRate = 44100
+    const duration = 32
+    const samples = sampleRate * duration
+    
+    const tempContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+    const buffer = tempContext.createBuffer(1, samples, sampleRate)
+    const channelData = buffer.getChannelData(0)
+    
+    // Jazz chord progressions (same as in original game)
+    const chords = [
+      [146.83, 174.61, 220.00, 261.63], // Dm7
+      [196.00, 246.94, 293.66, 349.23], // G7
+      [130.81, 164.81, 196.00, 246.94], // Cmaj7
+      [110.00, 130.81, 164.81, 196.00], // Am7
+    ]
+    
+    const melodyScale = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25]
+    const bpm = 70
+    const beatLength = 60 / bpm
+    
+    let currentTime = 0
+    let chordIndex = 0
+    
+    while (currentTime < duration - 4) {
+      const chord = chords[chordIndex]
+      const startSample = Math.floor(currentTime * sampleRate)
+      const chordDuration = beatLength * 4
+      const durationSamples = Math.floor(chordDuration * sampleRate)
+      
+      // Add chord notes
+      chord.forEach(freq => {
+        for (let i = 0; i < durationSamples && startSample + i < samples; i++) {
+          const time = i / sampleRate
+          const envelope = Math.exp(-time * 0.5) * 0.02
+          channelData[startSample + i] += Math.sin(2 * Math.PI * freq * time) * envelope
+        }
+      })
+      
+      // Add occasional melody
+      if (Math.random() < 0.3) {
+        const melodyFreq = melodyScale[Math.floor(Math.random() * melodyScale.length)]
+        const melodyStart = startSample + Math.floor(Math.random() * durationSamples * 0.5)
+        const melodyDuration = Math.floor(beatLength * sampleRate * 0.5)
+        
+        for (let i = 0; i < melodyDuration && melodyStart + i < samples; i++) {
+          const time = i / sampleRate
+          const envelope = Math.exp(-time * 2) * 0.01
+          channelData[melodyStart + i] += Math.sin(2 * Math.PI * melodyFreq * time) * envelope
+        }
+      }
+      
+      currentTime += chordDuration
+      chordIndex = (chordIndex + 1) % chords.length
+    }
+    
+    return encodeWAV(buffer)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const encodeWAV = useCallback((buffer: AudioBuffer): ArrayBuffer => {
+    const length = buffer.length
+    const arrayBuffer = new ArrayBuffer(44 + length * 2)
+    const view = new DataView(arrayBuffer)
+    const channelData = buffer.getChannelData(0)
+
+    const writeString = (offset: number, string: string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i))
+      }
+    }
+
+    writeString(0, 'RIFF')
+    view.setUint32(4, 36 + length * 2, true)
+    writeString(8, 'WAVE')
+    writeString(12, 'fmt ')
+    view.setUint32(16, 16, true)
+    view.setUint16(20, 1, true)
+    view.setUint16(22, 1, true)
+    view.setUint32(24, buffer.sampleRate, true)
+    view.setUint32(28, buffer.sampleRate * 2, true)
+    view.setUint16(32, 2, true)
+    view.setUint16(34, 16, true)
+    writeString(36, 'data')
+    view.setUint32(40, length * 2, true)
+
+    let offset = 44
+    for (let i = 0; i < length; i++) {
+      const sample = Math.max(-1, Math.min(1, channelData[i]))
+      view.setInt16(offset, sample * 0x7FFF, true)
+      offset += 2
+    }
+
+    return arrayBuffer
   }, [])
 
   const initGame = useCallback(() => {
@@ -346,6 +495,11 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
   // Stop soundtrack
   const stopSoundtrack = useCallback(() => {
     musicPlayingRef.current = false
+    
+    if (isMobile.current && html5BackgroundAudio.current) {
+      html5BackgroundAudio.current.pause()
+      html5BackgroundAudio.current.currentTime = 0
+    }
   }, [])
 
   const gameLoop = useCallback(() => {
@@ -460,6 +614,35 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
 
   // Start the chill jazz loop
   const startSoundtrack = useCallback(() => {
+    if (musicPlayingRef.current) return
+    
+    if (isMobile.current) {
+      startMobileSoundtrack()
+    } else {
+      startWebSoundtrack()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startMobileSoundtrack = useCallback(() => {
+    if (!html5BackgroundAudio.current) return
+    
+    musicPlayingRef.current = true
+    
+    // Resume audio context if suspended (mobile requirement)
+    if (audioContextRef.current?.state === 'suspended') {
+      audioContextRef.current.resume()
+    }
+    
+    const playPromise = html5BackgroundAudio.current.play()
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        // Silent failure for mobile audio
+        musicPlayingRef.current = false
+      })
+    }
+  }, [])
+
+  const startWebSoundtrack = useCallback(() => {
     if (!audioContextRef.current || musicPlayingRef.current) return
     musicPlayingRef.current = true
     
@@ -625,6 +808,7 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
   return {
     gameState,
     startGame,
-    restartGame
+    restartGame,
+    handleMobileInput
   }
 }

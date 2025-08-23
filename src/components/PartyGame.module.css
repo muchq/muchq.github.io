@@ -125,28 +125,180 @@
   transform: translateY(0);
 }
 
+/* Mobile Controls */
+.mobileControls {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  z-index: 100;
+  gap: 20px;
+  align-items: center;
+}
+
+.mobileControlButton {
+  background: rgba(139, 69, 19, 0.9);
+  color: white;
+  border: 2px solid #D2691E;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  user-select: none;
+  font-family: 'Fredoka', sans-serif;
+}
+
+.mobileControlButton:active {
+  background: rgba(210, 105, 30, 0.9);
+  transform: scale(0.95);
+}
+
+.directionPad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 5px;
+  width: 180px;
+  height: 180px;
+}
+
+.directionButton {
+  background: rgba(139, 69, 19, 0.9);
+  color: white;
+  border: 2px solid #D2691E;
+  border-radius: 15px;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  user-select: none;
+  font-family: 'Fredoka', sans-serif;
+}
+
+.directionButton:active {
+  background: rgba(210, 105, 30, 0.9);
+  transform: scale(0.95);
+}
+
+.directionButton.up {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.directionButton.left {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.directionButton.right {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.directionButton.down {
+  grid-column: 2;
+  grid-row: 3;
+}
+
 @media (max-width: 768px) {
+  .gameContainer {
+    height: 100vh;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .gameCanvas {
+    flex: 1;
+    width: 100%;
+    height: auto;
+    max-height: none;
+  }
+
   .ui {
     top: 10px;
     left: 10px;
+    right: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
   }
   
   .stat {
     font-size: 14px;
     padding: 8px 12px;
-    min-width: 150px;
+    min-width: auto;
+    flex: 1;
+    min-width: 120px;
   }
   
   .instructions {
     display: none;
   }
   
+  .mobileControls {
+    display: flex;
+  }
+  
+  .startScreen,
+  .gameOverScreen {
+    padding: 20px;
+    max-width: 90vw;
+  }
+  
   .startScreen h1,
   .gameOverScreen h2 {
-    font-size: 32px;
+    font-size: 28px;
   }
   
   .instructionsPanel {
     font-size: 14px;
+    padding: 15px;
+  }
+
+  .gameButton {
+    padding: 12px 30px;
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ui {
+    flex-direction: column;
+  }
+  
+  .stat {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+  
+  .startScreen h1,
+  .gameOverScreen h2 {
+    font-size: 24px;
+  }
+  
+  .instructionsPanel {
+    font-size: 12px;
+  }
+  
+  .directionPad {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .directionButton {
+    font-size: 16px;
+  }
+  
+  .mobileControlButton {
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
   }
 }
