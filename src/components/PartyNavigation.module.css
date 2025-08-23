@@ -1,0 +1,57 @@
+.nav {
+  background: rgba(139, 69, 19, 0.9);
+  padding: 1rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  border-bottom: 3px solid #D2691E;
+}
+
+.navContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.homeLink {
+  color: #FFE4B5;
+  text-decoration: none;
+  font-size: 1.2rem;
+  font-weight: bold;
+  transition: color 0.3s;
+}
+
+.homeLink:hover {
+  color: white;
+}
+
+.gameTitle {
+  font-family: 'Bungee', cursive;
+  font-size: 2rem;
+  color: #FFE4B5;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.status {
+  display: flex;
+  gap: 1rem;
+  color: white;
+}
+
+.statusItem {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+  .navContainer {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .gameTitle {
+    font-size: 1.5rem;
+  }
+}

@@ -1,0 +1,152 @@
+@import url('https://fonts.googleapis.com/css2?family=Bungee&family=Fredoka:wght@400;600&display=swap');
+
+.gameContainer {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+  max-height: 800px;
+  margin: 0 auto;
+}
+
+.gameCanvas {
+  border: 3px solid #8B4513;
+  box-shadow: 0 0 30px rgba(0,0,0,0.3);
+  display: block;
+  background: linear-gradient(to bottom, #87CEEB 0%, #FFE4B5 100%);
+  width: 100%;
+  height: auto;
+}
+
+.ui {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  color: white;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+  z-index: 10;
+}
+
+.stat {
+  background: rgba(139, 69, 19, 0.8);
+  padding: 10px 15px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  display: inline-block;
+  min-width: 200px;
+  border: 2px solid #D2691E;
+  font-family: 'Fredoka', sans-serif;
+}
+
+.statIcon {
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.instructions {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(139, 69, 19, 0.8);
+  padding: 15px;
+  border-radius: 10px;
+  color: white;
+  font-size: 14px;
+  z-index: 10;
+  border: 2px solid #D2691E;
+  font-family: 'Fredoka', sans-serif;
+}
+
+.startScreen,
+.gameOverScreen {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, #8B4513, #D2691E);
+  padding: 40px;
+  border-radius: 20px;
+  text-align: center;
+  color: white;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  border: 3px solid #FFE4B5;
+  z-index: 20;
+}
+
+.startScreen h1,
+.gameOverScreen h2 {
+  font-family: 'Bungee', cursive;
+  font-size: 48px;
+  margin-bottom: 20px;
+  text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+  color: #FFE4B5;
+}
+
+.instructionsPanel {
+  text-align: left;
+  background: rgba(0,0,0,0.2);
+  padding: 20px;
+  border-radius: 10px;
+  line-height: 1.6;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 18px;
+  margin: 20px 0;
+}
+
+.finalScore {
+  font-size: 24px;
+  margin: 20px 0;
+  font-family: 'Fredoka', sans-serif;
+}
+
+.gameButton {
+  background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+  color: white;
+  border: none;
+  padding: 15px 40px;
+  font-size: 24px;
+  font-family: 'Bungee', cursive;
+  border-radius: 50px;
+  cursor: pointer;
+  margin-top: 20px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+}
+
+.gameButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+  background: linear-gradient(135deg, #FF8E53, #FF6B6B);
+}
+
+.gameButton:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+  .ui {
+    top: 10px;
+    left: 10px;
+  }
+  
+  .stat {
+    font-size: 14px;
+    padding: 8px 12px;
+    min-width: 150px;
+  }
+  
+  .instructions {
+    display: none;
+  }
+  
+  .startScreen h1,
+  .gameOverScreen h2 {
+    font-size: 32px;
+  }
+  
+  .instructionsPanel {
+    font-size: 14px;
+  }
+}
