@@ -4,6 +4,7 @@ import ThoughtsPage from './pages/ThoughtsPage'
 import GroupsPage from './pages/GroupsPage'
 import SetsPage from './pages/SetsPage'
 import GolfPage from './pages/GolfPage'
+import PartyPage from './pages/PartyPage'
 import AurumSiphonPage from './pages/AurumSiphonPage'
 import QuestPage from './pages/QuestPage'
 import LearningPage from './pages/LearningPage'
@@ -16,6 +17,7 @@ function App() {
       <Route path="/groups" element={<GroupsPage />} />
       <Route path="/sets" element={<SetsPage />} />
       <Route path="/golf" element={<GolfPage />} />
+      <Route path="/party" element={<PartyPage />} />
       <Route path="/aurum" element={<AurumSiphonPage />} />
       <Route path="/quest" element={<QuestPage />} />
       <Route path="/top" element={<Navigate to="/top/sets" replace />} />

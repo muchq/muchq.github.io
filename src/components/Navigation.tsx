@@ -95,6 +95,7 @@ const Navigation = ({ className }: NavigationProps) => {
             <div className={styles.dropdown}>
               <Link to="/thoughts" className={styles.dropdownItem}>Thoughts</Link>
               <Link to="/golf" className={styles.dropdownItem}>Golf</Link>
+              <Link to="/party" className={styles.dropdownItem}>Party</Link>
               <Link to="/quest" className={styles.dropdownItem}>Quest</Link>
               <Link to="/aurum" className={styles.dropdownItem}>Aurum Siphon</Link>
             </div>
