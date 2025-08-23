@@ -617,8 +617,10 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
+      // Stop music when component unmounts (navigating away)
+      stopSoundtrack()
     }
-  }, [handleKeyDown, handleKeyUp])
+  }, [handleKeyDown, handleKeyUp, stopSoundtrack])
 
   return {
     gameState,
