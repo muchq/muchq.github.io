@@ -1,28 +1,32 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import HomePage from './pages/HomePage'
-import ThoughtsPage from './pages/ThoughtsPage'
-import GroupsPage from './pages/GroupsPage'
-import SetsPage from './pages/SetsPage'
-import GolfPage from './pages/GolfPage'
-import PartyPage from './pages/PartyPage'
-import AurumSiphonPage from './pages/AurumSiphonPage'
-import QuestPage from './pages/QuestPage'
-import LearningPage from './pages/LearningPage'
+
+const HomePage = lazy(() => import('./pages/HomePage'))
+const ThoughtsPage = lazy(() => import('./pages/ThoughtsPage'))
+const GroupsPage = lazy(() => import('./pages/GroupsPage'))
+const SetsPage = lazy(() => import('./pages/SetsPage'))
+const GolfPage = lazy(() => import('./pages/GolfPage'))
+const PartyPage = lazy(() => import('./pages/PartyPage'))
+const AurumSiphonPage = lazy(() => import('./pages/AurumSiphonPage'))
+const QuestPage = lazy(() => import('./pages/QuestPage'))
+const LearningPage = lazy(() => import('./pages/LearningPage'))
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/thoughts" element={<ThoughtsPage />} />
-      <Route path="/groups" element={<GroupsPage />} />
-      <Route path="/sets" element={<SetsPage />} />
-      <Route path="/golf" element={<GolfPage />} />
-      <Route path="/party" element={<PartyPage />} />
-      <Route path="/aurum" element={<AurumSiphonPage />} />
-      <Route path="/quest" element={<QuestPage />} />
-      <Route path="/top" element={<Navigate to="/top/sets" replace />} />
-      <Route path="/top/:module" element={<LearningPage />} />
-    </Routes>
+    <Suspense fallback={<div>Loading...</div>}>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/thoughts" element={<ThoughtsPage />} />
+        <Route path="/groups" element={<GroupsPage />} />
+        <Route path="/sets" element={<SetsPage />} />
+        <Route path="/golf" element={<GolfPage />} />
+        <Route path="/party" element={<PartyPage />} />
+        <Route path="/aurum" element={<AurumSiphonPage />} />
+        <Route path="/quest" element={<QuestPage />} />
+        <Route path="/top" element={<Navigate to="/top/sets" replace />} />
+        <Route path="/top/:module" element={<LearningPage />} />
+      </Routes>
+    </Suspense>
   )
 }
 

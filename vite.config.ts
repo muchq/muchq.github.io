@@ -18,11 +18,24 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'router-vendor': ['react-router-dom']
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('react-router')) {
+              return 'router-vendor'
+            }
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'react-vendor'
+            }
+            if (id.includes('three')) {
+              return 'three-vendor'
+            }
+            if (id.includes('react-select')) {
+              return 'select-vendor'
+            }
+          }
         }
       }
     }
