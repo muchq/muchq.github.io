@@ -114,6 +114,7 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
   const html5BackgroundAudio = useRef<HTMLAudioElement | null>(null)
 
   const handleMobileInput = useCallback((direction: 'up' | 'down' | 'left' | 'right' | 'boost', isPressed: boolean) => {
+    // Prevent event stacking by explicitly setting the state
     switch (direction) {
       case 'up':
         keysRef.current['ArrowUp'] = isPressed
@@ -293,6 +294,9 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
   const initGame = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
+
+    // Clear all key states when initializing game
+    keysRef.current = {}
 
     // World size adaptive to device - smaller on mobile for better performance
     const worldMultiplier = isMobile.current ? 2 : 2.5
@@ -883,6 +887,8 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
   }, [initAudio, initGame, startSoundtrack])
 
   const restartGame = useCallback(() => {
+    // Clear all key states before restarting
+    keysRef.current = {}
     setGameState(prev => ({ ...prev, gameOver: false }))
     startGame()
   }, [startGame])
@@ -914,6 +920,8 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
     return () => {
       // Stop music when component unmounts (navigating away)
       stopSoundtrack()
+      // Clear all key states on unmount
+      keysRef.current = {}
     }
   }, [stopSoundtrack])
 
