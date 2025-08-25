@@ -129,8 +129,8 @@
 
 /* Mobile Controls */
 .mobileControls {
-  position: absolute;
-  bottom: 20px;
+  position: fixed;
+  bottom: 10px;
   left: 50%;
   transform: translateX(-50%);
   display: none;
@@ -165,8 +165,8 @@
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
   gap: 5px;
-  width: 180px;
-  height: 180px;
+  width: 150px;
+  height: 150px;
 }
 
 .directionButton {
@@ -242,6 +242,8 @@
   .gameOverScreen {
     padding: 20px;
     max-width: 90vw;
+    max-height: 85vh;
+    overflow-y: auto;
   }
   
   .startScreen h1,
@@ -252,6 +254,8 @@
   .instructionsPanel {
     font-size: 14px;
     padding: 15px;
+    max-height: 50vh;
+    overflow-y: auto;
   }
 
   .gameButton {
@@ -270,18 +274,27 @@
     padding: 6px 10px;
   }
   
+  .startScreen,
+  .gameOverScreen {
+    padding: 15px;
+    max-height: 80vh;
+  }
+  
   .startScreen h1,
   .gameOverScreen h2 {
     font-size: 24px;
+    margin-bottom: 15px;
   }
   
   .instructionsPanel {
     font-size: 12px;
+    max-height: 45vh;
+    line-height: 1.5;
   }
   
   .directionPad {
-    width: 150px;
-    height: 150px;
+    width: 120px;
+    height: 120px;
   }
   
   .directionButton {
@@ -292,5 +305,9 @@
     width: 50px;
     height: 50px;
     font-size: 20px;
+  }
+  
+  .mobileControls {
+    bottom: 5px;
   }
 }
