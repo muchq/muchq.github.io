@@ -1,20 +1,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Fredoka:wght@400;600&display=swap');
 
 .gameContainer {
-  position: relative;
+  position: fixed;
+  top: 60px; /* Account for nav bar */
+  left: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
-  max-width: 1200px;
-  max-height: 800px;
-  margin: 0 auto;
+  height: calc(100vh - 60px);
 }
 
 .gameCanvas {
-  border: 3px solid #8B4513;
-  box-shadow: 0 0 30px rgba(0,0,0,0.3);
+  border: none;
+  box-shadow: none;
   display: block;
   background: linear-gradient(to bottom, #87CEEB 0%, #FFE4B5 100%);
   width: 100%;
-  height: auto;
+  height: 100%;
 }
 
 .ui {
@@ -127,7 +129,7 @@
 
 /* Mobile Controls */
 .mobileControls {
-  position: fixed;
+  position: absolute;
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
@@ -208,34 +210,24 @@
 
 @media (max-width: 768px) {
   .gameContainer {
-    height: 100vh;
-    max-height: none;
-    display: flex;
-    flex-direction: column;
+    /* Already set to full screen in base styles */
   }
 
   .gameCanvas {
-    flex: 1;
-    width: 100%;
-    height: auto;
-    max-height: none;
+    /* Already set to full screen in base styles */
   }
 
   .ui {
     top: 10px;
     left: 10px;
-    right: 10px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
+    max-width: 50%; /* Don't overlap with minimap */
   }
   
   .stat {
-    font-size: 14px;
-    padding: 8px 12px;
-    min-width: auto;
-    flex: 1;
-    min-width: 120px;
+    font-size: 12px;
+    padding: 6px 10px;
+    min-width: unset;
+    margin-bottom: 5px;
   }
   
   .instructions {
