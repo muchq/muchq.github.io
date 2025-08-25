@@ -46,6 +46,13 @@ interface Cactus {
   size: number
 }
 
+interface Camera {
+  x: number
+  y: number
+  targetX: number
+  targetY: number
+}
+
 interface GameState {
   barge: Barge
   guests: Guest[]
@@ -56,6 +63,10 @@ interface GameState {
   score: number
   gameRunning: boolean
   gameOver: boolean
+  camera: Camera
+  worldWidth: number
+  worldHeight: number
+  lastBoostTime: number
 }
 
 export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null>) => {
@@ -68,8 +79,8 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
       width: 80,
       height: 40,
       angle: 0,
-      thrust: 0.5,
-      maxSpeed: 5,
+      thrust: 0.6, // Slightly higher for mobile responsiveness
+      maxSpeed: 6, // Slightly higher for mobile
       friction: 0.95
     },
     guests: [],
@@ -79,11 +90,19 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
     funLevel: 100,
     score: 0,
     gameRunning: false,
-    gameOver: false
+    gameOver: false,
+    camera: {
+      x: 0,
+      y: 0,
+      targetX: 0,
+      targetY: 0
+    },
+    worldWidth: 0,
+    worldHeight: 0,
+    lastBoostTime: 0
   })
   
   const keysRef = useRef<Record<string, boolean>>({})
-  const lastBoostTimeRef = useRef<number>(0)
   const animationIdRef = useRef<number>(0)
   const audioContextRef = useRef<AudioContext | null>(null)
   const gainNodeRef = useRef<GainNode | null>(null)
@@ -129,38 +148,51 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
   const initWebAudio = useCallback(() => {
     if (audioContextRef.current) return
     
-    const AudioContextClass = (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ||
-      (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-    if (AudioContextClass) {
-      audioContextRef.current = new AudioContextClass()
-      
-      // Set up gain nodes for volume control
-      gainNodeRef.current = audioContextRef.current.createGain()
-      gainNodeRef.current.gain.value = 0.15 // Overall volume
-      gainNodeRef.current.connect(audioContextRef.current.destination)
-      
-      conversationGainNodeRef.current = audioContextRef.current.createGain()
-      conversationGainNodeRef.current.gain.value = 0.05 // Conversation volume
-      conversationGainNodeRef.current.connect(audioContextRef.current.destination)
+    try {
+      const AudioContextClass = (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ||
+        (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      if (AudioContextClass) {
+        audioContextRef.current = new AudioContextClass()
+        
+        // Resume if suspended (browser autoplay policy)
+        if (audioContextRef.current.state === 'suspended') {
+          audioContextRef.current.resume()
+        }
+        
+        // Set up gain nodes for volume control
+        gainNodeRef.current = audioContextRef.current.createGain()
+        gainNodeRef.current.gain.value = 0.15 // Overall volume
+        gainNodeRef.current.connect(audioContextRef.current.destination)
+        
+        conversationGainNodeRef.current = audioContextRef.current.createGain()
+        conversationGainNodeRef.current.gain.value = 0.05 // Conversation volume
+        conversationGainNodeRef.current.connect(audioContextRef.current.destination)
+      }
+    } catch (error) {
+      console.warn('Failed to initialize Web Audio:', error)
     }
   }, [])
 
   const initMobileAudio = useCallback(() => {
-    // Create audio context for mobile
-    const AudioContextClass = (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ||
-      (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-    if (AudioContextClass) {
-      audioContextRef.current = new AudioContextClass()
-    }
+    try {
+      // Create audio context for mobile
+      const AudioContextClass = (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ||
+        (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      if (AudioContextClass) {
+        audioContextRef.current = new AudioContextClass()
+      }
 
-    // Create HTML5 audio for background music on mobile
-    const musicBuffer = createMobileBackgroundTrack()
-    const blob = new Blob([musicBuffer], { type: 'audio/wav' })
-    const url = URL.createObjectURL(blob)
-    
-    html5BackgroundAudio.current = new Audio(url)
-    html5BackgroundAudio.current.loop = true
-    html5BackgroundAudio.current.volume = 0.1
+      // Create HTML5 audio for background music on mobile
+      const musicBuffer = createMobileBackgroundTrack()
+      const blob = new Blob([musicBuffer], { type: 'audio/wav' })
+      const url = URL.createObjectURL(blob)
+      
+      html5BackgroundAudio.current = new Audio(url)
+      html5BackgroundAudio.current.loop = true
+      html5BackgroundAudio.current.volume = 0.1
+    } catch (error) {
+      console.warn('Failed to initialize mobile audio:', error)
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const createMobileBackgroundTrack = useCallback((): ArrayBuffer => {
@@ -262,8 +294,14 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
     const canvas = canvasRef.current
     if (!canvas) return
 
-    const centerX = canvas.width / 2
-    const centerY = canvas.height / 2
+    // World size adaptive to device - smaller on mobile for better performance
+    const worldMultiplier = isMobile.current ? 2 : 2.5
+    const worldWidth = canvas.width * worldMultiplier
+    const worldHeight = canvas.height * worldMultiplier
+    
+    // Start in center of world
+    const centerX = worldWidth / 2
+    const centerY = worldHeight / 2
 
     const initialGuests: Guest[] = []
     for (let i = 0; i < 5; i++) {
@@ -279,10 +317,14 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
     }
 
     const initialRescuables: Rescuable[] = []
-    for (let i = 0; i < 3; i++) {
+    // Distribute rescuables across the entire world, not just near spawn
+    for (let i = 0; i < 15; i++) { // Reasonable amount for 2.5x world
+      // Use better distribution to avoid clustering
+      const angle = (i / 15) * Math.PI * 2
+      const distance = 200 + Math.random() * (Math.min(worldWidth, worldHeight) / 2 - 200)
       initialRescuables.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
+        x: centerX + Math.cos(angle) * distance,
+        y: centerY + Math.sin(angle) * distance,
         wave: 0,
         rescued: false,
         type: Math.random() > 0.7 ? 'wreck' : 'person'
@@ -290,10 +332,14 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
     }
 
     const initialObstacles: Cactus[] = []
-    for (let i = 0; i < 5; i++) {
+    // Better obstacle distribution
+    for (let i = 0; i < 25; i++) { // Reasonable amount for 2.5x world
+      // Grid-based distribution with randomness
+      const gridX = (i % 5) * (worldWidth / 5)
+      const gridY = Math.floor(i / 5) * (worldHeight / 5)
       initialObstacles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
+        x: gridX + Math.random() * (worldWidth / 5),
+        y: gridY + Math.random() * (worldHeight / 5),
         size: Math.random() * 20 + 30
       })
     }
@@ -315,19 +361,34 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
       funLevel: 100,
       score: 0,
       gameRunning: true,
-      gameOver: false
+      gameOver: false,
+      camera: {
+        x: centerX - canvas.width / 2,
+        y: centerY - canvas.height / 2,
+        targetX: centerX - canvas.width / 2,
+        targetY: centerY - canvas.height / 2
+      },
+      worldWidth,
+      worldHeight,
+      lastBoostTime: 0
     }))
   }, [canvasRef])
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === ' ') {
+      e.preventDefault() // Prevent page scroll
+    }
     keysRef.current[e.key] = true
   }, [])
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
+    if (e.key === ' ') {
+      e.preventDefault() // Prevent page scroll
+    }
     keysRef.current[e.key] = false
   }, [])
 
-  const updateBarge = useCallback((barge: Barge, canvas: HTMLCanvasElement): Barge => {
+  const updateBarge = useCallback((barge: Barge, worldWidth: number, worldHeight: number): Barge => {
     let newVx = barge.vx
     let newVy = barge.vy
 
@@ -356,8 +417,9 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
     let newX = barge.x + newVx
     let newY = barge.y + newVy
 
-    newX = Math.max(barge.width/2, Math.min(canvas.width - barge.width/2, newX))
-    newY = Math.max(barge.height/2, Math.min(canvas.height - barge.height/2, newY))
+    // Constrain to world boundaries
+    newX = Math.max(barge.width/2, Math.min(worldWidth - barge.width/2, newX))
+    newY = Math.max(barge.height/2, Math.min(worldHeight - barge.height/2, newY))
 
     return {
       ...barge,
@@ -502,13 +564,38 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
     }
   }, [])
 
+  const updateCamera = useCallback((camera: Camera, barge: Barge, canvas: HTMLCanvasElement, worldWidth: number, worldHeight: number): Camera => {
+    // Faster camera on mobile for better responsiveness with touch controls
+    const cameraSpeed = isMobile.current ? 0.3 : 0.2
+    
+    // Center camera on barge
+    const targetX = barge.x - canvas.width / 2
+    const targetY = barge.y - canvas.height / 2
+    
+    // Lerp camera position
+    const newX = camera.x + (targetX - camera.x) * cameraSpeed
+    const newY = camera.y + (targetY - camera.y) * cameraSpeed
+    
+    // Constrain camera to world boundaries
+    const constrainedX = Math.max(0, Math.min(worldWidth - canvas.width, newX))
+    const constrainedY = Math.max(0, Math.min(worldHeight - canvas.height, newY))
+    
+    return {
+      x: constrainedX,
+      y: constrainedY,
+      targetX: targetX,
+      targetY: targetY
+    }
+  }, [])
+
   const gameLoop = useCallback(() => {
     if (!canvasRef.current || !gameState.gameRunning) return
 
     const canvas = canvasRef.current
 
     setGameState(prev => {
-      const updatedBarge = updateBarge(prev.barge, canvas)
+      const updatedBarge = updateBarge(prev.barge, prev.worldWidth, prev.worldHeight)
+      const updatedCamera = updateCamera(prev.camera, updatedBarge, canvas, prev.worldWidth, prev.worldHeight)
       const updatedGuests = updateGuests(prev.guests, updatedBarge)
       
       const rescueResult = checkRescues(prev.rescuables, updatedBarge)
@@ -517,36 +604,43 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
       let updatedParticles = updateParticles(prev.particles)
       updatedParticles = [...updatedParticles, ...rescueResult.newParticles, ...collisionResult.newParticles]
 
-      if (keysRef.current[' '] && Date.now() - lastBoostTimeRef.current > 1000) {
-        lastBoostTimeRef.current = Date.now()
+      // Check for boost and apply fun bonus
+      let boostBonus = 0
+      let boostScoreBonus = 0
+      let newBoostTime = prev.lastBoostTime
+      
+      const now = Date.now()
+      const canBoost = keysRef.current[' '] && (now - prev.lastBoostTime) > 1000
+      
+      if (canBoost) {
+        newBoostTime = now
+        boostBonus = 10
+        boostScoreBonus = 10
         
-        for (let i = 0; i < 15; i++) {
+        // Create more dramatic particle effect for boost
+        for (let i = 0; i < 25; i++) {
           updatedParticles.push({
             x: updatedBarge.x,
             y: updatedBarge.y,
-            vx: (Math.random() - 0.5) * 5,
-            vy: (Math.random() - 0.5) * 5 - 2,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 0.5) * 8 - 3,
             life: 1,
             color: `hsl(${Math.random() * 360}, 70%, 60%)`
           })
         }
-
-        return {
-          ...prev,
-          barge: updatedBarge,
-          guests: [...updatedGuests, ...rescueResult.newGuests],
-          rescuables: rescueResult.rescuables,
-          particles: updatedParticles,
-          funLevel: Math.min(100, prev.funLevel + 10 + rescueResult.funIncrease - collisionResult.funDecrease),
-          score: prev.score + 10 + rescueResult.scoreIncrease + prev.guests.length * 0.1
-        }
       }
 
       const spawnedRescuables = rescueResult.rescuables
-      if (Math.random() < 0.01 && spawnedRescuables.length < 5) {
+      if (Math.random() < 0.01 && spawnedRescuables.length < 20) { // Appropriate for 2.5x world
+        // Spawn at a random location in the world, not just near player
+        const spawnAngle = Math.random() * Math.PI * 2
+        const spawnDistance = 100 + Math.random() * 500
+        const spawnX = updatedBarge.x + Math.cos(spawnAngle) * spawnDistance
+        const spawnY = updatedBarge.y + Math.sin(spawnAngle) * spawnDistance
+        
         spawnedRescuables.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
+          x: Math.max(50, Math.min(prev.worldWidth - 50, spawnX)),
+          y: Math.max(50, Math.min(prev.worldHeight - 50, spawnY)),
           wave: 0,
           rescued: false,
           type: Math.random() > 0.7 ? 'wreck' : 'person'
@@ -557,7 +651,7 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
         { ...updatedBarge, vx: collisionResult.bargeKnockback.vx, vy: collisionResult.bargeKnockback.vy } :
         updatedBarge
 
-      const newFunLevel = Math.max(0, prev.funLevel - 0.1 + rescueResult.funIncrease - collisionResult.funDecrease)
+      const newFunLevel = Math.max(0, Math.min(100, prev.funLevel - 0.1 + rescueResult.funIncrease - collisionResult.funDecrease + boostBonus))
       
       if (newFunLevel <= 0) {
         stopSoundtrack()
@@ -568,9 +662,11 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
           rescuables: spawnedRescuables,
           particles: updatedParticles,
           funLevel: 0,
-          score: prev.score + rescueResult.scoreIncrease + prev.guests.length * 0.1,
+          score: prev.score + rescueResult.scoreIncrease + boostScoreBonus + prev.guests.length * 0.1,
           gameRunning: false,
-          gameOver: true
+          gameOver: true,
+          camera: updatedCamera,
+          lastBoostTime: newBoostTime
         }
       }
 
@@ -581,12 +677,14 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
         rescuables: spawnedRescuables,
         particles: updatedParticles,
         funLevel: newFunLevel,
-        score: prev.score + rescueResult.scoreIncrease + prev.guests.length * 0.1
+        score: prev.score + rescueResult.scoreIncrease + (boostScoreBonus || 0) + prev.guests.length * 0.1,
+        camera: updatedCamera,
+        lastBoostTime: newBoostTime
       }
     })
 
     animationIdRef.current = requestAnimationFrame(gameLoop)
-  }, [canvasRef, gameState.gameRunning, updateBarge, updateGuests, checkRescues, checkCollisions, updateParticles, stopSoundtrack])
+  }, [canvasRef, gameState.gameRunning, updateBarge, updateCamera, updateGuests, checkRescues, checkCollisions, updateParticles, stopSoundtrack])
 
   // 8-bit style oscillator with envelope
   const play8BitNote = useCallback((frequency: number, startTime: number, duration: number, type: OscillatorType = 'square', gainTarget?: GainNode) => {
@@ -644,6 +742,14 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
 
   const startWebSoundtrack = useCallback(() => {
     if (!audioContextRef.current || musicPlayingRef.current) return
+    
+    // Resume audio context if it's suspended (browser autoplay policy)
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume().catch((error) => {
+        console.warn('Failed to resume audio context:', error)
+      })
+    }
+    
     musicPlayingRef.current = true
     
     // Jazz chord progressions (ii-V-I in C major)
@@ -800,10 +906,16 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [handleKeyDown, handleKeyUp])
+  
+  // Separate effect for cleanup on unmount
+  useEffect(() => {
+    return () => {
       // Stop music when component unmounts (navigating away)
       stopSoundtrack()
     }
-  }, [handleKeyDown, handleKeyUp, stopSoundtrack])
+  }, [stopSoundtrack])
 
   return {
     gameState,
