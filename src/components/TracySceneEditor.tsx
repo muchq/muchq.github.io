@@ -105,13 +105,15 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
   const [selectedSphere, setSelectedSphere] = useState<number | null>(null)
   const [selectedLight, setSelectedLight] = useState<number | null>(null)
 
-  const handleSphereChange = (index: number, field: keyof Sphere, value: any) => {
+  const handleSphereChange = (index: number, field: keyof Sphere, value: string | { subIndex: string; value: string }) => {
     const newSpheres = [...sceneData.scene.spheres]
     if (field === 'center' || field === 'color') {
-      const subIndex = parseInt(value.subIndex)
-      ;(newSpheres[index][field] as number[])[subIndex] = parseFloat(value.value) || 0
+      if (typeof value === 'object' && 'subIndex' in value) {
+        const subIndex = parseInt(value.subIndex)
+        ;(newSpheres[index][field] as number[])[subIndex] = parseFloat(value.value) || 0
+      }
     } else {
-      (newSpheres[index] as any)[field] = parseFloat(value) || 0
+      newSpheres[index][field] = parseFloat(value as string) || 0
     }
     setSceneData({
       ...sceneData,
@@ -119,15 +121,17 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
     })
   }
 
-  const handleLightChange = (index: number, field: keyof Light, value: any) => {
+  const handleLightChange = (index: number, field: keyof Light, value: string | { subIndex: string; value: string }) => {
     const newLights = [...sceneData.scene.lights]
     if (field === 'position') {
-      const subIndex = parseInt(value.subIndex)
-      ;(newLights[index][field] as number[])[subIndex] = parseFloat(value.value) || 0
+      if (typeof value === 'object' && 'subIndex' in value) {
+        const subIndex = parseInt(value.subIndex)
+        ;(newLights[index][field] as number[])[subIndex] = parseFloat(value.value) || 0
+      }
     } else if (field === 'intensity') {
-      newLights[index][field] = parseFloat(value) || 0
-    } else {
-      (newLights[index] as any)[field] = value
+      newLights[index][field] = parseFloat(value as string) || 0
+    } else if (field === 'lightType') {
+      newLights[index][field] = value as 'ambient' | 'point' | 'directional'
     }
     setSceneData({
       ...sceneData,
@@ -192,18 +196,20 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
     })
   }
 
-  const handleBackgroundChange = (field: string, value: any) => {
+  const handleBackgroundChange = (field: string, value: string | { index: number; value: string }) => {
     if (field === 'backgroundColor') {
-      const newColor = [...sceneData.scene.backgroundColor]
-      newColor[value.index] = parseInt(value.value) || 0
-      setSceneData({
-        ...sceneData,
-        scene: { ...sceneData.scene, backgroundColor: newColor as [number, number, number] }
-      })
+      if (typeof value === 'object' && 'index' in value) {
+        const newColor = [...sceneData.scene.backgroundColor]
+        newColor[value.index] = parseInt(value.value) || 0
+        setSceneData({
+          ...sceneData,
+          scene: { ...sceneData.scene, backgroundColor: newColor as [number, number, number] }
+        })
+      }
     } else if (field === 'backgroundStarProbability') {
       setSceneData({
         ...sceneData,
-        scene: { ...sceneData.scene, backgroundStarProbability: parseFloat(value) || 0 }
+        scene: { ...sceneData.scene, backgroundStarProbability: parseFloat(value as string) || 0 }
       })
     }
   }
@@ -296,7 +302,7 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                         value={sceneData.scene.spheres[selectedSphere].center[i]}
                         onChange={(e) =>
                           handleSphereChange(selectedSphere, 'center', {
-                            subIndex: i,
+                            subIndex: i.toString(),
                             value: e.target.value
                           })
                         }
@@ -328,7 +334,7 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                         value={sceneData.scene.spheres[selectedSphere].color[i]}
                         onChange={(e) =>
                           handleSphereChange(selectedSphere, 'color', {
-                            subIndex: i,
+                            subIndex: i.toString(),
                             value: e.target.value
                           })
                         }
@@ -430,7 +436,7 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                         value={sceneData.scene.lights[selectedLight].position[i]}
                         onChange={(e) =>
                           handleLightChange(selectedLight, 'position', {
-                            subIndex: i,
+                            subIndex: i.toString(),
                             value: e.target.value
                           })
                         }

@@ -2,12 +2,39 @@ import { useState } from 'react'
 import styles from './TracyPage.module.css'
 import TracySceneEditor from '../components/TracySceneEditor'
 
+interface SceneData {
+  scene: {
+    backgroundColor: [number, number, number]
+    backgroundStarProbability: number
+    spheres: Array<{
+      center: [number, number, number]
+      radius: number
+      color: [number, number, number]
+      specular: number
+      reflective: number
+    }>
+    lights: Array<{
+      lightType: 'ambient' | 'point' | 'directional'
+      intensity: number
+      position: [number, number, number]
+    }>
+  }
+  perspective: {
+    cameraPosition: [number, number, number]
+    cameraFocus: [number, number, number]
+  }
+  output: {
+    width: number
+    height: number
+  }
+}
+
 const TracyPage = () => {
   const [imageData, setImageData] = useState<{ base64_png: string; width: number; height: number } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleRender = async (sceneData: any) => {
+  const handleRender = async (sceneData: SceneData) => {
     setIsLoading(true)
     setError(null)
     
