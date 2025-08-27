@@ -8,6 +8,7 @@ import PartyPage from './pages/PartyPage'
 import AurumSiphonPage from './pages/AurumSiphonPage'
 import QuestPage from './pages/QuestPage'
 import LearningPage from './pages/LearningPage'
+import TracyPage from './pages/TracyPage'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
       <Route path="/party" element={<PartyPage />} />
       <Route path="/aurum" element={<AurumSiphonPage />} />
       <Route path="/quest" element={<QuestPage />} />
+      <Route path="/tracy" element={<TracyPage />} />
       <Route path="/top" element={<Navigate to="/top/sets" replace />} />
       <Route path="/top/:module" element={<LearningPage />} />
     </Routes>
