@@ -38,8 +38,11 @@ const TracyPage = () => {
     setIsLoading(true)
     setError(null)
     
+    // Use environment variable for API URL, defaulting to production URL
+    const apiUrl = import.meta.env.VITE_TRACY_API_URL || 'https://api.muchq.com/v1/trace'
+    
     try {
-      const response = await fetch('http://localhost:8080/v1/trace', {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

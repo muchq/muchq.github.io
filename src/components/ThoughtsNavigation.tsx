@@ -56,6 +56,9 @@ const ThoughtsNavigation = ({ playerId, connectionStatus = 'disconnected', onRec
             </div>
           )}
           <div className={styles.thoughtsRow}>
+            <div className={`${styles.thought} ${isVisible ? styles.visible : ''}`}>
+              {thoughts[currentThoughtIndex]}
+            </div>
             <div className={styles.connectionStatus}>
               {connectionStatus === 'connecting' && <span className={styles.connecting}>Connecting to server...</span>}
               {connectionStatus === 'connected' && <span className={styles.connected}>Online</span>}
@@ -79,9 +82,6 @@ const ThoughtsNavigation = ({ playerId, connectionStatus = 'disconnected', onRec
                   )}
                 </>
               )}
-            </div>
-            <div className={`${styles.thought} ${isVisible ? styles.visible : ''}`}>
-              {thoughts[currentThoughtIndex]}
             </div>
           </div>
         </div>
