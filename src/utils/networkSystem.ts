@@ -9,6 +9,8 @@ export class NetworkManager implements INetworkManager {
   ws: WebSocket | null
   isConnected: boolean
   isSimulated: boolean
+  connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'failed'
+  connectionError: string | null
   lastSentPosition: [number, number, number] | null
   positionUpdateThrottle: number
   lastPositionSent: number
@@ -21,34 +23,51 @@ export class NetworkManager implements INetworkManager {
     shape: ShapeType
   }
   onPlayerIdReceived?: (playerId: string) => void
+  onConnectionStateChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'failed', error?: string) => void
+  websocketUrl: string | null
 
   constructor(gameState: GameState) {
     this.ws = null
     this.isConnected = false
     this.isSimulated = false
+    this.connectionStatus = 'disconnected'
+    this.connectionError = null
     this.lastSentPosition = null
     this.positionUpdateThrottle = 50 // Send updates max every 50ms (20fps)
     this.lastPositionSent = 0
     this.messageHandlers = new Map()
     this.gameState = gameState
     this.fakeServer = null
+    this.websocketUrl = null
   }
 
   connect(url: string): void {
+    this.websocketUrl = url
+    
     if (this.isSimulated) {
-      // Simulate successful connection
+      // Only simulate if explicitly in simulation mode
       console.log('🔌 Simulating WebSocket connection to', url)
       this.isConnected = true
+      this.connectionStatus = 'connected'
+      this.connectionError = null
+      this.onConnectionStateChange?.('connected')
       this.onConnected()
       return
     }
 
     try {
+      this.connectionStatus = 'connecting'
+      this.connectionError = null
+      this.onConnectionStateChange?.('connecting')
+      
       this.ws = new WebSocket(url)
 
       this.ws.onopen = () => {
         console.log('🔌 WebSocket connected to', url)
         this.isConnected = true
+        this.connectionStatus = 'connected'
+        this.connectionError = null
+        this.onConnectionStateChange?.('connected')
         this.onConnected()
       }
 
@@ -59,37 +78,45 @@ export class NetworkManager implements INetworkManager {
       this.ws.onclose = () => {
         console.log('🔌 WebSocket disconnected')
         this.isConnected = false
+        this.connectionStatus = 'disconnected'
+        this.onConnectionStateChange?.('disconnected')
         this.onDisconnected()
       }
 
       this.ws.onerror = (error) => {
         console.error('🔌 WebSocket error:', error)
+        console.log('🎮 Running in single-player mode')
         this.isConnected = false
+        this.connectionStatus = 'failed'
+        this.connectionError = 'Connection failed - Playing offline'
+        this.onConnectionStateChange?.('failed', this.connectionError)
+        // Don't try to simulate or create bots - just play single player
       }
     } catch (error) {
       console.error('🔌 Failed to connect to WebSocket:', error)
+      console.log('🎮 Running in single-player mode')
       this.isConnected = false
+      this.connectionStatus = 'failed'
+      this.connectionError = 'Connection failed - Playing offline'
+      this.onConnectionStateChange?.('failed', this.connectionError)
+      // Don't try to simulate or create bots - just play single player
     }
   }
 
   private onConnected(): void {
     // Don't send player_join yet - wait for welcome message with server-assigned ID
     
-    // Start fake server if in simulation mode
+    // Only start fake server if explicitly in simulation mode
     if (this.isSimulated && this.fakeServer) {
       this.fakeServer.start()
-      // In simulation mode, immediately simulate a welcome message
-      console.log('🤖 Simulation mode: scheduling welcome message')
+      // In simulation mode, keep the existing local player ID
+      console.log('🤖 Simulation mode: keeping local player ID')
+      // Just send the player_join message directly without changing ID
       setTimeout(() => {
-        const simPlayerId = 'sim-' + Math.random().toString(36).substr(2, 9)
-        console.log(`🤖 Simulation mode: sending welcome message with ID ${simPlayerId}`)
-        this.handleMessage({
-          type: 'welcome',
-          playerId: simPlayerId,
-          timestamp: Date.now()
-        })
+        this.sendPlayerJoin()
       }, 100)
     }
+    // If not simulated, wait for real server welcome message
   }
 
   setFakeServer(fakeServer: IFakeServer): void {
@@ -194,17 +221,30 @@ export class NetworkManager implements INetworkManager {
       return
     }
 
-    // Set the local player ID assigned by the server
-    this.gameState.localPlayerId = message.playerId
-    console.log(`🎉 Received player ID from server: ${message.playerId}`)
+    // Get the existing local player
+    const existingLocalPlayer = this.gameState.getLocalPlayer()
+    const oldLocalPlayerId = this.gameState.localPlayerId
     
-    // Call the callback if provided
-    if (this.onPlayerIdReceived) {
-      this.onPlayerIdReceived(message.playerId)
-    }
-
-    // Now add the local player with the pending data
-    if (this.pendingPlayerData) {
+    // Update to server-assigned ID
+    this.gameState.localPlayerId = message.playerId
+    console.log(`🎉 Received player ID from server: ${message.playerId} (replacing ${oldLocalPlayerId})`)
+    
+    // If we already had a local player, update its ID
+    if (existingLocalPlayer && oldLocalPlayerId) {
+      // Remove the old player entry
+      this.gameState.players.delete(oldLocalPlayerId)
+      
+      // Re-add with new ID
+      this.gameState.addPlayer(
+        message.playerId,
+        existingLocalPlayer.position,
+        existingLocalPlayer.color,
+        existingLocalPlayer.shape
+      )
+      
+      console.log(`Updated local player ID from ${oldLocalPlayerId} to ${message.playerId}`)
+    } else if (this.pendingPlayerData) {
+      // Fallback: create player if somehow it doesn't exist
       this.gameState.addPlayer(
         message.playerId,
         this.pendingPlayerData.position,
@@ -213,13 +253,18 @@ export class NetworkManager implements INetworkManager {
       )
       
       console.log(`Spawning player ${message.playerId} at position [${this.pendingPlayerData.position.map(x => x.toFixed(2)).join(', ')}] with color [${this.pendingPlayerData.color.map(x => x.toFixed(2)).join(', ')}]`)
-
-      // Now send the player_join message
-      this.sendPlayerJoin()
-      
-      // Clear pending data
-      this.pendingPlayerData = undefined
     }
+    
+    // Call the callback with new server ID
+    if (this.onPlayerIdReceived) {
+      this.onPlayerIdReceived(message.playerId)
+    }
+
+    // Send the player_join message
+    this.sendPlayerJoin()
+    
+    // Clear pending data
+    this.pendingPlayerData = undefined
   }
 
   private handlePlayerJoin(message: NetworkMessage): void {
@@ -303,6 +348,28 @@ export class NetworkManager implements INetworkManager {
       this.ws.close()
     }
     this.isConnected = false
+    this.connectionStatus = 'disconnected'
+    this.onConnectionStateChange?.('disconnected')
+  }
+
+  reconnect(): void {
+    console.log('🔄 Attempting to reconnect...')
+    // Close existing connection if any
+    if (this.ws) {
+      this.ws.close()
+      this.ws = null
+    }
+    
+    // Reset connection state
+    this.isConnected = false
+    this.connectionError = null
+    
+    // Reconnect after a short delay
+    if (this.websocketUrl) {
+      setTimeout(() => {
+        this.connect(this.websocketUrl!)
+      }, 100)
+    }
   }
 }
 

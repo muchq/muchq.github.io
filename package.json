@@ -15,15 +15,16 @@
     "test:ui": "vitest --ui",
     "typecheck": "tsc --noEmit",
     "test:run": "vitest run",
-    "local-server": "cross-env VITE_THOUGHTS_WEBSOCKET_URL=ws://localhost:8080/thoughts-ws VITE_GOLF_WEBSOCKET_URL=ws://localhost:8080/golf-ws VITE_THOUGHTS_SIMULATED=false vite"
+    "local-server": "cross-env VITE_THOUGHTS_WEBSOCKET_URL=ws://localhost:8080/thoughts-ws VITE_GOLF_WEBSOCKET_URL=ws://localhost:8080/golf-ws VITE_THOUGHTS_SIMULATED=false vite",
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "@types/three": "^0.179.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.1",
-    "three": "^0.179.1",
-    "react-select": "^5.10.2"
+    "react-select": "^5.10.2",
+    "three": "^0.179.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.7.0",
@@ -39,8 +40,9 @@
     "globals": "^16.3.0",
     "jsdom": "^26.1.0",
     "typescript": "^5.9.2",
-    "typescript-eslint": "^8.39.1",
+    "typescript-eslint": "^8.41.0",
     "vite": "^7.1.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wrangler": "^4.33.0"
   }
 }

@@ -4,9 +4,11 @@ import styles from './ThoughtsGame.module.css'
 
 interface ThoughtsGameProps {
   onPlayerIdReceived: (playerId: string) => void
+  onConnectionStateChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'failed', error?: string) => void
+  networkManagerRef?: React.MutableRefObject<{ reconnect: () => void } | null>
 }
 
-const ThoughtsGame = ({ onPlayerIdReceived }: ThoughtsGameProps) => {
+const ThoughtsGame = ({ onPlayerIdReceived, onConnectionStateChange, networkManagerRef }: ThoughtsGameProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { initializeGame } = useThoughtsGame()
 
@@ -14,10 +16,10 @@ const ThoughtsGame = ({ onPlayerIdReceived }: ThoughtsGameProps) => {
     const canvas = canvasRef.current
     if (!canvas) return
 
-    const cleanup = initializeGame(canvas, onPlayerIdReceived)
+    const cleanup = initializeGame(canvas, onPlayerIdReceived, onConnectionStateChange, networkManagerRef)
     
     return cleanup
-  }, [initializeGame, onPlayerIdReceived])
+  }, [initializeGame, onPlayerIdReceived, onConnectionStateChange, networkManagerRef])
 
   return (
     <div className={styles.gameContainer}>

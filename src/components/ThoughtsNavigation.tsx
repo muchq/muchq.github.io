@@ -13,9 +13,11 @@ const thoughts = [
 
 interface ThoughtsNavigationProps {
   playerId: string | null
+  connectionStatus?: 'connecting' | 'connected' | 'disconnected' | 'failed'
+  onReconnect?: () => void
 }
 
-const ThoughtsNavigation = ({ playerId }: ThoughtsNavigationProps) => {
+const ThoughtsNavigation = ({ playerId, connectionStatus = 'disconnected', onReconnect }: ThoughtsNavigationProps) => {
   const [currentThoughtIndex, setCurrentThoughtIndex] = useState(0)
   const [isVisible, setIsVisible] = useState(false)
 
@@ -53,8 +55,34 @@ const ThoughtsNavigation = ({ playerId }: ThoughtsNavigationProps) => {
               Player: {playerId}
             </div>
           )}
-          <div className={`${styles.thought} ${isVisible ? styles.visible : ''}`}>
-            {thoughts[currentThoughtIndex]}
+          <div className={styles.thoughtsRow}>
+            <div className={`${styles.thought} ${isVisible ? styles.visible : ''}`}>
+              {thoughts[currentThoughtIndex]}
+            </div>
+            <div className={styles.connectionStatus}>
+              {connectionStatus === 'connecting' && <span className={styles.connecting}>Connecting to server...</span>}
+              {connectionStatus === 'connected' && <span className={styles.connected}>Online</span>}
+              {connectionStatus === 'disconnected' && (
+                <>
+                  <span className={styles.disconnected}>Offline</span>
+                  {onReconnect && (
+                    <button className={styles.reconnectButton} onClick={onReconnect}>
+                      Reconnect
+                    </button>
+                  )}
+                </>
+              )}
+              {connectionStatus === 'failed' && (
+                <>
+                  <span className={styles.failed}>Offline (Single Player)</span>
+                  {onReconnect && (
+                    <button className={styles.reconnectButton} onClick={onReconnect}>
+                      Try Reconnect
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
