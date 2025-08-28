@@ -66,8 +66,8 @@ const ThoughtsNavigation = ({ playerId, connectionStatus = 'disconnected', onRec
                 <>
                   <span className={styles.disconnected}>Offline</span>
                   {onReconnect && (
-                    <button className={styles.reconnectButton} onClick={onReconnect}>
-                      Reconnect
+                    <button className={styles.reconnectButton} onClick={onReconnect} title="Reconnect">
+                      🔄
                     </button>
                   )}
                 </>
@@ -76,8 +76,8 @@ const ThoughtsNavigation = ({ playerId, connectionStatus = 'disconnected', onRec
                 <>
                   <span className={styles.failed}>Offline (Single Player)</span>
                   {onReconnect && (
-                    <button className={styles.reconnectButton} onClick={onReconnect}>
-                      Try Reconnect
+                    <button className={styles.reconnectButton} onClick={onReconnect} title="Try Reconnect">
+                      🔄
                     </button>
                   )}
                 </>
