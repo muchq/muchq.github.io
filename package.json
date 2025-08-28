@@ -27,7 +27,7 @@
     "three": "^0.179.1"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.7.0",
+    "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.0.0",
     "@types/react": "^19.1.11",
     "@types/react-dom": "^19.1.7",
