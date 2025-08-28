@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import type { MutableRefObject } from 'react'
 import { vertexShaderSource, fragmentShaderSource } from '@/utils/shaders'
 import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
 import { generateRandomColor, generateRandomSpawnPosition, createShader, createProgram } from '@/utils/gameUtils'
@@ -8,7 +9,7 @@ import { NetworkManager, FakeServer } from '@/utils/networkSystem'
 import { ShapeType } from '@/types/game'
 
 export const useThoughtsGame = () => {
-  const initializeGame = useCallback((canvas: HTMLCanvasElement, onPlayerIdReceived?: (playerId: string) => void) => {
+  const initializeGame = useCallback((canvas: HTMLCanvasElement, onPlayerIdReceived?: (playerId: string) => void, onConnectionStateChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'failed', error?: string) => void, networkManagerRef?: MutableRefObject<{ reconnect: () => void } | null>) => {
     // eslint-disable-next-line no-console
     console.log('Starting game initialization...')
 
@@ -21,11 +22,21 @@ export const useThoughtsGame = () => {
     if (onPlayerIdReceived) {
       networkManager.onPlayerIdReceived = onPlayerIdReceived
     }
+    
+    // Set callback for connection state changes
+    if (onConnectionStateChange) {
+      networkManager.onConnectionStateChange = onConnectionStateChange
+    }
+    
+    // Store network manager reference for reconnect functionality
+    if (networkManagerRef) {
+      networkManagerRef.current = {
+        reconnect: () => networkManager.reconnect()
+      }
+    }
 
-    // Create fake server if in simulated mode
-    const isSimulated = import.meta.env.VITE_THOUGHTS_SIMULATED === 'false' ? false : 
-                       import.meta.env.VITE_THOUGHTS_SIMULATED === 'true' ? true : 
-                       import.meta.env.DEV
+    // Only create fake server if explicitly in simulated mode (not as fallback)
+    const isSimulated = import.meta.env.VITE_THOUGHTS_SIMULATED === 'true'
     if (isSimulated) {
       const fakeServer = new FakeServer(networkManager)
       networkManager.setFakeServer(fakeServer)
@@ -33,11 +44,28 @@ export const useThoughtsGame = () => {
       networkManager.isSimulated = true
     }
 
-    // Prepare local player data (but don't add to game state yet - wait for server ID)
+    // Prepare local player data
     const randomSpawnPosition = generateRandomSpawnPosition(GAME_CONFIG.worldBoundary)
     const randomColor = generateRandomColor()
+    
+    // Create a local player ID immediately (will be replaced by server ID if connected)
+    const localPlayerId = 'local-' + Math.random().toString(36).substr(2, 9)
+    gameState.localPlayerId = localPlayerId
+    
+    // Add local player to the game immediately so it renders
+    gameState.addPlayer(
+      localPlayerId,
+      randomSpawnPosition,
+      randomColor,
+      ShapeType.SPHERE
+    )
+    
+    // Notify that we have a player ID (even if offline)
+    if (onPlayerIdReceived) {
+      onPlayerIdReceived(localPlayerId)
+    }
 
-    // Store initial player data for when we receive the welcome message
+    // Store initial player data for when we connect to server
     networkManager.pendingPlayerData = {
       position: randomSpawnPosition,
       color: randomColor,
@@ -616,9 +644,13 @@ export const useThoughtsGame = () => {
       animationId = requestAnimationFrame(render)
     }
 
-    // Connect to server (or simulate connection)
+    // Connect to server (or simulate connection) - but don't block game from starting
     const websocketUrl = import.meta.env.VITE_THOUGHTS_WEBSOCKET_URL || 'wss://api.muchq.com/thoughts-ws'
-    networkManager.connect(websocketUrl)
+    
+    // Delay connection attempt slightly to ensure game renders first
+    setTimeout(() => {
+      networkManager.connect(websocketUrl)
+    }, 100)
 
     // Handle page unload - notify server when player leaves
     const handleBeforeUnload = () => {
