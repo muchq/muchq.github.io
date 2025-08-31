@@ -196,6 +196,60 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
+.colorInput {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.colorPicker {
+  width: 60px;
+  height: 40px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: none;
+  padding: 0;
+}
+
+.sliderInput {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.slider {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.numberInput {
+  width: 80px;
+  flex-shrink: 0;
+}
+
 .actions {
   display: flex;
   gap: 1rem;
@@ -279,6 +333,10 @@
 
 /* Mobile responsiveness */
 @media (max-width: 768px) {
+  .editor {
+    min-height: auto;
+  }
+
   .section {
     flex-direction: column;
   }
@@ -286,17 +344,19 @@
   .itemList {
     flex: none;
     width: 100%;
-    max-height: 200px;
+    max-height: 150px;
     overflow-y: auto;
   }
 
   .properties {
     flex: none;
     width: 100%;
+    max-height: 300px;
   }
 
   .tabs {
     flex-wrap: wrap;
+    margin-bottom: 1rem;
   }
 
   .tab {
@@ -306,11 +366,41 @@
     font-size: 0.85rem;
   }
 
+  .tabContent {
+    max-height: 400px;
+  }
+
   .vectorInput {
     flex-wrap: wrap;
+    gap: 0.25rem;
   }
 
   .vectorInput input {
-    min-width: calc(33.333% - 0.333rem);
+    min-width: calc(33.333% - 0.167rem);
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  .inputGroup input,
+  .inputGroup select {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 0.75rem;
+  }
+
+  .actions {
+    position: sticky;
+    bottom: 0;
+    background: rgba(30, 30, 46, 0.95);
+    backdrop-filter: blur(10px);
+    margin: 0 -1rem -1rem -1rem;
+    padding: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    gap: 0.75rem;
+  }
+
+  .resetBtn,
+  .renderBtn {
+    padding: 1rem 1.5rem;
+    font-size: 1.05rem;
+    border-radius: 10px;
   }
 }

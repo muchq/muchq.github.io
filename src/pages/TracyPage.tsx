@@ -39,6 +39,14 @@ const TracyPage = () => {
     setIsLoading(true)
     setError(null)
     
+    // Scroll to canvas on mobile
+    if (window.innerWidth <= 768) {
+      const canvasSection = document.querySelector('.canvasSection')
+      if (canvasSection) {
+        canvasSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }
+    
     // Use environment variable for API URL, defaulting to production URL
     const apiUrl = import.meta.env.VITE_TRACY_API_URL || 'https://api.muchq.com/v1/trace'
     
@@ -57,6 +65,16 @@ const TracyPage = () => {
 
       const data = await response.json()
       setImageData(data)
+      
+      // Auto-scroll to result after successful render on mobile
+      setTimeout(() => {
+        if (window.innerWidth <= 768) {
+          const canvas = document.getElementById('render-canvas')
+          if (canvas) {
+            canvas.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }
+      }, 100)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to render scene')
       console.error('Render error:', err)
