@@ -335,6 +335,8 @@
 @media (max-width: 768px) {
   .editor {
     min-height: auto;
+    height: auto;
+    overflow: visible;
   }
 
   .section {
@@ -351,7 +353,8 @@
   .properties {
     flex: none;
     width: 100%;
-    max-height: 300px;
+    max-height: none;
+    overflow-y: visible;
   }
 
   .tabs {
@@ -367,7 +370,13 @@
   }
 
   .tabContent {
-    max-height: 400px;
+    max-height: none;
+    overflow-y: visible;
+  }
+  
+  .section {
+    max-height: none;
+    overflow: visible;
   }
 
   .vectorInput {
