@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import styles from './TracyPage.module.css'
 import TracySceneEditor from '../components/TracySceneEditor'
+import TracyNavigation from '@/components/TracyNavigation'
 
 interface SceneData {
   scene: {
@@ -66,6 +67,7 @@ const TracyPage = () => {
 
   return (
     <div className={styles.container}>
+      <TracyNavigation />
       <header className={styles.header}>
         <h1>Tracy Ray Tracer</h1>
         <p>Interactive scene editor for ray tracing</p>
