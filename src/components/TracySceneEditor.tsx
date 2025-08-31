@@ -299,7 +299,7 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                         key={i}
                         type="number"
                         step="0.1"
-                        value={sceneData.scene.spheres[selectedSphere].center[i] || ''}
+                        value={sceneData.scene.spheres[selectedSphere].center[i]?.toString() ?? ''}
                         placeholder="0"
                         onChange={(e) =>
                           handleSphereChange(selectedSphere, 'center', {
@@ -319,7 +319,7 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                     type="number"
                     step="0.1"
                     min="0.1"
-                    value={sceneData.scene.spheres[selectedSphere].radius || ''}
+                    value={sceneData.scene.spheres[selectedSphere].radius?.toString() ?? ''}
                     placeholder="1.0"
                     onChange={(e) => handleSphereChange(selectedSphere, 'radius', e.target.value)}
                     onFocus={(e) => e.target.select()}
@@ -350,7 +350,7 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                           type="number"
                           min="0"
                           max="255"
-                          value={sceneData.scene.spheres[selectedSphere].color[i] || ''}
+                          value={sceneData.scene.spheres[selectedSphere].color[i]?.toString() ?? ''}
                           placeholder={['255', '0', '0'][i]}
                           onChange={(e) =>
                             handleSphereChange(selectedSphere, 'color', {
@@ -371,7 +371,7 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                     type="number"
                     step="10"
                     min="0"
-                    value={sceneData.scene.spheres[selectedSphere].specular || ''}
+                    value={sceneData.scene.spheres[selectedSphere].specular?.toString() ?? ''}
                     placeholder="100"
                     onChange={(e) => handleSphereChange(selectedSphere, 'specular', e.target.value)}
                     onFocus={(e) => e.target.select()}
@@ -385,7 +385,7 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                     step="0.05"
                     min="0"
                     max="1"
-                    value={sceneData.scene.spheres[selectedSphere].reflective || ''}
+                    value={sceneData.scene.spheres[selectedSphere].reflective?.toString() ?? ''}
                     placeholder="0.2"
                     onChange={(e) => handleSphereChange(selectedSphere, 'reflective', e.target.value)}
                     onFocus={(e) => e.target.select()}
@@ -446,7 +446,7 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                     step="0.1"
                     min="0"
                     max="1"
-                    value={sceneData.scene.lights[selectedLight].intensity || ''}
+                    value={sceneData.scene.lights[selectedLight].intensity?.toString() ?? ''}
                     placeholder="0.5"
                     onChange={(e) => handleLightChange(selectedLight, 'intensity', e.target.value)}
                     onFocus={(e) => e.target.select()}
@@ -461,7 +461,7 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                         key={i}
                         type="number"
                         step="0.1"
-                        value={sceneData.scene.lights[selectedLight].position[i] || ''}
+                        value={sceneData.scene.lights[selectedLight].position[i]?.toString() ?? ''}
                         placeholder="0"
                         onChange={(e) =>
                           handleLightChange(selectedLight, 'position', {
@@ -491,7 +491,7 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                       key={i}
                       type="number"
                       step="0.5"
-                      value={sceneData.perspective.cameraPosition[i] || ''}
+                      value={sceneData.perspective.cameraPosition[i]?.toString() ?? ''}
                       placeholder="0"
                       onChange={(e) => handleCameraChange('position', i, e.target.value)}
                       onFocus={(e) => e.target.select()}
@@ -508,7 +508,7 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                       key={i}
                       type="number"
                       step="0.5"
-                      value={sceneData.perspective.cameraFocus[i] || ''}
+                      value={sceneData.perspective.cameraFocus[i]?.toString() ?? ''}
                       placeholder="0"
                       onChange={(e) => handleCameraChange('focus', i, e.target.value)}
                       onFocus={(e) => e.target.select()}
@@ -525,7 +525,7 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                     min="100"
                     max="2000"
                     step="10"
-                    value={sceneData.output.width || ''}
+                    value={sceneData.output.width?.toString() ?? ''}
                     placeholder="800"
                     onChange={(e) =>
                       setSceneData({
@@ -541,7 +541,7 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                     min="100"
                     max="2000"
                     step="10"
-                    value={sceneData.output.height || ''}
+                    value={sceneData.output.height?.toString() ?? ''}
                     placeholder="640"
                     onChange={(e) =>
                       setSceneData({
@@ -585,7 +585,7 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                         type="number"
                         min="0"
                         max="255"
-                        value={sceneData.scene.backgroundColor[i] || ''}
+                        value={sceneData.scene.backgroundColor[i]?.toString() ?? ''}
                         placeholder="0"
                         onChange={(e) =>
                           handleBackgroundChange('backgroundColor', {
@@ -607,7 +607,7 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                   step="0.0001"
                   min="0"
                   max="0.01"
-                  value={sceneData.scene.backgroundStarProbability || ''}
+                  value={sceneData.scene.backgroundStarProbability?.toString() ?? ''}
                   placeholder="0.0006"
                   onChange={(e) =>
                     handleBackgroundChange('backgroundStarProbability', e.target.value)
