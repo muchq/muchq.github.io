@@ -127,12 +127,10 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
     if (field === 'center' || field === 'color') {
       if (typeof value === 'object' && 'subIndex' in value) {
         const subIndex = parseInt(value.subIndex)
-        const parsedValue = parseFloat(value.value)
-        ;(newSpheres[index][field] as number[])[subIndex] = value.value === '' ? 0 : (isNaN(parsedValue) ? 0 : parsedValue)
+        ;(newSpheres[index][field] as number[])[subIndex] = parseFloat(value.value) || 0
       }
     } else {
-      const parsedValue = parseFloat(value as string)
-      newSpheres[index][field] = value === '' ? 0 : (isNaN(parsedValue) ? 0 : parsedValue)
+      newSpheres[index][field] = parseFloat(value as string) || 0
     }
     setSceneData({
       ...sceneData,
@@ -145,12 +143,10 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
     if (field === 'position') {
       if (typeof value === 'object' && 'subIndex' in value) {
         const subIndex = parseInt(value.subIndex)
-        const parsedValue = parseFloat(value.value)
-        ;(newLights[index][field] as number[])[subIndex] = value.value === '' ? 0 : (isNaN(parsedValue) ? 0 : parsedValue)
+        ;(newLights[index][field] as number[])[subIndex] = parseFloat(value.value) || 0
       }
     } else if (field === 'intensity') {
-      const parsedValue = parseFloat(value as string)
-      newLights[index][field] = value === '' ? 0 : (isNaN(parsedValue) ? 0 : parsedValue)
+      newLights[index][field] = parseFloat(value as string) || 0
     } else if (field === 'lightType') {
       newLights[index][field] = value as 'ambient' | 'point' | 'directional'
     }
@@ -207,11 +203,9 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
   const handleCameraChange = (field: 'position' | 'focus', axis: number, value: string) => {
     const newPerspective = { ...sceneData.perspective }
     if (field === 'position') {
-      const parsedValue = parseFloat(value)
-      newPerspective.cameraPosition[axis] = value === '' ? 0 : (isNaN(parsedValue) ? 0 : parsedValue)
+      newPerspective.cameraPosition[axis] = parseFloat(value) || 0
     } else {
-      const parsedValue = parseFloat(value)
-      newPerspective.cameraFocus[axis] = value === '' ? 0 : (isNaN(parsedValue) ? 0 : parsedValue)
+      newPerspective.cameraFocus[axis] = parseFloat(value) || 0
     }
     setSceneData({
       ...sceneData,
@@ -232,10 +226,7 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
     } else if (field === 'backgroundStarProbability') {
       setSceneData({
         ...sceneData,
-        scene: { ...sceneData.scene, backgroundStarProbability: (() => {
-          const parsedValue = parseFloat(value as string)
-          return value === '' ? 0 : (isNaN(parsedValue) ? 0 : parsedValue)
-        })() }
+        scene: { ...sceneData.scene, backgroundStarProbability: parseFloat(value as string) || 0 }
       })
     }
   }
