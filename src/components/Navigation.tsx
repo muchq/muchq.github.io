@@ -31,25 +31,22 @@ const Navigation = ({ className }: NavigationProps) => {
       <div className={`${styles.navContainer} nav-container`}>
         <Link to="/" className={`${styles.navLogo} nav-logo`}>MuchQ</Link>
         <ul className={`${styles.navMenu} ${isMobileMenuOpen ? styles.active : ''}`}>
-          <li className={`${styles.navItem} nav-item ${expandedItems.has('projects') ? styles.expanded : ''}`}>
+          <li className={`${styles.navItem} nav-item ${expandedItems.has('graphics') ? styles.expanded : ''}`}>
             <a
               href="#"
               className={styles.navLink}
               onClick={(e) => {
                 if (window.innerWidth <= 768) {
                   e.preventDefault()
-                  toggleAccordion('projects')
+                  toggleAccordion('graphics')
                 }
               }}
             >
-              Projects
+              Graphics
               <span className={styles.accordionIcon}>›</span>
             </a>
             <div className={styles.dropdown}>
-              <a href="#" className={styles.dropdownItem}>Web Apps</a>
-              <a href="#" className={styles.dropdownItem}>Open Source</a>
-              <a href="#" className={styles.dropdownItem}>Graphics</a>
-              {/* <Link to="/tracy" className={styles.dropdownItem}>→ Tracy</Link> */}
+              <Link to="/tracy" className={styles.dropdownItem}>Tracy</Link>
             </div>
           </li>
           <li className={`${styles.navItem} nav-item ${expandedItems.has('interests') ? styles.expanded : ''}`}>

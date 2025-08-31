@@ -2,6 +2,7 @@
   min-height: 100vh;
   background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
   padding: 2rem;
+  padding-top: 5rem;
   color: #fff;
 }
 
@@ -130,6 +131,7 @@
 @media (max-width: 768px) {
   .container {
     padding: 1rem;
+    padding-top: 5rem;
   }
   
   .header h1 {
