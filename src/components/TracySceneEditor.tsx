@@ -104,6 +104,23 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
   const [activeTab, setActiveTab] = useState<'spheres' | 'lights' | 'camera' | 'background'>('spheres')
   const [selectedSphere, setSelectedSphere] = useState<number | null>(null)
   const [selectedLight, setSelectedLight] = useState<number | null>(null)
+  
+  // Track raw input values to preserve intermediate decimal representations
+  const [inputValues, setInputValues] = useState<{[key: string]: string}>({})
+
+  // Helper to get current input value (raw string or fallback to numeric value)
+  const getInputValue = (key: string, fallbackValue: number): string => {
+    return inputValues[key] ?? fallbackValue.toString()
+  }
+
+  // Helper to set input value (both raw string and parsed numeric)
+  const setInputValue = (key: string, stringValue: string, updateSceneData: () => void) => {
+    // Update raw input value
+    setInputValues(prev => ({ ...prev, [key]: stringValue }))
+    
+    // Update scene data with parsed numeric value
+    updateSceneData()
+  }
 
   const handleSphereChange = (index: number, field: keyof Sphere, value: string | { subIndex: string; value: string }) => {
     const newSpheres = [...sceneData.scene.spheres]
@@ -299,13 +316,17 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                         key={i}
                         type="number"
                         step="0.1"
-                        value={sceneData.scene.spheres[selectedSphere].center[i]?.toString() ?? ''}
+                        value={getInputValue(`sphere-${selectedSphere}-center-${i}`, sceneData.scene.spheres[selectedSphere].center[i])}
                         placeholder="0"
                         onChange={(e) =>
-                          handleSphereChange(selectedSphere, 'center', {
-                            subIndex: i.toString(),
-                            value: e.target.value
-                          })
+                          setInputValue(
+                            `sphere-${selectedSphere}-center-${i}`,
+                            e.target.value,
+                            () => handleSphereChange(selectedSphere, 'center', {
+                              subIndex: i.toString(),
+                              value: e.target.value
+                            })
+                          )
                         }
                         onFocus={(e) => e.target.select()}
                       />
@@ -385,9 +406,15 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                     step="0.05"
                     min="0"
                     max="1"
-                    value={sceneData.scene.spheres[selectedSphere].reflective?.toString() ?? ''}
+                    value={getInputValue(`sphere-${selectedSphere}-reflective`, sceneData.scene.spheres[selectedSphere].reflective)}
                     placeholder="0.2"
-                    onChange={(e) => handleSphereChange(selectedSphere, 'reflective', e.target.value)}
+                    onChange={(e) =>
+                      setInputValue(
+                        `sphere-${selectedSphere}-reflective`,
+                        e.target.value,
+                        () => handleSphereChange(selectedSphere, 'reflective', e.target.value)
+                      )
+                    }
                     onFocus={(e) => e.target.select()}
                   />
                 </div>
@@ -446,9 +473,15 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                     step="0.1"
                     min="0"
                     max="1"
-                    value={sceneData.scene.lights[selectedLight].intensity?.toString() ?? ''}
+                    value={getInputValue(`light-${selectedLight}-intensity`, sceneData.scene.lights[selectedLight].intensity)}
                     placeholder="0.5"
-                    onChange={(e) => handleLightChange(selectedLight, 'intensity', e.target.value)}
+                    onChange={(e) =>
+                      setInputValue(
+                        `light-${selectedLight}-intensity`,
+                        e.target.value,
+                        () => handleLightChange(selectedLight, 'intensity', e.target.value)
+                      )
+                    }
                     onFocus={(e) => e.target.select()}
                   />
                 </div>
@@ -607,10 +640,14 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                   step="0.0001"
                   min="0"
                   max="0.01"
-                  value={sceneData.scene.backgroundStarProbability?.toString() ?? ''}
+                  value={getInputValue('background-star-probability', sceneData.scene.backgroundStarProbability)}
                   placeholder="0.0006"
                   onChange={(e) =>
-                    handleBackgroundChange('backgroundStarProbability', e.target.value)
+                    setInputValue(
+                      'background-star-probability',
+                      e.target.value,
+                      () => handleBackgroundChange('backgroundStarProbability', e.target.value)
+                    )
                   }
                   onFocus={(e) => e.target.select()}
                 />
