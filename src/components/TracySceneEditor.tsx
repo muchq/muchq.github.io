@@ -299,13 +299,15 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                         key={i}
                         type="number"
                         step="0.1"
-                        value={sceneData.scene.spheres[selectedSphere].center[i]}
+                        value={sceneData.scene.spheres[selectedSphere].center[i] || ''}
+                        placeholder="0"
                         onChange={(e) =>
                           handleSphereChange(selectedSphere, 'center', {
                             subIndex: i.toString(),
                             value: e.target.value
                           })
                         }
+                        onFocus={(e) => e.target.select()}
                       />
                     ))}
                   </div>
@@ -317,29 +319,49 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                     type="number"
                     step="0.1"
                     min="0.1"
-                    value={sceneData.scene.spheres[selectedSphere].radius}
+                    value={sceneData.scene.spheres[selectedSphere].radius || ''}
+                    placeholder="1.0"
                     onChange={(e) => handleSphereChange(selectedSphere, 'radius', e.target.value)}
+                    onFocus={(e) => e.target.select()}
                   />
                 </div>
 
                 <div className={styles.inputGroup}>
                   <label>Color (R, G, B)</label>
-                  <div className={styles.vectorInput}>
-                    {[0, 1, 2].map((i) => (
-                      <input
-                        key={i}
-                        type="number"
-                        min="0"
-                        max="255"
-                        value={sceneData.scene.spheres[selectedSphere].color[i]}
-                        onChange={(e) =>
-                          handleSphereChange(selectedSphere, 'color', {
-                            subIndex: i.toString(),
-                            value: e.target.value
-                          })
-                        }
-                      />
-                    ))}
+                  <div className={styles.colorInput}>
+                    <input
+                      type="color"
+                      value={`#${sceneData.scene.spheres[selectedSphere].color.map(c => Math.round(c || 0).toString(16).padStart(2, '0')).join('')}`}
+                      onChange={(e) => {
+                        const hex = e.target.value.substring(1)
+                        const r = parseInt(hex.substring(0, 2), 16)
+                        const g = parseInt(hex.substring(2, 4), 16)
+                        const b = parseInt(hex.substring(4, 6), 16)
+                        handleSphereChange(selectedSphere, 'color', { subIndex: '0', value: r.toString() })
+                        setTimeout(() => handleSphereChange(selectedSphere, 'color', { subIndex: '1', value: g.toString() }), 0)
+                        setTimeout(() => handleSphereChange(selectedSphere, 'color', { subIndex: '2', value: b.toString() }), 0)
+                      }}
+                      className={styles.colorPicker}
+                    />
+                    <div className={styles.vectorInput}>
+                      {[0, 1, 2].map((i) => (
+                        <input
+                          key={i}
+                          type="number"
+                          min="0"
+                          max="255"
+                          value={sceneData.scene.spheres[selectedSphere].color[i] || ''}
+                          placeholder={['255', '0', '0'][i]}
+                          onChange={(e) =>
+                            handleSphereChange(selectedSphere, 'color', {
+                              subIndex: i.toString(),
+                              value: e.target.value
+                            })
+                          }
+                          onFocus={(e) => e.target.select()}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -349,8 +371,10 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                     type="number"
                     step="10"
                     min="0"
-                    value={sceneData.scene.spheres[selectedSphere].specular}
+                    value={sceneData.scene.spheres[selectedSphere].specular || ''}
+                    placeholder="100"
                     onChange={(e) => handleSphereChange(selectedSphere, 'specular', e.target.value)}
+                    onFocus={(e) => e.target.select()}
                   />
                 </div>
 
@@ -361,8 +385,10 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                     step="0.05"
                     min="0"
                     max="1"
-                    value={sceneData.scene.spheres[selectedSphere].reflective}
+                    value={sceneData.scene.spheres[selectedSphere].reflective || ''}
+                    placeholder="0.2"
                     onChange={(e) => handleSphereChange(selectedSphere, 'reflective', e.target.value)}
+                    onFocus={(e) => e.target.select()}
                   />
                 </div>
               </div>
@@ -420,8 +446,10 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                     step="0.1"
                     min="0"
                     max="1"
-                    value={sceneData.scene.lights[selectedLight].intensity}
+                    value={sceneData.scene.lights[selectedLight].intensity || ''}
+                    placeholder="0.5"
                     onChange={(e) => handleLightChange(selectedLight, 'intensity', e.target.value)}
+                    onFocus={(e) => e.target.select()}
                   />
                 </div>
 
@@ -433,13 +461,15 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                         key={i}
                         type="number"
                         step="0.1"
-                        value={sceneData.scene.lights[selectedLight].position[i]}
+                        value={sceneData.scene.lights[selectedLight].position[i] || ''}
+                        placeholder="0"
                         onChange={(e) =>
                           handleLightChange(selectedLight, 'position', {
                             subIndex: i.toString(),
                             value: e.target.value
                           })
                         }
+                        onFocus={(e) => e.target.select()}
                       />
                     ))}
                   </div>
@@ -461,8 +491,10 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                       key={i}
                       type="number"
                       step="0.5"
-                      value={sceneData.perspective.cameraPosition[i]}
+                      value={sceneData.perspective.cameraPosition[i] || ''}
+                      placeholder="0"
                       onChange={(e) => handleCameraChange('position', i, e.target.value)}
+                      onFocus={(e) => e.target.select()}
                     />
                   ))}
                 </div>
@@ -476,8 +508,10 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                       key={i}
                       type="number"
                       step="0.5"
-                      value={sceneData.perspective.cameraFocus[i]}
+                      value={sceneData.perspective.cameraFocus[i] || ''}
+                      placeholder="0"
                       onChange={(e) => handleCameraChange('focus', i, e.target.value)}
+                      onFocus={(e) => e.target.select()}
                     />
                   ))}
                 </div>
@@ -491,13 +525,15 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                     min="100"
                     max="2000"
                     step="10"
-                    value={sceneData.output.width}
+                    value={sceneData.output.width || ''}
+                    placeholder="800"
                     onChange={(e) =>
                       setSceneData({
                         ...sceneData,
                         output: { ...sceneData.output, width: parseInt(e.target.value) || 800 }
                       })
                     }
+                    onFocus={(e) => e.target.select()}
                   />
                   <span>×</span>
                   <input
@@ -505,13 +541,15 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                     min="100"
                     max="2000"
                     step="10"
-                    value={sceneData.output.height}
+                    value={sceneData.output.height || ''}
+                    placeholder="640"
                     onChange={(e) =>
                       setSceneData({
                         ...sceneData,
                         output: { ...sceneData.output, height: parseInt(e.target.value) || 640 }
                       })
                     }
+                    onFocus={(e) => e.target.select()}
                   />
                 </div>
               </div>
@@ -525,22 +563,40 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
               <h3>Background Settings</h3>
               <div className={styles.inputGroup}>
                 <label>Background Color (R, G, B)</label>
-                <div className={styles.vectorInput}>
-                  {[0, 1, 2].map((i) => (
-                    <input
-                      key={i}
-                      type="number"
-                      min="0"
-                      max="255"
-                      value={sceneData.scene.backgroundColor[i]}
-                      onChange={(e) =>
-                        handleBackgroundChange('backgroundColor', {
-                          index: i,
-                          value: e.target.value
-                        })
-                      }
-                    />
-                  ))}
+                <div className={styles.colorInput}>
+                  <input
+                    type="color"
+                    value={`#${sceneData.scene.backgroundColor.map(c => Math.round(c || 0).toString(16).padStart(2, '0')).join('')}`}
+                    onChange={(e) => {
+                      const hex = e.target.value.substring(1)
+                      const r = parseInt(hex.substring(0, 2), 16)
+                      const g = parseInt(hex.substring(2, 4), 16)
+                      const b = parseInt(hex.substring(4, 6), 16)
+                      handleBackgroundChange('backgroundColor', { index: 0, value: r.toString() })
+                      setTimeout(() => handleBackgroundChange('backgroundColor', { index: 1, value: g.toString() }), 0)
+                      setTimeout(() => handleBackgroundChange('backgroundColor', { index: 2, value: b.toString() }), 0)
+                    }}
+                    className={styles.colorPicker}
+                  />
+                  <div className={styles.vectorInput}>
+                    {[0, 1, 2].map((i) => (
+                      <input
+                        key={i}
+                        type="number"
+                        min="0"
+                        max="255"
+                        value={sceneData.scene.backgroundColor[i] || ''}
+                        placeholder="0"
+                        onChange={(e) =>
+                          handleBackgroundChange('backgroundColor', {
+                            index: i,
+                            value: e.target.value
+                          })
+                        }
+                        onFocus={(e) => e.target.select()}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -551,10 +607,12 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                   step="0.0001"
                   min="0"
                   max="0.01"
-                  value={sceneData.scene.backgroundStarProbability}
+                  value={sceneData.scene.backgroundStarProbability || ''}
+                  placeholder="0.0006"
                   onChange={(e) =>
                     handleBackgroundChange('backgroundStarProbability', e.target.value)
                   }
+                  onFocus={(e) => e.target.select()}
                 />
               </div>
             </div>
