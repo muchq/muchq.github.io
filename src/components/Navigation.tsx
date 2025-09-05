@@ -31,22 +31,23 @@ const Navigation = ({ className }: NavigationProps) => {
       <div className={`${styles.navContainer} nav-container`}>
         <Link to="/" className={`${styles.navLogo} nav-logo`}>MuchQ</Link>
         <ul className={`${styles.navMenu} ${isMobileMenuOpen ? styles.active : ''}`}>
-          <li className={`${styles.navItem} nav-item ${expandedItems.has('graphics') ? styles.expanded : ''}`}>
+          <li className={`${styles.navItem} nav-item ${expandedItems.has('projects') ? styles.expanded : ''}`}>
             <a
               href="#"
               className={styles.navLink}
               onClick={(e) => {
                 if (window.innerWidth <= 768) {
                   e.preventDefault()
-                  toggleAccordion('graphics')
+                  toggleAccordion('projects')
                 }
               }}
             >
-              Graphics
+              Projects
               <span className={styles.accordionIcon}>›</span>
             </a>
             <div className={styles.dropdown}>
               <Link to="/tracy" className={styles.dropdownItem}>Tracy</Link>
+              <Link to="/metrics" className={styles.dropdownItem}>Metrics</Link>
             </div>
           </li>
           <li className={`${styles.navItem} nav-item ${expandedItems.has('interests') ? styles.expanded : ''}`}>

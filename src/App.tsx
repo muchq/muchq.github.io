@@ -9,6 +9,7 @@ import AurumSiphonPage from './pages/AurumSiphonPage'
 import QuestPage from './pages/QuestPage'
 import LearningPage from './pages/LearningPage'
 import TracyPage from './pages/TracyPage'
+import MetricsPage from './pages/MetricsPage'
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
       <Route path="/aurum" element={<AurumSiphonPage />} />
       <Route path="/quest" element={<QuestPage />} />
       <Route path="/tracy" element={<TracyPage />} />
+      <Route path="/metrics" element={<MetricsPage />} />
       <Route path="/top" element={<Navigate to="/top/sets" replace />} />
       <Route path="/top/:module" element={<LearningPage />} />
     </Routes>
