@@ -1,67 +1,54 @@
-/* Copy styles from ThoughtsNavigation to maintain consistency */
+/* Metrics Page Navigation Styles - Matching ThoughtsNavigation */
 .nav {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  background: rgba(13, 17, 32, 0.95);
+  width: 100%;
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(100, 115, 140, 0.2);
+  border-bottom: 1px solid rgba(68, 68, 68, 0.1);
   z-index: 1000;
-  padding: 10px 0;
-  font-family: 'Lexend', sans-serif;
-  font-weight: 300;
+  transition: all 0.3s ease;
 }
 
 .navContainer {
+  max-width: 650px;
+  margin: 0 auto;
+  padding: 0 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 20px;
-  height: 40px;
+  height: 60px;
 }
 
 .navLogo {
-  color: #66b6ff;
-  text-decoration: none;
-  font-size: 1.1rem;
+  font-size: 20px;
   font-weight: 300;
-  letter-spacing: 0.5px;
-  transition: color 0.3s ease;
-}
-
-.navLogo:hover {
-  color: #88ccff;
+  color: #444;
+  text-decoration: none;
 }
 
 .centerContent {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  flex-grow: 1;
-  margin: 0 20px;
+  align-items: flex-end;
+  gap: 4px;
 }
 
 .factsRow {
   display: flex;
-  justify-content: center;
   align-items: center;
-  gap: 30px;
-  width: 100%;
+  gap: 1rem;
+  flex-direction: row;
 }
 
 .fact {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.9rem;
-  text-align: center;
+  font-size: 16px;
+  color: #666;
   opacity: 0;
   transition: opacity 5s ease-in-out;
-  min-height: 20px;
-  display: flex;
-  align-items: center;
-  letter-spacing: 0.3px;
+  font-style: italic;
+  white-space: nowrap;
 }
 
 .fact.visible {
@@ -71,78 +58,83 @@
 .connectionStatus {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.8rem;
-  letter-spacing: 0.2px;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.connectionStatus span {
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 
 .connecting {
-  color: #ffcc66;
+  color: #fbbf24;
+  background-color: rgba(251, 191, 36, 0.1);
 }
 
 .connected {
-  color: #66ff66;
+  color: #10b981;
+  background-color: rgba(16, 185, 129, 0.1);
 }
 
 .disconnected {
-  color: #ff6666;
+  color: #f59e0b;
+  background-color: rgba(245, 158, 11, 0.1);
 }
 
 .failed {
-  color: #ff9999;
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
 }
 
 .reconnectButton {
-  background: none;
+  padding: 0.2rem 0.5rem;
+  background-color: #3b82f6;
+  color: white;
   border: none;
-  color: #66b6ff;
+  border-radius: 0.25rem;
   cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 3px;
-  transition: background-color 0.2s ease;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  transition: background-color 0.2s;
+  white-space: nowrap;
 }
 
 .reconnectButton:hover {
-  background-color: rgba(102, 182, 255, 0.1);
+  background-color: #2563eb;
 }
 
-/* Mobile responsiveness */
+/* Mobile Styles */
 @media (max-width: 768px) {
-  .navContainer {
-    padding: 0 15px;
+  .fact {
+    font-size: 14px;
+    max-width: 200px;
+    text-align: right;
+    white-space: normal;
   }
   
   .centerContent {
-    margin: 0 10px;
+    gap: 2px;
   }
   
   .factsRow {
-    flex-direction: column;
-    gap: 5px;
-  }
-  
-  .fact {
-    font-size: 0.8rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
   }
   
   .connectionStatus {
-    font-size: 0.7rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .navContainer {
-    padding: 0 10px;
-    height: 60px;
-  }
-  
-  .navLogo {
-    font-size: 1rem;
-  }
-  
-  .fact {
     font-size: 0.75rem;
-    line-height: 1.2;
+  }
+  
+  .connectionStatus span {
+    font-size: 0.625rem;
+    padding: 0.15rem 0.3rem;
+  }
+  
+  .reconnectButton {
+    font-size: 0.625rem;
+    padding: 0.15rem 0.4rem;
   }
 }
