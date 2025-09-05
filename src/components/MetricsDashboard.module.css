@@ -357,6 +357,17 @@
   font-size: 1.1rem;
 }
 
+.noData {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 180px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.9rem;
+  font-style: italic;
+  text-align: center;
+}
+
 .error {
   background: rgba(255, 102, 102, 0.1);
   border: 1px solid rgba(255, 102, 102, 0.3);
