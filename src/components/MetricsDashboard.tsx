@@ -67,30 +67,50 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
       const apiUrl = import.meta.env.VITE_METRICS_API_URL || 'https://api.muchq.com'
       
       // Fetch current system metrics
-      const systemResponse = await fetch(`${apiUrl}/v1/metrics/system`)
-      if (systemResponse.ok) {
-        const systemData = await systemResponse.json()
-        setSystemMetrics(systemData)
+      try {
+        const systemResponse = await fetch(`${apiUrl}/v1/metrics/system`)
+        if (systemResponse.ok) {
+          const text = await systemResponse.text()
+          if (text.trim()) {
+            const systemData = JSON.parse(text)
+            setSystemMetrics(systemData)
+          }
+        }
+      } catch {
+        // Silently handle error - UI will show "no data" state
       }
 
       // Fetch system timeseries
-      const systemTimeseriesResponse = await fetch(`${apiUrl}/v1/timeseries/system/${timeRange}`)
-      if (systemTimeseriesResponse.ok) {
-        const systemTimeseriesData = await systemTimeseriesResponse.json()
-        setSystemTimeseries(systemTimeseriesData)
+      try {
+        const systemTimeseriesResponse = await fetch(`${apiUrl}/v1/timeseries/system/${timeRange}`)
+        if (systemTimeseriesResponse.ok) {
+          const text = await systemTimeseriesResponse.text()
+          if (text.trim()) {
+            const systemTimeseriesData = JSON.parse(text)
+            setSystemTimeseries(systemTimeseriesData)
+          }
+        }
+      } catch {
+        // Silently handle error - UI will show "no data" state
       }
 
       // Fetch portrait timeseries
-      const portraitTimeseriesResponse = await fetch(`${apiUrl}/v1/timeseries/portrait/${timeRange}`)
-      if (portraitTimeseriesResponse.ok) {
-        const portraitTimeseriesData = await portraitTimeseriesResponse.json()
-        setPortraitTimeseries(portraitTimeseriesData)
+      try {
+        const portraitTimeseriesResponse = await fetch(`${apiUrl}/v1/timeseries/portrait/${timeRange}`)
+        if (portraitTimeseriesResponse.ok) {
+          const text = await portraitTimeseriesResponse.text()
+          if (text.trim()) {
+            const portraitTimeseriesData = JSON.parse(text)
+            setPortraitTimeseries(portraitTimeseriesData)
+          }
+        }
+      } catch {
+        // Silently handle error - UI will show "no data" state
       }
 
       setLastUpdate(new Date())
       onConnectionStateChange('connected')
-    } catch (error) {
-      console.error('Failed to fetch metrics:', error)
+    } catch {
       onConnectionStateChange('failed')
     }
   }, [timeRange, onConnectionStateChange])
@@ -114,33 +134,33 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
   }
 
   const getCpuTimeseriesData = () => {
-    if (!systemTimeseries) return []
+    if (!systemTimeseries?.series) return []
     const cpuSeries = systemTimeseries.series.find(s => s.metric_name === 'cpu_utilization')
-    if (!cpuSeries) return []
+    if (!cpuSeries?.values?.length) return []
     
     return cpuSeries.values.map(v => ({
       time: formatTimestamp(v.timestamp),
-      value: Math.max(0, Math.min(100, v.value))
+      value: Math.max(0, Math.min(100, v.value || 0))
     }))
   }
 
   const getMemoryTimeseriesData = () => {
-    if (!systemTimeseries) return []
+    if (!systemTimeseries?.series) return []
     const memorySeries = systemTimeseries.series.find(s => s.metric_name === 'memory_utilization')
-    if (!memorySeries) return []
+    if (!memorySeries?.values?.length) return []
     
     return memorySeries.values.map(v => ({
       time: formatTimestamp(v.timestamp),
-      value: Math.max(0, Math.min(100, v.value))
+      value: Math.max(0, Math.min(100, v.value || 0))
     }))
   }
 
   const getNetworkTimeseriesData = () => {
-    if (!systemTimeseries) return []
+    if (!systemTimeseries?.series) return []
     const rxSeries = systemTimeseries.series.find(s => s.metric_name === 'network_rx_rate' && s.labels?.device === 'eth0')
     const txSeries = systemTimeseries.series.find(s => s.metric_name === 'network_tx_rate' && s.labels?.device === 'eth0')
     
-    if (!rxSeries || !txSeries) return []
+    if (!rxSeries?.values?.length || !txSeries?.values?.length) return []
     
     const data: Array<{time: string, rx: number, tx: number}> = []
     const minLength = Math.min(rxSeries.values.length, txSeries.values.length)
@@ -148,8 +168,8 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
     for (let i = 0; i < minLength; i++) {
       data.push({
         time: formatTimestamp(rxSeries.values[i].timestamp),
-        rx: rxSeries.values[i].value / 1024, // Convert to KB/s
-        tx: txSeries.values[i].value / 1024
+        rx: (rxSeries.values[i].value || 0) / 1024, // Convert to KB/s
+        tx: (txSeries.values[i].value || 0) / 1024
       })
     }
     
@@ -157,25 +177,25 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
   }
 
   const getRequestRateData = () => {
-    if (!portraitTimeseries) return []
+    if (!portraitTimeseries?.series) return []
     const requestSeries = portraitTimeseries.series.find(s => s.metric_name === 'request_rate')
-    if (!requestSeries) return []
+    if (!requestSeries?.values?.length) return []
     
     return requestSeries.values.map(v => ({
       time: formatTimestamp(v.timestamp),
-      rate: Math.max(0, v.value)
+      rate: Math.max(0, v.value || 0)
     }))
   }
 
   const getDiskIOData = () => {
-    if (!systemTimeseries) return []
+    if (!systemTimeseries?.series) return []
     const diskSeries = systemTimeseries.series.filter(s => s.metric_name === 'disk_io_rate' && s.labels?.device === 'vda')
     if (diskSeries.length < 2) return []
     
     const readSeries = diskSeries.find(s => s.labels?.direction === 'read')
     const writeSeries = diskSeries.find(s => s.labels?.direction === 'write')
     
-    if (!readSeries || !writeSeries) return []
+    if (!readSeries?.values?.length || !writeSeries?.values?.length) return []
     
     const data: Array<{time: string, read: number, write: number}> = []
     const minLength = Math.min(readSeries.values.length, writeSeries.values.length)
@@ -183,8 +203,8 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
     for (let i = 0; i < minLength; i++) {
       data.push({
         time: formatTimestamp(readSeries.values[i].timestamp),
-        read: readSeries.values[i].value / (1024 * 1024), // Convert to MB/s
-        write: writeSeries.values[i].value / (1024 * 1024)
+        read: (readSeries.values[i].value || 0) / (1024 * 1024), // Convert to MB/s
+        write: (writeSeries.values[i].value || 0) / (1024 * 1024)
       })
     }
     
@@ -192,100 +212,100 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
   }
 
   const getCpuCoreData = () => {
-    if (!systemMetrics) return []
+    if (!systemMetrics?.cpu?.by_core) return []
     return Object.entries(systemMetrics.cpu.by_core).map(([core, usage]) => ({
       name: core,
-      usage: Math.max(0, Math.min(100, usage))
+      usage: Math.max(0, Math.min(100, usage || 0))
     }))
   }
 
   const getMemoryBreakdownData = () => {
-    if (!systemMetrics) return []
+    if (!systemMetrics?.memory?.total_bytes) return []
     const total = systemMetrics.memory.total_bytes
     return [
-      { name: 'Used', value: systemMetrics.memory.used_bytes, percentage: (systemMetrics.memory.used_bytes / total) * 100 },
-      { name: 'Cached', value: systemMetrics.memory.cached_bytes, percentage: (systemMetrics.memory.cached_bytes / total) * 100 },
-      { name: 'Free', value: systemMetrics.memory.free_bytes, percentage: (systemMetrics.memory.free_bytes / total) * 100 }
+      { name: 'Used', value: systemMetrics.memory.used_bytes || 0, percentage: ((systemMetrics.memory.used_bytes || 0) / total) * 100 },
+      { name: 'Cached', value: systemMetrics.memory.cached_bytes || 0, percentage: ((systemMetrics.memory.cached_bytes || 0) / total) * 100 },
+      { name: 'Free', value: systemMetrics.memory.free_bytes || 0, percentage: ((systemMetrics.memory.free_bytes || 0) / total) * 100 }
     ]
   }
 
   const getDiskUsageData = () => {
-    if (!systemMetrics) return []
+    if (!systemMetrics?.disk?.length) return []
     return systemMetrics.disk.map(disk => ({
-      name: disk.device,
-      used: disk.utilization_percent,
-      free: 100 - disk.utilization_percent,
-      totalGB: disk.total_bytes / (1024 * 1024 * 1024)
+      name: disk.device || 'Unknown',
+      used: disk.utilization_percent || 0,
+      free: 100 - (disk.utilization_percent || 0),
+      totalGB: (disk.total_bytes || 0) / (1024 * 1024 * 1024)
     }))
   }
 
   const getPortraitMetricsData = () => {
-    if (!portraitTimeseries) return []
+    if (!portraitTimeseries?.series) return []
     
     // Get success rate data
     const successSeries = portraitTimeseries.series.find(s => s.metric_name === 'request_success_rate')
     const cacheSeries = portraitTimeseries.series.find(s => s.metric_name === 'cache_hit_rate')
     const durationSeries = portraitTimeseries.series.find(s => s.metric_name === 'request_duration_avg')
     
-    if (!successSeries) return []
+    if (!successSeries?.values?.length) return []
     
     return successSeries.values.map((v, i) => ({
       time: formatTimestamp(v.timestamp),
-      successRate: Math.max(0, Math.min(100, v.value)),
-      cacheHitRate: cacheSeries && i < cacheSeries.values.length ? Math.max(0, Math.min(100, cacheSeries.values[i].value)) : 0,
-      avgDuration: durationSeries && i < durationSeries.values.length ? durationSeries.values[i].value / 1000 : 0 // Convert to ms
+      successRate: Math.max(0, Math.min(100, v.value || 0)),
+      cacheHitRate: cacheSeries && i < cacheSeries.values.length ? Math.max(0, Math.min(100, cacheSeries.values[i].value || 0)) : 0,
+      avgDuration: durationSeries && i < durationSeries.values.length ? (durationSeries.values[i].value || 0) / 1000 : 0 // Convert to ms
     }))
   }
 
 
   const getCacheOperationsData = () => {
-    if (!portraitTimeseries) return []
+    if (!portraitTimeseries?.series) return []
     
     const cacheOpsSeries = portraitTimeseries.series.find(s => s.metric_name === 'cache_operations_rate')
-    if (!cacheOpsSeries) return []
+    if (!cacheOpsSeries?.values?.length) return []
     
     return cacheOpsSeries.values.map(v => ({
       time: formatTimestamp(v.timestamp),
-      operations: v.value
+      operations: v.value || 0
     }))
   }
 
   const getSceneComplexityData = () => {
-    if (!portraitTimeseries) return []
+    if (!portraitTimeseries?.series) return []
     
     const sphereSeries = portraitTimeseries.series.find(s => s.metric_name === 'scene_sphere_count')
     const lightSeries = portraitTimeseries.series.find(s => s.metric_name === 'scene_light_count')
     
-    if (!sphereSeries) return []
+    if (!sphereSeries?.values?.length) return []
     
     return sphereSeries.values.map((v, i) => ({
       time: formatTimestamp(v.timestamp),
-      spheres: v.value,
-      lights: lightSeries && i < lightSeries.values.length ? lightSeries.values[i].value : 0
+      spheres: v.value || 0,
+      lights: lightSeries && i < lightSeries.values.length ? (lightSeries.values[i].value || 0) : 0
     }))
   }
 
   const getRequestSuccessRateData = () => {
-    if (!portraitTimeseries) return []
+    if (!portraitTimeseries?.series) return []
     
     const successSeries = portraitTimeseries.series.find(s => s.metric_name === 'request_success_rate')
-    if (!successSeries) return []
+    if (!successSeries?.values?.length) return []
     
     return successSeries.values.map(v => ({
       time: formatTimestamp(v.timestamp),
-      successRate: Math.max(0, Math.min(100, v.value))
+      successRate: Math.max(0, Math.min(100, v.value || 0))
     }))
   }
 
   const getCacheHitRateData = () => {
-    if (!portraitTimeseries) return []
+    if (!portraitTimeseries?.series) return []
     
     const cacheSeries = portraitTimeseries.series.find(s => s.metric_name === 'cache_hit_rate')
-    if (!cacheSeries) return []
+    if (!cacheSeries?.values?.length) return []
     
     return cacheSeries.values.map(v => ({
       time: formatTimestamp(v.timestamp),
-      hitRate: Math.max(0, Math.min(100, v.value))
+      hitRate: Math.max(0, Math.min(100, v.value || 0))
     }))
   }
 
@@ -297,6 +317,13 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
     info: '#ff66ff',
     secondary: '#88ccff'
   }
+
+  // Helper component for no data state
+  const NoDataMessage = ({ message = "No data available" }: { message?: string }) => (
+    <div className={styles.noData}>
+      {message}
+    </div>
+  )
 
   return (
     <div className={styles.dashboard}>
@@ -345,25 +372,27 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
               <div className={styles.overviewCards}>
                 <div className={styles.miniCard}>
                   <div className={styles.miniLabel}>CPU</div>
-                  <div className={styles.miniValue}>{systemMetrics.cpu.utilization_percent.toFixed(1)}%</div>
+                  <div className={styles.miniValue}>{(systemMetrics.cpu?.utilization_percent || 0).toFixed(1)}%</div>
                 </div>
                 <div className={styles.miniCard}>
                   <div className={styles.miniLabel}>Memory</div>
-                  <div className={styles.miniValue}>{systemMetrics.memory.utilization_percent.toFixed(1)}%</div>
+                  <div className={styles.miniValue}>{(systemMetrics.memory?.utilization_percent || 0).toFixed(1)}%</div>
                 </div>
                 <div className={styles.miniCard}>
                   <div className={styles.miniLabel}>Disk</div>
                   <div className={styles.miniValue}>
-                    {systemMetrics.disk[0] ? systemMetrics.disk[0].utilization_percent.toFixed(1) : 0}%
+                    {systemMetrics.disk?.[0]?.utilization_percent ? systemMetrics.disk[0].utilization_percent.toFixed(1) : 0}%
                   </div>
                 </div>
                 <div className={styles.miniCard}>
                   <div className={styles.miniLabel}>Network</div>
                   <div className={styles.miniValue}>
-                    {systemMetrics.network.find(n => n.interface === 'eth0') ? 
-                      formatBytes(systemMetrics.network.find(n => n.interface === 'eth0')!.rx_rate_bytes_per_sec + 
-                                 systemMetrics.network.find(n => n.interface === 'eth0')!.tx_rate_bytes_per_sec) + '/s' 
-                      : '0 B/s'}
+                    {(() => {
+                      const eth0 = systemMetrics.network?.find(n => n.interface === 'eth0')
+                      return eth0 ? 
+                        formatBytes((eth0.rx_rate_bytes_per_sec || 0) + (eth0.tx_rate_bytes_per_sec || 0)) + '/s' 
+                        : '0 B/s'
+                    })()}
                   </div>
                 </div>
               </div>
@@ -375,78 +404,94 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
             {/* CPU Utilization */}
             <div className={styles.compactChart}>
               <h4>CPU Utilization</h4>
-              <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={getCpuTimeseriesData()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                  <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                    formatter={(value) => [`${Number(value).toFixed(1)}%`, 'CPU']}
-                  />
-                  <Area type="monotone" dataKey="value" stroke={COLORS.primary} fill="rgba(102, 182, 255, 0.3)" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
+              {getCpuTimeseriesData().length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={getCpuTimeseriesData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(1)}%`, 'CPU']}
+                    />
+                    <Area type="monotone" dataKey="value" stroke={COLORS.primary} fill="rgba(102, 182, 255, 0.3)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <NoDataMessage />
+              )}
             </div>
 
             {/* CPU Cores */}
             <div className={styles.compactChart}>
               <h4>CPU Cores</h4>
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={getCpuCoreData()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="name" stroke="#888" fontSize={10} />
-                  <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                    formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Usage']}
-                  />
-                  <Bar dataKey="usage" fill={COLORS.primary} />
-                </BarChart>
-              </ResponsiveContainer>
+              {getCpuCoreData().length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={getCpuCoreData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="name" stroke="#888" fontSize={10} />
+                    <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Usage']}
+                    />
+                    <Bar dataKey="usage" fill={COLORS.primary} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <NoDataMessage />
+              )}
             </div>
 
             {/* Memory Usage */}
             <div className={styles.compactChart}>
               <h4>Memory Usage</h4>
-              <ResponsiveContainer width="100%" height={180}>
-                <LineChart data={getMemoryTimeseriesData()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                  <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                    formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Memory']}
-                  />
-                  <Line type="monotone" dataKey="value" stroke={COLORS.success} strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
+              {getMemoryTimeseriesData().length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={getMemoryTimeseriesData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Memory']}
+                    />
+                    <Line type="monotone" dataKey="value" stroke={COLORS.success} strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <NoDataMessage />
+              )}
             </div>
 
             {/* Memory Breakdown */}
             <div className={styles.compactChart}>
               <h4>Memory Breakdown</h4>
-              <ResponsiveContainer width="100%" height={180}>
-                <PieChart>
-                  <Pie
-                    data={getMemoryBreakdownData()}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={40}
-                    outerRadius={70}
-                    paddingAngle={5}
-                    dataKey="percentage"
-                  >
-                    {getMemoryBreakdownData().map((_entry, index) => (
-                      <Cell key={`cell-${index}`} fill={[COLORS.danger, COLORS.warning, COLORS.success][index]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                    formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Memory']}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              {getMemoryBreakdownData().length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <PieChart>
+                    <Pie
+                      data={getMemoryBreakdownData()}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={40}
+                      outerRadius={70}
+                      paddingAngle={5}
+                      dataKey="percentage"
+                    >
+                      {getMemoryBreakdownData().map((_entry, index) => (
+                        <Cell key={`cell-${index}`} fill={[COLORS.danger, COLORS.warning, COLORS.success][index]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Memory']}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <NoDataMessage />
+              )}
             </div>
           </div>
         </div>
@@ -458,58 +503,70 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
             {/* Disk I/O */}
             <div className={styles.compactChart}>
               <h4>Disk I/O</h4>
-              <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={getDiskIOData()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                  <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value} MB/s`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 204, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                    formatter={(value, name) => [`${Number(value).toFixed(2)} MB/s`, name === 'read' ? 'Read' : 'Write']}
-                  />
-                  <Area type="monotone" dataKey="read" stackId="1" stroke={COLORS.success} fill="rgba(102, 255, 102, 0.3)" />
-                  <Area type="monotone" dataKey="write" stackId="1" stroke={COLORS.warning} fill="rgba(255, 204, 102, 0.3)" />
-                </AreaChart>
-              </ResponsiveContainer>
+              {getDiskIOData().length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={getDiskIOData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value} MB/s`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 204, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value, name) => [`${Number(value).toFixed(2)} MB/s`, name === 'read' ? 'Read' : 'Write']}
+                    />
+                    <Area type="monotone" dataKey="read" stackId="1" stroke={COLORS.success} fill="rgba(102, 255, 102, 0.3)" />
+                    <Area type="monotone" dataKey="write" stackId="1" stroke={COLORS.warning} fill="rgba(255, 204, 102, 0.3)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <NoDataMessage />
+              )}
             </div>
 
             {/* Disk Usage */}
             <div className={styles.compactChart}>
               <h4>Disk Usage</h4>
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={getDiskUsageData()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="name" stroke="#888" fontSize={10} />
-                  <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                    formatter={(value, name) => [
-                      `${Number(value).toFixed(1)}%`,
-                      name === 'used' ? 'Used' : 'Free'
-                    ]}
-                  />
-                  <Bar dataKey="used" fill={COLORS.danger} />
-                  <Bar dataKey="free" fill={COLORS.success} />
-                </BarChart>
-              </ResponsiveContainer>
+              {getDiskUsageData().length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={getDiskUsageData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="name" stroke="#888" fontSize={10} />
+                    <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value, name) => [
+                        `${Number(value).toFixed(1)}%`,
+                        name === 'used' ? 'Used' : 'Free'
+                      ]}
+                    />
+                    <Bar dataKey="used" fill={COLORS.danger} />
+                    <Bar dataKey="free" fill={COLORS.success} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <NoDataMessage />
+              )}
             </div>
 
             {/* Network I/O */}
             <div className={styles.compactChart}>
               <h4>Network I/O</h4>
-              <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={getNetworkTimeseriesData()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                  <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value} KB/s`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 204, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                    formatter={(value, name) => [`${Number(value).toFixed(2)} KB/s`, name === 'rx' ? 'Received' : 'Transmitted']}
-                  />
-                  <Area type="monotone" dataKey="rx" stackId="1" stroke={COLORS.success} fill="rgba(102, 255, 102, 0.3)" />
-                  <Area type="monotone" dataKey="tx" stackId="1" stroke={COLORS.warning} fill="rgba(255, 204, 102, 0.3)" />
-                </AreaChart>
-              </ResponsiveContainer>
+              {getNetworkTimeseriesData().length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={getNetworkTimeseriesData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value} KB/s`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 204, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value, name) => [`${Number(value).toFixed(2)} KB/s`, name === 'rx' ? 'Received' : 'Transmitted']}
+                    />
+                    <Area type="monotone" dataKey="rx" stackId="1" stroke={COLORS.success} fill="rgba(102, 255, 102, 0.3)" />
+                    <Area type="monotone" dataKey="tx" stackId="1" stroke={COLORS.warning} fill="rgba(255, 204, 102, 0.3)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <NoDataMessage />
+              )}
             </div>
           </div>
         </div>
@@ -525,57 +582,69 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
             {/* Request Rate */}
             <div className={styles.compactChart}>
               <h4>Request Rate</h4>
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={getRequestRateData()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                  <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}/s`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                    formatter={(value) => [`${Number(value).toFixed(2)}/s`, 'Requests']}
-                  />
-                  <Bar dataKey="rate" fill={COLORS.info} />
-                </BarChart>
-              </ResponsiveContainer>
+              {getRequestRateData().length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={getRequestRateData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}/s`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(2)}/s`, 'Requests']}
+                    />
+                    <Bar dataKey="rate" fill={COLORS.info} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <NoDataMessage />
+              )}
             </div>
 
             {/* Request Success Rate */}
             <div className={styles.compactChart}>
               <h4>Request Success Rate</h4>
-              <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={getRequestSuccessRateData()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                  <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                    formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Success Rate']}
-                  />
-                  <Area type="monotone" dataKey="successRate" stroke={COLORS.success} fill="rgba(102, 255, 102, 0.3)" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
+              {getRequestSuccessRateData().length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={getRequestSuccessRateData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Success Rate']}
+                    />
+                    <Area type="monotone" dataKey="successRate" stroke={COLORS.success} fill="rgba(102, 255, 102, 0.3)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <NoDataMessage />
+              )}
             </div>
 
             {/* Combined Portrait Metrics */}
             <div className={styles.compactChart}>
               <h4>Combined Portrait Metrics</h4>
-              <ResponsiveContainer width="100%" height={180}>
-                <LineChart data={getPortraitMetricsData()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                  <YAxis stroke="#888" fontSize={10} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                    formatter={(value, name) => [
-                      name === 'avgDuration' ? `${Number(value).toFixed(2)}ms` : `${Number(value).toFixed(1)}%`,
-                      name === 'successRate' ? 'Success Rate' : name === 'cacheHitRate' ? 'Cache Hit Rate' : 'Avg Duration'
-                    ]}
-                  />
-                  <Line type="monotone" dataKey="successRate" stroke={COLORS.success} strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="cacheHitRate" stroke={COLORS.primary} strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="avgDuration" stroke={COLORS.warning} strokeWidth={2} dot={false} yAxisId="right" />
-                </LineChart>
-              </ResponsiveContainer>
+              {getPortraitMetricsData().length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={getPortraitMetricsData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value, name) => [
+                        name === 'avgDuration' ? `${Number(value).toFixed(2)}ms` : `${Number(value).toFixed(1)}%`,
+                        name === 'successRate' ? 'Success Rate' : name === 'cacheHitRate' ? 'Cache Hit Rate' : 'Avg Duration'
+                      ]}
+                    />
+                    <Line type="monotone" dataKey="successRate" stroke={COLORS.success} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="cacheHitRate" stroke={COLORS.primary} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="avgDuration" stroke={COLORS.warning} strokeWidth={2} dot={false} yAxisId="right" />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <NoDataMessage />
+              )}
             </div>
           </div>
         </div>
@@ -587,35 +656,43 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
             {/* Cache Hit Rate */}
             <div className={styles.compactChart}>
               <h4>Cache Hit Rate</h4>
-              <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={getCacheHitRateData()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                  <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                    formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Hit Rate']}
-                  />
-                  <Area type="monotone" dataKey="hitRate" stroke={COLORS.primary} fill="rgba(102, 182, 255, 0.3)" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
+              {getCacheHitRateData().length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={getCacheHitRateData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Hit Rate']}
+                    />
+                    <Area type="monotone" dataKey="hitRate" stroke={COLORS.primary} fill="rgba(102, 182, 255, 0.3)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <NoDataMessage />
+              )}
             </div>
 
             {/* Cache Operations Rate */}
             <div className={styles.compactChart}>
               <h4>Cache Operations Rate</h4>
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={getCacheOperationsData()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                  <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}/s`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                    formatter={(value) => [`${Number(value).toFixed(2)}/s`, 'Operations']}
-                  />
-                  <Bar dataKey="operations" fill={COLORS.info} />
-                </BarChart>
-              </ResponsiveContainer>
+              {getCacheOperationsData().length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={getCacheOperationsData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}/s`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(2)}/s`, 'Operations']}
+                    />
+                    <Bar dataKey="operations" fill={COLORS.info} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <NoDataMessage />
+              )}
             </div>
           </div>
         </div>
@@ -627,22 +704,26 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
             {/* Scene Elements */}
             <div className={styles.compactChart}>
               <h4>Scene Elements</h4>
-              <ResponsiveContainer width="100%" height={180}>
-                <LineChart data={getSceneComplexityData()}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                  <YAxis stroke="#888" fontSize={10} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                    formatter={(value, name) => [
-                      `${Number(value).toFixed(0)}`,
-                      name === 'spheres' ? 'Spheres' : 'Lights'
-                    ]}
-                  />
-                  <Line type="monotone" dataKey="spheres" stroke={COLORS.danger} strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="lights" stroke={COLORS.warning} strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
+              {getSceneComplexityData().length > 0 ? (
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={getSceneComplexityData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value, name) => [
+                        `${Number(value).toFixed(0)}`,
+                        name === 'spheres' ? 'Spheres' : 'Lights'
+                      ]}
+                    />
+                    <Line type="monotone" dataKey="spheres" stroke={COLORS.danger} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="lights" stroke={COLORS.warning} strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <NoDataMessage />
+              )}
             </div>
           </div>
         </div>
