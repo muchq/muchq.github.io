@@ -1,0 +1,148 @@
+/* Copy styles from ThoughtsNavigation to maintain consistency */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(13, 17, 32, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(100, 115, 140, 0.2);
+  z-index: 1000;
+  padding: 10px 0;
+  font-family: 'Lexend', sans-serif;
+  font-weight: 300;
+}
+
+.navContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+  height: 40px;
+}
+
+.navLogo {
+  color: #66b6ff;
+  text-decoration: none;
+  font-size: 1.1rem;
+  font-weight: 300;
+  letter-spacing: 0.5px;
+  transition: color 0.3s ease;
+}
+
+.navLogo:hover {
+  color: #88ccff;
+}
+
+.centerContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-grow: 1;
+  margin: 0 20px;
+}
+
+.factsRow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 30px;
+  width: 100%;
+}
+
+.fact {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 5s ease-in-out;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  letter-spacing: 0.3px;
+}
+
+.fact.visible {
+  opacity: 1;
+}
+
+.connectionStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  letter-spacing: 0.2px;
+}
+
+.connecting {
+  color: #ffcc66;
+}
+
+.connected {
+  color: #66ff66;
+}
+
+.disconnected {
+  color: #ff6666;
+}
+
+.failed {
+  color: #ff9999;
+}
+
+.reconnectButton {
+  background: none;
+  border: none;
+  color: #66b6ff;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+  font-size: 0.8rem;
+}
+
+.reconnectButton:hover {
+  background-color: rgba(102, 182, 255, 0.1);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .navContainer {
+    padding: 0 15px;
+  }
+  
+  .centerContent {
+    margin: 0 10px;
+  }
+  
+  .factsRow {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .fact {
+    font-size: 0.8rem;
+  }
+  
+  .connectionStatus {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .navContainer {
+    padding: 0 10px;
+    height: 60px;
+  }
+  
+  .navLogo {
+    font-size: 1rem;
+  }
+  
+  .fact {
+    font-size: 0.75rem;
+    line-height: 1.2;
+  }
+}
