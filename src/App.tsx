@@ -23,7 +23,8 @@ function App() {
       <Route path="/aurum" element={<AurumSiphonPage />} />
       <Route path="/quest" element={<QuestPage />} />
       <Route path="/tracy" element={<TracyPage />} />
-      <Route path="/metrics" element={<MetricsPage />} />
+      <Route path="/metrics" element={<Navigate to="/metrics/system" replace />} />
+      <Route path="/metrics/:tab" element={<MetricsPage />} />
       <Route path="/top" element={<Navigate to="/top/sets" replace />} />
       <Route path="/top/:module" element={<LearningPage />} />
     </Routes>

@@ -49,15 +49,16 @@ interface TimeSeriesResponse {
 
 interface MetricsDashboardProps {
   onConnectionStateChange: (status: 'connecting' | 'connected' | 'disconnected' | 'failed') => void
+  activeTab?: 'system' | 'portrait'
+  onTabChange?: (tab: 'system' | 'portrait') => void
 }
 
-const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) => {
+const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTabChange }: MetricsDashboardProps) => {
   const [systemMetrics, setSystemMetrics] = useState<SystemMetrics | null>(null)
   const [systemTimeseries, setSystemTimeseries] = useState<TimeSeriesResponse | null>(null)
   const [portraitTimeseries, setPortraitTimeseries] = useState<TimeSeriesResponse | null>(null)
   const [timeRange, setTimeRange] = useState<'30m' | '1d' | '7d'>('1d')
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
-  const [activeTab, setActiveTab] = useState<'system' | 'portrait'>('system')
 
   const fetchMetrics = useCallback(async () => {
     try {
@@ -351,13 +352,13 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
       <div className={styles.tabNavigation}>
         <button
           className={`${styles.tab} ${activeTab === 'system' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('system')}
+          onClick={() => onTabChange?.('system')}
         >
           System Metrics
         </button>
         <button
           className={`${styles.tab} ${activeTab === 'portrait' ? styles.activeTab : ''}`}
-          onClick={() => setActiveTab('portrait')}
+          onClick={() => onTabChange?.('portrait')}
         >
           Portrait Metrics
         </button>
