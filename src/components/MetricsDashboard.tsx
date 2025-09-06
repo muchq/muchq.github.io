@@ -167,15 +167,11 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     const minLength = Math.min(rxSeries.values.length, txSeries.values.length)
     
     for (let i = 0; i < minLength; i++) {
-      const rxValue = rxSeries.values[i]
-      const txValue = txSeries.values[i]
-      if (rxValue && txValue) {
-        data.push({
-          time: formatTimestamp(rxValue.timestamp),
-          rx: (rxValue.value || 0) / 1024, // Convert to KB/s
-          tx: (txValue.value || 0) / 1024
-        })
-      }
+      data.push({
+        time: formatTimestamp(rxSeries.values[i].timestamp),
+        rx: (rxSeries.values[i].value || 0) / 1024, // Convert to KB/s
+        tx: (txSeries.values[i].value || 0) / 1024
+      })
     }
     
     return data
@@ -206,15 +202,11 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     const minLength = Math.min(readSeries.values.length, writeSeries.values.length)
     
     for (let i = 0; i < minLength; i++) {
-      const readValue = readSeries.values[i]
-      const writeValue = writeSeries.values[i]
-      if (readValue && writeValue) {
-        data.push({
-          time: formatTimestamp(readValue.timestamp),
-          read: (readValue.value || 0) / (1024 * 1024), // Convert to MB/s
-          write: (writeValue.value || 0) / (1024 * 1024)
-        })
-      }
+      data.push({
+        time: formatTimestamp(readSeries.values[i].timestamp),
+        read: (readSeries.values[i].value || 0) / (1024 * 1024), // Convert to MB/s
+        write: (writeSeries.values[i].value || 0) / (1024 * 1024)
+      })
     }
     
     return data
@@ -261,8 +253,8 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     return successSeries.values.map((v, i) => ({
       time: formatTimestamp(v.timestamp),
       successRate: Math.max(0, Math.min(100, v.value || 0)),
-      cacheHitRate: cacheSeries && i < cacheSeries.values.length && cacheSeries.values[i] ? Math.max(0, Math.min(100, cacheSeries.values[i].value || 0)) : 0,
-      avgDuration: durationSeries && i < durationSeries.values.length && durationSeries.values[i] ? (durationSeries.values[i].value || 0) / 1000 : 0 // Convert to ms
+      cacheHitRate: cacheSeries && i < cacheSeries.values.length ? Math.max(0, Math.min(100, cacheSeries.values[i].value || 0)) : 0,
+      avgDuration: durationSeries && i < durationSeries.values.length ? (durationSeries.values[i].value || 0) / 1000 : 0 // Convert to ms
     }))
   }
 
@@ -290,7 +282,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     return sphereSeries.values.map((v, i) => ({
       time: formatTimestamp(v.timestamp),
       spheres: v.value || 0,
-      lights: lightSeries && i < lightSeries.values.length && lightSeries.values[i] ? (lightSeries.values[i].value || 0) : 0
+      lights: lightSeries && i < lightSeries.values.length ? (lightSeries.values[i].value || 0) : 0
     }))
   }
 
