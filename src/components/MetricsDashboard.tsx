@@ -139,7 +139,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     const cpuSeries = systemTimeseries.series.find(s => s.metric_name === 'cpu_utilization')
     if (!cpuSeries?.values?.length) return []
     
-    return cpuSeries.values.filter(v => v && v.timestamp && v.value !== undefined).map(v => ({
+    return cpuSeries.values.map(v => ({
       time: formatTimestamp(v.timestamp),
       value: Math.max(0, Math.min(100, v.value || 0))
     }))
@@ -150,7 +150,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     const memorySeries = systemTimeseries.series.find(s => s.metric_name === 'memory_utilization')
     if (!memorySeries?.values?.length) return []
     
-    return memorySeries.values.filter(v => v && v.timestamp && v.value !== undefined).map(v => ({
+    return memorySeries.values.map(v => ({
       time: formatTimestamp(v.timestamp),
       value: Math.max(0, Math.min(100, v.value || 0))
     }))
@@ -169,7 +169,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     for (let i = 0; i < minLength; i++) {
       const rxValue = rxSeries.values?.[i]
       const txValue = txSeries.values?.[i]
-      if (rxValue && txValue && rxValue.timestamp && rxValue.value !== undefined && txValue.value !== undefined) {
+      if (rxValue && txValue) {
         data.push({
           time: formatTimestamp(rxValue.timestamp),
           rx: (rxValue.value || 0) / 1024, // Convert to KB/s
@@ -208,7 +208,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     for (let i = 0; i < minLength; i++) {
       const readValue = readSeries.values?.[i]
       const writeValue = writeSeries.values?.[i]
-      if (readValue && writeValue && readValue.timestamp && readValue.value !== undefined && writeValue.value !== undefined) {
+      if (readValue && writeValue) {
         data.push({
           time: formatTimestamp(readValue.timestamp),
           read: (readValue.value || 0) / (1024 * 1024), // Convert to MB/s
@@ -300,7 +300,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     const successSeries = portraitTimeseries.series.find(s => s.metric_name === 'request_success_rate')
     if (!successSeries?.values?.length) return []
     
-    return successSeries.values.filter(v => v && v.timestamp && v.value !== undefined).map(v => ({
+    return successSeries.values.map(v => ({
       time: formatTimestamp(v.timestamp),
       successRate: Math.max(0, Math.min(100, v.value || 0))
     }))
@@ -312,7 +312,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     const cacheSeries = portraitTimeseries.series.find(s => s.metric_name === 'cache_hit_rate')
     if (!cacheSeries?.values?.length) return []
     
-    return cacheSeries.values.filter(v => v && v.timestamp && v.value !== undefined).map(v => ({
+    return cacheSeries.values.map(v => ({
       time: formatTimestamp(v.timestamp),
       hitRate: Math.max(0, Math.min(100, v.value || 0))
     }))
