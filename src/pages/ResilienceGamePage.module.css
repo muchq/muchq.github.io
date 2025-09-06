@@ -37,7 +37,7 @@
   grid-template-columns: 280px 1fr;
   grid-template-rows: auto 1fr;
   gap: 1rem;
-  height: calc(100vh - 8rem);
+  min-height: calc(100vh - 8rem);
 }
 
 .leftPanel {
@@ -53,7 +53,7 @@
   grid-template-columns: 1fr 1fr;
   grid-template-rows: auto 1fr;
   gap: 1rem;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .scenario, .controls, .objectives, .architecture, .components {
@@ -411,15 +411,17 @@
 @media (max-width: 1200px) {
   .gameContainer {
     grid-template-columns: 1fr;
-    height: auto;
+    min-height: auto;
   }
   
   .leftPanel {
     order: 2;
+    overflow-y: visible;
   }
   
   .rightPanel {
     order: 1;
+    overflow-y: visible;
   }
 }
 
