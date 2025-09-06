@@ -8,7 +8,7 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
-  padding-top: 6rem; /* Account for fixed navigation */
+  padding-top: 3.5rem;
 }
 
 .header {
