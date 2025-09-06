@@ -167,8 +167,8 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     const minLength = Math.min(rxSeries.values.length, txSeries.values.length)
     
     for (let i = 0; i < minLength; i++) {
-      const rxValue = rxSeries.values[i]
-      const txValue = txSeries.values[i]
+      const rxValue = rxSeries.values?.[i]
+      const txValue = txSeries.values?.[i]
       if (rxValue && txValue) {
         data.push({
           time: formatTimestamp(rxValue.timestamp),
@@ -206,8 +206,8 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     const minLength = Math.min(readSeries.values.length, writeSeries.values.length)
     
     for (let i = 0; i < minLength; i++) {
-      const readValue = readSeries.values[i]
-      const writeValue = writeSeries.values[i]
+      const readValue = readSeries.values?.[i]
+      const writeValue = writeSeries.values?.[i]
       if (readValue && writeValue) {
         data.push({
           time: formatTimestamp(readValue.timestamp),
@@ -261,8 +261,8 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     return successSeries.values.map((v, i) => ({
       time: formatTimestamp(v.timestamp),
       successRate: Math.max(0, Math.min(100, v.value || 0)),
-      cacheHitRate: cacheSeries && i < cacheSeries.values.length && cacheSeries.values[i] ? Math.max(0, Math.min(100, cacheSeries.values[i].value || 0)) : 0,
-      avgDuration: durationSeries && i < durationSeries.values.length && durationSeries.values[i] ? (durationSeries.values[i].value || 0) / 1000 : 0 // Convert to ms
+      cacheHitRate: cacheSeries && i < cacheSeries.values.length && cacheSeries.values?.[i] ? Math.max(0, Math.min(100, cacheSeries.values[i].value || 0)) : 0,
+      avgDuration: durationSeries && i < durationSeries.values.length && durationSeries.values?.[i] ? (durationSeries.values[i].value || 0) / 1000 : 0 // Convert to ms
     }))
   }
 
@@ -290,7 +290,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     return sphereSeries.values.map((v, i) => ({
       time: formatTimestamp(v.timestamp),
       spheres: v.value || 0,
-      lights: lightSeries && i < lightSeries.values.length && lightSeries.values[i] ? (lightSeries.values[i].value || 0) : 0
+      lights: lightSeries && i < lightSeries.values.length && lightSeries.values?.[i] ? (lightSeries.values[i].value || 0) : 0
     }))
   }
 
