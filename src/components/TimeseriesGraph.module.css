@@ -1,0 +1,32 @@
+.timeseriesGraph {
+  background: rgba(10, 10, 26, 0.8);
+  border-radius: 6px;
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(5px);
+}
+
+.graphHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.graphTitle {
+  font-size: 0.8rem;
+  color: #a0a0a0;
+  font-weight: 500;
+}
+
+.graphValue {
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.canvas {
+  display: block;
+  border-radius: 3px;
+  background: #0a0a1a;
+}

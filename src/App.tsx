@@ -9,6 +9,8 @@ import AurumSiphonPage from './pages/AurumSiphonPage'
 import QuestPage from './pages/QuestPage'
 import LearningPage from './pages/LearningPage'
 import TracyPage from './pages/TracyPage'
+import SystemsPage from './pages/SystemsPage'
+import ResilienceGamePage from './pages/ResilienceGamePage'
 import MetricsPage from './pages/MetricsPage'
 
 function App() {
@@ -25,6 +27,8 @@ function App() {
       <Route path="/tracy" element={<TracyPage />} />
       <Route path="/metrics" element={<Navigate to="/metrics/system" replace />} />
       <Route path="/metrics/:tab" element={<MetricsPage />} />
+      <Route path="/resilience" element={<SystemsPage />} />
+      <Route path="/resilience/phase1/level1" element={<ResilienceGamePage />} />
       <Route path="/top" element={<Navigate to="/top/sets" replace />} />
       <Route path="/top/:module" element={<LearningPage />} />
     </Routes>
