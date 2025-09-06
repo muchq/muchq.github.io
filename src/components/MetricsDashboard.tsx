@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
-import ChartErrorBoundary from './ChartErrorBoundary'
 import styles from './MetricsDashboard.module.css'
 
 interface SystemMetrics {
@@ -407,20 +406,18 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
             <div className={styles.compactChart}>
               <h4>CPU Utilization</h4>
               {getCpuTimeseriesData().length > 0 ? (
-                <ChartErrorBoundary>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <AreaChart data={getCpuTimeseriesData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                      <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value) => [`${Number(value).toFixed(1)}%`, 'CPU']}
-                      />
-                      <Area type="monotone" dataKey="value" stroke={COLORS.primary} fill="rgba(102, 182, 255, 0.3)" strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </ChartErrorBoundary>
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={getCpuTimeseriesData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(1)}%`, 'CPU']}
+                    />
+                    <Area type="monotone" dataKey="value" stroke={COLORS.primary} fill="rgba(102, 182, 255, 0.3)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
               ) : (
                 <NoDataMessage />
               )}
@@ -430,20 +427,18 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
             <div className={styles.compactChart}>
               <h4>CPU Cores</h4>
               {getCpuCoreData().length > 0 ? (
-                <ChartErrorBoundary>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={getCpuCoreData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="name" stroke="#888" fontSize={10} />
-                      <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Usage']}
-                      />
-                      <Bar dataKey="usage" fill={COLORS.primary} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartErrorBoundary>
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={getCpuCoreData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="name" stroke="#888" fontSize={10} />
+                    <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Usage']}
+                    />
+                    <Bar dataKey="usage" fill={COLORS.primary} />
+                  </BarChart>
+                </ResponsiveContainer>
               ) : (
                 <NoDataMessage />
               )}
@@ -453,20 +448,18 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
             <div className={styles.compactChart}>
               <h4>Memory Usage</h4>
               {getMemoryTimeseriesData().length > 0 ? (
-                <ChartErrorBoundary>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <LineChart data={getMemoryTimeseriesData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                      <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Memory']}
-                      />
-                      <Line type="monotone" dataKey="value" stroke={COLORS.success} strokeWidth={2} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </ChartErrorBoundary>
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={getMemoryTimeseriesData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Memory']}
+                    />
+                    <Line type="monotone" dataKey="value" stroke={COLORS.success} strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
               ) : (
                 <NoDataMessage />
               )}
@@ -476,29 +469,27 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
             <div className={styles.compactChart}>
               <h4>Memory Breakdown</h4>
               {getMemoryBreakdownData().length > 0 ? (
-                <ChartErrorBoundary>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <PieChart>
-                      <Pie
-                        data={getMemoryBreakdownData()}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={40}
-                        outerRadius={70}
-                        paddingAngle={5}
-                        dataKey="percentage"
-                      >
-                        {getMemoryBreakdownData().map((_entry, index) => (
-                          <Cell key={`cell-${index}`} fill={[COLORS.danger, COLORS.warning, COLORS.success][index]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Memory']}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </ChartErrorBoundary>
+                <ResponsiveContainer width="100%" height={180}>
+                  <PieChart>
+                    <Pie
+                      data={getMemoryBreakdownData()}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={40}
+                      outerRadius={70}
+                      paddingAngle={5}
+                      dataKey="percentage"
+                    >
+                      {getMemoryBreakdownData().map((_entry, index) => (
+                        <Cell key={`cell-${index}`} fill={[COLORS.danger, COLORS.warning, COLORS.success][index]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Memory']}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
               ) : (
                 <NoDataMessage />
               )}
@@ -514,21 +505,19 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
             <div className={styles.compactChart}>
               <h4>Disk I/O</h4>
               {getDiskIOData().length > 0 ? (
-                <ChartErrorBoundary>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <AreaChart data={getDiskIOData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                      <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value} MB/s`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 204, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value, name) => [`${Number(value).toFixed(2)} MB/s`, name === 'read' ? 'Read' : 'Write']}
-                      />
-                      <Area type="monotone" dataKey="read" stackId="1" stroke={COLORS.success} fill="rgba(102, 255, 102, 0.3)" />
-                      <Area type="monotone" dataKey="write" stackId="1" stroke={COLORS.warning} fill="rgba(255, 204, 102, 0.3)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </ChartErrorBoundary>
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={getDiskIOData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value} MB/s`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 204, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value, name) => [`${Number(value).toFixed(2)} MB/s`, name === 'read' ? 'Read' : 'Write']}
+                    />
+                    <Area type="monotone" dataKey="read" stackId="1" stroke={COLORS.success} fill="rgba(102, 255, 102, 0.3)" />
+                    <Area type="monotone" dataKey="write" stackId="1" stroke={COLORS.warning} fill="rgba(255, 204, 102, 0.3)" />
+                  </AreaChart>
+                </ResponsiveContainer>
               ) : (
                 <NoDataMessage />
               )}
@@ -538,24 +527,22 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
             <div className={styles.compactChart}>
               <h4>Disk Usage</h4>
               {getDiskUsageData().length > 0 ? (
-                <ChartErrorBoundary>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={getDiskUsageData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="name" stroke="#888" fontSize={10} />
-                      <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value, name) => [
-                          `${Number(value).toFixed(1)}%`,
-                          name === 'used' ? 'Used' : 'Free'
-                        ]}
-                      />
-                      <Bar dataKey="used" fill={COLORS.danger} />
-                      <Bar dataKey="free" fill={COLORS.success} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartErrorBoundary>
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={getDiskUsageData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="name" stroke="#888" fontSize={10} />
+                    <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value, name) => [
+                        `${Number(value).toFixed(1)}%`,
+                        name === 'used' ? 'Used' : 'Free'
+                      ]}
+                    />
+                    <Bar dataKey="used" fill={COLORS.danger} />
+                    <Bar dataKey="free" fill={COLORS.success} />
+                  </BarChart>
+                </ResponsiveContainer>
               ) : (
                 <NoDataMessage />
               )}
@@ -565,21 +552,19 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
             <div className={styles.compactChart}>
               <h4>Network I/O</h4>
               {getNetworkTimeseriesData().length > 0 ? (
-                <ChartErrorBoundary>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <AreaChart data={getNetworkTimeseriesData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                      <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value} KB/s`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 204, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value, name) => [`${Number(value).toFixed(2)} KB/s`, name === 'rx' ? 'Received' : 'Transmitted']}
-                      />
-                      <Area type="monotone" dataKey="rx" stackId="1" stroke={COLORS.success} fill="rgba(102, 255, 102, 0.3)" />
-                      <Area type="monotone" dataKey="tx" stackId="1" stroke={COLORS.warning} fill="rgba(255, 204, 102, 0.3)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </ChartErrorBoundary>
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={getNetworkTimeseriesData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value} KB/s`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 204, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value, name) => [`${Number(value).toFixed(2)} KB/s`, name === 'rx' ? 'Received' : 'Transmitted']}
+                    />
+                    <Area type="monotone" dataKey="rx" stackId="1" stroke={COLORS.success} fill="rgba(102, 255, 102, 0.3)" />
+                    <Area type="monotone" dataKey="tx" stackId="1" stroke={COLORS.warning} fill="rgba(255, 204, 102, 0.3)" />
+                  </AreaChart>
+                </ResponsiveContainer>
               ) : (
                 <NoDataMessage />
               )}
@@ -599,20 +584,18 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
             <div className={styles.compactChart}>
               <h4>Request Rate</h4>
               {getRequestRateData().length > 0 ? (
-                <ChartErrorBoundary>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={getRequestRateData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                      <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}/s`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value) => [`${Number(value).toFixed(2)}/s`, 'Requests']}
-                      />
-                      <Bar dataKey="rate" fill={COLORS.info} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartErrorBoundary>
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={getRequestRateData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}/s`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(2)}/s`, 'Requests']}
+                    />
+                    <Bar dataKey="rate" fill={COLORS.info} />
+                  </BarChart>
+                </ResponsiveContainer>
               ) : (
                 <NoDataMessage />
               )}
@@ -622,20 +605,18 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
             <div className={styles.compactChart}>
               <h4>Request Success Rate</h4>
               {getRequestSuccessRateData().length > 0 ? (
-                <ChartErrorBoundary>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <AreaChart data={getRequestSuccessRateData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                      <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Success Rate']}
-                      />
-                      <Area type="monotone" dataKey="successRate" stroke={COLORS.success} fill="rgba(102, 255, 102, 0.3)" strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </ChartErrorBoundary>
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={getRequestSuccessRateData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Success Rate']}
+                    />
+                    <Area type="monotone" dataKey="successRate" stroke={COLORS.success} fill="rgba(102, 255, 102, 0.3)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
               ) : (
                 <NoDataMessage />
               )}
@@ -645,25 +626,23 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
             <div className={styles.compactChart}>
               <h4>Combined Portrait Metrics</h4>
               {getPortraitMetricsData().length > 0 ? (
-                <ChartErrorBoundary>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <LineChart data={getPortraitMetricsData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                      <YAxis stroke="#888" fontSize={10} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value, name) => [
-                          name === 'avgDuration' ? `${Number(value).toFixed(2)}ms` : `${Number(value).toFixed(1)}%`,
-                          name === 'successRate' ? 'Success Rate' : name === 'cacheHitRate' ? 'Cache Hit Rate' : 'Avg Duration'
-                        ]}
-                      />
-                      <Line type="monotone" dataKey="successRate" stroke={COLORS.success} strokeWidth={2} dot={false} />
-                      <Line type="monotone" dataKey="cacheHitRate" stroke={COLORS.primary} strokeWidth={2} dot={false} />
-                      <Line type="monotone" dataKey="avgDuration" stroke={COLORS.warning} strokeWidth={2} dot={false} yAxisId="right" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </ChartErrorBoundary>
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={getPortraitMetricsData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value, name) => [
+                        name === 'avgDuration' ? `${Number(value).toFixed(2)}ms` : `${Number(value).toFixed(1)}%`,
+                        name === 'successRate' ? 'Success Rate' : name === 'cacheHitRate' ? 'Cache Hit Rate' : 'Avg Duration'
+                      ]}
+                    />
+                    <Line type="monotone" dataKey="successRate" stroke={COLORS.success} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="cacheHitRate" stroke={COLORS.primary} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="avgDuration" stroke={COLORS.warning} strokeWidth={2} dot={false} yAxisId="right" />
+                  </LineChart>
+                </ResponsiveContainer>
               ) : (
                 <NoDataMessage />
               )}
@@ -679,20 +658,18 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
             <div className={styles.compactChart}>
               <h4>Cache Hit Rate</h4>
               {getCacheHitRateData().length > 0 ? (
-                <ChartErrorBoundary>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <AreaChart data={getCacheHitRateData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                      <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Hit Rate']}
-                      />
-                      <Area type="monotone" dataKey="hitRate" stroke={COLORS.primary} fill="rgba(102, 182, 255, 0.3)" strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </ChartErrorBoundary>
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={getCacheHitRateData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Hit Rate']}
+                    />
+                    <Area type="monotone" dataKey="hitRate" stroke={COLORS.primary} fill="rgba(102, 182, 255, 0.3)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
               ) : (
                 <NoDataMessage />
               )}
@@ -702,20 +679,18 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
             <div className={styles.compactChart}>
               <h4>Cache Operations Rate</h4>
               {getCacheOperationsData().length > 0 ? (
-                <ChartErrorBoundary>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={getCacheOperationsData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                      <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}/s`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value) => [`${Number(value).toFixed(2)}/s`, 'Operations']}
-                      />
-                      <Bar dataKey="operations" fill={COLORS.info} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </ChartErrorBoundary>
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={getCacheOperationsData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}/s`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(2)}/s`, 'Operations']}
+                    />
+                    <Bar dataKey="operations" fill={COLORS.info} />
+                  </BarChart>
+                </ResponsiveContainer>
               ) : (
                 <NoDataMessage />
               )}
@@ -731,24 +706,22 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
             <div className={styles.compactChart}>
               <h4>Scene Elements</h4>
               {getSceneComplexityData().length > 0 ? (
-                <ChartErrorBoundary>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <LineChart data={getSceneComplexityData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                      <YAxis stroke="#888" fontSize={10} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value, name) => [
-                          `${Number(value).toFixed(0)}`,
-                          name === 'spheres' ? 'Spheres' : 'Lights'
-                        ]}
-                      />
-                      <Line type="monotone" dataKey="spheres" stroke={COLORS.danger} strokeWidth={2} dot={false} />
-                      <Line type="monotone" dataKey="lights" stroke={COLORS.warning} strokeWidth={2} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </ChartErrorBoundary>
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={getSceneComplexityData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value, name) => [
+                        `${Number(value).toFixed(0)}`,
+                        name === 'spheres' ? 'Spheres' : 'Lights'
+                      ]}
+                    />
+                    <Line type="monotone" dataKey="spheres" stroke={COLORS.danger} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="lights" stroke={COLORS.warning} strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
               ) : (
                 <NoDataMessage />
               )}

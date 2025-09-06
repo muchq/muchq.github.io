@@ -398,36 +398,3 @@
 .statusCards .card:nth-child(1) { animation-delay: 0.1s; }
 .statusCards .card:nth-child(2) { animation-delay: 0.2s; }
 .statusCards .card:nth-child(3) { animation-delay: 0.3s; }
-
-/* Chart Error Styles */
-.chartError {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 180px;
-  background: rgba(255, 102, 102, 0.05);
-  border: 1px solid rgba(255, 102, 102, 0.2);
-  border-radius: 8px;
-  color: #ff9999;
-  text-align: center;
-  padding: 20px;
-}
-
-.chartErrorIcon {
-  font-size: 2rem;
-  margin-bottom: 8px;
-  opacity: 0.7;
-}
-
-.chartErrorMessage {
-  font-size: 0.9rem;
-  font-weight: 300;
-  margin-bottom: 4px;
-}
-
-.chartErrorDetails {
-  font-size: 0.75rem;
-  color: rgba(255, 153, 153, 0.7);
-  font-style: italic;
-}
