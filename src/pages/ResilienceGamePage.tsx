@@ -500,15 +500,6 @@ const ResilienceGamePage = () => {
                 />
               </div>
 
-              {gamePhase === 'scaling' && (serverMetrics?.latency || 0) > 100 && (
-                <div className={styles.insight}>
-                  <h4>💡 Performance Insight</h4>
-                  <p>
-                    Your system is struggling! Add read replicas to handle the read-heavy traffic (80% reads) 
-                    or use a load balancer with more servers to distribute the load.
-                  </p>
-                </div>
-              )}
             </div>
 
             <div className={styles.components}>
