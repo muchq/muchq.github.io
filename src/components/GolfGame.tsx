@@ -17,7 +17,7 @@ interface GolfGameProps {
 
 const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange }: GolfGameProps) => {
   const [showRules, setShowRules] = useState(false)
-  
+
   const {
     gameState,
     roomCode,
@@ -95,9 +95,9 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                 Join Game
               </button>
             </div>
-            
-            <button 
-              onClick={() => setShowRules(true)} 
+
+            <button
+              onClick={() => setShowRules(true)}
               className={styles.rulesButton}
             >
               How to Play
@@ -117,23 +117,23 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
             <div className={styles.countdownText}>All players have peeked!</div>
           </div>
         )}
-        
+
         {showRules && (
           <div className={styles.rulesModal} onClick={() => setShowRules(false)}>
             <div className={styles.rulesContent} onClick={(e) => e.stopPropagation()}>
-              <button 
-                className={styles.closeButton} 
+              <button
+                className={styles.closeButton}
                 onClick={() => setShowRules(false)}
               >
                 ×
               </button>
               <h2>How to Play Golf</h2>
-              
+
               <div className={styles.rulesSection}>
                 <h3>Goal</h3>
                 <p>Get the lowest score by the end of the game. Lower is better!</p>
               </div>
-              
+
               <div className={styles.rulesSection}>
                 <h3>Setup</h3>
                 <ul>
@@ -142,7 +142,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                   <li>Try to remember your cards!</li>
                 </ul>
               </div>
-              
+
               <div className={styles.rulesSection}>
                 <h3>Your Turn</h3>
                 <ul>
@@ -151,7 +151,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                   <li>Swapped cards are revealed and stay face up</li>
                 </ul>
               </div>
-              
+
               <div className={styles.rulesSection}>
                 <h3>Card Values</h3>
                 <ul>
@@ -162,7 +162,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                   <li>Pairs in same column cancel out (0 points)!</li>
                 </ul>
               </div>
-              
+
               <div className={styles.rulesSection}>
                 <h3>Ending the Game</h3>
                 <ul>
@@ -223,7 +223,11 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
             </div>
             {winner && (
               <div className={styles.winnerSection}>
-                <div className={styles.confetti}>🎉 🎊 🎉</div>
+                {currentPlayer?.name === winner ? (
+                  <div className={styles.confetti}>🎉 🎊 🎉</div>
+                ) : (
+                  <div className={styles.confetti}></div>
+                )}
                 <div className={styles.winner}>
                   {currentPlayer?.name === winner ? (
                     <>
@@ -258,14 +262,14 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
               <small>Lower scores win • Pairs cancel out</small>
             </div>
             <div className={styles.gameEndActions}>
-              <button 
-                onClick={() => window.location.reload()} 
+              <button
+                onClick={() => window.location.reload()}
                 className={styles.primaryButton}
               >
                 Back to Home
               </button>
-              <button 
-                onClick={startGame} 
+              <button
+                onClick={startGame}
                 className={styles.secondaryButton}
               >
                 Play Again
@@ -281,7 +285,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
             <div className={styles.piles}>
               <div className={styles.pile}>
                 <h3>Draw Pile</h3>
-                <div 
+                <div
                   className={`${styles.card} ${isMyTurn && !gameState.drawnCard ? styles.clickable : ''}`}
                   onClick={() => isMyTurn && !gameState.drawnCard && drawCard()}
                   onTouchEnd={(e) => {
@@ -297,7 +301,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
               <div className={styles.pile}>
                 <h3>Discard Pile</h3>
                 {gameState.discardPile.length > 0 ? (
-                  <div 
+                  <div
                     className={`${isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0 ? styles.clickable : ''}`}
                     onClick={() => isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0 && takeFromDiscard()}
                     onTouchEnd={(e) => {
