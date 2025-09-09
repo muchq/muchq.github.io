@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import type { GameState, Player } from '@/types/golf'
+import type { GameState, Player, Room } from '@/types/golf'
 import { GolfNetworkAdapter } from '@/utils/networkAdapter'
 
 interface UseGolfGameProps {
+  onRoomIdChange?: (id: string | null) => void
   onGameIdChange?: (id: string | null) => void
   onPlayerIdChange?: (id: string | null) => void
   onPlayerNameChange?: (name: string | null) => void
@@ -11,6 +12,7 @@ interface UseGolfGameProps {
 
 interface UseGolfGameReturn {
   // State
+  roomState: Room | null
   gameState: GameState | null
   playerId: string
   roomCode: string
@@ -23,8 +25,10 @@ interface UseGolfGameReturn {
   finalScores: Array<{ playerName: string; score: number }> | null
   
   // Actions
+  createRoom: () => void
+  joinRoom: () => void
   createGame: () => void
-  joinGame: () => void
+  joinGame: (gameId: string) => void
   startGame: () => void
   peekCard: (index: number) => void
   drawCard: () => void
@@ -41,11 +45,13 @@ interface UseGolfGameReturn {
 }
 
 export const useGolfGame = ({
+  onRoomIdChange,
   onGameIdChange,
   onPlayerIdChange,
   onPlayerNameChange,
   onConnectionChange
 }: UseGolfGameProps = {}): UseGolfGameReturn => {
+  const [roomState, setRoomState] = useState<Room | null>(null)
   const [gameState, setGameState] = useState<GameState | null>(null)
   const [playerId, setPlayerId] = useState<string>('')
   const [roomCode, setRoomCode] = useState<string>('')
@@ -71,6 +77,27 @@ export const useGolfGame = ({
     }, 3000)
   }, [])
 
+  // Room actions
+  const createRoom = useCallback(() => {
+    if (!networkAdapterRef.current) {
+      showNotification('Not connected to server')
+      return
+    }
+    networkAdapterRef.current.createRoom()
+  }, [showNotification])
+
+  const joinRoom = useCallback(() => {
+    if (!roomCode.trim()) {
+      showNotification('Please enter a room code')
+      return
+    }
+    if (!networkAdapterRef.current) {
+      showNotification('Not connected to server')
+      return
+    }
+    networkAdapterRef.current.joinRoom(roomCode.trim())
+  }, [roomCode, showNotification])
+
   // Game actions
   const createGame = useCallback(() => {
     if (!networkAdapterRef.current) {
@@ -80,17 +107,17 @@ export const useGolfGame = ({
     networkAdapterRef.current.createGame()
   }, [showNotification])
 
-  const joinGame = useCallback(() => {
-    if (!roomCode.trim()) {
-      showNotification('Please enter a room code')
+  const joinGame = useCallback((gameId: string) => {
+    if (!gameId.trim()) {
+      showNotification('Please provide a game ID')
       return
     }
     if (!networkAdapterRef.current) {
       showNotification('Not connected to server')
       return
     }
-    networkAdapterRef.current.joinGame(roomCode.trim())
-  }, [roomCode, showNotification])
+    networkAdapterRef.current.joinGame(gameId.trim())
+  }, [showNotification])
 
   const startGame = useCallback(() => {
     if (!networkAdapterRef.current) {
@@ -177,10 +204,22 @@ export const useGolfGame = ({
   useEffect(() => {
     // Create network adapter with callbacks
     const adapter = new GolfNetworkAdapter({
+      onRoomJoined: (newPlayerId, newRoomState) => {
+        setPlayerId(newPlayerId)
+        setRoomState(newRoomState)
+        setIsInLobby(false)
+        onRoomIdChange?.(newRoomState.id)
+        onPlayerIdChange?.(newPlayerId)
+        const player = newRoomState.players.find(p => p.id === newPlayerId)
+        onPlayerNameChange?.(player?.name || null)
+        showNotification('Joined room successfully!')
+      },
+      onRoomStateUpdate: (newRoomState) => {
+        setRoomState(newRoomState)
+      },
       onGameJoined: (newPlayerId, newGameState) => {
         setPlayerId(newPlayerId)
         setGameState(newGameState)
-        setIsInLobby(false)
         onGameIdChange?.(newGameState.id)
         onPlayerIdChange?.(newPlayerId)
         const player = newGameState.players.find(p => p.id === newPlayerId)
@@ -223,7 +262,7 @@ export const useGolfGame = ({
         clearTimeout(notificationTimeoutRef.current)
       }
     }
-  }, [onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, showNotification])
+  }, [onRoomIdChange, onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, showNotification])
 
   // Handle peek countdown when all players have peeked
   useEffect(() => {
@@ -274,6 +313,7 @@ export const useGolfGame = ({
 
   return {
     // State
+    roomState,
     gameState,
     playerId,
     roomCode,
@@ -286,6 +326,8 @@ export const useGolfGame = ({
     finalScores,
     
     // Actions
+    createRoom,
+    joinRoom,
     createGame,
     joinGame,
     startGame,

@@ -9,16 +9,18 @@ interface Card {
 
 
 interface GolfGameProps {
+  onRoomIdChange: (id: string | null) => void
   onGameIdChange: (id: string | null) => void
   onPlayerIdChange: (id: string | null) => void
   onPlayerNameChange: (name: string | null) => void
   onConnectionChange: (connected: boolean) => void
 }
 
-const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange }: GolfGameProps) => {
+const GolfGame = ({ onRoomIdChange, onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange }: GolfGameProps) => {
   const [showRules, setShowRules] = useState(false)
   
   const {
+    roomState,
     gameState,
     roomCode,
     selectedCardIndex,
@@ -28,6 +30,8 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     isMyTurn,
     peekCountdown,
     winner,
+    createRoom,
+    joinRoom,
     createGame,
     joinGame,
     startGame,
@@ -38,7 +42,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     knock,
     handleCardClick,
     setRoomCode
-  } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange })
+  } = useGolfGame({ onRoomIdChange, onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange })
 
   const renderCard = (card: Card | null, index: number, isRevealed: boolean, isPlayer: boolean) => {
     const isSelected = selectedCardIndex === index
@@ -76,8 +80,8 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
         <h1 className={styles.title}>Golf Card Game</h1>
         <div className={styles.lobbyContent}>
           <div className={styles.lobbyActions}>
-            <button onClick={createGame} className={styles.primaryButton}>
-              Create New Game
+            <button onClick={createRoom} className={styles.primaryButton}>
+              Create New Room
             </button>
 
             <div className={styles.divider}>OR</div>
@@ -91,8 +95,8 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                 className={styles.input}
                 maxLength={6}
               />
-              <button onClick={joinGame} className={styles.secondaryButton}>
-                Join Game
+              <button onClick={joinRoom} className={styles.secondaryButton}>
+                Join Room
               </button>
             </div>
             
@@ -173,6 +177,71 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                 </ul>
               </div>
             </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Show room lobby if we're in a room but no game yet
+  if (roomState && !gameState) {
+    return (
+      <div className={styles.lobby}>
+        <h1 className={styles.title}>Room: {roomState.id}</h1>
+        <div className={styles.lobbyContent}>
+          <div className={styles.roomInfo}>
+            <h3>Players in room ({roomState.players?.length || 0})</h3>
+            <div className={styles.playerList}>
+              {(roomState.players || []).map((player) => (
+                <div key={player.id} className={styles.playerInfo}>
+                  <span>{player.name}</span>
+                  <span className={player.isConnected ? styles.connected : styles.disconnected}>
+                    {player.isConnected ? '🟢' : '🔴'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className={styles.gameActions}>
+            <h3>Games</h3>
+            {(!roomState.games || Object.keys(roomState.games).length === 0) ? (
+              <div className={styles.noGames}>
+                <p>No games in this room yet</p>
+                <button onClick={createGame} className={styles.primaryButton}>
+                  Create New Game
+                </button>
+              </div>
+            ) : (
+              <div className={styles.gamesList}>
+                {Object.entries(roomState.games).map(([gameId, game]) => {
+                  const playerCount = game.players?.length || 0
+                  return (
+                    <div key={gameId} className={styles.gameItem}>
+                      <div className={styles.gameInfo}>
+                        <span>Game: {gameId}</span>
+                        <span>Players: {playerCount}/4</span>
+                        <span>Phase: {game.gamePhase || 'unknown'}</span>
+                      </div>
+                      {game.gamePhase === 'waiting' && playerCount < 4 && (
+                        <button onClick={() => joinGame(gameId)} className={styles.secondaryButton}>
+                          Join Game
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+                <button onClick={createGame} className={styles.primaryButton}>
+                  Create New Game
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {notification && (
+          <div className={styles.notification}>
+            {notification}
           </div>
         )}
       </div>

@@ -3,7 +3,7 @@ import { NetworkManager } from './networkManager'
 import { ThoughtsNetworkPlugin } from '@/plugins/thoughtsNetworkPlugin'
 import { GolfNetworkPlugin } from '@/plugins/golfNetworkPlugin'
 import type { GameState } from '@/types/game'
-import type { GameState as GolfGameState } from '@/types/golf'
+import type { GameState as GolfGameState, Room } from '@/types/golf'
 import { ConnectionState, BaseNetworkMessage } from '@/types/network'
 
 // Factory function to create a network manager with pre-registered plugins
@@ -101,8 +101,11 @@ export class GolfNetworkAdapter {
   private plugin: GolfNetworkPlugin
   private _playerId: string | null = null
   private _gameState: GolfGameState | null = null
+  private _roomState: Room | null = null
 
   constructor(callbacks?: {
+    onRoomJoined?: (playerId: string, roomState: Room) => void
+    onRoomStateUpdate?: (roomState: Room) => void
     onGameJoined?: (playerId: string, gameState: GolfGameState) => void
     onGameStateUpdate?: (gameState: GolfGameState) => void
     onNotification?: (message: string) => void
@@ -118,8 +121,17 @@ export class GolfNetworkAdapter {
       }
     })
 
-    // Create plugin with game callbacks
+    // Create plugin with room and game callbacks
     this.plugin = new GolfNetworkPlugin({
+      onRoomJoined: (playerId, roomState) => {
+        this._playerId = playerId
+        this._roomState = roomState
+        callbacks?.onRoomJoined?.(playerId, roomState)
+      },
+      onRoomStateUpdate: (roomState) => {
+        this._roomState = roomState
+        callbacks?.onRoomStateUpdate?.(roomState)
+      },
       onGameJoined: (playerId, gameState) => {
         this._playerId = playerId
         this._gameState = gameState
@@ -163,6 +175,10 @@ export class GolfNetworkAdapter {
     return this._gameState
   }
 
+  get roomState(): Room | null {
+    return this._roomState
+  }
+
   // Create context helper
   private getContext() {
     return {
@@ -175,6 +191,15 @@ export class GolfNetworkAdapter {
       },
       isConnected: () => this.manager.isConnected()
     }
+  }
+
+  // Delegate room actions to plugin
+  createRoom(): void {
+    this.plugin.createRoom(this.getContext())
+  }
+
+  joinRoom(roomId: string): void {
+    this.plugin.joinRoom(roomId, this.getContext())
   }
 
   // Delegate game actions to plugin
@@ -224,5 +249,9 @@ export class GolfNetworkAdapter {
 
   getCurrentPlayer() {
     return this.plugin.getCurrentPlayer(this.getContext())
+  }
+
+  getCurrentRoom() {
+    return this.plugin.getCurrentRoom(this.getContext())
   }
 }

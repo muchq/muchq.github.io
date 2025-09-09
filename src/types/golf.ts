@@ -11,6 +11,13 @@ export interface Player {
   revealedCards: number[]
   isReady: boolean
   hasPeeked: boolean
+  // Room-specific fields
+  clientId: string
+  totalScore: number
+  gamesPlayed: number
+  gamesWon: number
+  isConnected: boolean
+  joinedAt: string
 }
 
 export interface GameState {
@@ -23,6 +30,22 @@ export interface GameState {
   knockedPlayerId: string | null
   drawnCard: Card | null
   allPlayersPeeked: boolean
+}
+
+export interface GameResult {
+  gameId: string
+  winner: string
+  finalScores: Array<{ playerName: string; score: number }>
+  completedAt: string
+}
+
+export interface Room {
+  id: string
+  players: Player[]
+  games: Record<string, GameState>
+  gameHistory: GameResult[]
+  createdAt: string
+  lastActivity: string
 }
 
 export const CARD_VALUES: Record<string, number> = {
