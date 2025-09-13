@@ -5,7 +5,6 @@ import GroupsPage from './pages/GroupsPage'
 import SetsPage from './pages/SetsPage'
 import GolfPage from './pages/GolfPage'
 import PartyPage from './pages/PartyPage'
-import AurumSiphonPage from './pages/AurumSiphonPage'
 import QuestPage from './pages/QuestPage'
 import LearningPage from './pages/LearningPage'
 import TracyPage from './pages/TracyPage'
@@ -22,7 +21,6 @@ function App() {
       <Route path="/sets" element={<SetsPage />} />
       <Route path="/golf" element={<GolfPage />} />
       <Route path="/party" element={<PartyPage />} />
-      <Route path="/aurum" element={<AurumSiphonPage />} />
       <Route path="/quest" element={<QuestPage />} />
       <Route path="/tracy" element={<TracyPage />} />
       <Route path="/metrics" element={<Navigate to="/metrics/system" replace />} />
