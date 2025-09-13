@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import type { GameState, Player } from '@/types/golf'
+import type { GameState, Player, Room } from '@/types/golf'
 import { GolfNetworkAdapter } from '@/utils/networkAdapter'
 
 interface UseGolfGameProps {
@@ -12,10 +12,12 @@ interface UseGolfGameProps {
 interface UseGolfGameReturn {
   // State
   gameState: GameState | null
+  roomState: Room | null
   playerId: string
   roomCode: string
   selectedCardIndex: number | null
   isInLobby: boolean
+  isInRoom: boolean
   notification: string
   isConnected: boolean
   peekCountdown: number | null
@@ -23,9 +25,12 @@ interface UseGolfGameReturn {
   finalScores: Array<{ playerName: string; score: number }> | null
   
   // Actions
-  createGame: () => void
-  joinGame: () => void
+  createRoom: () => void
+  createGame: (roomId?: string) => void
+  joinRoom: () => void
+  joinGame: (gameId?: string) => void
   startGame: () => void
+  startNewGame: () => void
   peekCard: (index: number) => void
   drawCard: () => void
   takeFromDiscard: () => void
@@ -34,6 +39,7 @@ interface UseGolfGameReturn {
   knock: () => void
   handleCardClick: (index: number) => void
   setRoomCode: (code: string) => void
+  clearGameState: () => void
   
   // Computed
   currentPlayer: Player | undefined
@@ -47,10 +53,12 @@ export const useGolfGame = ({
   onConnectionChange
 }: UseGolfGameProps = {}): UseGolfGameReturn => {
   const [gameState, setGameState] = useState<GameState | null>(null)
+  const [roomState, setRoomState] = useState<Room | null>(null)
   const [playerId, setPlayerId] = useState<string>('')
   const [roomCode, setRoomCode] = useState<string>('')
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null)
   const [isInLobby, setIsInLobby] = useState(true)
+  const [isInRoom, setIsInRoom] = useState(false)
   const [notification, setNotification] = useState<string>('')
   const [isConnected, setIsConnected] = useState(false)
   const [peekCountdown, setPeekCountdown] = useState<number | null>(null)
@@ -72,15 +80,28 @@ export const useGolfGame = ({
   }, [])
 
   // Game actions
-  const createGame = useCallback(() => {
+  const createRoom = useCallback(() => {
     if (!networkAdapterRef.current) {
       showNotification('Not connected to server')
       return
     }
-    networkAdapterRef.current.createGame()
+    networkAdapterRef.current.createRoom()
   }, [showNotification])
 
-  const joinGame = useCallback(() => {
+  const createGame = useCallback((roomId?: string) => {
+    const actualRoomId = roomId || roomState?.id
+    if (!actualRoomId) {
+      showNotification('Must be in a room to create a game')
+      return
+    }
+    if (!networkAdapterRef.current) {
+      showNotification('Not connected to server')
+      return
+    }
+    networkAdapterRef.current.createGame(actualRoomId)
+  }, [showNotification, roomState?.id])
+
+  const joinRoom = useCallback(() => {
     if (!roomCode.trim()) {
       showNotification('Please enter a room code')
       return
@@ -89,8 +110,29 @@ export const useGolfGame = ({
       showNotification('Not connected to server')
       return
     }
-    networkAdapterRef.current.joinGame(roomCode.trim())
+    // Join room lobby (no specific game)
+    networkAdapterRef.current.joinRoom(roomCode.trim())
   }, [roomCode, showNotification])
+
+  const joinGame = useCallback((gameId?: string) => {
+    if (!gameId) {
+      showNotification('Please enter a game code')
+      return
+    }
+    if (!roomState?.id) {
+      showNotification('Must be in a room first')
+      return
+    }
+    if (!gameId.trim()) {
+      showNotification('Please enter a game code')
+      return
+    }
+    if (!networkAdapterRef.current) {
+      showNotification('Not connected to server')
+      return
+    }
+    networkAdapterRef.current.joinGame(roomState.id, gameId)
+  }, [roomState?.id, showNotification])
 
   const startGame = useCallback(() => {
     if (!networkAdapterRef.current) {
@@ -98,6 +140,14 @@ export const useGolfGame = ({
       return
     }
     networkAdapterRef.current.startGame()
+  }, [showNotification])
+
+  const startNewGame = useCallback(() => {
+    if (!networkAdapterRef.current) {
+      showNotification('Not connected to server')
+      return
+    }
+    networkAdapterRef.current.startNewGame()
   }, [showNotification])
 
   const peekCard = useCallback((index: number) => {
@@ -169,6 +219,13 @@ export const useGolfGame = ({
     }
   }, [gameState, playerId, peekCard, peekCountdown])
 
+  const clearGameState = useCallback(() => {
+    setGameState(null)
+    setWinner(null)
+    setFinalScores(null)
+    setSelectedCardIndex(null)
+  }, [])
+
   // Computed values
   const currentPlayer = gameState?.players.find(p => p.id === playerId)
   const isMyTurn = gameState?.players[gameState.currentPlayerIndex]?.id === playerId
@@ -177,6 +234,26 @@ export const useGolfGame = ({
   useEffect(() => {
     // Create network adapter with callbacks
     const adapter = new GolfNetworkAdapter({
+      onRoomJoined: (newPlayerId, newRoomState) => {
+        setPlayerId(newPlayerId)
+        setRoomState(newRoomState)
+        setIsInRoom(true)
+        setIsInLobby(false)
+        onGameIdChange?.(newRoomState.id)
+        onPlayerIdChange?.(newPlayerId)
+        const player = newRoomState.players.find(p => p.id === newPlayerId)
+        onPlayerNameChange?.(player?.name || null)
+        showNotification('Joined room successfully!')
+      },
+      onRoomStateUpdate: (newRoomState) => {
+        setRoomState(newRoomState)
+        // Check if any games ended and clear game state if current game is gone
+        if (gameState && !newRoomState.games[gameState.id]) {
+          setGameState(null)
+          setWinner(null)
+          setFinalScores(null)
+        }
+      },
       onGameJoined: (newPlayerId, newGameState) => {
         setPlayerId(newPlayerId)
         setGameState(newGameState)
@@ -223,7 +300,9 @@ export const useGolfGame = ({
         clearTimeout(notificationTimeoutRef.current)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, showNotification])
+  // gameState intentionally omitted from dependencies to prevent network adapter recreation
 
   // Handle peek countdown when all players have peeked
   useEffect(() => {
@@ -275,10 +354,12 @@ export const useGolfGame = ({
   return {
     // State
     gameState,
+    roomState,
     playerId,
     roomCode,
     selectedCardIndex,
     isInLobby,
+    isInRoom,
     notification,
     isConnected,
     peekCountdown,
@@ -286,9 +367,12 @@ export const useGolfGame = ({
     finalScores,
     
     // Actions
+    createRoom,
     createGame,
+    joinRoom,
     joinGame,
     startGame,
+    startNewGame,
     peekCard,
     drawCard,
     takeFromDiscard,
@@ -297,6 +381,7 @@ export const useGolfGame = ({
     knock,
     handleCardClick,
     setRoomCode,
+    clearGameState,
     
     // Computed
     currentPlayer,

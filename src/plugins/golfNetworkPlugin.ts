@@ -5,69 +5,86 @@ import type {
   MessageHandlerMap,
   NetworkContext
 } from '@/types/network'
-import type { Player, GameState as GolfGameState } from '@/types/golf'
+import type { Player, GameState as GolfGameState, Room, FinalScore } from '@/types/golf'
 
 // Golf-specific message types
 interface GolfMessage extends BaseNetworkMessage {
-  type: 'createGame' | 'joinGame' | 'gameJoined' | 'gameState' | 'error' | 
-        'gameStarted' | 'turnChanged' | 'playerKnocked' | 'gameEnded' |
+  type: 'createRoom' | 'joinRoom' | 'createGame' | 'joinGame' | 'roomJoined' | 'roomStateUpdate' | 'gameState' | 'error' | 
+        'gameStarted' | 'turnChanged' | 'playerKnocked' | 'gameEnded' | 'newGameStarted' |
         'startGame' | 'peekCard' | 'drawCard' | 'takeFromDiscard' | 
-        'swapCard' | 'discardDrawn' | 'knock' | 'hideCards'
+        'swapCard' | 'discardDrawn' | 'knock' | 'hideCards' | 'startNewGame'
   // Request fields
+  roomId?: string
   gameId?: string
   cardIndex?: number
   // Response fields
   playerId?: string
   gameState?: GolfGameState
+  roomState?: Room
   message?: string
   winner?: string
-  finalScores?: Array<{ playerName: string; score: number }>
+  finalScores?: FinalScore[]
+  previousGameId?: string
 }
 
 // Golf plugin state
 interface GolfPluginState {
   playerId: string | null
   gameState: GolfGameState | null
+  roomState: Room | null
+  gameContext: { roomId: string; gameId: string } | null
   isInLobby: boolean
 }
 
 export class GolfNetworkPlugin implements GameNetworkPlugin {
   gameType = 'golf'
+  private onRoomJoined?: (playerId: string, roomState: Room) => void
   private onGameJoined?: (playerId: string, gameState: GolfGameState) => void
   private onGameStateUpdate?: (gameState: GolfGameState) => void
+  private onRoomStateUpdate?: (roomState: Room) => void
   private onNotification?: (message: string) => void
-  private onGameEnded?: (winner: string, finalScores: Array<{ playerName: string; score: number }>) => void
+  private onGameEnded?: (winner: string, finalScores: FinalScore[]) => void
+  private onNewGameStarted?: (gameId: string, previousGameId?: string) => void
 
   constructor(callbacks?: {
+    onRoomJoined?: (playerId: string, roomState: Room) => void
     onGameJoined?: (playerId: string, gameState: GolfGameState) => void
     onGameStateUpdate?: (gameState: GolfGameState) => void
+    onRoomStateUpdate?: (roomState: Room) => void
     onNotification?: (message: string) => void
-    onGameEnded?: (winner: string, finalScores: Array<{ playerName: string; score: number }>) => void
+    onGameEnded?: (winner: string, finalScores: FinalScore[]) => void
+    onNewGameStarted?: (gameId: string, previousGameId?: string) => void
   }) {
     if (callbacks) {
+      this.onRoomJoined = callbacks.onRoomJoined
       this.onGameJoined = callbacks.onGameJoined
       this.onGameStateUpdate = callbacks.onGameStateUpdate
+      this.onRoomStateUpdate = callbacks.onRoomStateUpdate
       this.onNotification = callbacks.onNotification
       this.onGameEnded = callbacks.onGameEnded
+      this.onNewGameStarted = callbacks.onNewGameStarted
     }
   }
 
   getMessageHandlers(): MessageHandlerMap {
     return {
+      'roomJoined': (msg, ctx) => this.handleRoomJoined(msg as GolfMessage, ctx),
+      'roomStateUpdate': (msg, ctx) => this.handleRoomStateUpdate(msg as GolfMessage, ctx),
       'gameJoined': (msg, ctx) => this.handleGameJoined(msg as GolfMessage, ctx),
       'gameState': (msg, ctx) => this.handleGameState(msg as GolfMessage, ctx),
       'error': (msg, ctx) => this.handleError(msg as GolfMessage, ctx),
       'gameStarted': (msg, ctx) => this.handleGameStarted(msg as GolfMessage, ctx),
       'turnChanged': (msg, ctx) => this.handleTurnChanged(msg as GolfMessage, ctx),
       'playerKnocked': (msg, ctx) => this.handlePlayerKnocked(msg as GolfMessage, ctx),
-      'gameEnded': (msg, ctx) => this.handleGameEnded(msg as GolfMessage, ctx)
+      'gameEnded': (msg, ctx) => this.handleGameEnded(msg as GolfMessage, ctx),
+      'newGameStarted': (msg, ctx) => this.handleNewGameStarted(msg as GolfMessage, ctx)
     }
   }
 
   validateMessage(message: BaseNetworkMessage): boolean {
     const validTypes = [
-      'gameJoined', 'gameState', 'error', 'gameStarted',
-      'turnChanged', 'playerKnocked', 'gameEnded'
+      'roomJoined', 'roomStateUpdate', 'gameJoined', 'gameState', 'error', 
+      'gameStarted', 'turnChanged', 'playerKnocked', 'gameEnded', 'newGameStarted'
     ]
     return validTypes.includes(message.type)
   }
@@ -76,6 +93,8 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
     return {
       playerId: null,
       gameState: null,
+      roomState: null,
+      gameContext: null,
       isInLobby: true
     }
   }
@@ -91,11 +110,51 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
       ...s,
       playerId: null,
       gameState: null,
+      roomState: null,
+      gameContext: null,
       isInLobby: true
     }))
   }
 
   // Message handlers
+  private handleRoomJoined(message: GolfMessage, context: NetworkContext): void {
+    if (!message.playerId || !message.roomState) {
+      console.error('Room joined message missing required fields')
+      return
+    }
+
+    context.updateGameState<GolfPluginState>(s => ({
+      ...s,
+      playerId: message.playerId!,
+      roomState: message.roomState!,
+      isInLobby: false
+    }))
+
+    console.log(`🎉 Joined room ${message.roomState.id} as player ${message.playerId}`)
+    
+    if (this.onRoomJoined) {
+      this.onRoomJoined(message.playerId, message.roomState)
+    }
+    
+    this.notify('Joined room successfully!', context)
+  }
+
+  private handleRoomStateUpdate(message: GolfMessage, context: NetworkContext): void {
+    if (!message.roomState) {
+      console.error('Room state update message missing roomState field')
+      return
+    }
+
+    context.updateGameState<GolfPluginState>(s => ({
+      ...s,
+      roomState: message.roomState!
+    }))
+
+    if (this.onRoomStateUpdate) {
+      this.onRoomStateUpdate(message.roomState)
+    }
+  }
+
   private handleGameJoined(message: GolfMessage, context: NetworkContext): void {
     if (!message.playerId || !message.gameState) {
       console.error('Game joined message missing required fields')
@@ -173,6 +232,18 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
     }
   }
 
+  private handleNewGameStarted(message: GolfMessage, context: NetworkContext): void {
+    const gameId = message.gameId
+    const previousGameId = message.previousGameId
+    
+    console.log(`🆕 New game started in room! Game ID: ${gameId}${previousGameId ? `, Previous: ${previousGameId}` : ''}`)
+    this.notify('New game started!', context)
+    
+    if (this.onNewGameStarted && gameId) {
+      this.onNewGameStarted(gameId, previousGameId)
+    }
+  }
+
   // Helper method to send notifications
   private notify(message: string, _context: NetworkContext): void {
     if (this.onNotification) {
@@ -181,21 +252,31 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
   }
 
   // Public methods for the game to use
-  createGame(context: NetworkContext): void {
+  createRoom(context: NetworkContext): void {
     context.send({
-      type: 'createGame',
+      type: 'createRoom',
       timestamp: Date.now()
     })
-    console.log('📤 Sent create game request')
+    console.log('📤 Sent create room request')
   }
 
-  joinGame(gameId: string, context: NetworkContext): void {
+  createGame(roomId: string, context: NetworkContext): void {
+    context.send({
+      type: 'createGame',
+      roomId: roomId,
+      timestamp: Date.now()
+    })
+    console.log(`📤 Sent create game request for room ${roomId}`)
+  }
+
+  joinGame(roomId: string, gameId: string, context: NetworkContext): void {
     context.send({
       type: 'joinGame',
+      roomId: roomId,
       gameId: gameId,
       timestamp: Date.now()
     })
-    console.log(`📤 Sent join game request for room ${gameId}`)
+    console.log(`📤 Sent join game request for room ${roomId}, game ${gameId}`)
   }
 
   startGame(context: NetworkContext): void {
@@ -262,6 +343,23 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
       timestamp: Date.now()
     })
     console.log('📤 Sent hideCards request')
+  }
+
+  joinRoom(roomId: string, context: NetworkContext): void {
+    context.send({
+      type: 'joinRoom',
+      roomId: roomId,
+      timestamp: Date.now()
+    })
+    console.log(`📤 Sent join room request for room ${roomId}`)
+  }
+
+  startNewGame(context: NetworkContext): void {
+    context.send({
+      type: 'startNewGame',
+      timestamp: Date.now()
+    })
+    console.log('📤 Sent start new game request')
   }
 
   // Helper to check if it's the player's turn

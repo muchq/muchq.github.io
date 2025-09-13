@@ -7,6 +7,11 @@ interface Card {
   suit: string
 }
 
+interface Player {
+  id: string
+  // Add other properties as needed
+}
+
 
 interface GolfGameProps {
   onGameIdChange: (id: string | null) => void
@@ -18,26 +23,38 @@ interface GolfGameProps {
 const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange }: GolfGameProps) => {
   const [showRules, setShowRules] = useState(false)
 
+  // Helper function to get display name (now just use the ID directly)
+  const getDisplayName = (player: Player | null) => {
+    // Since IDs are now whimsical names directly, just use the ID
+    return player?.id || ''
+  }
+
   const {
     gameState,
+    roomState,
     roomCode,
     selectedCardIndex,
     isInLobby,
+    isInRoom,
     notification,
     currentPlayer,
     isMyTurn,
     peekCountdown,
     winner,
+    createRoom,
     createGame,
+    joinRoom,
     joinGame,
     startGame,
+    startNewGame,
     drawCard,
     takeFromDiscard,
     swapCard,
     discardDrawn,
     knock,
     handleCardClick,
-    setRoomCode
+    setRoomCode,
+    clearGameState
   } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange })
 
   const renderCard = (card: Card | null, index: number, isRevealed: boolean, isPlayer: boolean) => {
@@ -76,8 +93,8 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
         <h1 className={styles.title}>Golf Card Game</h1>
         <div className={styles.lobbyContent}>
           <div className={styles.lobbyActions}>
-            <button onClick={createGame} className={styles.primaryButton}>
-              Create New Game
+            <button onClick={createRoom} className={styles.primaryButton}>
+              Create New Room
             </button>
 
             <div className={styles.divider}>OR</div>
@@ -91,8 +108,8 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                 className={styles.input}
                 maxLength={6}
               />
-              <button onClick={joinGame} className={styles.secondaryButton}>
-                Join Game
+              <button onClick={joinRoom} className={styles.secondaryButton}>
+                Join Room
               </button>
             </div>
 
@@ -179,6 +196,98 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     )
   }
 
+  // Room lobby state - user is in room but not in a specific game
+  if (isInRoom && !gameState && roomState) {
+    return (
+      <div className={styles.roomLobby}>
+        <div className={styles.roomHeader}>
+          <h1 className={styles.title}>Room: {roomState.id}</h1>
+          <p className={styles.roomInfo}>
+            {roomState.players.length} player{roomState.players.length !== 1 ? 's' : ''} in room
+          </p>
+        </div>
+
+        <div className={styles.roomContent}>
+          <div className={styles.playersSection}>
+            <h3>Players in Room</h3>
+            <div className={styles.roomPlayerList}>
+              {roomState.players.map(player => (
+                <div key={player.id} className={styles.roomPlayer}>
+                  <div className={styles.playerName}>
+                    {getDisplayName(player)} {player.isConnected ? '🟢' : '🔴'}
+                  </div>
+                  <div className={styles.playerStats}>
+                    <span>Games: {player.gamesPlayed}</span>
+                    <span>Wins: {player.gamesWon}</span>
+                    <span>Total Score: {player.totalScore}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className={styles.gamesSection}>
+            <h3>Games in Room</h3>
+            {Object.keys(roomState.games).length > 0 ? (
+              <div className={styles.activeGamesList}>
+                {Object.entries(roomState.games).map(([gameId, game]) => (
+                  <div key={gameId} className={styles.gameCard}>
+                    <div className={styles.gameInfo}>
+                      <h4>{gameId}</h4>
+                      <p>{game.players.length}/4 players</p>
+                      <p>Status: {game.gamePhase}</p>
+                    </div>
+                    <button
+                      onClick={() => joinGame(gameId)}
+                      className={styles.joinGameButton}
+                      disabled={game.players.length >= 4 || game.gamePhase !== 'waiting'}
+                    >
+                      {game.gamePhase === 'waiting' ? 'Join Game' : 'Game In Progress'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className={styles.noGames}>No active games in room</p>
+            )}
+          </div>
+
+          <div className={styles.gameCreationSection}>
+            <h3>Start New Game</h3>
+            <div className={styles.gameCreationForm}>
+              <button onClick={() => createGame()} className={styles.primaryButton}>
+                Create & Join Game
+              </button>
+            </div>
+          </div>
+
+          {roomState.gameHistory.length > 0 && (
+            <div className={styles.gameHistorySection}>
+              <h3>Recent Games</h3>
+              <div className={styles.gameHistory}>
+                {roomState.gameHistory.slice(-3).reverse().map((result, _index) => (
+                  <div key={result.gameId} className={styles.historyItem}>
+                    <span className={styles.gameId}>{result.gameId}</span>
+                    <span className={styles.winner}>Winner: {result.winner}</span>
+                    <span className={styles.completedAt}>
+                      {new Date(result.completedAt).toLocaleTimeString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {notification && (
+          <div className={styles.notification}>
+            {notification}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   if (!gameState) {
     return <div className={styles.loading}>Loading...</div>
   }
@@ -193,7 +302,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
               key={player.id}
               className={`${styles.playerInfo} ${index === gameState.currentPlayerIndex ? styles.active : ''}`}
             >
-              <span>{player.name}</span>
+              <span>{getDisplayName(player)}</span>
               {gameState.gamePhase === 'ended' && (
                 <span className={styles.score}>Score: {player.score}</span>
               )}
@@ -218,18 +327,22 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
         <div className={styles.gameEndOverlay}>
           <div className={styles.gameEndContent}>
             <div className={styles.celebration}>
-              <span className={styles.trophy}>🏆</span>
+                {currentPlayer && getDisplayName(currentPlayer) === winner ? (
+                  <span className={styles.trophy}>🏆</span>
+                ) : (
+                  <span className={styles.trophy}>😢</span>
+                )}
               <h2 className={styles.gameOverTitle}>Game Over!</h2>
             </div>
             {winner && (
               <div className={styles.winnerSection}>
-                {currentPlayer?.name === winner ? (
+                {currentPlayer && getDisplayName(currentPlayer) === winner ? (
                   <div className={styles.confetti}>🎉 🎊 🎉</div>
                 ) : (
                   <div className={styles.confetti}></div>
                 )}
                 <div className={styles.winner}>
-                  {currentPlayer?.name === winner ? (
+                  {currentPlayer && getDisplayName(currentPlayer) === winner ? (
                     <>
                       <span className={styles.winnerLabel}>Congratulations!</span>
                       <span className={styles.winnerMessage}>You've won with the lowest score!</span>
@@ -253,7 +366,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                     <span className={styles.rank}>
                       {index === 0 ? '👑' : `#${index + 1}`}
                     </span>
-                    <span className={styles.playerName}>{player.name}</span>
+                    <span className={styles.playerName}>{getDisplayName(player)}</span>
                     <span className={styles.finalScore}>{player.score} pts</span>
                   </div>
                 ))}
@@ -261,18 +374,43 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
             <div className={styles.gameEndInfo}>
               <small>Lower scores win • Pairs cancel out</small>
             </div>
+            {roomState && (
+              <div className={styles.cumulativeScores}>
+                <h3 className={styles.cumulativeTitle}>Room Totals</h3>
+                {roomState.players
+                  .sort((a, b) => (a.gamesPlayed > 0 ? a.totalScore / a.gamesPlayed : 0) - (b.gamesPlayed > 0 ? b.totalScore / b.gamesPlayed : 0))
+                  .map((player, index) => (
+                    <div key={player.id} className={`${styles.cumulativeRow} ${index === 0 && player.gamesPlayed > 0 ? styles.bestAverage : ''}`}>
+                      <span className={styles.playerName}>{getDisplayName(player)}</span>
+                      <span className={styles.playerGames}>{player.gamesPlayed} games</span>
+                      <span className={styles.playerWins}>{player.gamesWon} wins</span>
+                      <span className={styles.playerTotal}>{player.totalScore} total</span>
+                      <span className={styles.playerAverage}>
+                        {player.gamesPlayed > 0 ? (player.totalScore / player.gamesPlayed).toFixed(1) : 'N/A'} avg
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            )}
+
             <div className={styles.gameEndActions}>
               <button
-                onClick={() => window.location.reload()}
+                onClick={startNewGame}
                 className={styles.primaryButton}
               >
-                Back to Home
+                Start New Game
               </button>
               <button
-                onClick={startGame}
+                onClick={clearGameState}
                 className={styles.secondaryButton}
               >
-                Play Again
+                Back to Room
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className={styles.tertiaryButton}
+              >
+                Leave Room
               </button>
             </div>
           </div>

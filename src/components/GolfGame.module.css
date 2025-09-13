@@ -833,7 +833,7 @@
   z-index: 100;
   animation: slideDownOverlay 0.5s ease-out;
   width: 90%;
-  max-width: 380px;
+  max-width: 900px;
   pointer-events: all;
 }
 
@@ -1147,4 +1147,255 @@
   background: rgba(255, 255, 255, 0.1);
   color: white;
   transform: rotate(90deg);
+}
+
+/* Room Lobby Styles */
+.roomLobby {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 400px;
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.roomHeader {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.roomInfo {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.1rem;
+  margin-top: 0.5rem;
+}
+
+.roomContent {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+@media (max-width: 768px) {
+  .roomContent {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+.playersSection,
+.gamesSection,
+.gameCreationSection,
+.gameHistorySection {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  padding: 1.5rem;
+  border-radius: 1rem;
+}
+
+.playersSection h3,
+.gamesSection h3,
+.gameCreationSection h3,
+.gameHistorySection h3 {
+  color: #90ee90;
+  font-family: 'Lexend', sans-serif;
+  font-size: 1.2rem;
+  margin: 0 0 1rem 0;
+}
+
+.roomPlayerList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.roomPlayer {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.playerName {
+  color: white;
+  font-weight: 500;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.playerStats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.activeGamesList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.gameCard {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.gameInfo h4 {
+  color: white;
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.gameInfo p {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  margin: 0.25rem 0;
+}
+
+.joinGameButton {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-family: 'Lexend', sans-serif;
+  background: #90ee90;
+  color: #0d5016;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.joinGameButton:hover:not(:disabled) {
+  background: #7dd87d;
+}
+
+.joinGameButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.noGames {
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+  text-align: center;
+  padding: 1rem;
+}
+
+.gameCreationForm {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.gameCreationForm input {
+  flex: 1;
+}
+
+.gameHistory {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.historyItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.gameId {
+  color: #90ee90;
+  font-weight: 500;
+}
+
+.winner {
+  color: white;
+}
+
+.completedAt {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+}
+
+/* Game End Enhancements */
+.cumulativeScores {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.cumulativeTitle {
+  color: #90ee90;
+  font-family: 'Lexend', sans-serif;
+  font-size: 1.3rem;
+  margin: 0 0 1rem 0;
+  text-align: center;
+}
+
+.cumulativeRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.cumulativeRow:last-child {
+  border-bottom: none;
+}
+
+.bestAverage {
+  background: rgba(144, 238, 144, 0.1);
+  border-radius: 0.5rem;
+}
+
+.cumulativeRow .playerName {
+  color: white;
+  font-weight: 500;
+}
+
+.cumulativeRow .playerGames,
+.cumulativeRow .playerWins,
+.cumulativeRow .playerTotal,
+.cumulativeRow .playerAverage {
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+}
+
+.gameEndActions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.tertiaryButton {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-family: 'Lexend', sans-serif;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.tertiaryButton:hover {
+  color: white;
+  border-color: rgba(255, 255, 255, 0.4);
 }
