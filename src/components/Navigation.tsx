@@ -97,7 +97,6 @@ const Navigation = ({ className }: NavigationProps) => {
               <Link to="/golf" className={styles.dropdownItem}>Golf</Link>
               <Link to="/party" className={styles.dropdownItem}>Party</Link>
               <Link to="/quest" className={styles.dropdownItem}>Quest</Link>
-              <Link to="/aurum" className={styles.dropdownItem}>Aurum Siphon</Link>
             </div>
           </li>
         </ul>
