@@ -11,6 +11,7 @@ import TracyPage from './pages/TracyPage'
 import SystemsPage from './pages/SystemsPage'
 import ResilienceGamePage from './pages/ResilienceGamePage'
 import MetricsPage from './pages/MetricsPage'
+import NotFoundPage from './pages/NotFoundPage'
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
       <Route path="/resilience/phase1/level1" element={<ResilienceGamePage />} />
       <Route path="/top" element={<Navigate to="/top/sets" replace />} />
       <Route path="/top/:module" element={<LearningPage />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }
