@@ -1,0 +1,254 @@
+@import '../../../styles/retro-theme.css';
+
+.explorer {
+  color: var(--retro-text-primary);
+  font-family: var(--retro-font);
+}
+
+.instructions {
+  margin-bottom: 2rem;
+}
+
+.instructions h3 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px var(--retro-cyan), 0 0 20px var(--retro-cyan);
+  margin-bottom: 0.5rem;
+}
+
+.instructions p {
+  opacity: 0.9;
+  line-height: 1.6;
+}
+
+.controls {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+    padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.controlRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.controlGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.controlGroup label {
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.select {
+  padding: 0.5rem;
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+}
+
+.select option {
+  background: #fa709a;
+  color: white;
+}
+
+.toggles {
+  display: flex;
+  gap: 2rem;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.visualization {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.canvasSection {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+    padding: 1.5rem;
+}
+
+.canvasSection h4 {
+  margin-bottom: 1rem;
+}
+
+.canvas {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+    cursor: crosshair;
+  background: rgba(0, 0, 0, 0.2);
+  display: block;
+  margin: 0 auto;
+}
+
+.canvasHint {
+  text-align: center;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.selectedPoint {
+  text-align: center;
+  margin-top: 0.5rem;
+  font-weight: 600;
+  color: rgba(255, 107, 107, 1);
+}
+
+.basisList {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+    padding: 1.5rem;
+}
+
+.basisList h4 {
+  margin-bottom: 1rem;
+}
+
+.basisScroll {
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.basisElement {
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.basisElement:hover {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+  transform: translateX(5px);
+}
+
+.basisElement.highlighted {
+  background: rgba(102, 126, 234, 0.3);
+  border-color: rgba(102, 126, 234, 0.6);
+  font-weight: 600;
+}
+
+.moreElements {
+  text-align: center;
+  margin-top: 1rem;
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.explanation {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+    padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.explanation h4 {
+  margin-bottom: 1rem;
+}
+
+.comparisonGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.topologyType {
+  background: rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+}
+
+.topologyType h5 {
+  margin-bottom: 0.75rem;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 0.5rem;
+}
+
+.topologyType ul {
+  list-style: none;
+  padding: 0;
+}
+
+.topologyType li {
+  padding-left: 1rem;
+  position: relative;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.topologyType li:before {
+  content: '→';
+  position: absolute;
+  left: 0;
+}
+
+.tips {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+    padding: 1.5rem;
+}
+
+.tips h4 {
+  margin-bottom: 1rem;
+}
+
+.tips ul {
+  list-style: none;
+  padding: 0;
+}
+
+.tips li {
+  padding-left: 1.5rem;
+  position: relative;
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+  opacity: 0.9;
+}
+
+.tips li:before {
+  content: '•';
+  position: absolute;
+  left: 0.5rem;
+}

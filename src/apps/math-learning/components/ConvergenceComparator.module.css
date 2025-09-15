@@ -1,0 +1,400 @@
+@import '../../../styles/retro-theme.css';
+
+.container {
+  background: linear-gradient(135deg, var(--retro-bg-panel), var(--retro-bg-light));
+  border: 2px solid var(--retro-pink);
+  border-radius: 0;
+  padding: 2rem;
+  box-shadow: 
+    inset 0 0 30px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(255, 0, 128, 0.2);
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.container::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  background: linear-gradient(
+    45deg,
+    var(--retro-pink) 0%,
+    transparent 25%,
+    transparent 75%,
+    var(--retro-pink) 100%
+  );
+  z-index: -1;
+  opacity: 0.3;
+  animation: border-glow 3s linear infinite;
+}
+
+@keyframes border-glow {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.title {
+  font-family: var(--retro-font-display);
+  font-size: 2rem;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+  text-shadow: 
+    0 0 10px var(--retro-cyan),
+    2px 2px 0 var(--retro-pink);
+}
+
+.subtitle {
+  color: var(--retro-text-dim);
+  margin-bottom: 1.5rem;
+  font-family: var(--retro-font-mono);
+}
+
+.controls {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.sequenceSelector {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sequenceSelector label {
+  color: var(--retro-yellow);
+  font-family: var(--retro-font-mono);
+  text-transform: uppercase;
+  font-size: 0.9rem;
+}
+
+.sequenceSelector select {
+  padding: 0.5rem 1rem;
+  background: var(--retro-bg-dark);
+  color: var(--retro-cyan);
+  border: 1px solid var(--retro-cyan);
+  font-family: var(--retro-font-mono);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.sequenceSelector select:hover {
+  background: var(--retro-cyan);
+  color: var(--retro-bg-dark);
+  box-shadow: 0 0 10px var(--retro-cyan);
+}
+
+.nControl {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.nControl label {
+  color: var(--retro-yellow);
+  font-family: var(--retro-font-mono);
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  min-width: 60px;
+}
+
+.nControl input[type="range"] {
+  width: 150px;
+  background: var(--retro-bg-dark);
+  outline: none;
+}
+
+.button {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, var(--retro-pink), var(--retro-purple));
+  color: var(--retro-bg-dark);
+  border: none;
+  font-family: var(--retro-font-mono);
+  font-weight: bold;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 
+    0 4px 0 rgba(0, 0, 0, 0.5),
+    0 0 10px rgba(255, 0, 128, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.5s ease;
+}
+
+.button:hover::before {
+  left: 100%;
+}
+
+.button:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 6px 0 rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(255, 0, 128, 0.5);
+}
+
+.visualizationContainer {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 2rem;
+}
+
+.plotContainer {
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-cyan);
+  padding: 1.5rem;
+  box-shadow: 
+    inset 0 0 20px rgba(0, 0, 0, 0.8),
+    0 0 15px rgba(0, 255, 255, 0.2);
+  position: relative;
+}
+
+.plotContainer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 255, 255, 0.03) 2px,
+    rgba(0, 255, 255, 0.03) 4px
+  );
+  pointer-events: none;
+}
+
+.plot {
+  position: relative;
+  z-index: 1;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.convergenceStatus {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-pink);
+  padding: 1rem;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.convergenceStatus h3 {
+  font-family: var(--retro-font-display);
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  text-shadow: 0 0 5px currentColor;
+}
+
+.statusIndicators {
+  display: flex;
+  gap: 1rem;
+}
+
+.indicator {
+  flex: 1;
+  padding: 0.75rem;
+  background: var(--retro-bg-dark);
+  border: 2px solid;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.indicator.converged {
+  border-color: var(--retro-green);
+  box-shadow: 
+    inset 0 0 10px rgba(0, 0, 0, 0.5),
+    0 0 10px rgba(57, 255, 20, 0.3);
+}
+
+.indicator.notConverged {
+  border-color: var(--retro-pink);
+  box-shadow: 
+    inset 0 0 10px rgba(0, 0, 0, 0.5),
+    0 0 10px rgba(255, 0, 128, 0.3);
+}
+
+.indicatorLabel {
+  display: block;
+  color: var(--retro-yellow);
+  font-family: var(--retro-font-mono);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.indicatorStatus {
+  display: block;
+  font-family: var(--retro-font-mono);
+  font-weight: bold;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+.indicator.converged .indicatorStatus {
+  color: var(--retro-green);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.indicator.notConverged .indicatorStatus {
+  color: var(--retro-pink);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.errorMetrics {
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-cyan);
+  padding: 1rem;
+  box-shadow: 
+    inset 0 0 10px rgba(0, 0, 0, 0.8),
+    0 0 10px rgba(0, 255, 255, 0.2);
+}
+
+.errorMetrics h3 {
+  font-family: var(--retro-font-display);
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  text-shadow: 0 0 5px currentColor;
+}
+
+.metricsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.metric {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+  font-family: var(--retro-font-mono);
+  font-size: 0.85rem;
+}
+
+.metric:last-child {
+  border-bottom: none;
+}
+
+.metricLabel {
+  color: var(--retro-text-dim);
+  font-size: 0.8rem;
+}
+
+.metricValue {
+  color: var(--retro-green);
+  font-weight: bold;
+  text-shadow: 0 0 3px currentColor;
+}
+
+.explanation {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-pink);
+  padding: 1rem;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.explanation h3 {
+  font-family: var(--retro-font-display);
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  text-shadow: 0 0 5px currentColor;
+}
+
+.convergenceType {
+  color: var(--retro-yellow);
+  font-family: var(--retro-font-mono);
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 0 3px currentColor;
+}
+
+.description {
+  color: var(--retro-text-dim);
+  font-family: var(--retro-font-mono);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.legend {
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-pink);
+  padding: 1rem;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.legend h3 {
+  font-family: var(--retro-font-display);
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  text-shadow: 0 0 5px currentColor;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--retro-font-mono);
+  font-size: 0.85rem;
+  color: var(--retro-text-dim);
+}
+
+.legendColor {
+  width: 20px;
+  height: 3px;
+  box-shadow: 0 0 5px currentColor;
+}
+
+.legendCircle {
+  width: 8px;
+  height: 8px;
+  border: 2px solid;
+  border-radius: 50%;
+}
+
+@media (max-width: 1200px) {
+  .visualizationContainer {
+    grid-template-columns: 1fr;
+  }
+  
+  .info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  }
+}

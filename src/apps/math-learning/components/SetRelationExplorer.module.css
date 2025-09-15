@@ -1,0 +1,477 @@
+@import '../../../styles/retro-theme.css';
+
+.explorer {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  font-family: var(--retro-font);
+}
+
+.instructions {
+  text-align: center;
+  padding: 1rem;
+  background: var(--retro-bg-panel);
+  border: 2px solid var(--retro-cyan);
+  box-shadow: inset 0 0 20px rgba(0, 255, 255, 0.1), 0 0 20px rgba(0, 255, 255, 0.2);
+}
+
+.instructions h3 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px var(--retro-cyan), 0 0 20px var(--retro-cyan);
+}
+
+.instructions p {
+  font-size: 1rem;
+  color: var(--retro-text-secondary);
+  font-weight: normal;
+}
+
+.setSelector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: var(--retro-bg-panel);
+  padding: 1.5rem;
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+  flex-wrap: wrap;
+}
+
+.selectorGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.selectorGroup label {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: var(--retro-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.select {
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-border);
+  color: var(--retro-text-primary);
+  padding: 0.75rem;
+  font-family: var(--retro-font);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 200px;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.select:hover {
+  background: var(--retro-bg-light);
+  border-color: var(--retro-cyan);
+  box-shadow: inset 0 0 20px rgba(0, 255, 255, 0.1), 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--retro-cyan);
+  background: var(--retro-bg-light);
+  box-shadow: inset 0 0 20px rgba(0, 255, 255, 0.2), 0 0 20px rgba(0, 255, 255, 0.4);
+}
+
+.select option {
+  background: var(--retro-bg-dark);
+  color: var(--retro-text-primary);
+}
+
+.swapButton {
+  background: var(--retro-bg-panel);
+  border: 2px solid var(--retro-magenta);
+  color: var(--retro-magenta);
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  font-family: var(--retro-font);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 1.5rem;
+  box-shadow: inset 0 0 10px rgba(255, 0, 255, 0.1), 0 0 10px rgba(255, 0, 255, 0.2);
+}
+
+.swapButton:hover {
+  background: var(--retro-magenta-dim);
+  box-shadow: inset 0 0 20px rgba(255, 0, 255, 0.3), 0 0 20px rgba(255, 0, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+.relations {
+  background: var(--retro-bg-panel);
+  padding: 1.5rem;
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+}
+
+.relations h4 {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  text-align: center;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px var(--retro-cyan);
+}
+
+.relationGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.relationCard {
+  background: var(--retro-bg-panel);
+  border: 2px solid var(--retro-magenta);
+  color: var(--retro-magenta);
+  padding: 0.75rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  font-family: var(--retro-font);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: inset 0 0 10px rgba(255, 0, 255, 0.1), 0 0 10px rgba(255, 0, 255, 0.2);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.relationCard:hover {
+  background: var(--retro-magenta-dim);
+  box-shadow: inset 0 0 20px rgba(255, 0, 255, 0.3), 0 0 20px rgba(255, 0, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+.relationCard.true {
+  background: rgba(0, 255, 136, 0.1);
+  border-color: var(--retro-success);
+  color: var(--retro-success);
+  box-shadow: inset 0 0 20px rgba(0, 255, 136, 0.2), 0 0 20px rgba(0, 255, 136, 0.4);
+  text-shadow: 0 0 10px var(--retro-success);
+}
+
+.relationCard.false {
+  background: rgba(255, 0, 64, 0.1);
+  border-color: var(--retro-error);
+  color: var(--retro-error);
+  box-shadow: inset 0 0 20px rgba(255, 0, 64, 0.2), 0 0 20px rgba(255, 0, 64, 0.4);
+  text-shadow: 0 0 10px var(--retro-error);
+}
+
+.relationCard.true:hover {
+  background: rgba(0, 255, 136, 0.2);
+  box-shadow: inset 0 0 30px rgba(0, 255, 136, 0.3), 0 0 30px rgba(0, 255, 136, 0.6);
+}
+
+.relationCard.false:hover {
+  background: rgba(255, 0, 64, 0.2);
+  box-shadow: inset 0 0 30px rgba(255, 0, 64, 0.3), 0 0 30px rgba(255, 0, 64, 0.6);
+}
+
+.relationHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.relationName {
+  font-weight: bold;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: inherit;
+}
+
+.relationResult {
+  font-size: 1.1rem;
+  font-weight: bold;
+  font-family: var(--retro-font);
+  color: inherit;
+}
+
+.relationExpression {
+  font-family: var(--retro-font);
+  font-size: 1rem;
+  text-align: center;
+  padding: 0.4rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid currentColor;
+  color: inherit;
+  opacity: 0.9;
+}
+
+.relationDescription {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-cyan);
+  color: var(--retro-text-secondary);
+  font-size: 0.85rem;
+  font-weight: normal;
+  z-index: 10;
+  animation: fadeIn 0.2s ease;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+}
+
+.visualComparison {
+  background: var(--retro-bg-panel);
+  padding: 1.5rem;
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+}
+
+.visualComparison h4 {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  text-align: center;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px var(--retro-cyan);
+}
+
+.comparisonGrid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 2rem;
+  align-items: center;
+}
+
+.setDisplay {
+  text-align: center;
+}
+
+.setDisplay h5 {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  color: var(--retro-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.elementGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  min-height: 60px;
+  padding: 1rem;
+  background: var(--retro-bg-dark);
+  border: 2px dashed var(--retro-border);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.element {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: bold;
+  font-family: var(--retro-font);
+  background: linear-gradient(135deg, var(--retro-bg-panel), var(--retro-bg-light));
+  border: 2px solid var(--retro-yellow);
+  color: var(--retro-yellow);
+  transition: all 0.3s ease;
+  box-shadow: 
+    0 0 10px rgba(255, 255, 0, 0.3),
+    inset 0 0 10px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.element:hover {
+  transform: scale(1.1) rotate(5deg);
+  box-shadow: 
+    0 0 20px rgba(255, 255, 0, 0.5),
+    inset 0 0 15px rgba(255, 255, 0, 0.2);
+}
+
+.element.shared {
+  background: rgba(0, 255, 136, 0.2);
+  border-color: var(--retro-success);
+  color: var(--retro-success);
+  text-shadow: 0 0 10px var(--retro-success);
+  box-shadow: inset 0 0 20px rgba(0, 255, 136, 0.2), 0 0 20px rgba(0, 255, 136, 0.4);
+  animation: pulse 2s infinite;
+}
+
+.emptySet {
+  font-size: 2rem;
+  opacity: 0.5;
+  color: var(--retro-text-dim);
+}
+
+.relationSymbols {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.activeSymbol {
+  font-size: 1.5rem;
+  padding: 0.5rem 1rem;
+  font-family: var(--retro-font);
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-green);
+  color: var(--retro-green);
+  text-shadow: 0 0 10px var(--retro-green);
+  box-shadow: inset 0 0 10px rgba(0, 255, 0, 0.1), 0 0 20px rgba(0, 255, 0, 0.3);
+  animation: fadeIn 0.3s ease;
+}
+
+.properties {
+  background: var(--retro-bg-panel);
+  padding: 1.5rem;
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+}
+
+.properties h4 {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px var(--retro-cyan);
+}
+
+.propertyGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.property {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  background: var(--retro-bg-dark);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.propertyLabel {
+  font-size: 0.85rem;
+  color: var(--retro-text-secondary);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.propertyValue {
+  font-family: var(--retro-font);
+  font-size: 1rem;
+  color: var(--retro-green);
+  text-shadow: 0 0 5px var(--retro-green);
+}
+
+.exercises {
+  background: var(--retro-bg-panel);
+  padding: 1.5rem;
+  border: 1px solid var(--retro-border);
+  border-left: 4px solid var(--retro-cyan);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.exercises h4 {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-bottom: 0.75rem;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 5px var(--retro-cyan);
+}
+
+.exercises ul {
+  list-style: none;
+  padding: 0;
+}
+
+.exercises li {
+  padding: 0.5rem 0;
+  padding-left: 1.5rem;
+  position: relative;
+  font-weight: normal;
+  color: var(--retro-text-secondary);
+}
+
+.exercises li:before {
+  content: '>';
+  position: absolute;
+  left: 0;
+  color: var(--retro-cyan);
+  font-family: var(--retro-font);
+  text-shadow: 0 0 5px var(--retro-cyan);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@media (max-width: 768px) {
+  .setSelector {
+    flex-direction: column;
+  }
+
+  .swapButton {
+    margin-top: 0;
+  }
+
+  .comparisonGrid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .relationSymbols {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .propertyGrid {
+    grid-template-columns: 1fr;
+  }
+}
