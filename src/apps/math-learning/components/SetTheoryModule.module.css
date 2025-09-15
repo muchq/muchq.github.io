@@ -1,0 +1,512 @@
+/* Import retro theme */
+@import '../../../styles/retro-theme.css';
+
+.module {
+  background: linear-gradient(135deg, var(--retro-bg-panel), var(--retro-bg-light));
+  border: 2px solid var(--retro-cyan);
+  border-radius: 0;
+  padding: 2rem;
+  box-shadow: 
+    inset 0 0 30px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(0, 255, 255, 0.2);
+  position: relative;
+}
+
+.module::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  background: linear-gradient(
+    45deg,
+    var(--retro-cyan) 0%,
+    transparent 25%,
+    transparent 75%,
+    var(--retro-cyan) 100%
+  );
+  opacity: 0.1;
+  z-index: -1;
+}
+
+.tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid var(--retro-cyan);
+  padding-bottom: 1rem;
+}
+
+.tab {
+  background: var(--retro-bg-panel);
+  border: 2px solid var(--retro-border);
+  color: var(--retro-text-secondary);
+  padding: 0.75rem 1.5rem;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  font-family: var(--retro-font);
+  position: relative;
+  overflow: hidden;
+}
+
+.tab::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--retro-cyan-dim),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.tab:hover {
+  background: var(--retro-cyan-dim);
+  border-color: var(--retro-cyan);
+  color: var(--retro-cyan);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 5px 15px rgba(0, 255, 255, 0.3),
+    inset 0 0 20px rgba(0, 255, 255, 0.1);
+}
+
+.tab:hover::before {
+  left: 100%;
+}
+
+.activeTab {
+  background: var(--retro-cyan-dim);
+  border-color: var(--retro-cyan);
+  color: var(--retro-cyan);
+  box-shadow: 
+    inset 0 0 20px rgba(0, 255, 255, 0.3),
+    0 0 10px rgba(0, 255, 255, 0.5);
+  text-shadow: 0 0 10px currentColor;
+}
+
+.content {
+  animation: fadeIn 0.5s ease;
+}
+
+.setBuilder {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.instructions {
+  text-align: center;
+  padding: 1.5rem;
+  background: var(--retro-bg-dark);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.instructions::before,
+.instructions::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--retro-cyan);
+}
+
+.instructions::before {
+  top: -4px;
+  left: -4px;
+}
+
+.instructions::after {
+  bottom: -4px;
+  right: -4px;
+}
+
+.instructions h3 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px currentColor;
+  font-family: var(--retro-font);
+}
+
+.instructions p {
+  font-size: 0.9rem;
+  color: var(--retro-text-secondary);
+  font-family: var(--retro-font);
+  line-height: 1.6;
+}
+
+.universe {
+  background: var(--retro-bg-dark);
+  padding: 1.5rem;
+  border: 2px dashed var(--retro-magenta);
+  box-shadow: 
+    inset 0 0 20px rgba(0, 0, 0, 0.5),
+    0 0 10px rgba(255, 0, 255, 0.2);
+}
+
+.universe h4 {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  text-align: center;
+  color: var(--retro-magenta);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: var(--retro-font);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.elementGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+  gap: 1rem;
+  max-width: 650px;
+  margin: 0 auto;
+}
+
+.element {
+  width: 60px;
+  height: 60px;
+  border-radius: 0;
+  border: 2px solid var(--retro-yellow);
+  background: linear-gradient(135deg, var(--retro-bg-panel), var(--retro-bg-light));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--retro-yellow);
+  cursor: grab;
+  transition: all 0.2s ease;
+  box-shadow: 
+    0 0 10px rgba(255, 255, 0, 0.3),
+    inset 0 0 10px rgba(0, 0, 0, 0.5);
+  font-family: var(--retro-font);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.element:hover {
+  transform: scale(1.1) rotate(5deg);
+  box-shadow: 
+    0 0 20px rgba(255, 255, 0, 0.5),
+    inset 0 0 15px rgba(255, 255, 0, 0.2);
+}
+
+.element:active {
+  cursor: grabbing;
+  transform: scale(0.95);
+}
+
+.definitionToggle {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.toggleButton {
+  background: var(--retro-bg-panel);
+  border: 2px solid var(--retro-border);
+  color: var(--retro-text-secondary);
+  padding: 0.5rem 1rem;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  font-family: var(--retro-font);
+}
+
+.toggleButton:hover {
+  background: var(--retro-green-dim);
+  border-color: var(--retro-green);
+  color: var(--retro-green);
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+.toggleButton.active {
+  background: var(--retro-green-dim);
+  border-color: var(--retro-green);
+  color: var(--retro-green);
+  box-shadow: 
+    inset 0 0 10px rgba(0, 255, 0, 0.3),
+    0 0 10px rgba(0, 255, 0, 0.5);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.sets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.setContainer {
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-border);
+  padding: 1.5rem;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.setContainer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--retro-cyan),
+    transparent
+  );
+  animation: scan 3s linear infinite;
+}
+
+@keyframes scan {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.setHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.setHeader h4 {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: var(--retro-font);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.clearButton {
+  background: var(--retro-bg-panel);
+  border: 2px solid var(--retro-error);
+  color: var(--retro-error);
+  padding: 0.25rem 0.75rem;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+  font-family: var(--retro-font);
+}
+
+.clearButton:hover {
+  background: rgba(255, 0, 64, 0.2);
+  box-shadow: 0 0 10px rgba(255, 0, 64, 0.5);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.setDropZone {
+  min-height: 120px;
+  background: var(--retro-bg-panel);
+  border: 2px dashed var(--retro-border);
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.setDropZone:hover {
+  background: rgba(0, 255, 255, 0.05);
+  border-color: var(--retro-cyan);
+  box-shadow: inset 0 0 20px rgba(0, 255, 255, 0.1);
+}
+
+.emptyMessage {
+  color: var(--retro-text-dim);
+  font-style: italic;
+  font-family: var(--retro-font);
+  font-size: 0.9rem;
+}
+
+.setElements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.setElement {
+  width: 50px;
+  height: 50px;
+  border: 2px solid var(--retro-yellow);
+  background: linear-gradient(135deg, var(--retro-bg-panel), var(--retro-bg-light));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: var(--retro-yellow);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 
+    0 0 10px rgba(255, 255, 0, 0.3),
+    inset 0 0 10px rgba(0, 0, 0, 0.5);
+  position: relative;
+  font-family: var(--retro-font);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.setElement:hover {
+  transform: scale(1.1) rotate(-5deg);
+  box-shadow: 
+    0 0 20px rgba(255, 255, 0, 0.5),
+    inset 0 0 15px rgba(255, 255, 0, 0.2);
+}
+
+.setElement:hover::after {
+  content: '×';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: var(--retro-error);
+  border: 2px solid var(--retro-bg-dark);
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: white;
+  box-shadow: 0 0 10px rgba(255, 0, 64, 0.5);
+}
+
+.setDefinition {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  font-family: var(--retro-font);
+  font-size: 0.9rem;
+  text-align: center;
+  color: var(--retro-green);
+  text-shadow: 0 0 5px currentColor;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.tips {
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-warning);
+  padding: 1.5rem;
+  box-shadow: 
+    inset 0 0 20px rgba(0, 0, 0, 0.5),
+    0 0 10px rgba(255, 170, 0, 0.2);
+  position: relative;
+}
+
+.tips::before {
+  content: 'TIP';
+  position: absolute;
+  top: -12px;
+  left: 20px;
+  background: var(--retro-bg-dark);
+  padding: 0 10px;
+  color: var(--retro-warning);
+  font-weight: bold;
+  font-size: 0.8rem;
+  letter-spacing: 2px;
+  font-family: var(--retro-font);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.tips h4 {
+  font-size: 1rem;
+  font-weight: bold;
+  margin-bottom: 0.75rem;
+  color: var(--retro-warning);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: var(--retro-font);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.tips ul {
+  list-style: none;
+  padding: 0;
+}
+
+.tips li {
+  padding: 0.5rem 0;
+  padding-left: 1.5rem;
+  position: relative;
+  color: var(--retro-text-secondary);
+  font-family: var(--retro-font);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.tips li:before {
+  content: '>';
+  position: absolute;
+  left: 0;
+  color: var(--retro-warning);
+  font-weight: bold;
+  text-shadow: 0 0 5px currentColor;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .module {
+    padding: 1rem;
+  }
+
+  .tabs {
+    flex-direction: column;
+  }
+
+  .tab {
+    width: 100%;
+    text-align: center;
+  }
+
+  .sets {
+    grid-template-columns: 1fr;
+  }
+
+  .elementGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

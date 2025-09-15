@@ -1,0 +1,400 @@
+/* Import retro theme */
+@import '../../../styles/retro-theme.css';
+
+.module {
+  background: linear-gradient(135deg, var(--retro-bg-panel), var(--retro-bg-light));
+  border: 2px solid var(--retro-yellow);
+  border-radius: 0;
+  padding: 2rem;
+  box-shadow: 
+    inset 0 0 30px rgba(0, 0, 0, 0.5),
+    0 0 20px var(--retro-yellow_DIM);
+  position: relative;
+}
+
+.module::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  background: linear-gradient(
+    45deg,
+    var(--retro-yellow) 0%,
+    transparent 25%,
+    transparent 75%,
+    var(--retro-yellow) 100%
+  );
+  opacity: 0.1;
+  z-index: -1;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: var(--retro-bg-dark);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.header::before,
+.header::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--retro-yellow);
+}
+
+.header::before {
+  top: -5px;
+  left: -5px;
+}
+
+.header::after {
+  bottom: -5px;
+  right: -5px;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: var(--retro-yellow);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  text-shadow: 0 0 15px currentColor;
+  font-family: var(--retro-font);
+}
+
+.subtitle {
+  font-size: 1rem;
+  color: var(--retro-text-secondary);
+  font-family: var(--retro-font);
+  letter-spacing: 1px;
+  opacity: 0.9;
+}
+
+.tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid var(--retro-yellow);
+  padding-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.tab {
+  background: var(--retro-bg-panel);
+  border: 2px solid var(--retro-border);
+  color: var(--retro-text-secondary);
+  padding: 0.75rem 1.5rem;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  font-family: var(--retro-font);
+  position: relative;
+  overflow: hidden;
+}
+
+.tab::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--retro-yellow_DIM),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.tab:hover {
+  background: var(--retro-yellow_DIM);
+  border-color: var(--retro-yellow);
+  color: var(--retro-yellow);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 5px 15px var(--retro-yellow_DIM),
+    inset 0 0 20px var(--retro-yellow_DIM);
+}
+
+.tab:hover::before {
+  left: 100%;
+}
+
+.activeTab {
+  background: var(--retro-yellow_DIM);
+  border-color: var(--retro-yellow);
+  color: var(--retro-yellow);
+  box-shadow: 
+    inset 0 0 20px var(--retro-yellow_DIM),
+    0 0 10px var(--retro-yellow_DIM);
+  text-shadow: 0 0 10px currentColor;
+}
+
+.content {
+  animation: fadeIn 0.5s ease;
+}
+
+.gameContainer {
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-border);
+  padding: 2rem;
+  margin-top: 2rem;
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.gameContainer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--retro-yellow),
+    transparent
+  );
+  animation: scan 3s linear infinite;
+}
+
+@keyframes scan {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.instructions {
+  text-align: center;
+  padding: 1.5rem;
+  background: var(--retro-bg-dark);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.instructions h3 {
+  font-size: 1.3rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: var(--retro-yellow);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px currentColor;
+  font-family: var(--retro-font);
+}
+
+.instructions p {
+  font-size: 0.9rem;
+  color: var(--retro-text-secondary);
+  font-family: var(--retro-font);
+  line-height: 1.6;
+}
+
+.button,
+.submitButton,
+.resetButton,
+.checkButton {
+  background: var(--retro-bg-panel);
+  border: 2px solid var(--retro-yellow);
+  color: var(--retro-yellow);
+  padding: 0.75rem 1.5rem;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  font-family: var(--retro-font);
+  position: relative;
+  overflow: hidden;
+}
+
+.button::before,
+.submitButton::before,
+.resetButton::before,
+.checkButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--retro-yellow_DIM),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.button:hover,
+.submitButton:hover,
+.resetButton:hover,
+.checkButton:hover {
+  background: var(--retro-yellow_DIM);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 5px 15px var(--retro-yellow_DIM),
+    inset 0 0 20px var(--retro-yellow_DIM);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.button:hover::before,
+.submitButton:hover::before,
+.resetButton:hover::before,
+.checkButton:hover::before {
+  left: 100%;
+}
+
+.button:active,
+.submitButton:active,
+.resetButton:active,
+.checkButton:active {
+  transform: translateY(0);
+}
+
+.input,
+.textarea,
+.select {
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-border);
+  color: var(--retro-text-primary);
+  padding: 0.75rem;
+  font-family: var(--retro-font);
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--retro-yellow);
+  box-shadow: 
+    0 0 10px var(--retro-yellow_DIM),
+    inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.feedback {
+  padding: 1rem;
+  margin: 1rem 0;
+  background: var(--retro-bg-dark);
+  border: 2px solid var(--retro-border);
+  font-family: var(--retro-font);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.feedback.success {
+  border-color: var(--retro-success);
+  color: var(--retro-success);
+  box-shadow: 
+    0 0 10px rgba(0, 255, 136, 0.3),
+    inset 0 0 10px rgba(0, 255, 136, 0.1);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.feedback.error {
+  border-color: var(--retro-error);
+  color: var(--retro-error);
+  box-shadow: 
+    0 0 10px rgba(255, 0, 64, 0.3),
+    inset 0 0 10px rgba(255, 0, 64, 0.1);
+  text-shadow: 0 0 5px currentColor;
+}
+
+.feedback.info {
+  border-color: var(--retro-info);
+  color: var(--retro-info);
+  box-shadow: 
+    0 0 10px rgba(0, 170, 255, 0.3),
+    inset 0 0 10px rgba(0, 170, 255, 0.1);
+  text-shadow: 0 0 5px currentColor;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 
+      0 0 10px var(--retro-yellow_DIM),
+      inset 0 0 10px rgba(0, 0, 0, 0.5);
+  }
+  50% {
+    box-shadow: 
+      0 0 20px var(--retro-yellow_DIM),
+      inset 0 0 15px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.loading {
+  animation: pulse 1.5s infinite;
+}
+
+.active,
+.selected {
+  animation: glow 2s infinite;
+}
+
+@media (max-width: 768px) {
+  .module {
+    padding: 1rem;
+  }
+
+  .tabs {
+    flex-direction: column;
+  }
+
+  .tab {
+    width: 100%;
+    text-align: center;
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .gameContainer {
+    padding: 1rem;
+  }
+}

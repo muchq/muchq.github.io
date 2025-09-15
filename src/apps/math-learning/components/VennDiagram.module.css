@@ -1,0 +1,248 @@
+@import '../../../styles/retro-theme.css';
+
+.vennDiagram {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  font-family: var(--retro-font);
+}
+
+.instructions {
+  text-align: center;
+  padding: 1rem;
+  background: var(--retro-bg-panel);
+  border: 2px solid var(--retro-cyan);
+  box-shadow: inset 0 0 20px rgba(0, 255, 255, 0.1), 0 0 20px rgba(0, 255, 255, 0.2);
+}
+
+.instructions h3 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px var(--retro-cyan), 0 0 20px var(--retro-cyan);
+}
+
+.instructions p {
+  font-size: 1rem;
+  color: var(--retro-text-secondary);
+  font-weight: normal;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  background: var(--retro-bg-panel);
+  padding: 1.5rem;
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+}
+
+.operationSelector h4,
+.setSelector h4 {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  color: var(--retro-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.operations {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.operationButton {
+  background: var(--retro-bg-panel);
+  border: 2px solid var(--retro-magenta);
+  color: var(--retro-magenta);
+  padding: 0.75rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  font-family: var(--retro-font);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: inset 0 0 10px rgba(255, 0, 255, 0.1), 0 0 10px rgba(255, 0, 255, 0.2);
+}
+
+.operationButton:hover {
+  background: var(--retro-magenta-dim);
+  box-shadow: inset 0 0 20px rgba(255, 0, 255, 0.3), 0 0 20px rgba(255, 0, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+.operationButton.active {
+  background: var(--retro-magenta-dim);
+  border-color: var(--retro-magenta);
+  color: var(--retro-text-primary);
+  box-shadow: inset 0 0 20px rgba(255, 0, 255, 0.3), 0 0 30px rgba(255, 0, 255, 0.6);
+  text-shadow: 0 0 10px var(--retro-magenta);
+}
+
+.setButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.setButton {
+  background: var(--retro-bg-panel);
+  border: 2px solid var(--retro-border);
+  color: var(--retro-text-primary);
+  padding: 0.75rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  font-family: var(--retro-font);
+  text-align: left;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.setButton:hover:not(:disabled) {
+  background: var(--retro-bg-light);
+  border-color: var(--retro-cyan);
+  box-shadow: inset 0 0 20px rgba(0, 255, 255, 0.1), 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.setButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.setButton.activeA {
+  background: rgba(255, 0, 64, 0.2);
+  border-color: var(--retro-error);
+  color: var(--retro-error);
+  box-shadow: inset 0 0 20px rgba(255, 0, 64, 0.2), 0 0 20px rgba(255, 0, 64, 0.4);
+  text-shadow: 0 0 10px var(--retro-error);
+}
+
+.setButton.activeB {
+  background: rgba(0, 255, 255, 0.2);
+  border-color: var(--retro-cyan);
+  color: var(--retro-cyan);
+  box-shadow: inset 0 0 20px rgba(0, 255, 255, 0.2), 0 0 20px rgba(0, 255, 255, 0.4);
+  text-shadow: 0 0 10px var(--retro-cyan);
+}
+
+.setButton.activeC {
+  background: rgba(255, 255, 0, 0.2);
+  border-color: var(--retro-yellow);
+  color: var(--retro-yellow);
+  box-shadow: inset 0 0 20px rgba(255, 255, 0, 0.2), 0 0 20px rgba(255, 255, 0, 0.4);
+  text-shadow: 0 0 10px var(--retro-yellow);
+}
+
+.canvasContainer {
+  display: flex;
+  justify-content: center;
+  padding: 2rem;
+  background: var(--retro-bg-panel);
+  border: 1px solid var(--retro-border);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.canvas {
+  border: 2px solid var(--retro-cyan);
+  background: var(--retro-bg-dark);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+}
+
+.result {
+  background: var(--retro-bg-panel);
+  padding: 1.5rem;
+  border: 1px solid var(--retro-border);
+  text-align: center;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 255, 0.1);
+}
+
+.result h4 {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px var(--retro-cyan);
+}
+
+.expression {
+  font-family: var(--retro-font);
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+  padding: 1rem;
+  background: var(--retro-bg-dark);
+  border: 1px solid var(--retro-green);
+  color: var(--retro-green);
+  text-shadow: 0 0 10px var(--retro-green);
+  box-shadow: inset 0 0 10px rgba(0, 255, 0, 0.1);
+}
+
+.cardinality {
+  font-family: var(--retro-font);
+  font-size: 1.1rem;
+  color: var(--retro-text-secondary);
+}
+
+.examples {
+  background: var(--retro-bg-panel);
+  padding: 1.5rem;
+  border: 1px solid var(--retro-border);
+  border-left: 4px solid var(--retro-cyan);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.examples h4 {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-bottom: 0.75rem;
+  color: var(--retro-cyan);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 5px var(--retro-cyan);
+}
+
+.examples ul {
+  list-style: none;
+  padding: 0;
+}
+
+.examples li {
+  padding: 0.5rem 0;
+  padding-left: 1.5rem;
+  position: relative;
+  font-weight: normal;
+  color: var(--retro-text-secondary);
+}
+
+.examples li:before {
+  content: '>';
+  position: absolute;
+  left: 0;
+  color: var(--retro-cyan);
+  font-family: var(--retro-font);
+  text-shadow: 0 0 5px var(--retro-cyan);
+}
+
+@media (max-width: 768px) {
+  .controls {
+    grid-template-columns: 1fr;
+  }
+
+  .operations {
+    grid-template-columns: 1fr;
+  }
+
+  .canvas {
+    max-width: 100%;
+    height: auto;
+  }
+}
