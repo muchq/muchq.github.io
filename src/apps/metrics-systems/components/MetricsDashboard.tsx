@@ -290,76 +290,72 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     }))
   }
 
-  const getRequestSuccessCountData = () => {
-    if (!portraitTimeseries?.series) {
-      // Return default zero data points for the last 30 minutes
-      const now = new Date()
-      const points = []
-      for (let i = 29; i >= 0; i--) {
-        const time = new Date(now.getTime() - i * 30 * 1000) // 30-second intervals
-        points.push({
-          time: formatTimestamp(time.toISOString()),
-          count: 0
-        })
-      }
-      return points
+  const generateFullTimeRange = () => {
+    const now = new Date()
+    let intervalMs: number
+    let numPoints: number
+
+    switch (timeRange) {
+      case '30m':
+        intervalMs = 30 * 1000 // 30-second intervals
+        numPoints = 60 // 30 minutes / 30 seconds
+        break
+      case '1d':
+        intervalMs = 5 * 60 * 1000 // 5-minute intervals
+        numPoints = 288 // 24 hours / 5 minutes
+        break
+      case '7d':
+        intervalMs = 30 * 60 * 1000 // 30-minute intervals
+        numPoints = 336 // 7 days / 30 minutes
+        break
+      default:
+        intervalMs = 30 * 1000
+        numPoints = 60
     }
 
-    const successSeries = portraitTimeseries.series.find(s => s.metric_name === 'request_success_count')
-    if (!successSeries?.values?.length) {
-      // Return default zero data points for the current time range
-      const now = new Date()
-      const points = []
-      for (let i = 29; i >= 0; i--) {
-        const time = new Date(now.getTime() - i * 30 * 1000) // 30-second intervals
-        points.push({
-          time: formatTimestamp(time.toISOString()),
-          count: 0
-        })
-      }
-      return points
+    const points = []
+    for (let i = numPoints - 1; i >= 0; i--) {
+      const time = new Date(now.getTime() - i * intervalMs)
+      points.push({
+        time: formatTimestamp(time.toISOString()),
+        timestamp: time.toISOString()
+      })
+    }
+    return points
+  }
+
+  const fillTimeSeriesData = (series: TimeSeries | undefined, defaultValue: number = 0) => {
+    const fullTimeRange = generateFullTimeRange()
+
+    if (!series?.values?.length) {
+      return fullTimeRange.map(point => ({
+        time: point.time,
+        count: defaultValue
+      }))
     }
 
-    return successSeries.values.map(v => ({
-      time: formatTimestamp(v.timestamp),
-      count: Math.max(0, v.value || 0)
+    // Create a map of existing data points
+    const dataMap = new Map()
+    series.values.forEach(v => {
+      const timestamp = new Date(v.timestamp).toISOString()
+      dataMap.set(timestamp, v.value || 0)
+    })
+
+    // Fill the full time range, using actual data where available
+    return fullTimeRange.map(point => ({
+      time: point.time,
+      count: Math.max(0, dataMap.get(point.timestamp) || defaultValue)
     }))
   }
 
+  const getRequestSuccessCountData = () => {
+    const successSeries = portraitTimeseries?.series?.find(s => s.metric_name === 'request_success_count')
+    return fillTimeSeriesData(successSeries, 0)
+  }
+
   const getRequestFailureCountData = () => {
-    if (!portraitTimeseries?.series) {
-      // Return default zero data points for the last 30 minutes
-      const now = new Date()
-      const points = []
-      for (let i = 29; i >= 0; i--) {
-        const time = new Date(now.getTime() - i * 30 * 1000) // 30-second intervals
-        points.push({
-          time: formatTimestamp(time.toISOString()),
-          count: 0
-        })
-      }
-      return points
-    }
-
-    const failureSeries = portraitTimeseries.series.find(s => s.metric_name === 'request_failure_count')
-    if (!failureSeries?.values?.length) {
-      // Return default zero data points for the current time range
-      const now = new Date()
-      const points = []
-      for (let i = 29; i >= 0; i--) {
-        const time = new Date(now.getTime() - i * 30 * 1000) // 30-second intervals
-        points.push({
-          time: formatTimestamp(time.toISOString()),
-          count: 0
-        })
-      }
-      return points
-    }
-
-    return failureSeries.values.map(v => ({
-      time: formatTimestamp(v.timestamp),
-      count: Math.max(0, v.value || 0)
-    }))
+    const failureSeries = portraitTimeseries?.series?.find(s => s.metric_name === 'request_failure_count')
+    return fillTimeSeriesData(failureSeries, 0)
   }
 
   const COLORS = {
@@ -651,7 +647,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
               <h4>Request Success Count</h4>
               <ChartErrorBoundary>
                 <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={getRequestSuccessCountData()}>
+                  <BarChart data={getRequestSuccessCountData()}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                     <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
                     <YAxis stroke="#888" fontSize={10} />
@@ -659,8 +655,8 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                       contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
                       formatter={(value) => [`${Number(value).toFixed(0)}`, 'Success Count']}
                     />
-                    <Area type="monotone" dataKey="count" stroke={COLORS.success} fill="rgba(102, 255, 102, 0.3)" strokeWidth={2} />
-                  </AreaChart>
+                    <Bar dataKey="count" fill={COLORS.success} />
+                  </BarChart>
                 </ResponsiveContainer>
               </ChartErrorBoundary>
             </div>
@@ -670,7 +666,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
               <h4>Request Error Count</h4>
               <ChartErrorBoundary>
                 <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={getRequestFailureCountData()}>
+                  <BarChart data={getRequestFailureCountData()}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                     <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
                     <YAxis stroke="#888" fontSize={10} />
@@ -678,8 +674,8 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                       contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
                       formatter={(value) => [`${Number(value).toFixed(0)}`, 'Error Count']}
                     />
-                    <Area type="monotone" dataKey="count" stroke={COLORS.danger} fill="rgba(255, 102, 102, 0.3)" strokeWidth={2} />
-                  </AreaChart>
+                    <Bar dataKey="count" fill={COLORS.danger} />
+                  </BarChart>
                 </ResponsiveContainer>
               </ChartErrorBoundary>
             </div>
