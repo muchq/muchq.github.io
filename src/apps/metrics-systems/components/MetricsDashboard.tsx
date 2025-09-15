@@ -334,18 +334,28 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
       }))
     }
 
-    // Create a map of existing data points
+    // Create a map of existing data points using rounded timestamps
     const dataMap = new Map()
     series.values.forEach(v => {
-      const timestamp = new Date(v.timestamp).toISOString()
-      dataMap.set(timestamp, v.value || 0)
+      // Round timestamp to the nearest interval for better matching
+      const timestamp = new Date(v.timestamp)
+      const roundedTime = new Date(Math.round(timestamp.getTime() / 30000) * 30000) // Round to nearest 30s
+      const key = roundedTime.toISOString()
+      dataMap.set(key, v.value || 0)
     })
 
     // Fill the full time range, using actual data where available
-    return fullTimeRange.map(point => ({
-      time: point.time,
-      count: Math.max(0, dataMap.get(point.timestamp) || defaultValue)
-    }))
+    return fullTimeRange.map(point => {
+      // Also round the generated timestamp for matching
+      const pointTime = new Date(point.timestamp)
+      const roundedPointTime = new Date(Math.round(pointTime.getTime() / 30000) * 30000)
+      const key = roundedPointTime.toISOString()
+
+      return {
+        time: point.time,
+        count: Math.max(0, dataMap.get(key) || defaultValue)
+      }
+    })
   }
 
   const getRequestSuccessCountData = () => {
