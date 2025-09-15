@@ -106,8 +106,10 @@ const TracyPage = () => {
             )}
             
             {error && (
-              <div className={styles.error}>
-                <p>Error: {error}</p>
+              <div className={styles.errorOverlay}>
+                <div className={styles.errorContent}>
+                  <p>Error: {error}</p>
+                </div>
               </div>
             )}
             

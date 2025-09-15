@@ -99,12 +99,27 @@
   color: #a0a0b0;
 }
 
-.error {
+.errorOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.errorContent {
   padding: 1rem;
   background: rgba(220, 38, 38, 0.1);
   border: 1px solid rgba(220, 38, 38, 0.3);
   border-radius: 8px;
   color: #fca5a5;
+  max-width: 80%;
+  text-align: center;
 }
 
 .placeholder {
