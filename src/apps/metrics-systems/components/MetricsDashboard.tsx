@@ -291,10 +291,34 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
   }
 
   const getRequestSuccessCountData = () => {
-    if (!portraitTimeseries?.series) return []
+    if (!portraitTimeseries?.series) {
+      // Return default zero data points for the last 30 minutes
+      const now = new Date()
+      const points = []
+      for (let i = 29; i >= 0; i--) {
+        const time = new Date(now.getTime() - i * 30 * 1000) // 30-second intervals
+        points.push({
+          time: formatTimestamp(time.toISOString()),
+          count: 0
+        })
+      }
+      return points
+    }
 
     const successSeries = portraitTimeseries.series.find(s => s.metric_name === 'request_success_count')
-    if (!successSeries?.values?.length) return []
+    if (!successSeries?.values?.length) {
+      // Return default zero data points for the current time range
+      const now = new Date()
+      const points = []
+      for (let i = 29; i >= 0; i--) {
+        const time = new Date(now.getTime() - i * 30 * 1000) // 30-second intervals
+        points.push({
+          time: formatTimestamp(time.toISOString()),
+          count: 0
+        })
+      }
+      return points
+    }
 
     return successSeries.values.map(v => ({
       time: formatTimestamp(v.timestamp),
@@ -303,10 +327,34 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
   }
 
   const getRequestFailureCountData = () => {
-    if (!portraitTimeseries?.series) return []
+    if (!portraitTimeseries?.series) {
+      // Return default zero data points for the last 30 minutes
+      const now = new Date()
+      const points = []
+      for (let i = 29; i >= 0; i--) {
+        const time = new Date(now.getTime() - i * 30 * 1000) // 30-second intervals
+        points.push({
+          time: formatTimestamp(time.toISOString()),
+          count: 0
+        })
+      }
+      return points
+    }
 
     const failureSeries = portraitTimeseries.series.find(s => s.metric_name === 'request_failure_count')
-    if (!failureSeries?.values?.length) return []
+    if (!failureSeries?.values?.length) {
+      // Return default zero data points for the current time range
+      const now = new Date()
+      const points = []
+      for (let i = 29; i >= 0; i--) {
+        const time = new Date(now.getTime() - i * 30 * 1000) // 30-second intervals
+        points.push({
+          time: formatTimestamp(time.toISOString()),
+          count: 0
+        })
+      }
+      return points
+    }
 
     return failureSeries.values.map(v => ({
       time: formatTimestamp(v.timestamp),
@@ -601,47 +649,39 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
             {/* Request Success Count */}
             <div className={styles.compactChart}>
               <h4>Request Success Count</h4>
-              {getRequestSuccessCountData().length > 0 ? (
-                <ChartErrorBoundary>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <AreaChart data={getRequestSuccessCountData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                      <YAxis stroke="#888" fontSize={10} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value) => [`${Number(value).toFixed(0)}`, 'Success Count']}
-                      />
-                      <Area type="monotone" dataKey="count" stroke={COLORS.success} fill="rgba(102, 255, 102, 0.3)" strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </ChartErrorBoundary>
-              ) : (
-                <NoDataMessage />
-              )}
+              <ChartErrorBoundary>
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={getRequestSuccessCountData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(0)}`, 'Success Count']}
+                    />
+                    <Area type="monotone" dataKey="count" stroke={COLORS.success} fill="rgba(102, 255, 102, 0.3)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </ChartErrorBoundary>
             </div>
 
             {/* Request Error Count */}
             <div className={styles.compactChart}>
               <h4>Request Error Count</h4>
-              {getRequestFailureCountData().length > 0 ? (
-                <ChartErrorBoundary>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <AreaChart data={getRequestFailureCountData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                      <YAxis stroke="#888" fontSize={10} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value) => [`${Number(value).toFixed(0)}`, 'Error Count']}
-                      />
-                      <Area type="monotone" dataKey="count" stroke={COLORS.danger} fill="rgba(255, 102, 102, 0.3)" strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </ChartErrorBoundary>
-              ) : (
-                <NoDataMessage />
-              )}
+              <ChartErrorBoundary>
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={getRequestFailureCountData()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                    <YAxis stroke="#888" fontSize={10} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value) => [`${Number(value).toFixed(0)}`, 'Error Count']}
+                    />
+                    <Area type="monotone" dataKey="count" stroke={COLORS.danger} fill="rgba(255, 102, 102, 0.3)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </ChartErrorBoundary>
             </div>
 
             {/* Combined Portrait Metrics */}
