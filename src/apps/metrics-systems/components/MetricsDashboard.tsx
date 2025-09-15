@@ -178,16 +178,6 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     return data
   }
 
-  const getRequestRateData = () => {
-    if (!portraitTimeseries?.series) return []
-    const requestSeries = portraitTimeseries.series.find(s => s.metric_name === 'request_rate')
-    if (!requestSeries?.values?.length) return []
-    
-    return requestSeries.values.map(v => ({
-      time: formatTimestamp(v.timestamp),
-      rate: Math.max(0, v.value || 0)
-    }))
-  }
 
   const getDiskIOData = () => {
     if (!systemTimeseries?.series) return []
@@ -287,27 +277,40 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     }))
   }
 
-  const getRequestSuccessRateData = () => {
-    if (!portraitTimeseries?.series) return []
-    
-    const successSeries = portraitTimeseries.series.find(s => s.metric_name === 'request_success_rate')
-    if (!successSeries?.values?.length) return []
-    
-    return successSeries.values.map(v => ({
-      time: formatTimestamp(v.timestamp),
-      successRate: Math.max(0, Math.min(100, v.value || 0))
-    }))
-  }
 
   const getCacheHitRateData = () => {
     if (!portraitTimeseries?.series) return []
-    
+
     const cacheSeries = portraitTimeseries.series.find(s => s.metric_name === 'cache_hit_rate')
     if (!cacheSeries?.values?.length) return []
-    
+
     return cacheSeries.values.map(v => ({
       time: formatTimestamp(v.timestamp),
       hitRate: Math.max(0, Math.min(100, v.value || 0))
+    }))
+  }
+
+  const getRequestSuccessCountData = () => {
+    if (!portraitTimeseries?.series) return []
+
+    const successSeries = portraitTimeseries.series.find(s => s.metric_name === 'request_success_count')
+    if (!successSeries?.values?.length) return []
+
+    return successSeries.values.map(v => ({
+      time: formatTimestamp(v.timestamp),
+      count: Math.max(0, v.value || 0)
+    }))
+  }
+
+  const getRequestFailureCountData = () => {
+    if (!portraitTimeseries?.series) return []
+
+    const failureSeries = portraitTimeseries.series.find(s => s.metric_name === 'request_failure_count')
+    if (!failureSeries?.values?.length) return []
+
+    return failureSeries.values.map(v => ({
+      time: formatTimestamp(v.timestamp),
+      count: Math.max(0, v.value || 0)
     }))
   }
 
@@ -595,22 +598,22 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Request Performance</h2>
           <div className={styles.sectionGrid}>
-            {/* Request Rate */}
+            {/* Request Success Count */}
             <div className={styles.compactChart}>
-              <h4>Request Rate</h4>
-              {getRequestRateData().length > 0 ? (
+              <h4>Request Success Count</h4>
+              {getRequestSuccessCountData().length > 0 ? (
                 <ChartErrorBoundary>
                   <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={getRequestRateData()}>
+                    <AreaChart data={getRequestSuccessCountData()}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                       <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                      <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}/s`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value) => [`${Number(value).toFixed(2)}/s`, 'Requests']}
+                      <YAxis stroke="#888" fontSize={10} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                        formatter={(value) => [`${Number(value).toFixed(0)}`, 'Success Count']}
                       />
-                      <Bar dataKey="rate" fill={COLORS.info} />
-                    </BarChart>
+                      <Area type="monotone" dataKey="count" stroke={COLORS.success} fill="rgba(102, 255, 102, 0.3)" strokeWidth={2} />
+                    </AreaChart>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
@@ -618,21 +621,21 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
               )}
             </div>
 
-            {/* Request Success Rate */}
+            {/* Request Error Count */}
             <div className={styles.compactChart}>
-              <h4>Request Success Rate</h4>
-              {getRequestSuccessRateData().length > 0 ? (
+              <h4>Request Error Count</h4>
+              {getRequestFailureCountData().length > 0 ? (
                 <ChartErrorBoundary>
                   <ResponsiveContainer width="100%" height={180}>
-                    <AreaChart data={getRequestSuccessRateData()}>
+                    <AreaChart data={getRequestFailureCountData()}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                       <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                      <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Success Rate']}
+                      <YAxis stroke="#888" fontSize={10} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                        formatter={(value) => [`${Number(value).toFixed(0)}`, 'Error Count']}
                       />
-                      <Area type="monotone" dataKey="successRate" stroke={COLORS.success} fill="rgba(102, 255, 102, 0.3)" strokeWidth={2} />
+                      <Area type="monotone" dataKey="count" stroke={COLORS.danger} fill="rgba(255, 102, 102, 0.3)" strokeWidth={2} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
@@ -651,7 +654,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                       <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
                       <YAxis stroke="#888" fontSize={10} />
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
                         formatter={(value, name) => [
                           name === 'avgDuration' ? `${Number(value).toFixed(2)}ms` : `${Number(value).toFixed(1)}%`,
@@ -668,6 +671,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                 <NoDataMessage />
               )}
             </div>
+
           </div>
         </div>
 
