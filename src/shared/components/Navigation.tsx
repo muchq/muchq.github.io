@@ -47,7 +47,6 @@ const Navigation = ({ className }: NavigationProps) => {
             </a>
             <div className={styles.dropdown}>
               <Link to="/tracy" className={styles.dropdownItem}>Tracy</Link>
-              <Link to="/resilience" className={styles.dropdownItem}>Resilience</Link>
             </div>
           </li>
           {/* <li className={`${styles.navItem} nav-item ${expandedItems.has('interests') ? styles.expanded : ''}`}>
@@ -92,6 +91,7 @@ const Navigation = ({ className }: NavigationProps) => {
               <Link to="/thoughts" className={styles.dropdownItem}>Thoughts</Link>
               <Link to="/golf" className={styles.dropdownItem}>Golf</Link>
               <Link to="/party" className={styles.dropdownItem}>Party</Link>
+              <Link to="/resilience" className={styles.dropdownItem}>Resilience</Link>
               {/* <Link to="/quest" className={styles.dropdownItem}>Quest</Link> */}
             </div>
           </li>
