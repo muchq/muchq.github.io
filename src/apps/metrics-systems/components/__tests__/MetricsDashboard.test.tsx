@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, act } from '@testing-library/react'
 import MetricsDashboard from '../MetricsDashboard'
 
 // Mock the recharts library to avoid canvas issues in tests
@@ -167,7 +167,9 @@ describe('MetricsDashboard fillTimeSeriesData logic', () => {
     )
 
     // Wait for the component to fetch data and render
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 100))
+    })
 
     // Find the success count chart
     const successChart = container.querySelector('[data-testid="bar-chart"]')
