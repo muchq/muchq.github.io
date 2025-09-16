@@ -23,5 +23,6 @@ describe('Navigation', () => {
     expect(testingScreen.getByText('Projects')).toBeDefined()
     // expect(testingScreen.getByText('Interests')).toBeDefined()
     expect(testingScreen.getByText('Games')).toBeDefined()
+    expect(testingScreen.getByText('Metrics')).toBeDefined()
   })
 })
