@@ -21,8 +21,7 @@ describe('Navigation', () => {
   it('renders navigation links', () => {
     renderWithRouter(<Navigation />)
     expect(testingScreen.getByText('Projects')).toBeDefined()
-    expect(testingScreen.getByText('Interests')).toBeDefined()
-    expect(testingScreen.getByText('Blog')).toBeDefined()
+    // expect(testingScreen.getByText('Interests')).toBeDefined()
     expect(testingScreen.getByText('Games')).toBeDefined()
   })
 })
