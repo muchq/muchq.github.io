@@ -20,11 +20,29 @@ vi.mock('recharts', () => ({
   Cell: () => <div data-testid="cell" />
 }))
 
-// Exact API response data from the user's network tab
+// Generate mock data with recent timestamps to match the component's time range generation
+const generateMockTimestamps = () => {
+  const now = new Date()
+  const timestamps = []
+
+  // Generate timestamps for the last 30 minutes with 30-second intervals
+  for (let i = 59; i >= 0; i--) {
+    const time = new Date(now.getTime() - i * 30 * 1000)
+    timestamps.push(time.toISOString())
+  }
+
+  return timestamps
+}
+
+const mockTimestamps = generateMockTimestamps()
+const now = new Date()
+const startTime = new Date(now.getTime() - 30 * 60 * 1000).toISOString()
+const endTime = now.toISOString()
+
 const mockPortraitTimeseriesResponse = {
   "time_range": "30m",
-  "start_time": "2025-09-15T03:03:14.671633517Z",
-  "end_time": "2025-09-15T03:33:14.671633517Z",
+  "start_time": startTime,
+  "end_time": endTime,
   "step": "30s",
   "series": [
     {
@@ -38,12 +56,12 @@ const mockPortraitTimeseriesResponse = {
         "otel_scope_version": "1.0.0"
       },
       "values": [
-        {"timestamp": "2025-09-15T03:03:14Z", "value": 0},
-        {"timestamp": "2025-09-15T03:03:44Z", "value": 0},
-        {"timestamp": "2025-09-15T03:04:14Z", "value": 0},
-        {"timestamp": "2025-09-15T03:10:44Z", "value": 193682.00000000003},
-        {"timestamp": "2025-09-15T03:11:14Z", "value": 189137},
-        {"timestamp": "2025-09-15T03:11:44Z", "value": 189137}
+        {"timestamp": mockTimestamps[0], "value": 0},
+        {"timestamp": mockTimestamps[1], "value": 0},
+        {"timestamp": mockTimestamps[2], "value": 0},
+        {"timestamp": mockTimestamps[20], "value": 193682.00000000003},
+        {"timestamp": mockTimestamps[21], "value": 189137},
+        {"timestamp": mockTimestamps[22], "value": 189137}
       ]
     },
     {
@@ -59,28 +77,26 @@ const mockPortraitTimeseriesResponse = {
         "service_name": "portrait"
       },
       "values": [
-        {"timestamp": "2025-09-15T03:22:44Z", "value": 15.653199999999998},
-        {"timestamp": "2025-09-15T03:23:14Z", "value": 21.445471513643234},
-        {"timestamp": "2025-09-15T03:23:44Z", "value": 26.10855565777369},
-        {"timestamp": "2025-09-15T03:24:14Z", "value": 26.54054782108266},
-        {"timestamp": "2025-09-15T03:24:44Z", "value": 25.975985718835883},
-        {"timestamp": "2025-09-15T03:25:14Z", "value": 43.761892758974625},
-        {"timestamp": "2025-09-15T03:25:44Z", "value": 44.39376864853265},
-        {"timestamp": "2025-09-15T03:26:14Z", "value": 44.075359999999996},
-        {"timestamp": "2025-09-15T03:26:44Z", "value": 43.8312},
-        {"timestamp": "2025-09-15T03:27:14Z", "value": 44.21006094672688},
-        {"timestamp": "2025-09-15T03:27:44Z", "value": 25.263157894736842},
-        {"timestamp": "2025-09-15T03:28:14Z", "value": 25.263246537707154},
-        {"timestamp": "2025-09-15T03:28:44Z", "value": 18.947634352762847},
-        {"timestamp": "2025-09-15T03:29:14Z", "value": 18.94736842105263},
-        {"timestamp": "2025-09-15T03:29:44Z", "value": 26.315420134454254},
-        {"timestamp": "2025-09-15T03:30:14Z", "value": 21.052336107563402},
-        {"timestamp": "2025-09-15T03:30:44Z", "value": 21.052631578947366},
-        {"timestamp": "2025-09-15T03:31:14Z", "value": 22.105263157894736},
-        {"timestamp": "2025-09-15T03:31:44Z", "value": 25.263512470350463},
-        {"timestamp": "2025-09-15T03:32:14Z", "value": 25.263157894736842},
-        {"timestamp": "2025-09-15T03:32:44Z", "value": 31.578504161345105},
-        {"timestamp": "2025-09-15T03:33:14Z", "value": 31.57927978189244}
+        {"timestamp": mockTimestamps[40], "value": 15.653199999999998},
+        {"timestamp": mockTimestamps[41], "value": 21.445471513643234},
+        {"timestamp": mockTimestamps[42], "value": 26.10855565777369},
+        {"timestamp": mockTimestamps[43], "value": 26.54054782108266},
+        {"timestamp": mockTimestamps[44], "value": 25.975985718835883},
+        {"timestamp": mockTimestamps[45], "value": 43.761892758974625},
+        {"timestamp": mockTimestamps[46], "value": 44.39376864853265},
+        {"timestamp": mockTimestamps[47], "value": 44.075359999999996},
+        {"timestamp": mockTimestamps[48], "value": 43.8312},
+        {"timestamp": mockTimestamps[49], "value": 44.21006094672688},
+        {"timestamp": mockTimestamps[50], "value": 25.263157894736842},
+        {"timestamp": mockTimestamps[51], "value": 25.263246537707154},
+        {"timestamp": mockTimestamps[52], "value": 18.947634352762847},
+        {"timestamp": mockTimestamps[53], "value": 18.94736842105263},
+        {"timestamp": mockTimestamps[54], "value": 26.315420134454254},
+        {"timestamp": mockTimestamps[55], "value": 21.052336107563402},
+        {"timestamp": mockTimestamps[56], "value": 21.052631578947366},
+        {"timestamp": mockTimestamps[57], "value": 22.105263157894736},
+        {"timestamp": mockTimestamps[58], "value": 25.263512470350463},
+        {"timestamp": mockTimestamps[59], "value": 25.263157894736842}
       ]
     },
     {
@@ -284,7 +300,7 @@ describe('MetricsDashboard fillTimeSeriesData logic', () => {
 
     const generateTestTimeRange = () => {
       // Generate timestamps that are slightly different from the API timestamps
-      const now = new Date('2025-09-15T03:33:14.123Z') // Slightly different milliseconds
+      const now = new Date() // Use current time to match mock data
       const points = []
       for (let i = 59; i >= 0; i--) {
         const time = new Date(now.getTime() - i * 30 * 1000) // 30-second intervals
@@ -307,8 +323,8 @@ describe('MetricsDashboard fillTimeSeriesData logic', () => {
     const nonZeroPoints = result.filter(point => point.count > 0)
     expect(nonZeroPoints.length).toBeGreaterThan(0)
 
-    // Check that the values match what we expect from the test data
-    const expectedValues = [15.653199999999998, 21.445471513643234, 26.10855565777369, 26.54054782108266, 25.975985718835883]
+    // Check that the values match what we expect from the test data (use some of the actual values from our mock)
+    const expectedValues = [15.653199999999998, 21.445471513643234, 26.10855565777369, 43.761892758974625, 25.263157894736842]
     const hasExpectedValue = nonZeroPoints.some(point =>
       expectedValues.some(expectedValue => Math.abs(point.count - expectedValue) < 0.001)
     )
