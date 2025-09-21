@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import styles from './GolfGame.module.css'
 import { useGolfGame } from '@/hooks/useGolfGame'
+import type { ParsedPermalinkParams } from '../../../utils/golfPermalinks'
 
 interface Card {
   rank: string
@@ -18,10 +19,16 @@ interface GolfGameProps {
   onPlayerIdChange: (id: string | null) => void
   onPlayerNameChange: (name: string | null) => void
   onConnectionChange: (connected: boolean) => void
+  permalinkParams: ParsedPermalinkParams
 }
 
-const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange }: GolfGameProps) => {
+const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams }: GolfGameProps) => {
   const [showRules, setShowRules] = useState(false)
+
+  // TODO: permalinkParams will be used in task 3 to enhance useGolfGame hook with permalink parsing logic
+  // For now, we're just setting up the infrastructure
+  // Temporary reference to avoid unused parameter warning
+  void permalinkParams
 
   // Helper function to get display name (now just use the ID directly)
   const getDisplayName = (player: Player | null) => {
@@ -327,11 +334,11 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
         <div className={styles.gameEndOverlay}>
           <div className={styles.gameEndContent}>
             <div className={styles.celebration}>
-                {currentPlayer && getDisplayName(currentPlayer) === winner ? (
-                  <span className={styles.trophy}>🏆</span>
-                ) : (
-                  <span className={styles.trophy}>😢</span>
-                )}
+              {currentPlayer && getDisplayName(currentPlayer) === winner ? (
+                <span className={styles.trophy}>🏆</span>
+              ) : (
+                <span className={styles.trophy}>😢</span>
+              )}
               <h2 className={styles.gameOverTitle}>Game Over!</h2>
             </div>
             {winner && (

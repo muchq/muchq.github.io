@@ -23,6 +23,8 @@ function App() {
       <Route path="/groups" element={<GroupsPage />} />
       <Route path="/sets" element={<SetsPage />} />
       <Route path="/golf" element={<GolfPage />} />
+      <Route path="/golf/room/:roomId" element={<GolfPage />} />
+      <Route path="/golf/room/:roomId/game/:gameId" element={<GolfPage />} />
       <Route path="/party" element={<PartyPage />} />
       <Route path="/quest" element={<QuestPage />} />
       <Route path="/tracy" element={<TracyPage />} />
