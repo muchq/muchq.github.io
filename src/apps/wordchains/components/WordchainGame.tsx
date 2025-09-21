@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import styles from './WordchainGame.module.css'
+import HoverableWord from './HoverableWord'
 
 interface WordchainGameProps {
   onSolve: (startWord: string, endWord: string) => Promise<void>
@@ -104,7 +105,7 @@ const WordchainGame = ({ onSolve, isLoading, result, error }: WordchainGameProps
               <div className={styles.chain}>
                 {result.map((word, index) => (
                   <div key={index} className={styles.chainStep}>
-                    <span className={styles.word}>{word}</span>
+                    <HoverableWord word={word} className={styles.word} />
                     {index < result.length - 1 && (
                       <span className={styles.arrow}>→</span>
                     )}
