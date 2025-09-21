@@ -11,6 +11,7 @@ import TracyPage from './apps/tracy/pages/TracyPage'
 import SystemsPage from './apps/metrics-systems/pages/SystemsPage'
 import ResilienceGamePage from './apps/metrics-systems/pages/ResilienceGamePage'
 import MetricsPage from './apps/metrics-systems/pages/MetricsPage'
+import WordchainsPage from './apps/wordchains/pages/WordchainsPage'
 import NotFoundPage from './core/pages/NotFoundPage'
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
       <Route path="/party" element={<PartyPage />} />
       <Route path="/quest" element={<QuestPage />} />
       <Route path="/tracy" element={<TracyPage />} />
+      <Route path="/wordchains" element={<WordchainsPage />} />
       <Route path="/metrics" element={<Navigate to="/metrics/system" replace />} />
       <Route path="/metrics/:tab" element={<MetricsPage />} />
       <Route path="/resilience" element={<SystemsPage />} />

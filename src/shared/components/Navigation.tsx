@@ -48,6 +48,7 @@ const Navigation = ({ className }: NavigationProps) => {
             <div className={styles.dropdown}>
               <Link to="/tracy" className={styles.dropdownItem}>Tracy</Link>
               <Link to="/metrics" className={styles.dropdownItem}>Metrics</Link>
+              <Link to="/wordchains" className={styles.dropdownItem}>Wordchains</Link>
             </div>
           </li>
           {/* <li className={`${styles.navItem} nav-item ${expandedItems.has('interests') ? styles.expanded : ''}`}>
