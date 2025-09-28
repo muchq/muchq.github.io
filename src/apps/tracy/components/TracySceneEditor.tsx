@@ -217,7 +217,8 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
     if (field === 'backgroundColor') {
       if (typeof value === 'object' && 'index' in value) {
         const newColor = [...sceneData.scene.backgroundColor]
-        newColor[value.index] = parseInt(value.value) || 0
+        const parsedValue = Math.max(0, Math.min(255, parseInt(value.value) || 0))
+        newColor[value.index] = parsedValue
         setSceneData({
           ...sceneData,
           scene: { ...sceneData.scene, backgroundColor: newColor as [number, number, number] }
@@ -358,9 +359,12 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                         const r = parseInt(hex.substring(0, 2), 16)
                         const g = parseInt(hex.substring(2, 4), 16)
                         const b = parseInt(hex.substring(4, 6), 16)
-                        handleSphereChange(selectedSphere, 'color', { subIndex: '0', value: r.toString() })
-                        setTimeout(() => handleSphereChange(selectedSphere, 'color', { subIndex: '1', value: g.toString() }), 0)
-                        setTimeout(() => handleSphereChange(selectedSphere, 'color', { subIndex: '2', value: b.toString() }), 0)
+                        const newSpheres = [...sceneData.scene.spheres]
+                        newSpheres[selectedSphere].color = [r, g, b]
+                        setSceneData({
+                          ...sceneData,
+                          scene: { ...sceneData.scene, spheres: newSpheres }
+                        })
                       }}
                       className={styles.colorPicker}
                     />
@@ -605,9 +609,10 @@ const TracySceneEditor: React.FC<TracySceneEditorProps> = ({ onRender, isLoading
                       const r = parseInt(hex.substring(0, 2), 16)
                       const g = parseInt(hex.substring(2, 4), 16)
                       const b = parseInt(hex.substring(4, 6), 16)
-                      handleBackgroundChange('backgroundColor', { index: 0, value: r.toString() })
-                      setTimeout(() => handleBackgroundChange('backgroundColor', { index: 1, value: g.toString() }), 0)
-                      setTimeout(() => handleBackgroundChange('backgroundColor', { index: 2, value: b.toString() }), 0)
+                      setSceneData({
+                        ...sceneData,
+                        scene: { ...sceneData.scene, backgroundColor: [r, g, b] }
+                      })
                     }}
                     className={styles.colorPicker}
                   />
