@@ -2,6 +2,7 @@ import { useState } from 'react'
 import styles from './TracyPage.module.css'
 import TracySceneEditor from '../components/TracySceneEditor'
 import TracyNavigation from '../components/TracyNavigation'
+import { handleApiResponse } from '@/utils/apiUtils'
 
 interface SceneData {
   scene: {
@@ -28,6 +29,20 @@ interface SceneData {
     width: number
     height: number
   }
+}
+
+interface TracyResponse {
+  base64_png: string
+  width: number
+  height: number
+}
+
+interface BlurResponse {
+  image_data: string
+  width: number
+  height: number
+  format: string
+  size_bytes: number
 }
 
 const TracyPage = () => {
@@ -59,11 +74,7 @@ const TracyPage = () => {
         body: JSON.stringify(sceneData),
       })
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data = await response.json()
+      const data = await handleApiResponse<TracyResponse>(response)
       setImageData(data)
 
       // Auto-scroll to result after successful render on mobile
@@ -145,12 +156,7 @@ const TracyPage = () => {
         }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
-      }
-
-      const blurredData = await response.json()
+      const blurredData = await handleApiResponse<BlurResponse>(response)
 
       // Replace the current image with the blurred version
       setImageData({
