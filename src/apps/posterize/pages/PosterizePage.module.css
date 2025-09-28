@@ -54,6 +54,63 @@
   text-align: center;
 }
 
+.controls {
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  text-align: left;
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.control label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.control input[type="checkbox"] {
+  margin-right: 0.5rem;
+}
+
+.slider {
+  width: 100%;
+  margin-top: 0.5rem;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: #ddd;
+  border-radius: 3px;
+  outline: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #007bff;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #007bff;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
 .blurButton {
   padding: 0.75rem 2rem;
   background: #007bff;
@@ -257,5 +314,13 @@
   .blurButton {
     width: 100%;
     padding: 0.75rem;
+  }
+
+  .controls {
+    gap: 0.75rem;
+  }
+
+  .control label {
+    font-size: 0.9rem;
   }
 }

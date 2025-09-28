@@ -16,6 +16,8 @@ const PosterizePage = () => {
   const [blurredImage, setBlurredImage] = useState<BlurResponse | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [gray, setGray] = useState(false)
+  const [sigma, setSigma] = useState(8.0)
 
   const handleImageSelect = (base64: string) => {
     setSelectedImage(base64)
@@ -47,7 +49,9 @@ const PosterizePage = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          b64_png: selectedImage
+          b64_png: selectedImage,
+          gray: gray,
+          ...(gray ? {} : { sigma: sigma })
         }),
       })
 
@@ -132,6 +136,36 @@ const PosterizePage = () => {
 
           {selectedImage && (
             <div className={styles.actions}>
+              <div className={styles.controls}>
+                <div className={styles.control}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={gray}
+                      onChange={(e) => setGray(e.target.checked)}
+                    />
+                    Grayscale blur
+                  </label>
+                </div>
+
+                {!gray && (
+                  <div className={styles.control}>
+                    <label>
+                      Sigma: {sigma.toFixed(1)}
+                      <input
+                        type="range"
+                        min="2.0"
+                        max="20.0"
+                        step="0.5"
+                        value={sigma}
+                        onChange={(e) => setSigma(parseFloat(e.target.value))}
+                        className={styles.slider}
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+
               <button
                 onClick={handleBlur}
                 disabled={isLoading}

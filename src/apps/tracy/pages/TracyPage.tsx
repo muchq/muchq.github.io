@@ -139,7 +139,8 @@ const TracyPage = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          b64_png: imageData.base64_png
+          b64_png: imageData.base64_png,
+          gray: true
         }),
       })
 
