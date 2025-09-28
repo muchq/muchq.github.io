@@ -43,7 +43,7 @@ export class NetworkManager implements INetworkManager {
 
   connect(url: string): void {
     this.websocketUrl = url
-    
+
     if (this.isSimulated) {
       // Only simulate if explicitly in simulation mode
       console.log('🔌 Simulating WebSocket connection to', url)
@@ -59,7 +59,7 @@ export class NetworkManager implements INetworkManager {
       this.connectionStatus = 'connecting'
       this.connectionError = null
       this.onConnectionStateChange?.('connecting')
-      
+
       this.ws = new WebSocket(url)
 
       this.ws.onopen = () => {
@@ -105,7 +105,7 @@ export class NetworkManager implements INetworkManager {
 
   private onConnected(): void {
     // Don't send player_join yet - wait for welcome message with server-assigned ID
-    
+
     // Only start fake server if explicitly in simulation mode
     if (this.isSimulated && this.fakeServer) {
       this.fakeServer.start()
@@ -172,8 +172,6 @@ export class NetworkManager implements INetworkManager {
     this.sendMessage(message)
     this.lastSentPosition = [...position]
     this.lastPositionSent = now
-
-    console.log('📤 Sent position update:', message)
   }
 
   sendMessage(message: NetworkMessage): void {
@@ -224,16 +222,16 @@ export class NetworkManager implements INetworkManager {
     // Get the existing local player
     const existingLocalPlayer = this.gameState.getLocalPlayer()
     const oldLocalPlayerId = this.gameState.localPlayerId
-    
+
     // Update to server-assigned ID
     this.gameState.localPlayerId = message.playerId
     console.log(`🎉 Received player ID from server: ${message.playerId} (replacing ${oldLocalPlayerId})`)
-    
+
     // If we already had a local player, update its ID
     if (existingLocalPlayer && oldLocalPlayerId) {
       // Remove the old player entry
       this.gameState.players.delete(oldLocalPlayerId)
-      
+
       // Re-add with new ID
       this.gameState.addPlayer(
         message.playerId,
@@ -241,7 +239,7 @@ export class NetworkManager implements INetworkManager {
         existingLocalPlayer.color,
         existingLocalPlayer.shape
       )
-      
+
       console.log(`Updated local player ID from ${oldLocalPlayerId} to ${message.playerId}`)
     } else if (this.pendingPlayerData) {
       // Fallback: create player if somehow it doesn't exist
@@ -251,10 +249,10 @@ export class NetworkManager implements INetworkManager {
         this.pendingPlayerData.color,
         this.pendingPlayerData.shape
       )
-      
+
       console.log(`Spawning player ${message.playerId} at position [${this.pendingPlayerData.position.map(x => x.toFixed(2)).join(', ')}] with color [${this.pendingPlayerData.color.map(x => x.toFixed(2)).join(', ')}]`)
     }
-    
+
     // Call the callback with new server ID
     if (this.onPlayerIdReceived) {
       this.onPlayerIdReceived(message.playerId)
@@ -262,7 +260,7 @@ export class NetworkManager implements INetworkManager {
 
     // Send the player_join message
     this.sendPlayerJoin()
-    
+
     // Clear pending data
     this.pendingPlayerData = undefined
   }
@@ -272,7 +270,7 @@ export class NetworkManager implements INetworkManager {
       console.error('Player join message missing playerId')
       return
     }
-    
+
     if (message.playerId !== this.gameState.localPlayerId) {
       this.gameState.addPlayer(
         message.playerId,
@@ -289,7 +287,7 @@ export class NetworkManager implements INetworkManager {
       console.error('Player leave message missing playerId')
       return
     }
-    
+
     if (message.playerId !== this.gameState.localPlayerId) {
       const player = this.gameState.players.get(message.playerId)
       if (player) {
@@ -305,7 +303,7 @@ export class NetworkManager implements INetworkManager {
       console.error('Position update message missing playerId')
       return
     }
-    
+
     if (message.playerId !== this.gameState.localPlayerId) {
       this.gameState.updatePlayer(message.playerId, message.position!)
     }
@@ -316,7 +314,7 @@ export class NetworkManager implements INetworkManager {
       console.error('Shape update message missing playerId')
       return
     }
-    
+
     if (message.playerId !== this.gameState.localPlayerId) {
       const player = this.gameState.players.get(message.playerId)
       if (player) {
@@ -359,11 +357,11 @@ export class NetworkManager implements INetworkManager {
       this.ws.close()
       this.ws = null
     }
-    
+
     // Reset connection state
     this.isConnected = false
     this.connectionError = null
-    
+
     // Reconnect after a short delay
     if (this.websocketUrl) {
       setTimeout(() => {
