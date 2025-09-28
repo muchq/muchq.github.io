@@ -47,6 +47,7 @@ const Navigation = ({ className }: NavigationProps) => {
             </a>
             <div className={styles.dropdown}>
               <Link to="/tracy" className={styles.dropdownItem}>Tracy</Link>
+              <Link to="/posterize" className={styles.dropdownItem}>Posterize</Link>
               <Link to="/metrics" className={styles.dropdownItem}>Metrics</Link>
               <Link to="/wordchains" className={styles.dropdownItem}>Wordchains</Link>
             </div>

@@ -1,0 +1,261 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding-top: 60px; /* Account for fixed navigation */
+}
+
+.header {
+  text-align: center;
+  padding: 2rem 1rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  font-weight: 300;
+  color: #333;
+  margin: 0 0 0.5rem 0;
+}
+
+.header p {
+  font-size: 1.1rem;
+  color: #666;
+  margin: 0;
+}
+
+.content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem 3rem 1rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+
+.uploadSection, .resultSection {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.uploadSection h2, .resultSection h2 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: #333;
+  text-align: center;
+}
+
+.actions {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.blurButton {
+  padding: 0.75rem 2rem;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  min-width: 150px;
+}
+
+.blurButton:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.blurButton:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.resultContainer {
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  background: #f8f9fa;
+}
+
+.loadingOverlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: #666;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.errorOverlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+  color: #dc3545;
+}
+
+.errorContent p {
+  margin: 0;
+  font-weight: 500;
+}
+
+.retryButton {
+  padding: 0.5rem 1rem;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.retryButton:hover {
+  background: #c82333;
+}
+
+.result {
+  width: 100%;
+  text-align: center;
+}
+
+.resultImage {
+  max-width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1rem;
+}
+
+.resultActions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.downloadButton, .copyButton {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.downloadButton {
+  background: #28a745;
+  color: white;
+}
+
+.downloadButton:hover {
+  background: #218838;
+}
+
+.copyButton {
+  background: #17a2b8;
+  color: white;
+}
+
+.copyButton:hover {
+  background: #138496;
+}
+
+.resultInfo {
+  font-size: 0.85rem;
+  color: #666;
+  line-height: 1.4;
+}
+
+.resultInfo p {
+  margin: 0.2rem 0;
+}
+
+.placeholder {
+  text-align: center;
+  color: #888;
+  padding: 2rem;
+}
+
+.placeholder p {
+  margin: 0.5rem 0;
+}
+
+.hint {
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+  .header h1 {
+    font-size: 2rem;
+  }
+
+  .header p {
+    font-size: 1rem;
+  }
+
+  .content {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    padding: 0 1rem 2rem 1rem;
+  }
+
+  .uploadSection, .resultSection {
+    padding: 1.5rem;
+  }
+
+  .resultContainer {
+    min-height: 250px;
+  }
+
+  .resultImage {
+    max-height: 300px;
+  }
+
+  .resultActions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .downloadButton, .copyButton {
+    width: 100%;
+    padding: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .uploadSection, .resultSection {
+    padding: 1rem;
+  }
+
+  .blurButton {
+    width: 100%;
+    padding: 0.75rem;
+  }
+}
