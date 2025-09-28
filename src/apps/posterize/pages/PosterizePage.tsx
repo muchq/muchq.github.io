@@ -2,6 +2,7 @@ import { useState } from 'react'
 import styles from './PosterizePage.module.css'
 import PosterizeNavigation from '../components/PosterizeNavigation'
 import ImageUploader from '../components/ImageUploader'
+import { handleApiResponse } from '@/utils/apiUtils'
 
 interface BlurResponse {
   width: number
@@ -55,12 +56,7 @@ const PosterizePage = () => {
         }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
-      }
-
-      const data: BlurResponse = await response.json()
+      const data: BlurResponse = await handleApiResponse<BlurResponse>(response)
       setBlurredImage(data)
 
       // Auto-scroll to result after successful blur on mobile
