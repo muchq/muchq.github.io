@@ -206,48 +206,25 @@ const TracyPage = () => {
             )}
             
             {imageData && !isLoading && (
-              <div className={styles.result}>
-                <canvas
-                  id="render-canvas"
-                  className={styles.canvas}
-                  width={imageData.width}
-                  height={imageData.height}
-                  ref={(canvas) => {
-                    if (canvas && imageData) {
-                      const ctx = canvas.getContext('2d')
-                      if (ctx) {
-                        const img = new Image()
-                        img.onload = () => {
-                          ctx.clearRect(0, 0, canvas.width, canvas.height)
-                          ctx.drawImage(img, 0, 0)
-                        }
-                        img.src = `data:image/png;base64,${imageData.base64_png}`
+              <canvas
+                id="render-canvas"
+                className={styles.canvas}
+                width={imageData.width}
+                height={imageData.height}
+                ref={(canvas) => {
+                  if (canvas && imageData) {
+                    const ctx = canvas.getContext('2d')
+                    if (ctx) {
+                      const img = new Image()
+                      img.onload = () => {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height)
+                        ctx.drawImage(img, 0, 0)
                       }
+                      img.src = `data:image/png;base64,${imageData.base64_png}`
                     }
-                  }}
-                />
-
-                <div className={styles.resultActions}>
-                  <button onClick={downloadImage} className={styles.downloadButton}>
-                    📥 Download
-                  </button>
-                  <button
-                    id="copy-button"
-                    onClick={copyToClipboard}
-                    className={styles.copyButton}
-                  >
-                    📋 Copy to Clipboard
-                  </button>
-                  <button
-                    id="blur-button"
-                    onClick={blurImage}
-                    disabled={isLoading}
-                    className={styles.blurButton}
-                  >
-                    🌊 Blur
-                  </button>
-                </div>
-              </div>
+                  }
+                }}
+              />
             )}
             
             {!imageData && !isLoading && !error && (
@@ -257,6 +234,29 @@ const TracyPage = () => {
               </div>
             )}
           </div>
+
+          {imageData && !isLoading && (
+            <div className={styles.resultActions}>
+              <button onClick={downloadImage} className={styles.downloadButton}>
+                📥 Download
+              </button>
+              <button
+                id="copy-button"
+                onClick={copyToClipboard}
+                className={styles.copyButton}
+              >
+                📋 Copy to Clipboard
+              </button>
+              <button
+                id="blur-button"
+                onClick={blurImage}
+                disabled={isLoading}
+                className={styles.blurButton}
+              >
+                🌊 Blur
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
