@@ -185,9 +185,7 @@ export class ThoughtsNetworkPlugin implements GameNetworkPlugin {
     if (message.playerId !== state.localPlayerId && this.gameStateRef) {
       const player = this.gameStateRef.players.get(message.playerId)
       if (player) {
-        console.log(`👋 Player ${message.playerId} left the game`)
         this.gameStateRef.removePlayer(message.playerId)
-        console.log(`📊 ${this.gameStateRef.players.size} players remaining`)
       }
     }
   }
@@ -217,14 +215,11 @@ export class ThoughtsNetworkPlugin implements GameNetworkPlugin {
       const player = this.gameStateRef.players.get(message.playerId)
       if (player) {
         player.shape = message.shape
-        const shapeNames = ['Sphere', 'Cube', 'Pyramid']
-        console.log(`🔄 Player ${message.playerId} changed to: ${shapeNames[message.shape]}`)
       }
     }
   }
 
   private handleGameState(message: ThoughtsMessage, context: NetworkContext): void {
-    console.log('🎮 Received game state update:', message)
     
     const state = context.getGameState<ThoughtsGameState>()
 
@@ -280,7 +275,6 @@ export class ThoughtsNetworkPlugin implements GameNetworkPlugin {
       lastPositionSent: now
     }))
 
-    console.log('📤 Sent position update:', position)
   }
 
   sendShapeUpdate(shape: ShapeType, context: NetworkContext): void {
@@ -289,6 +283,5 @@ export class ThoughtsNetworkPlugin implements GameNetworkPlugin {
       shape: shape,
       timestamp: Date.now()
     })
-    console.log('📤 Sent shape update:', shape)
   }
 }
