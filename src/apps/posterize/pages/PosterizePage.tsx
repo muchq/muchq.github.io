@@ -51,7 +51,7 @@ const PosterizePage = () => {
         body: JSON.stringify({
           b64_png: selectedImage,
           gray: gray,
-          ...(gray ? {} : { sigma: sigma })
+          sigma: sigma
         }),
       })
 
