@@ -627,7 +627,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                       </Pie>
                       <Tooltip
                         contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px', color: '#fff' }}
-                        formatter={(value, name, props) => [`${Number(value).toFixed(1)}%`, props.payload.name]}
+                        formatter={(value, _name, props) => [`${Number(value).toFixed(1)}%`, props.payload.name]}
                       />
                     </PieChart>
                   </ResponsiveContainer>
