@@ -625,9 +625,9 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                           <Cell key={`cell-${index}`} fill={[COLORS.danger, COLORS.warning, COLORS.success][index]} />
                         ))}
                       </Pie>
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                        formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Memory']}
+                      <Tooltip
+                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px', color: '#fff' }}
+                        formatter={(value, _name, props) => [`${Number(value).toFixed(1)}%`, props.payload.name]}
                       />
                     </PieChart>
                   </ResponsiveContainer>
