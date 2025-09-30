@@ -797,7 +797,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                           <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
                           <Tooltip
                             contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                            formatter={(value) => [`${Number(value).toFixed(2)}%`, 'CPU']}
+                            formatter={(value, name) => [`${Number(value).toFixed(2)}%`, name as string]}
                           />
                           {containerTimeseries.series.filter(s => s.metric_name === 'cpu_usage' && s.labels?.name).map((s, i) => {
                             const colors = [COLORS.primary, COLORS.success, COLORS.warning, COLORS.danger, COLORS.info, COLORS.secondary]
@@ -901,7 +901,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                           <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
                           <Tooltip
                             contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                            formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Memory']}
+                            formatter={(value, name) => [`${Number(value).toFixed(1)}%`, name as string]}
                           />
                           {containerTimeseries.series.filter(s => s.metric_name === 'memory_usage_percent' && s.labels?.name).map((s, i) => {
                             const colors = [COLORS.primary, COLORS.success, COLORS.warning, COLORS.danger, COLORS.info, COLORS.secondary]
