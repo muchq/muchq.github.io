@@ -48,15 +48,33 @@ interface TimeSeriesResponse {
   series: TimeSeries[]
 }
 
+interface ContainerStats {
+  name: string
+  cpu_usage_percent: number
+  cpu_throttled_seconds: number
+  memory_usage_bytes: number
+  memory_limit_bytes: number
+  memory_usage_percent: number
+  network_rx_bytes_per_sec: number
+  network_tx_bytes_per_sec: number
+}
+
+interface ContainerMetrics {
+  timestamp: string
+  containers: ContainerStats[]
+}
+
 interface MetricsDashboardProps {
   onConnectionStateChange: (status: 'connecting' | 'connected' | 'disconnected' | 'failed') => void
-  activeTab?: 'system' | 'portrait'
-  onTabChange?: (tab: 'system' | 'portrait') => void
+  activeTab?: 'system' | 'containers' | 'portrait'
+  onTabChange?: (tab: 'system' | 'containers' | 'portrait') => void
 }
 
 const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTabChange }: MetricsDashboardProps) => {
   const [systemMetrics, setSystemMetrics] = useState<SystemMetrics | null>(null)
   const [systemTimeseries, setSystemTimeseries] = useState<TimeSeriesResponse | null>(null)
+  const [containerMetrics, setContainerMetrics] = useState<ContainerMetrics | null>(null)
+  const [containerTimeseries, setContainerTimeseries] = useState<TimeSeriesResponse | null>(null)
   const [portraitTimeseries, setPortraitTimeseries] = useState<TimeSeriesResponse | null>(null)
   const [timeRange, setTimeRange] = useState<'30m' | '1d' | '7d'>('1d')
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
@@ -90,6 +108,34 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
           if (text.trim()) {
             const systemTimeseriesData = JSON.parse(text)
             setSystemTimeseries(systemTimeseriesData)
+          }
+        }
+      } catch {
+        // Silently handle error - UI will show "no data" state
+      }
+
+      // Fetch container metrics
+      try {
+        const containerResponse = await fetch(`${apiUrl}/v1/metrics/containers`)
+        if (containerResponse.ok) {
+          const text = await containerResponse.text()
+          if (text.trim()) {
+            const containerData = JSON.parse(text)
+            setContainerMetrics(containerData)
+          }
+        }
+      } catch {
+        // Silently handle error - UI will show "no data" state
+      }
+
+      // Fetch container timeseries
+      try {
+        const containerTimeseriesResponse = await fetch(`${apiUrl}/v1/timeseries/containers/${timeRange}`)
+        if (containerTimeseriesResponse.ok) {
+          const text = await containerTimeseriesResponse.text()
+          if (text.trim()) {
+            const containerTimeseriesData = JSON.parse(text)
+            setContainerTimeseries(containerTimeseriesData)
           }
         }
       } catch {
@@ -415,6 +461,12 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
           System Metrics
         </button>
         <button
+          className={`${styles.tab} ${activeTab === 'containers' ? styles.activeTab : ''}`}
+          onClick={() => onTabChange?.('containers')}
+        >
+          Container Metrics
+        </button>
+        <button
           className={`${styles.tab} ${activeTab === 'portrait' ? styles.activeTab : ''}`}
           onClick={() => onTabChange?.('portrait')}
         >
@@ -643,6 +695,286 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
             </div>
           </div>
         </div>
+          </>
+        )}
+
+        {activeTab === 'containers' && (
+          <>
+            {/* Container Overview Cards */}
+            {containerMetrics && containerMetrics.containers.length > 0 && (
+              <div className={styles.overviewCards}>
+                {containerMetrics.containers.slice(0, 4).map(container => (
+                  <div key={container.name} className={styles.miniCard}>
+                    <div className={styles.miniLabel}>{container.name.replace('ubuntu-', '').replace('-1', '')}</div>
+                    <div className={styles.miniValue}>{container.cpu_usage_percent.toFixed(1)}%</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Container CPU Metrics */}
+            <div className={styles.section}>
+              <h2 className={styles.sectionTitle}>Container CPU Metrics</h2>
+              <div className={styles.sectionGrid}>
+                {/* CPU Usage by Container */}
+                <div className={styles.compactChart}>
+                  <h4>CPU Usage by Container</h4>
+                  {containerMetrics && containerMetrics.containers.length > 0 ? (
+                    <ChartErrorBoundary>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <BarChart data={containerMetrics.containers.map(c => ({
+                          name: c.name.replace('ubuntu-', '').replace('-1', ''),
+                          cpu: c.cpu_usage_percent
+                        }))}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis dataKey="name" stroke="#888" fontSize={10} angle={-45} textAnchor="end" height={80} />
+                          <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                            formatter={(value) => [`${Number(value).toFixed(2)}%`, 'CPU Usage']}
+                          />
+                          <Bar dataKey="cpu" fill={COLORS.primary} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </ChartErrorBoundary>
+                  ) : (
+                    <NoDataMessage />
+                  )}
+                </div>
+
+                {/* CPU Throttling by Container */}
+                <div className={styles.compactChart}>
+                  <h4>CPU Throttling (seconds/sec)</h4>
+                  {containerMetrics && containerMetrics.containers.length > 0 ? (
+                    <ChartErrorBoundary>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <BarChart data={containerMetrics.containers.map(c => ({
+                          name: c.name.replace('ubuntu-', '').replace('-1', ''),
+                          throttled: c.cpu_throttled_seconds
+                        }))}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis dataKey="name" stroke="#888" fontSize={10} angle={-45} textAnchor="end" height={80} />
+                          <YAxis stroke="#888" fontSize={10} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                            formatter={(value) => [`${Number(value).toFixed(4)}s/s`, 'Throttled']}
+                          />
+                          <Bar dataKey="throttled" fill={COLORS.danger} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </ChartErrorBoundary>
+                  ) : (
+                    <NoDataMessage />
+                  )}
+                </div>
+
+                {/* CPU Usage Over Time */}
+                <div className={styles.compactChart}>
+                  <h4>CPU Usage Over Time</h4>
+                  {containerTimeseries?.series?.find(s => s.metric_name === 'cpu_usage') ? (
+                    <ChartErrorBoundary>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <LineChart data={(() => {
+                          const cpuSeries = containerTimeseries.series.filter(s => s.metric_name === 'cpu_usage')
+                          if (!cpuSeries.length) return []
+                          const allTimes = new Set<string>()
+                          cpuSeries.forEach(s => s.values?.forEach(v => allTimes.add(v.timestamp)))
+                          const sortedTimes = Array.from(allTimes).sort()
+                          return sortedTimes.map(time => {
+                            const dataPoint: Record<string, string | number> = { time: formatTimestamp(time) }
+                            cpuSeries.forEach(s => {
+                              const value = s.values?.find(v => v.timestamp === time)
+                              if (value && s.labels?.name) {
+                                const shortName = s.labels.name.replace('ubuntu-', '').replace('-1', '')
+                                dataPoint[shortName] = value.value
+                              }
+                            })
+                            return dataPoint
+                          })
+                        })()}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                          <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                            formatter={(value) => [`${Number(value).toFixed(2)}%`, 'CPU']}
+                          />
+                          {containerTimeseries.series.filter(s => s.metric_name === 'cpu_usage' && s.labels?.name).map((s, i) => {
+                            const colors = [COLORS.primary, COLORS.success, COLORS.warning, COLORS.danger, COLORS.info, COLORS.secondary]
+                            const shortName = s.labels!.name.replace('ubuntu-', '').replace('-1', '')
+                            return <Line key={i} type="monotone" dataKey={shortName} stroke={colors[i % colors.length]} strokeWidth={2} dot={false} />
+                          })}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </ChartErrorBoundary>
+                  ) : (
+                    <NoDataMessage />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Container Memory Metrics */}
+            <div className={styles.section}>
+              <h2 className={styles.sectionTitle}>Container Memory Metrics</h2>
+              <div className={styles.sectionGrid}>
+                {/* Memory Usage by Container */}
+                <div className={styles.compactChart}>
+                  <h4>Memory Usage by Container</h4>
+                  {containerMetrics && containerMetrics.containers.length > 0 ? (
+                    <ChartErrorBoundary>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <BarChart data={containerMetrics.containers.map(c => ({
+                          name: c.name.replace('ubuntu-', '').replace('-1', ''),
+                          memory: c.memory_usage_percent
+                        }))}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis dataKey="name" stroke="#888" fontSize={10} angle={-45} textAnchor="end" height={80} />
+                          <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                            formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Memory Usage']}
+                          />
+                          <Bar dataKey="memory" fill={COLORS.success} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </ChartErrorBoundary>
+                  ) : (
+                    <NoDataMessage />
+                  )}
+                </div>
+
+                {/* Memory Bytes by Container */}
+                <div className={styles.compactChart}>
+                  <h4>Memory Bytes by Container</h4>
+                  {containerMetrics && containerMetrics.containers.length > 0 ? (
+                    <ChartErrorBoundary>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <BarChart data={containerMetrics.containers.map(c => ({
+                          name: c.name.replace('ubuntu-', '').replace('-1', ''),
+                          used: c.memory_usage_bytes / (1024 * 1024),
+                          limit: c.memory_limit_bytes / (1024 * 1024)
+                        }))}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis dataKey="name" stroke="#888" fontSize={10} angle={-45} textAnchor="end" height={80} />
+                          <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value} MB`} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                            formatter={(value, name) => [`${Number(value).toFixed(0)} MB`, name === 'used' ? 'Used' : 'Limit']}
+                          />
+                          <Bar dataKey="used" fill={COLORS.danger} />
+                          <Bar dataKey="limit" fill={COLORS.warning} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </ChartErrorBoundary>
+                  ) : (
+                    <NoDataMessage />
+                  )}
+                </div>
+
+                {/* Memory Usage Over Time */}
+                <div className={styles.compactChart}>
+                  <h4>Memory Usage Over Time (%)</h4>
+                  {containerTimeseries?.series?.find(s => s.metric_name === 'memory_usage_percent') ? (
+                    <ChartErrorBoundary>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <LineChart data={(() => {
+                          const memSeries = containerTimeseries.series.filter(s => s.metric_name === 'memory_usage_percent')
+                          if (!memSeries.length) return []
+                          const allTimes = new Set<string>()
+                          memSeries.forEach(s => s.values?.forEach(v => allTimes.add(v.timestamp)))
+                          const sortedTimes = Array.from(allTimes).sort()
+                          return sortedTimes.map(time => {
+                            const dataPoint: Record<string, string | number> = { time: formatTimestamp(time) }
+                            memSeries.forEach(s => {
+                              const value = s.values?.find(v => v.timestamp === time)
+                              if (value && s.labels?.name) {
+                                const shortName = s.labels.name.replace('ubuntu-', '').replace('-1', '')
+                                dataPoint[shortName] = value.value
+                              }
+                            })
+                            return dataPoint
+                          })
+                        })()}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                          <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                            formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Memory']}
+                          />
+                          {containerTimeseries.series.filter(s => s.metric_name === 'memory_usage_percent' && s.labels?.name).map((s, i) => {
+                            const colors = [COLORS.primary, COLORS.success, COLORS.warning, COLORS.danger, COLORS.info, COLORS.secondary]
+                            const shortName = s.labels!.name.replace('ubuntu-', '').replace('-1', '')
+                            return <Line key={i} type="monotone" dataKey={shortName} stroke={colors[i % colors.length]} strokeWidth={2} dot={false} />
+                          })}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </ChartErrorBoundary>
+                  ) : (
+                    <NoDataMessage />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Container Network Metrics */}
+            <div className={styles.section}>
+              <h2 className={styles.sectionTitle}>Container Network Metrics</h2>
+              <div className={styles.sectionGrid}>
+                {/* Network RX by Container */}
+                <div className={styles.compactChart}>
+                  <h4>Network Receive (KB/s)</h4>
+                  {containerMetrics && containerMetrics.containers.length > 0 ? (
+                    <ChartErrorBoundary>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <BarChart data={containerMetrics.containers.map(c => ({
+                          name: c.name.replace('ubuntu-', '').replace('-1', ''),
+                          rx: c.network_rx_bytes_per_sec / 1024
+                        }))}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis dataKey="name" stroke="#888" fontSize={10} angle={-45} textAnchor="end" height={80} />
+                          <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value} KB/s`} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                            formatter={(value) => [`${Number(value).toFixed(2)} KB/s`, 'RX']}
+                          />
+                          <Bar dataKey="rx" fill={COLORS.success} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </ChartErrorBoundary>
+                  ) : (
+                    <NoDataMessage />
+                  )}
+                </div>
+
+                {/* Network TX by Container */}
+                <div className={styles.compactChart}>
+                  <h4>Network Transmit (KB/s)</h4>
+                  {containerMetrics && containerMetrics.containers.length > 0 ? (
+                    <ChartErrorBoundary>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <BarChart data={containerMetrics.containers.map(c => ({
+                          name: c.name.replace('ubuntu-', '').replace('-1', ''),
+                          tx: c.network_tx_bytes_per_sec / 1024
+                        }))}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis dataKey="name" stroke="#888" fontSize={10} angle={-45} textAnchor="end" height={80} />
+                          <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value} KB/s`} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 204, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                            formatter={(value) => [`${Number(value).toFixed(2)} KB/s`, 'TX']}
+                          />
+                          <Bar dataKey="tx" fill={COLORS.warning} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </ChartErrorBoundary>
+                  ) : (
+                    <NoDataMessage />
+                  )}
+                </div>
+              </div>
+            </div>
           </>
         )}
 

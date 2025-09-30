@@ -7,11 +7,11 @@ const MetricsPage = () => {
   const { tab } = useParams<{ tab: string }>()
   const navigate = useNavigate()
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'failed'>('disconnected')
-  const [activeTab, setActiveTab] = useState<'system' | 'portrait'>('system')
+  const [activeTab, setActiveTab] = useState<'system' | 'containers' | 'portrait'>('system')
 
   useEffect(() => {
-    if (tab === 'system' || tab === 'portrait') {
-      setActiveTab(tab)
+    if (tab === 'system' || tab === 'containers' || tab === 'portrait') {
+      setActiveTab(tab as 'system' | 'containers' | 'portrait')
     } else {
       navigate('/metrics/system', { replace: true })
     }
@@ -21,7 +21,7 @@ const MetricsPage = () => {
     setConnectionStatus(status)
   }, [])
 
-  const handleTabChange = useCallback((newTab: 'system' | 'portrait') => {
+  const handleTabChange = useCallback((newTab: 'system' | 'containers' | 'portrait') => {
     navigate(`/metrics/${newTab}`)
   }, [navigate])
 
