@@ -430,6 +430,30 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     </div>
   )
 
+  // Custom tooltip that sorts values in descending order
+  const SortedTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; name: string; color: string }>; label?: string }) => {
+    if (active && payload && payload.length) {
+      const sortedPayload = [...payload].sort((a, b) => b.value - a.value)
+      return (
+        <div style={{
+          backgroundColor: 'rgba(13, 17, 32, 0.9)',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
+          borderRadius: '8px',
+          padding: '8px 12px',
+          fontSize: '12px'
+        }}>
+          <p style={{ margin: '0 0 4px 0', fontWeight: 'bold' }}>{label}</p>
+          {sortedPayload.map((entry, index) => (
+            <p key={index} style={{ margin: '2px 0', color: entry.color }}>
+              {entry.name}: {Number(entry.value).toFixed(1)}%
+            </p>
+          ))}
+        </div>
+      )
+    }
+    return null
+  }
+
   return (
     <div className={styles.dashboard}>
       <div className={styles.header}>
@@ -795,10 +819,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                           <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
                           <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
-                          <Tooltip
-                            contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                            formatter={(value, name) => [`${Number(value).toFixed(2)}%`, name as string]}
-                          />
+                          <Tooltip content={<SortedTooltip />} />
                           {containerTimeseries.series.filter(s => s.metric_name === 'cpu_usage' && s.labels?.name).map((s, i) => {
                             const colors = [COLORS.primary, COLORS.success, COLORS.warning, COLORS.danger, COLORS.info, COLORS.secondary]
                             const shortName = s.labels!.name.replace('ubuntu-', '').replace('-1', '')
@@ -899,10 +920,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                           <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
                           <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
-                          <Tooltip
-                            contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                            formatter={(value, name) => [`${Number(value).toFixed(1)}%`, name as string]}
-                          />
+                          <Tooltip content={<SortedTooltip />} />
                           {containerTimeseries.series.filter(s => s.metric_name === 'memory_usage_percent' && s.labels?.name).map((s, i) => {
                             const colors = [COLORS.primary, COLORS.success, COLORS.warning, COLORS.danger, COLORS.info, COLORS.secondary]
                             const shortName = s.labels!.name.replace('ubuntu-', '').replace('-1', '')
