@@ -454,6 +454,28 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     return null
   }
 
+  // Custom tooltip for Memory Breakdown pie chart
+  const MemoryTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number; payload: { name: string; value: number; percentage: number } }> }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload
+      return (
+        <div style={{
+          backgroundColor: 'rgba(13, 17, 32, 0.9)',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
+          borderRadius: '8px',
+          padding: '8px 12px',
+          fontSize: '12px',
+          color: '#fff'
+        }}>
+          <p style={{ margin: '0', color: '#fff' }}>
+            {data.name}: {data.percentage.toFixed(1)}% ({formatBytes(data.value)})
+          </p>
+        </div>
+      )
+    }
+    return null
+  }
+
   return (
     <div className={styles.dashboard}>
       <div className={styles.header}>
@@ -625,10 +647,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                           <Cell key={`cell-${index}`} fill={[COLORS.danger, COLORS.warning, COLORS.success][index]} />
                         ))}
                       </Pie>
-                      <Tooltip
-                        contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px', color: '#fff' }}
-                        formatter={(value, _name, props) => [`${Number(value).toFixed(1)}% (${formatBytes(props.payload.value)})`, props.payload.name]}
-                      />
+                      <Tooltip content={<MemoryTooltip />} />
                     </PieChart>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
