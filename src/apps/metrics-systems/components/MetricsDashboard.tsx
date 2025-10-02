@@ -847,23 +847,43 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                         <LineChart data={(() => {
                           const cpuSeries = containerTimeseries.series.filter(s => s.metric_name === 'cpu_usage')
                           if (!cpuSeries.length) return []
-                          const allTimes = new Set<string>()
-                          cpuSeries.forEach(s => s.values?.forEach(v => allTimes.add(v.timestamp)))
-                          const sortedTimes = Array.from(allTimes).sort()
-                          return sortedTimes.map(time => {
-                            const dataPoint: Record<string, string | number> = { time: formatTimestamp(time) }
-                            cpuSeries.forEach(s => {
-                              const value = s.values?.find(v => v.timestamp === time)
-                              if (value && s.labels?.name) {
-                                const shortName = s.labels.name.replace('ubuntu-', '').replace('-1', '')
-                                dataPoint[shortName] = value.value
-                              }
-                            })
-                            return dataPoint
+
+                          // Build default values object with all container names
+                          const defaultValues: Record<string, number> = {}
+                          cpuSeries.forEach(s => {
+                            if (s.labels?.name) {
+                              const shortName = s.labels.name.replace('ubuntu-', '').replace('-1', '')
+                              defaultValues[shortName] = 0
+                            }
                           })
+
+                          // Build data map with all series
+                          const dataMap = new Map()
+                          cpuSeries.forEach(s => {
+                            s.values?.forEach(v => {
+                              const timestamp = new Date(v.timestamp)
+                              const roundedTime = new Date(Math.round(timestamp.getTime() / 30000) * 30000)
+                              const key = roundedTime.toISOString()
+                              const existing = dataMap.get(key) || {}
+                              if (s.labels?.name) {
+                                const shortName = s.labels.name.replace('ubuntu-', '').replace('-1', '')
+                                existing[shortName] = v.value
+                              }
+                              dataMap.set(key, existing)
+                            })
+                          })
+
+                          return fillTimeSeriesWithRange(dataMap, defaultValues)
                         })()}>
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                          <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                          <XAxis
+                            dataKey="time"
+                            stroke="#888"
+                            fontSize={10}
+                            interval="preserveStartEnd"
+                            domain={['dataMin', 'dataMax']}
+                            type="category"
+                          />
                           <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
                           <Tooltip content={<SortedTooltip />} />
                           {containerTimeseries.series.filter(s => s.metric_name === 'cpu_usage' && s.labels?.name).map((s, i) => {
@@ -948,23 +968,43 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                         <LineChart data={(() => {
                           const memSeries = containerTimeseries.series.filter(s => s.metric_name === 'memory_usage_percent')
                           if (!memSeries.length) return []
-                          const allTimes = new Set<string>()
-                          memSeries.forEach(s => s.values?.forEach(v => allTimes.add(v.timestamp)))
-                          const sortedTimes = Array.from(allTimes).sort()
-                          return sortedTimes.map(time => {
-                            const dataPoint: Record<string, string | number> = { time: formatTimestamp(time) }
-                            memSeries.forEach(s => {
-                              const value = s.values?.find(v => v.timestamp === time)
-                              if (value && s.labels?.name) {
-                                const shortName = s.labels.name.replace('ubuntu-', '').replace('-1', '')
-                                dataPoint[shortName] = value.value
-                              }
-                            })
-                            return dataPoint
+
+                          // Build default values object with all container names
+                          const defaultValues: Record<string, number> = {}
+                          memSeries.forEach(s => {
+                            if (s.labels?.name) {
+                              const shortName = s.labels.name.replace('ubuntu-', '').replace('-1', '')
+                              defaultValues[shortName] = 0
+                            }
                           })
+
+                          // Build data map with all series
+                          const dataMap = new Map()
+                          memSeries.forEach(s => {
+                            s.values?.forEach(v => {
+                              const timestamp = new Date(v.timestamp)
+                              const roundedTime = new Date(Math.round(timestamp.getTime() / 30000) * 30000)
+                              const key = roundedTime.toISOString()
+                              const existing = dataMap.get(key) || {}
+                              if (s.labels?.name) {
+                                const shortName = s.labels.name.replace('ubuntu-', '').replace('-1', '')
+                                existing[shortName] = v.value
+                              }
+                              dataMap.set(key, existing)
+                            })
+                          })
+
+                          return fillTimeSeriesWithRange(dataMap, defaultValues)
                         })()}>
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                          <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                          <XAxis
+                            dataKey="time"
+                            stroke="#888"
+                            fontSize={10}
+                            interval="preserveStartEnd"
+                            domain={['dataMin', 'dataMax']}
+                            type="category"
+                          />
                           <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
                           <Tooltip content={<SortedTooltip />} />
                           {containerTimeseries.series.filter(s => s.metric_name === 'memory_usage_percent' && s.labels?.name).map((s, i) => {
