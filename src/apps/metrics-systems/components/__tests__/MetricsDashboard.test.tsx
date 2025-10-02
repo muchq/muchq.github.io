@@ -264,37 +264,24 @@ describe('MetricsDashboard fillTimeSeriesData logic', () => {
     expect(allZeros).toBe(true)
   })
 
-  it('should fix the issue with rounded timestamp matching', () => {
-    // This test demonstrates the fixed implementation
-    const fixedFillTimeSeriesData = (series: TimeSeries, defaultValue: number = 0) => {
-      const fullTimeRange = generateTestTimeRange()
-
-      if (!series?.values?.length) {
-        return fullTimeRange.map(point => ({
-          time: point.time,
-          count: defaultValue
-        }))
-      }
-
-      // Create a map of existing data points using rounded timestamps - THIS IS FIXED
-      const dataMap = new Map<string, number>()
-      series.values.forEach((v) => {
-        const timestamp = new Date(v.timestamp)
-        const roundedTime = new Date(Math.round(timestamp.getTime() / 30000) * 30000) // Round to nearest 30s
-        const key = roundedTime.toISOString()
-        dataMap.set(key, v.value || 0)
-      })
-
-      // Fill the full time range, using actual data where available
+  it('should fix the issue with rounded timestamp matching using fillTimeSeriesWithRange', () => {
+    // This test demonstrates the new fillTimeSeriesWithRange utility
+    const fillTimeSeriesWithRange = <T extends Record<string, number | string>>(
+      seriesMap: Map<string, Partial<T>>,
+      defaultValues: T,
+      fullTimeRange: Array<{ time: string; timestamp: string }>
+    ): Array<T & { time: string }> => {
       return fullTimeRange.map(point => {
         const pointTime = new Date(point.timestamp)
         const roundedPointTime = new Date(Math.round(pointTime.getTime() / 30000) * 30000)
         const key = roundedPointTime.toISOString()
 
+        const dataPoint = seriesMap.get(key)
         return {
           time: point.time,
-          count: Math.max(0, dataMap.get(key) || defaultValue)
-        }
+          ...defaultValues,
+          ...(dataPoint || {})
+        } as T & { time: string }
       })
     }
 
@@ -313,7 +300,19 @@ describe('MetricsDashboard fillTimeSeriesData logic', () => {
     }
 
     const testSeries = mockPortraitTimeseriesResponse.series[1] as unknown as TimeSeries // Use success count series
-    const result = fixedFillTimeSeriesData(testSeries, 0)
+    const dataMap = new Map()
+
+    if (testSeries?.values?.length) {
+      testSeries.values.forEach(v => {
+        const timestamp = new Date(v.timestamp)
+        const roundedTime = new Date(Math.round(timestamp.getTime() / 30000) * 30000)
+        const key = roundedTime.toISOString()
+        dataMap.set(key, { count: Math.max(0, v.value || 0) })
+      })
+    }
+
+    const fullTimeRange = generateTestTimeRange()
+    const result = fillTimeSeriesWithRange(dataMap, { count: 0 }, fullTimeRange)
 
     // With the fixed implementation, we should have some non-zero values
     const hasNonZeroValues = result.some(point => point.count > 0)
@@ -329,5 +328,69 @@ describe('MetricsDashboard fillTimeSeriesData logic', () => {
       expectedValues.some(expectedValue => Math.abs(point.count - expectedValue) < 0.001)
     )
     expect(hasExpectedValue).toBe(true)
+  })
+
+  it('should handle multi-field data with fillTimeSeriesWithRange', () => {
+    // Test the utility with multiple fields (like rx/tx for network data)
+    const fillTimeSeriesWithRange = <T extends Record<string, number | string>>(
+      seriesMap: Map<string, Partial<T>>,
+      defaultValues: T,
+      fullTimeRange: Array<{ time: string; timestamp: string }>
+    ): Array<T & { time: string }> => {
+      return fullTimeRange.map(point => {
+        const pointTime = new Date(point.timestamp)
+        const roundedPointTime = new Date(Math.round(pointTime.getTime() / 30000) * 30000)
+        const key = roundedPointTime.toISOString()
+
+        const dataPoint = seriesMap.get(key)
+        return {
+          time: point.time,
+          ...defaultValues,
+          ...(dataPoint || {})
+        } as T & { time: string }
+      })
+    }
+
+    const generateTestTimeRange = () => {
+      const now = new Date()
+      const points = []
+      for (let i = 9; i >= 0; i--) {
+        const time = new Date(now.getTime() - i * 30 * 1000)
+        points.push({
+          time: time.toLocaleTimeString(),
+          timestamp: time.toISOString()
+        })
+      }
+      return points
+    }
+
+    const dataMap = new Map()
+    const fullTimeRange = generateTestTimeRange()
+
+    // Simulate network data with both rx and tx values
+    const timestamp1 = new Date(fullTimeRange[5].timestamp)
+    const rounded1 = new Date(Math.round(timestamp1.getTime() / 30000) * 30000)
+    dataMap.set(rounded1.toISOString(), { rx: 100, tx: 50 })
+
+    const timestamp2 = new Date(fullTimeRange[7].timestamp)
+    const rounded2 = new Date(Math.round(timestamp2.getTime() / 30000) * 30000)
+    dataMap.set(rounded2.toISOString(), { rx: 200, tx: 75 })
+
+    const result = fillTimeSeriesWithRange(dataMap, { rx: 0, tx: 0 }, fullTimeRange)
+
+    // Should have 10 data points (full time range)
+    expect(result.length).toBe(10)
+
+    // Points without data should have default values
+    expect(result[0]).toEqual({ time: result[0].time, rx: 0, tx: 0 })
+
+    // Points with data should have the actual values
+    const pointWithData1 = result[5]
+    expect(pointWithData1.rx).toBe(100)
+    expect(pointWithData1.tx).toBe(50)
+
+    const pointWithData2 = result[7]
+    expect(pointWithData2.rx).toBe(200)
+    expect(pointWithData2.tx).toBe(75)
   })
 })

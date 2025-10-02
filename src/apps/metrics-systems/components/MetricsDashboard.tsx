@@ -182,71 +182,89 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
   }
 
   const getCpuTimeseriesData = () => {
-    if (!systemTimeseries?.series) return []
-    const cpuSeries = systemTimeseries.series.find(s => s.metric_name === 'cpu_utilization')
-    if (!cpuSeries?.values?.length) return []
-    
-    return cpuSeries.values.map(v => ({
-      time: formatTimestamp(v.timestamp),
-      value: Math.max(0, Math.min(100, v.value || 0))
-    }))
+    const cpuSeries = systemTimeseries?.series?.find(s => s.metric_name === 'cpu_utilization')
+    const dataMap = new Map()
+
+    if (cpuSeries?.values?.length) {
+      cpuSeries.values.forEach(v => {
+        const timestamp = new Date(v.timestamp)
+        const roundedTime = new Date(Math.round(timestamp.getTime() / 30000) * 30000)
+        const key = roundedTime.toISOString()
+        dataMap.set(key, { value: Math.max(0, Math.min(100, v.value || 0)) })
+      })
+    }
+
+    return fillTimeSeriesWithRange(dataMap, { value: 0 })
   }
 
   const getMemoryTimeseriesData = () => {
-    if (!systemTimeseries?.series) return []
-    const memorySeries = systemTimeseries.series.find(s => s.metric_name === 'memory_utilization')
-    if (!memorySeries?.values?.length) return []
-    
-    return memorySeries.values.map(v => ({
-      time: formatTimestamp(v.timestamp),
-      value: Math.max(0, Math.min(100, v.value || 0))
-    }))
+    const memorySeries = systemTimeseries?.series?.find(s => s.metric_name === 'memory_utilization')
+    const dataMap = new Map()
+
+    if (memorySeries?.values?.length) {
+      memorySeries.values.forEach(v => {
+        const timestamp = new Date(v.timestamp)
+        const roundedTime = new Date(Math.round(timestamp.getTime() / 30000) * 30000)
+        const key = roundedTime.toISOString()
+        dataMap.set(key, { value: Math.max(0, Math.min(100, v.value || 0)) })
+      })
+    }
+
+    return fillTimeSeriesWithRange(dataMap, { value: 0 })
   }
 
   const getNetworkTimeseriesData = () => {
-    if (!systemTimeseries?.series) return []
-    const rxSeries = systemTimeseries.series.find(s => s.metric_name === 'network_rx_rate' && s.labels?.device === 'eth0')
-    const txSeries = systemTimeseries.series.find(s => s.metric_name === 'network_tx_rate' && s.labels?.device === 'eth0')
-    
-    if (!rxSeries?.values?.length || !txSeries?.values?.length) return []
-    
-    const data: Array<{time: string, rx: number, tx: number}> = []
-    const minLength = Math.min(rxSeries.values.length, txSeries.values.length)
-    
-    for (let i = 0; i < minLength; i++) {
-      data.push({
-        time: formatTimestamp(rxSeries.values[i].timestamp),
-        rx: (rxSeries.values[i].value || 0) / 1024, // Convert to KB/s
-        tx: (txSeries.values[i].value || 0) / 1024
+    const rxSeries = systemTimeseries?.series?.find(s => s.metric_name === 'network_rx_rate' && s.labels?.device === 'eth0')
+    const txSeries = systemTimeseries?.series?.find(s => s.metric_name === 'network_tx_rate' && s.labels?.device === 'eth0')
+    const dataMap = new Map()
+
+    if (rxSeries?.values?.length && txSeries?.values?.length) {
+      rxSeries.values.forEach(v => {
+        const timestamp = new Date(v.timestamp)
+        const roundedTime = new Date(Math.round(timestamp.getTime() / 30000) * 30000)
+        const key = roundedTime.toISOString()
+        const existing = dataMap.get(key) || { rx: 0, tx: 0 }
+        dataMap.set(key, { ...existing, rx: (v.value || 0) / 1024 })
+      })
+
+      txSeries.values.forEach(v => {
+        const timestamp = new Date(v.timestamp)
+        const roundedTime = new Date(Math.round(timestamp.getTime() / 30000) * 30000)
+        const key = roundedTime.toISOString()
+        const existing = dataMap.get(key) || { rx: 0, tx: 0 }
+        dataMap.set(key, { ...existing, tx: (v.value || 0) / 1024 })
       })
     }
-    
-    return data
+
+    return fillTimeSeriesWithRange(dataMap, { rx: 0, tx: 0 })
   }
 
 
   const getDiskIOData = () => {
-    if (!systemTimeseries?.series) return []
-    const diskSeries = systemTimeseries.series.filter(s => s.metric_name === 'disk_io_rate' && s.labels?.device === 'vda')
-    if (diskSeries.length < 2) return []
-    
-    const readSeries = diskSeries.find(s => s.labels?.direction === 'read')
-    const writeSeries = diskSeries.find(s => s.labels?.direction === 'write')
-    
-    if (!readSeries?.values?.length || !writeSeries?.values?.length) return []
-    
-    const data: Array<{time: string, read: number, write: number}> = []
-    const minLength = Math.min(readSeries.values.length, writeSeries.values.length)
-    
-    for (let i = 0; i < minLength; i++) {
-      data.push({
-        time: formatTimestamp(readSeries.values[i].timestamp),
-        read: (readSeries.values[i].value || 0) / (1024 * 1024), // Convert to MB/s
-        write: (writeSeries.values[i].value || 0) / (1024 * 1024)
+    const diskSeries = systemTimeseries?.series?.filter(s => s.metric_name === 'disk_io_rate' && s.labels?.device === 'vda')
+    const readSeries = diskSeries?.find(s => s.labels?.direction === 'read')
+    const writeSeries = diskSeries?.find(s => s.labels?.direction === 'write')
+    const dataMap = new Map()
+
+    if (readSeries?.values?.length && writeSeries?.values?.length) {
+      readSeries.values.forEach(v => {
+        const timestamp = new Date(v.timestamp)
+        const roundedTime = new Date(Math.round(timestamp.getTime() / 30000) * 30000)
+        const key = roundedTime.toISOString()
+        const existing = dataMap.get(key) || { read: 0, write: 0 }
+        dataMap.set(key, { ...existing, read: (v.value || 0) / (1024 * 1024) })
+      })
+
+      writeSeries.values.forEach(v => {
+        const timestamp = new Date(v.timestamp)
+        const roundedTime = new Date(Math.round(timestamp.getTime() / 30000) * 30000)
+        const key = roundedTime.toISOString()
+        const existing = dataMap.get(key) || { read: 0, write: 0 }
+        dataMap.set(key, { ...existing, write: (v.value || 0) / (1024 * 1024) })
       })
     }
-    
-    return data
+
+    return fillTimeSeriesWithRange(dataMap, { read: 0, write: 0 })
   }
 
   const getCpuCoreData = () => {
@@ -370,38 +388,40 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     return points
   }
 
-  const fillTimeSeriesData = (series: TimeSeries | undefined, defaultValue: number = 0) => {
+  // Generic utility to fill time series data across the full time range
+  const fillTimeSeriesWithRange = <T extends Record<string, number | string>>(
+    seriesMap: Map<string, Partial<T>>,
+    defaultValues: T
+  ): Array<T & { time: string }> => {
     const fullTimeRange = generateFullTimeRange()
 
-    if (!series?.values?.length) {
-      return fullTimeRange.map(point => ({
-        time: point.time,
-        count: defaultValue
-      }))
-    }
-
-    // Create a map of existing data points using rounded timestamps
-    const dataMap = new Map()
-    series.values.forEach(v => {
-      // Round timestamp to the nearest interval for better matching
-      const timestamp = new Date(v.timestamp)
-      const roundedTime = new Date(Math.round(timestamp.getTime() / 30000) * 30000) // Round to nearest 30s
-      const key = roundedTime.toISOString()
-      dataMap.set(key, v.value || 0)
-    })
-
-    // Fill the full time range, using actual data where available
     return fullTimeRange.map(point => {
-      // Also round the generated timestamp for matching
       const pointTime = new Date(point.timestamp)
       const roundedPointTime = new Date(Math.round(pointTime.getTime() / 30000) * 30000)
       const key = roundedPointTime.toISOString()
 
+      const dataPoint = seriesMap.get(key)
       return {
         time: point.time,
-        count: Math.max(0, dataMap.get(key) || defaultValue)
-      }
+        ...defaultValues,
+        ...(dataPoint || {})
+      } as T & { time: string }
     })
+  }
+
+  const fillTimeSeriesData = (series: TimeSeries | undefined, defaultValue: number = 0) => {
+    const dataMap = new Map()
+
+    if (series?.values?.length) {
+      series.values.forEach(v => {
+        const timestamp = new Date(v.timestamp)
+        const roundedTime = new Date(Math.round(timestamp.getTime() / 30000) * 30000)
+        const key = roundedTime.toISOString()
+        dataMap.set(key, { count: Math.max(0, v.value || 0) })
+      })
+    }
+
+    return fillTimeSeriesWithRange(dataMap, { count: defaultValue })
   }
 
   const getRequestSuccessCountData = () => {
@@ -566,9 +586,16 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                   <ResponsiveContainer width="100%" height={180}>
                     <AreaChart data={getCpuTimeseriesData()}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                      <XAxis
+                        dataKey="time"
+                        stroke="#888"
+                        fontSize={10}
+                        interval="preserveStartEnd"
+                        domain={['dataMin', 'dataMax']}
+                        type="category"
+                      />
                       <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
                         formatter={(value) => [`${Number(value).toFixed(1)}%`, 'CPU']}
                       />
