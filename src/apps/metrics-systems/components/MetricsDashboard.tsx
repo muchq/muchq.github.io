@@ -82,13 +82,13 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
   const fetchMetrics = useCallback(async () => {
     try {
       onConnectionStateChange('connecting')
-      
+
       // Use environment variable for API URL, defaulting to production URL
-      const apiUrl = import.meta.env.VITE_METRICS_API_URL || 'https://api.muchq.com'
-      
+      const apiUrl = import.meta.env.VITE_METRICS_API_URL || 'https://api.muchq.com/metrics/v1'
+
       // Fetch current system metrics
       try {
-        const systemResponse = await fetch(`${apiUrl}/v1/metrics/system`)
+        const systemResponse = await fetch(`${apiUrl}/scalar/system`)
         if (systemResponse.ok) {
           const text = await systemResponse.text()
           if (text.trim()) {
@@ -102,7 +102,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
 
       // Fetch system timeseries
       try {
-        const systemTimeseriesResponse = await fetch(`${apiUrl}/v1/timeseries/system/${timeRange}`)
+        const systemTimeseriesResponse = await fetch(`${apiUrl}/timeseries/system/${timeRange}`)
         if (systemTimeseriesResponse.ok) {
           const text = await systemTimeseriesResponse.text()
           if (text.trim()) {
@@ -116,7 +116,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
 
       // Fetch container metrics
       try {
-        const containerResponse = await fetch(`${apiUrl}/v1/metrics/containers`)
+        const containerResponse = await fetch(`${apiUrl}/scalar/containers`)
         if (containerResponse.ok) {
           const text = await containerResponse.text()
           if (text.trim()) {
@@ -130,7 +130,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
 
       // Fetch container timeseries
       try {
-        const containerTimeseriesResponse = await fetch(`${apiUrl}/v1/timeseries/containers/${timeRange}`)
+        const containerTimeseriesResponse = await fetch(`${apiUrl}/timeseries/containers/${timeRange}`)
         if (containerTimeseriesResponse.ok) {
           const text = await containerTimeseriesResponse.text()
           if (text.trim()) {
@@ -144,7 +144,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
 
       // Fetch portrait timeseries
       try {
-        const portraitTimeseriesResponse = await fetch(`${apiUrl}/v1/timeseries/portrait/${timeRange}`)
+        const portraitTimeseriesResponse = await fetch(`${apiUrl}/timeseries/portrait/${timeRange}`)
         if (portraitTimeseriesResponse.ok) {
           const text = await portraitTimeseriesResponse.text()
           if (text.trim()) {
@@ -297,14 +297,14 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
 
   const getPortraitMetricsData = () => {
     if (!portraitTimeseries?.series) return []
-    
+
     // Get success rate data
     const successSeries = portraitTimeseries.series.find(s => s.metric_name === 'request_success_rate')
     const cacheSeries = portraitTimeseries.series.find(s => s.metric_name === 'cache_hit_rate')
     const durationSeries = portraitTimeseries.series.find(s => s.metric_name === 'request_duration_avg')
-    
+
     if (!successSeries?.values?.length) return []
-    
+
     return successSeries.values.map((v, i) => ({
       time: formatTimestamp(v.timestamp),
       successRate: Math.max(0, Math.min(100, v.value || 0)),
@@ -316,10 +316,10 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
 
   const getCacheOperationsData = () => {
     if (!portraitTimeseries?.series) return []
-    
+
     const cacheOpsSeries = portraitTimeseries.series.find(s => s.metric_name === 'cache_operations_rate')
     if (!cacheOpsSeries?.values?.length) return []
-    
+
     return cacheOpsSeries.values.map(v => ({
       time: formatTimestamp(v.timestamp),
       operations: v.value || 0
@@ -328,12 +328,12 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
 
   const getSceneComplexityData = () => {
     if (!portraitTimeseries?.series) return []
-    
+
     const sphereSeries = portraitTimeseries.series.find(s => s.metric_name === 'scene_sphere_count')
     const lightSeries = portraitTimeseries.series.find(s => s.metric_name === 'scene_light_count')
-    
+
     if (!sphereSeries?.values?.length) return []
-    
+
     return sphereSeries.values.map((v, i) => ({
       time: formatTimestamp(v.timestamp),
       spheres: v.value || 0,
@@ -436,7 +436,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
 
   const COLORS = {
     primary: '#66b6ff',
-    success: '#66ff66', 
+    success: '#66ff66',
     warning: '#ffcc66',
     danger: '#ff6666',
     info: '#ff66ff',
@@ -501,8 +501,8 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
       <div className={styles.header}>
         <h1 className={styles.title}>Metrics Dashboard</h1>
         <div className={styles.controls}>
-          <select 
-            value={timeRange} 
+          <select
+            value={timeRange}
             onChange={(e) => setTimeRange(e.target.value as '30m' | '1d' | '7d')}
             className={styles.timeRangeSelect}
           >
@@ -566,8 +566,8 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                   <div className={styles.miniValue}>
                     {(() => {
                       const eth0 = systemMetrics.network?.find(n => n.interface === 'eth0')
-                      return eth0 ? 
-                        formatBytes((eth0.rx_rate_bytes_per_sec || 0) + (eth0.tx_rate_bytes_per_sec || 0)) + '/s' 
+                      return eth0 ?
+                        formatBytes((eth0.rx_rate_bytes_per_sec || 0) + (eth0.tx_rate_bytes_per_sec || 0)) + '/s'
                         : '0 B/s'
                     })()}
                   </div>
@@ -618,7 +618,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                       <XAxis dataKey="name" stroke="#888" fontSize={10} />
                       <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
                         formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Usage']}
                       />
@@ -641,7 +641,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                       <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
                       <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
                         formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Memory']}
                       />
@@ -699,7 +699,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                       <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
                       <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value} MB/s`} />
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 204, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
                         formatter={(value, name) => [`${Number(value).toFixed(2)} MB/s`, name === 'read' ? 'Read' : 'Write']}
                       />
@@ -723,7 +723,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                       <XAxis dataKey="name" stroke="#888" fontSize={10} />
                       <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}%`} />
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
                         formatter={(value, name) => [
                           `${Number(value).toFixed(1)}%`,
@@ -750,7 +750,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                       <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
                       <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value} KB/s`} />
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 204, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
                         formatter={(value, name) => [`${Number(value).toFixed(2)} KB/s`, name === 'rx' ? 'Received' : 'Transmitted']}
                       />
@@ -1171,7 +1171,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                       <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
                       <YAxis stroke="#888" fontSize={10} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
                         formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Hit Rate']}
                       />
@@ -1194,7 +1194,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                       <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
                       <YAxis stroke="#888" fontSize={10} tickFormatter={(value) => `${value}/s`} />
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
                         formatter={(value) => [`${Number(value).toFixed(2)}/s`, 'Operations']}
                       />
@@ -1223,7 +1223,7 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                       <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
                       <YAxis stroke="#888" fontSize={10} />
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
                         formatter={(value, name) => [
                           `${Number(value).toFixed(0)}`,

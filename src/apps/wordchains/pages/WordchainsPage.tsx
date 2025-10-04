@@ -22,7 +22,7 @@ const WordchainsPage = () => {
     }
 
     // Use environment variable for API URL, defaulting to production URL
-    const apiUrl = import.meta.env.VITE_MITHRIL_API_URL || 'https://api.muchq.com/v1/wordchain'
+    const apiUrl = import.meta.env.VITE_MITHRIL_API_URL || 'https://api.muchq.com/mithril/v1/wordchain'
 
     try {
       const response = await fetch(apiUrl, {

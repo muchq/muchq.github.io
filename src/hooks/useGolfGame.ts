@@ -23,7 +23,7 @@ interface UseGolfGameReturn {
   peekCountdown: number | null
   winner: string | null
   finalScores: Array<{ playerName: string; score: number }> | null
-  
+
   // Actions
   createRoom: () => void
   createGame: (roomId?: string) => void
@@ -40,7 +40,7 @@ interface UseGolfGameReturn {
   handleCardClick: (index: number) => void
   setRoomCode: (code: string) => void
   clearGameState: () => void
-  
+
   // Computed
   currentPlayer: Player | undefined
   isMyTurn: boolean
@@ -206,12 +206,12 @@ export const useGolfGame = ({
   const handleCardClick = useCallback((index: number) => {
     const currentPlayer = gameState?.players.find(p => p.id === playerId)
     const isPlayersTurn = gameState?.players[gameState.currentPlayerIndex]?.id === playerId
-    
+
     if (!currentPlayer) return
-    
+
     // Don't allow interactions during countdown
     if (peekCountdown !== null) return
-    
+
     if (currentPlayer.revealedCards.length < 2 && !currentPlayer.hasPeeked && !currentPlayer.revealedCards.includes(index)) {
       peekCard(index)
     } else if (isPlayersTurn && gameState?.drawnCard) {
@@ -286,13 +286,13 @@ export const useGolfGame = ({
         setFinalScores(scores)
       }
     })
-    
+
     networkAdapterRef.current = adapter
-    
+
     // Connect to server
-    const websocketUrl = import.meta.env.VITE_GOLF_WEBSOCKET_URL || 'wss://api.muchq.com/golf-ws'
+    const websocketUrl = import.meta.env.VITE_GOLF_WEBSOCKET_URL || 'wss://api.muchq.com/games/v1/golf-ws'
     adapter.connect(websocketUrl)
-    
+
     // Cleanup on unmount
     return () => {
       adapter.disconnect()
@@ -309,25 +309,25 @@ export const useGolfGame = ({
     if (gameState?.gamePhase === 'peeking' && gameState?.allPlayersPeeked) {
       // Start countdown at 3
       setPeekCountdown(3)
-      
+
       const startTime = Date.now()
       countdownIntervalRef.current = window.setInterval(() => {
         const elapsed = Date.now() - startTime
         const secondsElapsed = Math.floor(elapsed / 1000)
         const newCount = Math.max(0, 3 - secondsElapsed)
-        
+
         setPeekCountdown(newCount)
-        
+
         if (secondsElapsed >= 4) { // After showing 0 for a second
           // Countdown finished
           if (countdownIntervalRef.current) {
             clearInterval(countdownIntervalRef.current)
             countdownIntervalRef.current = null
           }
-          
+
           // Hide the countdown overlay
           setPeekCountdown(null)
-          
+
           // Send hideCards message
           if (networkAdapterRef.current) {
             networkAdapterRef.current.hideCards()
@@ -342,7 +342,7 @@ export const useGolfGame = ({
         countdownIntervalRef.current = null
       }
     }
-    
+
     // Cleanup on unmount
     return () => {
       if (countdownIntervalRef.current) {
@@ -365,7 +365,7 @@ export const useGolfGame = ({
     peekCountdown,
     winner,
     finalScores,
-    
+
     // Actions
     createRoom,
     createGame,
@@ -382,7 +382,7 @@ export const useGolfGame = ({
     handleCardClick,
     setRoomCode,
     clearGameState,
-    
+
     // Computed
     currentPlayer,
     isMyTurn

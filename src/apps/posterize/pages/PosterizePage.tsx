@@ -19,6 +19,7 @@ const PosterizePage = () => {
   const [error, setError] = useState<string | null>(null)
   const [gray, setGray] = useState(false)
   const [sigma, setSigma] = useState(8.0)
+  const [operation, setOperation] = useState<'blur' | 'edges'>('blur')
 
   const handleImageSelect = (base64: string) => {
     setSelectedImage(base64)
@@ -41,10 +42,10 @@ const PosterizePage = () => {
     }
 
     // Use environment variable for API URL, defaulting to production URL
-    const apiUrl = import.meta.env.VITE_POSTERIZE_API_URL || 'https://api.muchq.com/v1/imagine/blur'
+    const apiUrl = import.meta.env.VITE_POSTERIZE_API_URL || 'https://api.muchq.com/imagine/v1'
 
     try {
-      const response = await fetch(apiUrl, {
+      const response = await fetch(`${apiUrl}/blur`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -71,6 +72,54 @@ const PosterizePage = () => {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to blur image')
       console.error('Blur error:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleEdges = async () => {
+    if (!selectedImage) return
+
+    setIsLoading(true)
+    setError(null)
+
+    // Scroll to result section on mobile
+    if (window.innerWidth <= 768) {
+      const resultSection = document.querySelector('.resultSection')
+      if (resultSection) {
+        resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }
+
+    // Use environment variable for API URL, defaulting to production URL
+    const apiUrl = import.meta.env.VITE_POSTERIZE_API_URL || 'https://api.muchq.com/imagine/v1'
+
+    try {
+      const response = await fetch(`${apiUrl}/edges`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          b64_png: selectedImage
+        }),
+      })
+
+      const data: BlurResponse = await handleApiResponse<BlurResponse>(response)
+      setBlurredImage(data)
+
+      // Auto-scroll to result after successful edge detection on mobile
+      setTimeout(() => {
+        if (window.innerWidth <= 768) {
+          const resultImage = document.getElementById('result-image')
+          if (resultImage) {
+            resultImage.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }
+      }, 100)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to detect edges')
+      console.error('Edge detection error:', err)
     } finally {
       setIsLoading(false)
     }
@@ -122,7 +171,7 @@ const PosterizePage = () => {
 
       <header className={styles.header}>
         <h1>Posterize</h1>
-        <p>Upload a PNG image and get a beautiful blurred version</p>
+        <p>Transform your images with creative effects</p>
       </header>
 
       <div className={styles.content}>
@@ -135,39 +184,57 @@ const PosterizePage = () => {
               <div className={styles.controls}>
                 <div className={styles.control}>
                   <label>
-                    <input
-                      type="checkbox"
-                      checked={gray}
-                      onChange={(e) => setGray(e.target.checked)}
-                    />
-                    Grayscale blur
+                    Operation:
+                    <select
+                      value={operation}
+                      onChange={(e) => setOperation(e.target.value as 'blur' | 'edges')}
+                      className={styles.select}
+                    >
+                      <option value="blur">Blur</option>
+                      <option value="edges">Edge Detection</option>
+                    </select>
                   </label>
                 </div>
 
-                {!gray && (
-                  <div className={styles.control}>
-                    <label>
-                      Sigma: {sigma.toFixed(1)}
-                      <input
-                        type="range"
-                        min="2.0"
-                        max="20.0"
-                        step="0.5"
-                        value={sigma}
-                        onChange={(e) => setSigma(parseFloat(e.target.value))}
-                        className={styles.slider}
-                      />
-                    </label>
-                  </div>
+                {operation === 'blur' && (
+                  <>
+                    <div className={styles.control}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={gray}
+                          onChange={(e) => setGray(e.target.checked)}
+                        />
+                        Grayscale blur
+                      </label>
+                    </div>
+
+                    {!gray && (
+                      <div className={styles.control}>
+                        <label>
+                          Sigma: {sigma.toFixed(1)}
+                          <input
+                            type="range"
+                            min="2.0"
+                            max="20.0"
+                            step="0.5"
+                            value={sigma}
+                            onChange={(e) => setSigma(parseFloat(e.target.value))}
+                            className={styles.slider}
+                          />
+                        </label>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
               <button
-                onClick={handleBlur}
+                onClick={operation === 'blur' ? handleBlur : handleEdges}
                 disabled={isLoading}
                 className={styles.blurButton}
               >
-                {isLoading ? '🔄 Processing...' : '✨ Blur Image'}
+                {isLoading ? '🔄 Processing...' : operation === 'blur' ? '✨ Blur Image' : '🔍 Detect Edges'}
               </button>
             </div>
           )}
@@ -180,7 +247,7 @@ const PosterizePage = () => {
             {isLoading && (
               <div className={styles.loadingOverlay}>
                 <div className={styles.spinner}></div>
-                <p>Blurring your image...</p>
+                <p>Processing your image...</p>
               </div>
             )}
 
@@ -200,7 +267,7 @@ const PosterizePage = () => {
                 <img
                   id="result-image"
                   src={`data:image/png;base64,${blurredImage.image_data}`}
-                  alt="Blurred result"
+                  alt="Processed result"
                   className={styles.resultImage}
                 />
 
@@ -227,8 +294,8 @@ const PosterizePage = () => {
 
             {!blurredImage && !isLoading && !error && (
               <div className={styles.placeholder}>
-                <p>Your blurred image will appear here</p>
-                <p className={styles.hint}>Upload an image and click "Blur Image" to get started</p>
+                <p>Your processed image will appear here</p>
+                <p className={styles.hint}>Upload an image and choose an effect to get started</p>
               </div>
             )}
           </div>

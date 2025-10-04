@@ -22,12 +22,12 @@ export const useThoughtsGame = () => {
     if (onPlayerIdReceived) {
       networkManager.onPlayerIdReceived = onPlayerIdReceived
     }
-    
+
     // Set callback for connection state changes
     if (onConnectionStateChange) {
       networkManager.onConnectionStateChange = onConnectionStateChange
     }
-    
+
     // Store network manager reference for reconnect functionality
     if (networkManagerRef) {
       networkManagerRef.current = {
@@ -47,11 +47,11 @@ export const useThoughtsGame = () => {
     // Prepare local player data
     const randomSpawnPosition = generateRandomSpawnPosition(GAME_CONFIG.worldBoundary)
     const randomColor = generateRandomColor()
-    
+
     // Create a local player ID immediately (will be replaced by server ID if connected)
     const localPlayerId = 'local-' + Math.random().toString(36).substr(2, 9)
     gameState.localPlayerId = localPlayerId
-    
+
     // Add local player to the game immediately so it renders
     gameState.addPlayer(
       localPlayerId,
@@ -59,7 +59,7 @@ export const useThoughtsGame = () => {
       randomColor,
       ShapeType.SPHERE
     )
-    
+
     // Notify that we have a player ID (even if offline)
     if (onPlayerIdReceived) {
       onPlayerIdReceived(localPlayerId)
@@ -492,19 +492,19 @@ export const useThoughtsGame = () => {
               // Calculate projection matching the shader's inverse process
               // In shader: rayDir = normalize(forward + ndc.x * right * fov + ndc.y * up * fov)
               // We need to reverse this to get NDC from world position
-              
+
               // First get the projected position in camera space
               const projX = rightDot / dotForward
               const projY = upDot / dotForward
-              
+
               // Apply FOV (inverse of shader's multiplication)
               const ndcX = projX / shaderFov
               const ndcY = projY / shaderFov
-              
+
               // The shader applies aspect ratio to NDC.x before ray calculation
               // So we need to divide by aspect ratio to get screen NDC
               const screenNdcX = ndcX / aspectRatio
-              
+
               // Convert to screen coordinates
               const screenX = (screenNdcX + 1) * 0.5 * window.innerWidth
               const screenY = (1 - ndcY) * 0.5 * window.innerHeight
@@ -645,8 +645,8 @@ export const useThoughtsGame = () => {
     }
 
     // Connect to server (or simulate connection) - but don't block game from starting
-    const websocketUrl = import.meta.env.VITE_THOUGHTS_WEBSOCKET_URL || 'wss://api.muchq.com/thoughts-ws'
-    
+    const websocketUrl = import.meta.env.VITE_THOUGHTS_WEBSOCKET_URL || 'wss://api.muchq.com/games/v1/thoughts-ws'
+
     // Delay connection attempt slightly to ensure game renders first
     setTimeout(() => {
       networkManager.connect(websocketUrl)
