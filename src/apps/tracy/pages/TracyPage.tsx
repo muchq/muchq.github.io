@@ -63,7 +63,7 @@ const TracyPage = () => {
     }
 
     // Use environment variable for API URL, defaulting to production URL
-    const apiUrl = import.meta.env.VITE_TRACY_API_URL || 'https://api.muchq.com/v1/trace'
+    const apiUrl = import.meta.env.VITE_TRACY_API_URL || 'https://api.muchq.com/portrait/v1/trace'
 
     try {
       const response = await fetch(apiUrl, {
@@ -141,10 +141,10 @@ const TracyPage = () => {
     setError(null)
 
     // Use environment variable for Posterize API URL, defaulting to production URL
-    const posterizeApiUrl = import.meta.env.VITE_POSTERIZE_API_URL || 'https://api.muchq.com/v1/imagine/blur'
+    const posterizeApiUrl = import.meta.env.VITE_POSTERIZE_API_URL || 'https://api.muchq.com/imagine/v1'
 
     try {
-      const response = await fetch(posterizeApiUrl, {
+      const response = await fetch(`${posterizeApiUrl}/blur`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -182,6 +182,52 @@ const TracyPage = () => {
     }
   }
 
+  const detectEdges = async () => {
+    if (!imageData) return
+
+    setIsLoading(true)
+    setError(null)
+
+    // Use environment variable for Posterize API URL, defaulting to production URL
+    const posterizeApiUrl = import.meta.env.VITE_POSTERIZE_API_URL || 'https://api.muchq.com/imagine/v1'
+
+    try {
+      const response = await fetch(`${posterizeApiUrl}/edges`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          b64_png: imageData.base64_png
+        }),
+      })
+
+      const edgesData = await handleApiResponse<BlurResponse>(response)
+
+      // Replace the current image with the edge-detected version
+      setImageData({
+        base64_png: edgesData.image_data,
+        width: edgesData.width,
+        height: edgesData.height
+      })
+
+      // Show success feedback
+      const button = document.getElementById('edges-button')
+      if (button) {
+        const originalText = button.textContent
+        button.textContent = '✅ Detected!'
+        setTimeout(() => {
+          button.textContent = originalText
+        }, 2000)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to detect edges')
+      console.error('Edge detection error:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
 
   return (
     <div className={styles.container}>
@@ -190,12 +236,12 @@ const TracyPage = () => {
         <h1>Tracy Ray Tracer</h1>
         <p>Interactive scene editor for ray tracing</p>
       </header>
-      
+
       <div className={styles.content}>
         <div className={styles.editorSection}>
           <TracySceneEditor onRender={handleRender} isLoading={isLoading} />
         </div>
-        
+
         <div className={styles.canvasSection}>
           <div className={styles.canvasWrapper}>
             {isLoading && (
@@ -204,7 +250,7 @@ const TracyPage = () => {
                 <p>Rendering scene...</p>
               </div>
             )}
-            
+
             {error && (
               <div className={styles.errorOverlay}>
                 <div className={styles.errorContent}>
@@ -212,7 +258,7 @@ const TracyPage = () => {
                 </div>
               </div>
             )}
-            
+
             {imageData && !isLoading && (
               <canvas
                 id="render-canvas"
@@ -234,7 +280,7 @@ const TracyPage = () => {
                 }}
               />
             )}
-            
+
             {!imageData && !isLoading && !error && (
               <div className={styles.placeholder}>
                 <p>Rendered image will appear here</p>
@@ -262,6 +308,14 @@ const TracyPage = () => {
                 className={styles.blurButton}
               >
                 🌊 Blur
+              </button>
+              <button
+                id="edges-button"
+                onClick={detectEdges}
+                disabled={isLoading}
+                className={styles.blurButton}
+              >
+                🔍 Detect Edges
               </button>
             </div>
           )}
