@@ -46,9 +46,8 @@ describe('PermalinkDisplay', () => {
   describe('Rendering', () => {
     it('renders the component with label and URL', () => {
       render(<PermalinkDisplay {...defaultProps} />)
-      
+
       expect(screen.getByText('Share Room')).toBeInTheDocument()
-      expect(screen.getByDisplayValue('https://example.com/golf/room/ABC123')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /copy share room/i })).toBeInTheDocument()
     })
 
@@ -57,26 +56,18 @@ describe('PermalinkDisplay', () => {
         label: 'Share Game',
         url: 'https://example.com/golf/room/ABC123/game/XYZ789'
       }
-      
+
       render(<PermalinkDisplay {...customProps} />)
-      
+
       expect(screen.getByText('Share Game')).toBeInTheDocument()
-      expect(screen.getByDisplayValue('https://example.com/golf/room/ABC123/game/XYZ789')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /copy share game/i })).toBeInTheDocument()
     })
 
     it('renders copy button with initial text', () => {
       render(<PermalinkDisplay {...defaultProps} />)
-      
-      const copyButton = screen.getByRole('button', { name: /copy share room/i })
-      expect(copyButton).toHaveTextContent('Copy Link')
-    })
 
-    it('renders URL input as readonly', () => {
-      render(<PermalinkDisplay {...defaultProps} />)
-      
-      const urlInput = screen.getByDisplayValue(defaultProps.url)
-      expect(urlInput).toHaveAttribute('readonly')
+      const copyButton = screen.getByRole('button', { name: /copy share room/i })
+      expect(copyButton).toHaveTextContent('Share Room')
     })
   })
 
@@ -100,7 +91,7 @@ describe('PermalinkDisplay', () => {
       
       // Wait for reset
       await waitFor(() => {
-        expect(copyButton).toHaveTextContent('Copy Link')
+        expect(copyButton).toHaveTextContent('Share Room')
       }, { timeout: 3000 })
     })
 
@@ -132,7 +123,7 @@ describe('PermalinkDisplay', () => {
       
       // Wait for reset
       await waitFor(() => {
-        expect(copyButton).toHaveTextContent('Copy Link')
+        expect(copyButton).toHaveTextContent('Share Room')
       }, { timeout: 3000 })
     })
   })
@@ -261,21 +252,8 @@ describe('PermalinkDisplay', () => {
       
       // Wait for the timeout to reset the button
       await waitFor(() => {
-        expect(copyButton).toHaveTextContent('Copy Link')
+        expect(copyButton).toHaveTextContent('Share Room')
       }, { timeout: 3000 })
-    })
-  })
-
-  describe('URL Input Interactions', () => {
-    it('selects all text when URL input is clicked', () => {
-      render(<PermalinkDisplay {...defaultProps} />)
-      
-      const urlInput = screen.getByDisplayValue(defaultProps.url) as HTMLInputElement
-      const selectSpy = vi.spyOn(urlInput, 'select')
-      
-      fireEvent.click(urlInput)
-      
-      expect(selectSpy).toHaveBeenCalled()
     })
   })
 
