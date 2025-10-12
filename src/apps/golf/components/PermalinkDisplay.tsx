@@ -62,7 +62,7 @@ const PermalinkDisplay = ({ label, url, onCopy }: PermalinkDisplayProps) => {
       case 'error':
         return 'Failed'
       default:
-        return 'Copy Link'
+        return label
     }
   }
 
@@ -81,26 +81,14 @@ const PermalinkDisplay = ({ label, url, onCopy }: PermalinkDisplayProps) => {
 
   return (
     <div className={styles.permalinkDisplay}>
-      <div className={styles.labelRow}>
-        <span className={styles.label}>{label}</span>
-        <button
-          onClick={copyToClipboard}
-          disabled={copyStatus === 'copying'}
-          className={getButtonClass()}
-          aria-label={`Copy ${label.toLowerCase()}`}
-        >
-          {getButtonText()}
-        </button>
-      </div>
-      <div className={styles.urlRow}>
-        <input
-          type="text"
-          value={url}
-          readOnly
-          className={styles.urlInput}
-          onClick={(e) => e.currentTarget.select()}
-        />
-      </div>
+      <button
+        onClick={copyToClipboard}
+        disabled={copyStatus === 'copying'}
+        className={getButtonClass()}
+        aria-label={`Copy ${label.toLowerCase()}`}
+      >
+        {getButtonText()}
+      </button>
     </div>
   )
 }
