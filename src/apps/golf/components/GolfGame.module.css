@@ -144,6 +144,21 @@
   margin-bottom: 2rem;
 }
 
+.gameHeaderTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+.gameHeaderInfo {
+  flex: 1;
+}
+
+.gameHeaderShare {
+  flex-shrink: 0;
+}
+
 .playerList {
   display: flex;
   gap: 1rem;
@@ -526,6 +541,16 @@
     font-size: 0.9rem;
     margin: 0;
   }
+  
+  .gameHeaderTop {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+  }
+  
+  .gameHeaderInfo {
+    text-align: center;
+  }
 
   .playerList {
     flex-wrap: wrap;
@@ -743,6 +768,12 @@
 
   .gameHeader h2 {
     font-size: 1rem;
+  }
+  
+  .gameHeaderTop {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: center;
   }
 
   .playerList {
@@ -1161,8 +1192,23 @@
 }
 
 .roomHeader {
-  text-align: center;
   margin-bottom: 2rem;
+}
+
+.roomHeaderTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+}
+
+.roomHeaderInfo {
+  text-align: center;
+  flex: 1;
+}
+
+.roomHeaderShare {
+  flex-shrink: 0;
 }
 
 .roomInfo {
@@ -1182,6 +1228,16 @@
   .roomContent {
     grid-template-columns: 1fr;
     gap: 1.5rem;
+  }
+  
+  .roomHeaderTop {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .roomHeaderInfo {
+    text-align: center;
   }
 }
 
@@ -1398,4 +1454,164 @@
 .tertiaryButton:hover {
   color: white;
   border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Permalink Display Sections */
+.permalinkSection {
+  margin-bottom: 1.5rem;
+}
+
+.gamePermalinkSection {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* New Game Notifications */
+.newGameNotificationsSection {
+  background: rgba(144, 238, 144, 0.05);
+  backdrop-filter: blur(10px);
+  padding: 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(144, 238, 144, 0.2);
+  margin-bottom: 1.5rem;
+  grid-column: span 2;
+}
+
+.newGameNotificationsSection h3 {
+  color: #90ee90;
+  font-family: 'Lexend', sans-serif;
+  font-size: 1.2rem;
+  margin: 0 0 1rem 0;
+  text-align: center;
+}
+
+.notificationsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* New Game Join Section in Game End Overlay */
+.newGameJoinSection {
+  background: rgba(144, 238, 144, 0.1);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin: 1rem 0;
+  border: 1px solid rgba(144, 238, 144, 0.2);
+}
+
+.newGameJoinTitle {
+  color: #90ee90;
+  font-family: 'Lexend', sans-serif;
+  font-size: 1.1rem;
+  margin: 0 0 0.75rem 0;
+  text-align: center;
+}
+
+.newGameJoinList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.newGameJoinItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.newGameJoinInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.newGameJoinId {
+  color: white;
+  font-weight: 500;
+  font-size: 0.9rem;
+  font-family: 'Lexend', sans-serif;
+}
+
+.newGameJoinTime {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+  font-family: 'Lexend', sans-serif;
+}
+
+.newGameJoinButton {
+  background: #90ee90;
+  color: #0d5016;
+  border: none;
+  border-radius: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  font-family: 'Lexend', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.newGameJoinButton:hover {
+  background: #7dd87d;
+  transform: translateY(-1px);
+}
+
+.newGameJoinButton:active {
+  transform: scale(0.95);
+  transition: transform 0.1s ease;
+}
+
+@media (max-width: 768px) {
+  .permalinkSection {
+    margin-bottom: 1rem;
+  }
+  
+  .gamePermalinkSection {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+  }
+  
+  .newGameNotificationsSection {
+    grid-column: span 1;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .newGameNotificationsSection h3 {
+    font-size: 1rem;
+  }
+  
+  .newGameJoinItem {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  
+  .newGameJoinButton {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .newGameNotificationsSection {
+    padding: 0.75rem;
+  }
+  
+  .newGameJoinSection {
+    padding: 0.75rem;
+  }
+  
+  .newGameJoinTitle {
+    font-size: 1rem;
+  }
 }

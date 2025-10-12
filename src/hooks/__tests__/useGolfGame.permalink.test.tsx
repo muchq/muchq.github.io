@@ -3,6 +3,11 @@ import { renderHook } from '@testing-library/react'
 import { useGolfGame } from '../useGolfGame'
 import type { ParsedPermalinkParams } from '../../utils/golfPermalinks'
 
+// Mock React Router hooks
+vi.mock('react-router-dom', () => ({
+  useNavigate: vi.fn(() => vi.fn())
+}))
+
 // Simple mock for the network adapter
 vi.mock('../../utils/networkAdapter', () => ({
   GolfNetworkAdapter: vi.fn().mockImplementation(() => ({
@@ -45,7 +50,8 @@ describe('useGolfGame permalink functionality', () => {
         isAttempting: false,
         roomId: null,
         gameId: null,
-        error: null
+        error: null,
+        gameJoinAttempted: false
       })
     })
 
@@ -73,7 +79,8 @@ describe('useGolfGame permalink functionality', () => {
         isAttempting: false,
         roomId: null,
         gameId: null,
-        error: null
+        error: null,
+        gameJoinAttempted: false
       })
     })
 
@@ -136,7 +143,8 @@ describe('useGolfGame permalink functionality', () => {
         isAttempting: false,
         roomId: null,
         gameId: null,
-        error: null
+        error: null,
+        gameJoinAttempted: false
       })
     })
   })
