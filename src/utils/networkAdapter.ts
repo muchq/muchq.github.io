@@ -112,6 +112,7 @@ export class GolfNetworkAdapter {
     onNotification?: (message: string) => void
     onConnectionChange?: (connected: boolean) => void
     onGameEnded?: (winner: string, finalScores: FinalScore[]) => void
+    onNewGameStarted?: (gameId: string, previousGameId?: string) => void
   }) {
     // Create manager with connection state callback
     this.manager = new NetworkManager({
@@ -143,7 +144,8 @@ export class GolfNetworkAdapter {
         callbacks?.onRoomStateUpdate?.(roomState)
       },
       onNotification: callbacks?.onNotification,
-      onGameEnded: callbacks?.onGameEnded
+      onGameEnded: callbacks?.onGameEnded,
+      onNewGameStarted: callbacks?.onNewGameStarted
     })
 
     // Register the plugin

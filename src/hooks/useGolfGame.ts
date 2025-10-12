@@ -1,12 +1,16 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { GameState, Player, Room } from '@/types/golf'
 import { GolfNetworkAdapter } from '@/utils/networkAdapter'
+import type { ParsedPermalinkParams } from '@/utils/golfPermalinks'
+import { generateRoomPermalink, generateGamePermalink } from '@/utils/golfPermalinks'
 
 interface UseGolfGameProps {
   onGameIdChange?: (id: string | null) => void
   onPlayerIdChange?: (id: string | null) => void
   onPlayerNameChange?: (name: string | null) => void
   onConnectionChange?: (connected: boolean) => void
+  permalinkParams?: ParsedPermalinkParams
 }
 
 interface UseGolfGameReturn {
@@ -23,7 +27,35 @@ interface UseGolfGameReturn {
   peekCountdown: number | null
   winner: string | null
   finalScores: Array<{ playerName: string; score: number }> | null
-
+  
+  // New game notifications
+  newGameNotifications: Array<{
+    gameId: string
+    timestamp: number
+    dismissed: boolean
+  }>
+  
+  // Permalink state
+  permalinkJoinAttempt: {
+    isAttempting: boolean
+    roomId: string | null
+    gameId: string | null
+    error: string | null
+    gameJoinAttempted: boolean
+  }
+  
+  // Permalink URLs
+  currentRoomPermalink: string | null
+  currentGamePermalink: string | null
+  
+  // Navigation helpers
+  navigateToRoom: (roomId: string) => void
+  navigateToGame: (roomId: string, gameId: string) => void
+  copyRoomLink: () => Promise<void>
+  copyGameLink: () => Promise<void>
+  dismissNewGameNotification: (gameId: string) => void
+  joinNewGame: (gameId: string) => void
+  
   // Actions
   createRoom: () => void
   createGame: (roomId?: string) => void
@@ -50,7 +82,8 @@ export const useGolfGame = ({
   onGameIdChange,
   onPlayerIdChange,
   onPlayerNameChange,
-  onConnectionChange
+  onConnectionChange,
+  permalinkParams
 }: UseGolfGameProps = {}): UseGolfGameReturn => {
   const [gameState, setGameState] = useState<GameState | null>(null)
   const [roomState, setRoomState] = useState<Room | null>(null)
@@ -64,9 +97,26 @@ export const useGolfGame = ({
   const [peekCountdown, setPeekCountdown] = useState<number | null>(null)
   const [winner, setWinner] = useState<string | null>(null)
   const [finalScores, setFinalScores] = useState<Array<{ playerName: string; score: number }> | null>(null)
+  const [permalinkJoinAttempt, setPermalinkJoinAttempt] = useState({
+    isAttempting: false,
+    roomId: null as string | null,
+    gameId: null as string | null,
+    error: null as string | null,
+    gameJoinAttempted: false
+  })
+  const [isManualNavigation, setIsManualNavigation] = useState(false)
+  const [, setIsCreatingNewGame] = useState(false)
+  const [newGameNotifications, setNewGameNotifications] = useState<Array<{
+    gameId: string
+    timestamp: number
+    dismissed: boolean
+  }>>([])
+  const isCreatingNewGameRef = useRef(false)
   const networkAdapterRef = useRef<GolfNetworkAdapter | null>(null)
+  const permalinkTimeoutRef = useRef<number | null>(null)
   const notificationTimeoutRef = useRef<number | null>(null)
   const countdownIntervalRef = useRef<number | null>(null)
+  const navigate = useNavigate()
 
   const showNotification = useCallback((message: string) => {
     setNotification(message)
@@ -147,8 +197,14 @@ export const useGolfGame = ({
       showNotification('Not connected to server')
       return
     }
+    if (!roomState?.id) {
+      showNotification('Must be in a room to create a new game')
+      return
+    }
+    setIsCreatingNewGame(true)
+    isCreatingNewGameRef.current = true
     networkAdapterRef.current.startNewGame()
-  }, [showNotification])
+  }, [showNotification, roomState?.id])
 
   const peekCard = useCallback((index: number) => {
     if (!networkAdapterRef.current) {
@@ -226,6 +282,107 @@ export const useGolfGame = ({
     setSelectedCardIndex(null)
   }, [])
 
+  // Navigation helper functions
+  const navigateToRoom = useCallback((roomId: string) => {
+    const roomUrl = generateRoomPermalink(roomId)
+    navigate(roomUrl, { replace: false })
+  }, [navigate])
+
+  const navigateToGame = useCallback((roomId: string, gameId: string) => {
+    const gameUrl = generateGamePermalink(roomId, gameId)
+    navigate(gameUrl, { replace: false })
+  }, [navigate])
+
+  // Permalink URL generation
+  const currentRoomPermalink = roomState?.id ? 
+    `${window.location.origin}${generateRoomPermalink(roomState.id)}` : null
+  
+  const currentGamePermalink = (roomState?.id && gameState?.id) ? 
+    `${window.location.origin}${generateGamePermalink(roomState.id, gameState.id)}` : null
+
+  // Copy link functions
+  const copyRoomLink = useCallback(async () => {
+    if (!currentRoomPermalink) {
+      throw new Error('No room permalink available')
+    }
+    
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(currentRoomPermalink)
+    } else {
+      // Fallback method
+      const textArea = document.createElement('textarea')
+      textArea.value = currentRoomPermalink
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-999999px'
+      textArea.style.top = '-999999px'
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      
+      const successful = document.execCommand('copy')
+      document.body.removeChild(textArea)
+      
+      if (!successful) {
+        throw new Error('Failed to copy room link')
+      }
+    }
+    
+    showNotification('Room link copied to clipboard!')
+  }, [currentRoomPermalink, showNotification])
+
+  const copyGameLink = useCallback(async () => {
+    if (!currentGamePermalink) {
+      throw new Error('No game permalink available')
+    }
+    
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(currentGamePermalink)
+    } else {
+      // Fallback method
+      const textArea = document.createElement('textarea')
+      textArea.value = currentGamePermalink
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-999999px'
+      textArea.style.top = '-999999px'
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      
+      const successful = document.execCommand('copy')
+      document.body.removeChild(textArea)
+      
+      if (!successful) {
+        throw new Error('Failed to copy game link')
+      }
+    }
+    
+    showNotification('Game link copied to clipboard!')
+  }, [currentGamePermalink, showNotification])
+
+  // New game notification handlers
+  const dismissNewGameNotification = useCallback((gameId: string) => {
+    setNewGameNotifications(prev => 
+      prev.map(notification => 
+        notification.gameId === gameId 
+          ? { ...notification, dismissed: true }
+          : notification
+      )
+    )
+  }, [])
+
+  const joinNewGame = useCallback((gameId: string) => {
+    if (!roomState?.id) {
+      showNotification('Must be in a room to join a game')
+      return
+    }
+    
+    // Dismiss the notification
+    dismissNewGameNotification(gameId)
+    
+    // Join the game
+    joinGame(gameId)
+  }, [roomState?.id, dismissNewGameNotification, joinGame, showNotification])
+
   // Computed values
   const currentPlayer = gameState?.players.find(p => p.id === playerId)
   const isMyTurn = gameState?.players[gameState.currentPlayerIndex]?.id === playerId
@@ -243,7 +400,18 @@ export const useGolfGame = ({
         onPlayerIdChange?.(newPlayerId)
         const player = newRoomState.players.find(p => p.id === newPlayerId)
         onPlayerNameChange?.(player?.name || null)
-        showNotification('Joined room successfully!')
+        
+        // Show different message for permalink vs manual joins
+        if (permalinkJoinAttempt.isAttempting) {
+          showNotification(`Joined room ${newRoomState.id} via permalink!`)
+        } else {
+          showNotification('Joined room successfully!')
+          // Update URL for manual joins (not permalink joins)
+          setIsManualNavigation(true)
+          navigateToRoom(newRoomState.id)
+          // Reset flag after navigation
+          setTimeout(() => setIsManualNavigation(false), 200)
+        }
       },
       onRoomStateUpdate: (newRoomState) => {
         setRoomState(newRoomState)
@@ -262,13 +430,61 @@ export const useGolfGame = ({
         onPlayerIdChange?.(newPlayerId)
         const player = newGameState.players.find(p => p.id === newPlayerId)
         onPlayerNameChange?.(player?.name || null)
-        showNotification('Joined game successfully!')
+        
+        // Show different message for permalink vs manual joins vs new game creation
+        if (permalinkJoinAttempt.isAttempting) {
+          showNotification(`Joined game ${newGameState.id} via permalink!`)
+        } else if (isCreatingNewGameRef.current) {
+          showNotification(`Created and joined new game ${newGameState.id}!`)
+          // Update URL for new game creation
+          // Use the network adapter's roomState to get the current room ID
+          const currentRoomState = networkAdapterRef.current?.roomState
+          if (currentRoomState?.id) {
+            setIsManualNavigation(true)
+            navigateToGame(currentRoomState.id, newGameState.id)
+            // Reset flag after navigation
+            setTimeout(() => setIsManualNavigation(false), 200)
+          }
+          setIsCreatingNewGame(false)
+          isCreatingNewGameRef.current = false
+        } else {
+          showNotification('Joined game successfully!')
+          // Update URL for manual joins (not permalink joins)
+          // We need the room ID, which should be available from roomState
+          if (roomState?.id) {
+            setIsManualNavigation(true)
+            navigateToGame(roomState.id, newGameState.id)
+            // Reset flag after navigation
+            setTimeout(() => setIsManualNavigation(false), 200)
+          }
+        }
       },
       onGameStateUpdate: (newGameState) => {
         setGameState(newGameState)
       },
       onNotification: (message) => {
         showNotification(message)
+        
+        // Handle permalink join errors
+        if (permalinkJoinAttempt.isAttempting) {
+          // Check for common error messages that indicate join failure
+          if (message.includes('not found') || message.includes('does not exist') || 
+              message.includes('failed to join') || message.includes('error')) {
+            // Clear timeout and set error
+            if (permalinkTimeoutRef.current) {
+              clearTimeout(permalinkTimeoutRef.current)
+              permalinkTimeoutRef.current = null
+            }
+            setPermalinkJoinAttempt({
+              isAttempting: false,
+              roomId: null,
+              gameId: null,
+              error: message,
+              gameJoinAttempted: false
+            })
+          }
+        }
+        
         // Parse game end notifications
         if (message.includes('Winner:')) {
           const winnerMatch = message.match(/Winner: (.+)/)
@@ -284,6 +500,34 @@ export const useGolfGame = ({
       onGameEnded: (winnerName, scores) => {
         setWinner(winnerName)
         setFinalScores(scores)
+      },
+      onNewGameStarted: (gameId, _previousGameId) => {
+        // If we were creating a new game, automatically join it
+        // Use ref to get current state since this callback is created once
+        const currentRoomState = networkAdapterRef.current?.roomState
+        if (isCreatingNewGameRef.current && currentRoomState?.id && gameId) {
+          // Auto-joining newly created game
+          // Join the new game automatically
+          adapter.joinGame(currentRoomState.id, gameId)
+        } else if (gameId) {
+          // Add notification for other players about the new game
+          setNewGameNotifications(prev => {
+            // Check if we already have a notification for this game
+            const existingNotification = prev.find(n => n.gameId === gameId)
+            if (existingNotification) {
+              return prev
+            }
+            
+            // Add new notification
+            return [...prev, {
+              gameId,
+              timestamp: Date.now(),
+              dismissed: false
+            }]
+          })
+          
+          showNotification(`New game ${gameId} started! Click to join.`)
+        }
       }
     })
 
@@ -299,10 +543,170 @@ export const useGolfGame = ({
       if (notificationTimeoutRef.current) {
         clearTimeout(notificationTimeoutRef.current)
       }
+      if (permalinkTimeoutRef.current) {
+        clearTimeout(permalinkTimeoutRef.current)
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, showNotification])
-  // gameState intentionally omitted from dependencies to prevent network adapter recreation
+  // gameState, roomState, isCreatingNewGame intentionally omitted from dependencies to prevent network adapter recreation
+
+  // Handle permalink-based automatic joining
+  useEffect(() => {
+    // Only attempt permalink joining if we have valid params and are connected
+    if (!permalinkParams || !permalinkParams.isValid || !isConnected || !networkAdapterRef.current) {
+      return
+    }
+
+    // Don't attempt if we're already in the process of joining
+    if (permalinkJoinAttempt.isAttempting) {
+      return
+    }
+
+    // Don't attempt if we're already in the target room/game
+    if (permalinkParams.roomId && roomState?.id === permalinkParams.roomId) {
+      if (permalinkParams.gameId) {
+        // Check if we're already in the target game
+        if (gameState?.id === permalinkParams.gameId) {
+          return
+        }
+        // We're in the right room but need to join the game
+        // Only attempt if we haven't already tried to join this game
+        if (!permalinkJoinAttempt.gameJoinAttempted) {
+          setPermalinkJoinAttempt({
+            isAttempting: true,
+            roomId: permalinkParams.roomId,
+            gameId: permalinkParams.gameId,
+            error: null,
+            gameJoinAttempted: true
+          })
+          networkAdapterRef.current.joinGame(permalinkParams.roomId, permalinkParams.gameId)
+        }
+      }
+      return
+    }
+
+    // Start the joining process
+    setPermalinkJoinAttempt({
+      isAttempting: true,
+      roomId: permalinkParams.roomId,
+      gameId: permalinkParams.gameId,
+      error: null,
+      gameJoinAttempted: false
+    })
+
+    // Set a timeout for the join attempt
+    permalinkTimeoutRef.current = window.setTimeout(() => {
+      setPermalinkJoinAttempt({
+        isAttempting: false,
+        roomId: null,
+        gameId: null,
+        error: 'Join attempt timed out. Please try again.',
+        gameJoinAttempted: false
+      })
+      showNotification('Join attempt timed out. Please try again.')
+    }, 10000) // 10 second timeout
+
+    if (permalinkParams.roomId) {
+      // Join the room first
+      networkAdapterRef.current.joinRoom(permalinkParams.roomId)
+    }
+  }, [permalinkParams, isConnected, roomState?.id, gameState?.id, permalinkJoinAttempt.isAttempting, permalinkJoinAttempt.gameJoinAttempted, showNotification])
+
+  // Handle successful room join for permalink flow
+  useEffect(() => {
+    if (!permalinkJoinAttempt.isAttempting || !permalinkJoinAttempt.roomId || !roomState) {
+      return
+    }
+
+    // If we successfully joined the target room
+    if (roomState.id === permalinkJoinAttempt.roomId) {
+      // If we also need to join a specific game
+      if (permalinkJoinAttempt.gameId && networkAdapterRef.current && !permalinkJoinAttempt.gameJoinAttempted) {
+        // Check if the game exists in the room
+        if (roomState.games[permalinkJoinAttempt.gameId]) {
+          // Mark that we're attempting to join the game to prevent duplicate calls
+          setPermalinkJoinAttempt(prev => ({
+            ...prev,
+            gameJoinAttempted: true
+          }))
+          networkAdapterRef.current.joinGame(permalinkJoinAttempt.roomId, permalinkJoinAttempt.gameId)
+        } else {
+          // Game doesn't exist, clear attempt with error
+          setPermalinkJoinAttempt({
+            isAttempting: false,
+            roomId: null,
+            gameId: null,
+            error: `Game ${permalinkJoinAttempt.gameId} not found in room`,
+            gameJoinAttempted: false
+          })
+          showNotification(`Game ${permalinkJoinAttempt.gameId} not found in room`)
+        }
+      } else if (!permalinkJoinAttempt.gameId) {
+        // Only needed to join room, clear attempt and timeout
+        if (permalinkTimeoutRef.current) {
+          clearTimeout(permalinkTimeoutRef.current)
+          permalinkTimeoutRef.current = null
+        }
+        setPermalinkJoinAttempt({
+          isAttempting: false,
+          roomId: null,
+          gameId: null,
+          error: null,
+          gameJoinAttempted: false
+        })
+      }
+    }
+  }, [roomState, permalinkJoinAttempt, showNotification])
+
+  // Handle successful game join for permalink flow
+  useEffect(() => {
+    if (!permalinkJoinAttempt.isAttempting || !permalinkJoinAttempt.gameId || !gameState) {
+      return
+    }
+
+    // If we successfully joined the target game
+    if (gameState.id === permalinkJoinAttempt.gameId) {
+      // Clear timeout and attempt
+      if (permalinkTimeoutRef.current) {
+        clearTimeout(permalinkTimeoutRef.current)
+        permalinkTimeoutRef.current = null
+      }
+      setPermalinkJoinAttempt({
+        isAttempting: false,
+        roomId: null,
+        gameId: null,
+        error: null,
+        gameJoinAttempted: false
+      })
+    }
+  }, [gameState, permalinkJoinAttempt])
+
+  // Handle URL synchronization for state changes (back/forward navigation support)
+  useEffect(() => {
+    // Only update URL if we're not currently attempting a permalink join or manual navigation
+    // This prevents navigation loops
+    if (permalinkJoinAttempt.isAttempting || isManualNavigation) {
+      return
+    }
+
+    // If we have both room and game state, ensure URL reflects game
+    if (roomState && gameState && roomState.id && gameState.id) {
+      const expectedUrl = generateGamePermalink(roomState.id, gameState.id)
+      const currentPath = window.location.pathname
+      if (currentPath !== expectedUrl) {
+        navigate(expectedUrl, { replace: true })
+      }
+    }
+    // If we only have room state, ensure URL reflects room
+    else if (roomState && roomState.id && !gameState) {
+      const expectedUrl = generateRoomPermalink(roomState.id)
+      const currentPath = window.location.pathname
+      if (currentPath !== expectedUrl && !currentPath.includes('/game/')) {
+        navigate(expectedUrl, { replace: true })
+      }
+    }
+  }, [roomState, gameState, permalinkJoinAttempt.isAttempting, isManualNavigation, navigate])
 
   // Handle peek countdown when all players have peeked
   useEffect(() => {
@@ -365,7 +769,17 @@ export const useGolfGame = ({
     peekCountdown,
     winner,
     finalScores,
-
+  
+    // New game notifications
+    newGameNotifications,
+    
+    // Permalink state
+    permalinkJoinAttempt,
+    
+    // Permalink URLs
+    currentRoomPermalink,
+    currentGamePermalink,
+  
     // Actions
     createRoom,
     createGame,
@@ -382,6 +796,14 @@ export const useGolfGame = ({
     handleCardClick,
     setRoomCode,
     clearGameState,
+    
+    // Navigation helpers
+    navigateToRoom,
+    navigateToGame,
+    copyRoomLink,
+    copyGameLink,
+    dismissNewGameNotification,
+    joinNewGame,
 
     // Computed
     currentPlayer,

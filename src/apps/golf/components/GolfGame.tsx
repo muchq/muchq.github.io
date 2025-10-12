@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import styles from './GolfGame.module.css'
 import { useGolfGame } from '@/hooks/useGolfGame'
+import PermalinkDisplay from './PermalinkDisplay'
+import NewGameNotification from './NewGameNotification'
+import type { ParsedPermalinkParams } from '../../../utils/golfPermalinks'
 
 interface Card {
   rank: string
@@ -18,10 +21,13 @@ interface GolfGameProps {
   onPlayerIdChange: (id: string | null) => void
   onPlayerNameChange: (name: string | null) => void
   onConnectionChange: (connected: boolean) => void
+  permalinkParams: ParsedPermalinkParams
 }
 
-const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange }: GolfGameProps) => {
+const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams }: GolfGameProps) => {
   const [showRules, setShowRules] = useState(false)
+
+  // Pass permalink parameters to useGolfGame hook for automatic joining
 
   // Helper function to get display name (now just use the ID directly)
   const getDisplayName = (player: Player | null) => {
@@ -41,6 +47,9 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     isMyTurn,
     peekCountdown,
     winner,
+    currentRoomPermalink,
+    currentGamePermalink,
+    newGameNotifications,
     createRoom,
     createGame,
     joinRoom,
@@ -54,8 +63,10 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     knock,
     handleCardClick,
     setRoomCode,
-    clearGameState
-  } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange })
+    clearGameState,
+    dismissNewGameNotification,
+    joinNewGame
+  } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams })
 
   const renderCard = (card: Card | null, index: number, isRevealed: boolean, isPlayer: boolean) => {
     const isSelected = selectedCardIndex === index
@@ -201,13 +212,48 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     return (
       <div className={styles.roomLobby}>
         <div className={styles.roomHeader}>
-          <h1 className={styles.title}>Room: {roomState.id}</h1>
-          <p className={styles.roomInfo}>
-            {roomState.players.length} player{roomState.players.length !== 1 ? 's' : ''} in room
-          </p>
+          <div className={styles.roomHeaderTop}>
+            <div className={styles.roomHeaderInfo}>
+              <h1 className={styles.title}>Room: {roomState.id}</h1>
+              <p className={styles.roomInfo}>
+                {roomState.players.length} player{roomState.players.length !== 1 ? 's' : ''} in room
+              </p>
+            </div>
+            {currentRoomPermalink && (
+              <div className={styles.roomHeaderShare}>
+                <PermalinkDisplay
+                  label="Share Room"
+                  url={currentRoomPermalink}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         <div className={styles.roomContent}>
+
+          {/* New Game Notifications */}
+          {newGameNotifications.filter(n => !n.dismissed).length > 0 && (
+            <div className={styles.newGameNotificationsSection}>
+              <h3>🎮 New Games Available</h3>
+              <div className={styles.notificationsList}>
+                {newGameNotifications
+                  .filter(n => !n.dismissed)
+                  .sort((a, b) => b.timestamp - a.timestamp)
+                  .map(notification => (
+                    <NewGameNotification
+                      key={notification.gameId}
+                      gameId={notification.gameId}
+                      roomId={roomState.id}
+                      onJoin={joinNewGame}
+                      onDismiss={dismissNewGameNotification}
+                      timestamp={notification.timestamp}
+                    />
+                  ))}
+              </div>
+            </div>
+          )}
+
           <div className={styles.playersSection}>
             <h3>Players in Room</h3>
             <div className={styles.roomPlayerList}>
@@ -295,19 +341,31 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
   return (
     <div className={styles.gameContainer}>
       <div className={styles.gameHeader}>
-        <h2>Room: {gameState.id}</h2>
-        <div className={styles.playerList}>
-          {gameState.players.map((player, index) => (
-            <div
-              key={player.id}
-              className={`${styles.playerInfo} ${index === gameState.currentPlayerIndex ? styles.active : ''}`}
-            >
-              <span>{getDisplayName(player)}</span>
-              {gameState.gamePhase === 'ended' && (
-                <span className={styles.score}>Score: {player.score}</span>
-              )}
+        <div className={styles.gameHeaderTop}>
+          <div className={styles.gameHeaderInfo}>
+            <h2>Room: {gameState.id}</h2>
+            <div className={styles.playerList}>
+              {gameState.players.map((player, index) => (
+                <div
+                  key={player.id}
+                  className={`${styles.playerInfo} ${index === gameState.currentPlayerIndex ? styles.active : ''}`}
+                >
+                  <span>{getDisplayName(player)}</span>
+                  {gameState.gamePhase === 'ended' && (
+                    <span className={styles.score}>Score: {player.score}</span>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+          {currentGamePermalink && (
+            <div className={styles.gameHeaderShare}>
+              <PermalinkDisplay
+                label="Share Game"
+                url={currentGamePermalink}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -327,11 +385,11 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
         <div className={styles.gameEndOverlay}>
           <div className={styles.gameEndContent}>
             <div className={styles.celebration}>
-                {currentPlayer && getDisplayName(currentPlayer) === winner ? (
-                  <span className={styles.trophy}>🏆</span>
-                ) : (
-                  <span className={styles.trophy}>😢</span>
-                )}
+              {currentPlayer && getDisplayName(currentPlayer) === winner ? (
+                <span className={styles.trophy}>🏆</span>
+              ) : (
+                <span className={styles.trophy}>😢</span>
+              )}
               <h2 className={styles.gameOverTitle}>Game Over!</h2>
             </div>
             {winner && (
@@ -390,6 +448,35 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                       </span>
                     </div>
                   ))}
+              </div>
+            )}
+
+            {/* New Game Join Options */}
+            {roomState && newGameNotifications.filter(n => !n.dismissed).length > 0 && (
+              <div className={styles.newGameJoinSection}>
+                <h3 className={styles.newGameJoinTitle}>🎮 Join New Games</h3>
+                <div className={styles.newGameJoinList}>
+                  {newGameNotifications
+                    .filter(n => !n.dismissed)
+                    .sort((a, b) => b.timestamp - a.timestamp)
+                    .slice(0, 3) // Show max 3 most recent
+                    .map(notification => (
+                      <div key={notification.gameId} className={styles.newGameJoinItem}>
+                        <div className={styles.newGameJoinInfo}>
+                          <span className={styles.newGameJoinId}>Game: {notification.gameId}</span>
+                          <span className={styles.newGameJoinTime}>
+                            {new Date(notification.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => joinNewGame(notification.gameId)}
+                          className={styles.newGameJoinButton}
+                        >
+                          Join Game
+                        </button>
+                      </div>
+                    ))}
+                </div>
               </div>
             )}
 
