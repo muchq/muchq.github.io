@@ -25,10 +25,7 @@ interface GolfGameProps {
 const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams }: GolfGameProps) => {
   const [showRules, setShowRules] = useState(false)
 
-  // TODO: permalinkParams will be used in task 3 to enhance useGolfGame hook with permalink parsing logic
-  // For now, we're just setting up the infrastructure
-  // Temporary reference to avoid unused parameter warning
-  void permalinkParams
+  // Pass permalink parameters to useGolfGame hook for automatic joining
 
   // Helper function to get display name (now just use the ID directly)
   const getDisplayName = (player: Player | null) => {
@@ -62,7 +59,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     handleCardClick,
     setRoomCode,
     clearGameState
-  } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange })
+  } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams })
 
   const renderCard = (card: Card | null, index: number, isRevealed: boolean, isPlayer: boolean) => {
     const isSelected = selectedCardIndex === index
