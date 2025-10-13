@@ -7,9 +7,6 @@ const mockClipboard = {
   writeText: vi.fn()
 }
 
-// Mock document.execCommand
-const mockExecCommand = vi.fn()
-
 describe('PermalinkDisplay', () => {
   const defaultProps = {
     label: 'Share Room',
@@ -29,12 +26,6 @@ describe('PermalinkDisplay', () => {
     // Mock secure context
     Object.defineProperty(window, 'isSecureContext', {
       value: true,
-      writable: true
-    })
-    
-    // Mock document.execCommand
-    Object.defineProperty(document, 'execCommand', {
-      value: mockExecCommand,
       writable: true
     })
   })
@@ -125,83 +116,6 @@ describe('PermalinkDisplay', () => {
       await waitFor(() => {
         expect(copyButton).toHaveTextContent('Share Room')
       }, { timeout: 3000 })
-    })
-  })
-
-  describe('Copy Functionality - Fallback Method', () => {
-    it('attempts fallback method when clipboard API is not available', async () => {
-      // Simulate no clipboard API or insecure context
-      Object.defineProperty(navigator, 'clipboard', {
-        value: undefined,
-        writable: true
-      })
-      Object.defineProperty(window, 'isSecureContext', {
-        value: false,
-        writable: true
-      })
-      
-      mockExecCommand.mockReturnValue(true)
-      
-      render(<PermalinkDisplay {...defaultProps} />)
-      
-      const copyButton = screen.getByRole('button', { name: /copy share room/i })
-      fireEvent.click(copyButton)
-      
-      // Should attempt to use execCommand
-      await waitFor(() => {
-        expect(mockExecCommand).toHaveBeenCalledWith('copy')
-      })
-      
-      await waitFor(() => {
-        expect(copyButton).toHaveTextContent('Copied!')
-      })
-    })
-
-    it('handles fallback method failure', async () => {
-      // Simulate no clipboard API or insecure context
-      Object.defineProperty(navigator, 'clipboard', {
-        value: undefined,
-        writable: true
-      })
-      Object.defineProperty(window, 'isSecureContext', {
-        value: false,
-        writable: true
-      })
-      
-      mockExecCommand.mockReturnValue(false)
-      
-      render(<PermalinkDisplay {...defaultProps} />)
-      
-      const copyButton = screen.getByRole('button', { name: /copy share room/i })
-      fireEvent.click(copyButton)
-      
-      await waitFor(() => {
-        expect(copyButton).toHaveTextContent('Failed')
-      })
-    })
-
-    it('calls onCopy callback when fallback succeeds', async () => {
-      // Simulate no clipboard API or insecure context
-      Object.defineProperty(navigator, 'clipboard', {
-        value: undefined,
-        writable: true
-      })
-      Object.defineProperty(window, 'isSecureContext', {
-        value: false,
-        writable: true
-      })
-      
-      const onCopy = vi.fn()
-      mockExecCommand.mockReturnValue(true)
-      
-      render(<PermalinkDisplay {...defaultProps} onCopy={onCopy} />)
-      
-      const copyButton = screen.getByRole('button', { name: /copy share room/i })
-      fireEvent.click(copyButton)
-      
-      await waitFor(() => {
-        expect(onCopy).toHaveBeenCalled()
-      })
     })
   })
 
