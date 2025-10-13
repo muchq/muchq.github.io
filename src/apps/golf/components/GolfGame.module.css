@@ -746,6 +746,28 @@
     width: 1.5rem;
     height: 1.5rem;
   }
+
+  .cumulativeScores {
+    padding: 1rem;
+    margin: 1rem 0;
+  }
+
+  .cumulativeTitle {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .cumulativeRow {
+    grid-template-columns: 1.5fr 0.8fr 0.8fr 0.8fr 0.9fr;
+    gap: 0.3rem;
+    padding: 0.5rem 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  .cumulativeRow .playerName {
+    font-size: 0.75rem;
+    word-break: break-word;
+  }
 }
 
 @media (max-width: 480px) {
@@ -853,6 +875,26 @@
     width: 100%;
     padding: 0.85rem;
   }
+
+  .cumulativeScores {
+    padding: 0.75rem;
+    margin: 0.75rem 0;
+  }
+
+  .cumulativeTitle {
+    font-size: 0.95rem;
+  }
+
+  .cumulativeRow {
+    grid-template-columns: 1.2fr 0.7fr 0.7fr 0.8fr 0.9fr;
+    gap: 0.25rem;
+    padding: 0.4rem 0.3rem;
+    font-size: 0.7rem;
+  }
+
+  .cumulativeRow .playerName {
+    font-size: 0.7rem;
+  }
 }
 
 /* Game End Overlay Styles */
@@ -875,6 +917,8 @@
   border-radius: 1rem;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  max-height: 85vh;
+  overflow-y: auto;
 }
 
 .gameEndContent h3 {
