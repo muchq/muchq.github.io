@@ -16,32 +16,9 @@ const PermalinkDisplay = ({ label, url, onCopy }: PermalinkDisplayProps) => {
     setCopyStatus('copying')
 
     try {
-      // Try modern Clipboard API first
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(url)
-        setCopyStatus('success')
-        onCopy?.()
-      } else {
-        // Fallback method for older browsers or non-secure contexts
-        const textArea = document.createElement('textarea')
-        textArea.value = url
-        textArea.style.position = 'fixed'
-        textArea.style.left = '-999999px'
-        textArea.style.top = '-999999px'
-        document.body.appendChild(textArea)
-        textArea.focus()
-        textArea.select()
-        
-        const successful = document.execCommand('copy')
-        document.body.removeChild(textArea)
-        
-        if (successful) {
-          setCopyStatus('success')
-          onCopy?.()
-        } else {
-          throw new Error('Fallback copy method failed')
-        }
-      }
+      await navigator.clipboard.writeText(url)
+      setCopyStatus('success')
+      onCopy?.()
     } catch (error) {
       console.error('Failed to copy permalink:', error)
       setCopyStatus('error')
