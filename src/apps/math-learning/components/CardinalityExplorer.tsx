@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import styles from './CardinalityExplorer.module.css'
 
 interface CardinalityExplorerProps {
@@ -23,7 +23,6 @@ interface InfiniteSet {
 const CardinalityExplorer = ({ mode }: CardinalityExplorerProps) => {
   const [selectedSet1, setSelectedSet1] = useState<string>('')
   const [selectedSet2, setSelectedSet2] = useState<string>('')
-  const [comparisonResult, setComparisonResult] = useState<string>('')
 
   const finiteSets: FiniteSet[] = useMemo(() => [
     { name: 'Empty Set', elements: [], color: '#ff6b6b' },
@@ -86,28 +85,30 @@ const CardinalityExplorer = ({ mode }: CardinalityExplorerProps) => {
     }
   ], [])
 
-  const compareCardinalities = useCallback(() => {
+  const comparisonResult = useMemo(() => {
+    if (!selectedSet1 || !selectedSet2) return ''
+
     if (mode === 'finite') {
       const set1 = finiteSets.find(s => s.name === selectedSet1)
       const set2 = finiteSets.find(s => s.name === selectedSet2)
       
-      if (!set1 || !set2) return
+      if (!set1 || !set2) return ''
       
       const card1 = set1.elements.length
       const card2 = set2.elements.length
       
       if (card1 === card2) {
-        setComparisonResult(`Both sets have cardinality ${card1}. They are equipotent (same size).`)
+        return `Both sets have cardinality ${card1}. They are equipotent (same size).`
       } else if (card1 < card2) {
-        setComparisonResult(`${set1.name} (|A| = ${card1}) has smaller cardinality than ${set2.name} (|B| = ${card2}).`)
+        return `${set1.name} (|A| = ${card1}) has smaller cardinality than ${set2.name} (|B| = ${card2}).`
       } else {
-        setComparisonResult(`${set1.name} (|A| = ${card1}) has larger cardinality than ${set2.name} (|B| = ${card2}).`)
+        return `${set1.name} (|A| = ${card1}) has larger cardinality than ${set2.name} (|B| = ${card2}).`
       }
     } else {
       const set1 = infiniteSets.find(s => s.name === selectedSet1)
       const set2 = infiniteSets.find(s => s.name === selectedSet2)
       
-      if (!set1 || !set2) return
+      if (!set1 || !set2) return ''
       
       const countableNames = ['Natural Numbers', 'Whole Numbers', 'Integers', 'Rational Numbers']
       
@@ -115,24 +116,16 @@ const CardinalityExplorer = ({ mode }: CardinalityExplorerProps) => {
       const isSet2Countable = countableNames.includes(set2.name)
       
       if (isSet1Countable && isSet2Countable) {
-        setComparisonResult(`Both ${set1.name} and ${set2.name} have the same infinite cardinality ℵ₀ (countably infinite).`)
+        return `Both ${set1.name} and ${set2.name} have the same infinite cardinality ℵ₀ (countably infinite).`
       } else if (!isSet1Countable && !isSet2Countable) {
-        setComparisonResult(`Both ${set1.name} and ${set2.name} have the same infinite cardinality 𝔠 (uncountably infinite).`)
+        return `Both ${set1.name} and ${set2.name} have the same infinite cardinality 𝔠 (uncountably infinite).`
       } else if (isSet1Countable && !isSet2Countable) {
-        setComparisonResult(`${set1.name} (ℵ₀) has smaller cardinality than ${set2.name} (𝔠). There are "more" real numbers than natural numbers!`)
+        return `${set1.name} (ℵ₀) has smaller cardinality than ${set2.name} (𝔠). There are "more" real numbers than natural numbers!`
       } else {
-        setComparisonResult(`${set2.name} (ℵ₀) has smaller cardinality than ${set1.name} (𝔠). There are "more" real numbers than natural numbers!`)
+        return `${set2.name} (ℵ₀) has smaller cardinality than ${set1.name} (𝔠). There are "more" real numbers than natural numbers!`
       }
     }
   }, [mode, selectedSet1, selectedSet2, finiteSets, infiniteSets])
-
-  useEffect(() => {
-    if (selectedSet1 && selectedSet2) {
-      compareCardinalities()
-    } else {
-      setComparisonResult('')
-    }
-  }, [selectedSet1, selectedSet2, mode, compareCardinalities])
 
   const FiniteSetCard = ({ set, isSelected, onClick }: { set: FiniteSet, isSelected: boolean, onClick: () => void }) => (
     <div 

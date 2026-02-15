@@ -116,8 +116,6 @@ const ResilienceGamePage = () => {
   })
 
   const [budget, setBudget] = useState(1000) // Starting budget in dollars
-  const [serverMetrics, setServerMetrics] = useState<SystemMetrics>()
-  const [dbMetrics, setDbMetrics] = useState<SystemMetrics>()
   const [gamePhase, setGamePhase] = useState<'setup' | 'running' | 'scaling'>('setup')
   const intervalRef = useRef<number | undefined>(undefined)
 
@@ -163,11 +161,8 @@ const ResilienceGamePage = () => {
     architectureRef.current = architecture
   }, [systemState, architecture])
 
-  // Update metrics when RPS or architecture changes
-  useEffect(() => {
-    setServerMetrics(calculateServerMetrics(systemState.rps, architecture))
-    setDbMetrics(calculateDbMetrics(systemState.rps, architecture))
-  }, [systemState.rps, architecture])
+  const serverMetrics = calculateServerMetrics(systemState.rps, architecture)
+  const dbMetrics = calculateDbMetrics(systemState.rps, architecture)
 
   // Handle component purchases
   const purchaseComponent = (componentId: string) => {

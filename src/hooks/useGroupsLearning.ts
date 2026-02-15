@@ -11,31 +11,29 @@ interface UseGroupsLearningReturn {
 
 export const useGroupsLearning = (): UseGroupsLearningReturn => {
   const [activeTab, setActiveTab] = useState('overview')
-  const [completedSections, setCompletedSections] = useState<Set<string>>(new Set())
-  const [progress, setProgress] = useState(0)
-
-  // Load saved progress from localStorage
-  useEffect(() => {
+  const [completedSections, setCompletedSections] = useState<Set<string>>(() => {
     const saved = localStorage.getItem('groupsProgress')
     if (saved) {
       try {
         const sections = JSON.parse(saved)
-        setCompletedSections(new Set(sections))
+        return new Set(sections)
       } catch (error) {
         console.error('Failed to load progress:', error)
       }
     }
-  }, [])
+    return new Set()
+  })
+
+  // Calculate progress percentage (5 chapters total)
+  const totalChapters = 5
+  const completedCount = Array.from(completedSections).filter(section =>
+    section.startsWith('chapter')
+  ).length
+  const progress = (completedCount / totalChapters) * 100
 
   // Save progress to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('groupsProgress', JSON.stringify(Array.from(completedSections)))
-    // Calculate progress percentage (5 chapters total)
-    const totalChapters = 5
-    const completedCount = Array.from(completedSections).filter(section => 
-      section.startsWith('chapter')
-    ).length
-    setProgress((completedCount / totalChapters) * 100)
   }, [completedSections])
 
   const markComplete = useCallback((section: string) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import styles from './SetQuiz.module.css'
 
 interface SetQuizProps {
@@ -24,15 +24,7 @@ interface QuizState {
 }
 
 const SetQuiz = ({ module }: SetQuizProps) => {
-  const [quizState, setQuizState] = useState<QuizState>({
-    currentQuestion: 0,
-    selectedAnswer: null,
-    showExplanation: false,
-    score: 0,
-    answers: [],
-    isCompleted: false
-  })
-
+  const [prevModule, setPrevModule] = useState(module)
   const quizData: { [key: number]: QuizQuestion[] } = {
     1: [ // Basic Set Theory
       {
@@ -209,6 +201,15 @@ const SetQuiz = ({ module }: SetQuizProps) => {
 
   const questions = quizData[module] || []
 
+  const [quizState, setQuizState] = useState<QuizState>(() => ({
+    currentQuestion: 0,
+    selectedAnswer: null,
+    showExplanation: false,
+    score: 0,
+    answers: new Array(questions.length).fill(null),
+    isCompleted: false
+  }))
+
   const resetQuiz = useCallback(() => {
     setQuizState({
       currentQuestion: 0,
@@ -220,9 +221,17 @@ const SetQuiz = ({ module }: SetQuizProps) => {
     })
   }, [questions.length])
 
-  useEffect(() => {
-    resetQuiz()
-  }, [module, resetQuiz])
+  if (module !== prevModule) {
+    setPrevModule(module)
+    setQuizState({
+      currentQuestion: 0,
+      selectedAnswer: null,
+      showExplanation: false,
+      score: 0,
+      answers: new Array(questions.length).fill(null),
+      isCompleted: false
+    })
+  }
 
   const handleAnswerSelect = (answerIndex: number) => {
     setQuizState(prev => ({

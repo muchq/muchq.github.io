@@ -117,6 +117,7 @@ const PathHomotopyAnimator: React.FC = () => {
   ]);
   const [basePoint] = useState<Point>({ x: 150, y: 200 });
   const [showFundamentalGroup, setShowFundamentalGroup] = useState(false);
+  const [pathCounter, setPathCounter] = useState(0);
   const canvasRef = useRef<SVGSVGElement>(null);
 
   const pathColors = ['#ff0080', '#00ffff', '#39ff14', '#ff9f00', '#ff00ff'];
@@ -424,13 +425,14 @@ const PathHomotopyAnimator: React.FC = () => {
     
     if (isValidPath(currentPath)) {
       const newPath: Path = {
-        id: `path-${Date.now()}`,
+        id: `path-${pathCounter}`,
         points: currentPath,
         color: pathColors[paths.length % pathColors.length],
         isLoop
       };
       
       setPaths(prev => [...prev, newPath]);
+      setPathCounter(prev => prev + 1);
     }
     
     setIsDrawing(false);

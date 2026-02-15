@@ -3,20 +3,30 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { useTopologyQuest } from '../useTopologyQuest'
 
-// Mock useNavigate
-const mockNavigate = vi.fn()
+const mocks = vi.hoisted(() => ({
+  navigate: vi.fn(),
+  params: { module: 'sets' }
+}))
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
   return {
     ...actual,
-    useNavigate: () => mockNavigate,
-    useParams: () => ({ module: 'sets' })
+    useNavigate: () => (path: string) => {
+      mocks.navigate(path)
+      const parts = path.split('/')
+      if (parts[1] === 'top' && parts[2]) {
+        mocks.params.module = parts[2]
+      }
+    },
+    useParams: () => mocks.params
   }
 })
 
 describe('useTopologyQuest', () => {
   beforeEach(() => {
-    mockNavigate.mockClear()
+    mocks.navigate.mockClear()
+    mocks.params.module = 'sets'
   })
 
   it('should initialize with sets module', () => {
@@ -49,7 +59,7 @@ describe('useTopologyQuest', () => {
   })
 
   it('should navigate to next module', () => {
-    const { result } = renderHook(() => useTopologyQuest(), {
+    const { result, rerender } = renderHook(() => useTopologyQuest(), {
       wrapper: ({ children }) => (
         <MemoryRouter initialEntries={['/top/sets']}>
           {children}
@@ -61,14 +71,17 @@ describe('useTopologyQuest', () => {
       result.current.navigateToNextModule()
     })
 
+    // Rerender to reflect the new params
+    rerender()
+
     expect(result.current.activeModule).toBe('functions')
-    expect(mockNavigate).toHaveBeenCalledWith('/top/functions')
+    expect(mocks.navigate).toHaveBeenCalledWith('/top/functions')
     const moduleInfo = result.current.getModuleInfo()
     expect(moduleInfo.moduleNumber).toBe(2)
   })
 
   it('should navigate to previous module', () => {
-    const { result } = renderHook(() => useTopologyQuest(), {
+    const { result, rerender } = renderHook(() => useTopologyQuest(), {
       wrapper: ({ children }) => (
         <MemoryRouter initialEntries={['/top/functions']}>
           {children}
@@ -80,18 +93,20 @@ describe('useTopologyQuest', () => {
     act(() => {
       result.current.setActiveModule('functions')
     })
+    rerender()
 
     // Then go back
     act(() => {
       result.current.navigateToPreviousModule()
     })
+    rerender()
 
     expect(result.current.activeModule).toBe('sets')
-    expect(mockNavigate).toHaveBeenCalledWith('/top/sets')
+    expect(mocks.navigate).toHaveBeenCalledWith('/top/sets')
   })
 
   it('should calculate progress percentage correctly', () => {
-    const { result } = renderHook(() => useTopologyQuest(), {
+    const { result, rerender } = renderHook(() => useTopologyQuest(), {
       wrapper: ({ children }) => (
         <MemoryRouter initialEntries={['/top/sets']}>
           {children}
@@ -106,13 +121,14 @@ describe('useTopologyQuest', () => {
     act(() => {
       result.current.setActiveModule('functionspaces')
     })
+    rerender()
 
     expect(result.current.getProgressPercentage()).toBe(100)
     expect(result.current.isLastModule()).toBe(true)
   })
 
   it('should navigate to specific module', () => {
-    const { result } = renderHook(() => useTopologyQuest(), {
+    const { result, rerender } = renderHook(() => useTopologyQuest(), {
       wrapper: ({ children }) => (
         <MemoryRouter initialEntries={['/top/sets']}>
           {children}
@@ -123,9 +139,10 @@ describe('useTopologyQuest', () => {
     act(() => {
       result.current.setActiveModule('compactness')
     })
+    rerender()
 
     expect(result.current.activeModule).toBe('compactness')
-    expect(mockNavigate).toHaveBeenCalledWith('/top/compactness')
+    expect(mocks.navigate).toHaveBeenCalledWith('/top/compactness')
     const moduleInfo = result.current.getModuleInfo()
     expect(moduleInfo.title).toBe('Compactness')
     expect(moduleInfo.moduleNumber).toBe(8)

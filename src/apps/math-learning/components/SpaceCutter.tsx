@@ -104,6 +104,19 @@ const customSelectStyles: StylesConfig<SpaceOption, false> = {
 };
 
 
+const lineSegmentsIntersect = (
+  x1: number, y1: number, x2: number, y2: number,
+  x3: number, y3: number, x4: number, y4: number
+): boolean => {
+  const det = (x2 - x1) * (y4 - y3) - (x4 - x3) * (y2 - y1);
+  if (Math.abs(det) < 0.0001) return false;
+
+  const t = ((x3 - x1) * (y4 - y3) - (x4 - x3) * (y3 - y1)) / det;
+  const u = -((x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1)) / det;
+
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+};
+
 const SpaceCutter: React.FC = () => {
   const [selectedSpace, setSelectedSpace] = useState<SpaceType>('graph');
   const [points, setPoints] = useState<Point[]>([
@@ -176,19 +189,6 @@ const SpaceCutter: React.FC = () => {
     
     return components;
   }, [points, edges, removedPoints, isCutByAnyLine]);
-
-  const lineSegmentsIntersect = (
-    x1: number, y1: number, x2: number, y2: number,
-    x3: number, y3: number, x4: number, y4: number
-  ): boolean => {
-    const det = (x2 - x1) * (y4 - y3) - (x4 - x3) * (y2 - y1);
-    if (Math.abs(det) < 0.0001) return false;
-    
-    const t = ((x3 - x1) * (y4 - y3) - (x4 - x3) * (y3 - y1)) / det;
-    const u = -((x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1)) / det;
-    
-    return t >= 0 && t <= 1 && u >= 0 && u <= 1;
-  };
 
   const handleMouseDown = (e: React.MouseEvent<SVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();

@@ -138,63 +138,41 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
     }
   }, [])
 
-  const initAudio = useCallback(() => {
-    if (isMobile.current) {
-      return initMobileAudio()
-    } else {
-      return initWebAudio()
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const encodeWAV = useCallback((buffer: AudioBuffer): ArrayBuffer => {
+    const length = buffer.length
+    const arrayBuffer = new ArrayBuffer(44 + length * 2)
+    const view = new DataView(arrayBuffer)
+    const channelData = buffer.getChannelData(0)
 
-  const initWebAudio = useCallback(() => {
-    if (audioContextRef.current) return
-    
-    try {
-      const AudioContextClass = (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ||
-        (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-      if (AudioContextClass) {
-        audioContextRef.current = new AudioContextClass()
-        
-        // Resume if suspended (browser autoplay policy)
-        if (audioContextRef.current.state === 'suspended') {
-          audioContextRef.current.resume()
-        }
-        
-        // Set up gain nodes for volume control
-        gainNodeRef.current = audioContextRef.current.createGain()
-        gainNodeRef.current.gain.value = 0.15 // Overall volume
-        gainNodeRef.current.connect(audioContextRef.current.destination)
-        
-        conversationGainNodeRef.current = audioContextRef.current.createGain()
-        conversationGainNodeRef.current.gain.value = 0.05 // Conversation volume
-        conversationGainNodeRef.current.connect(audioContextRef.current.destination)
+    const writeString = (offset: number, string: string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i))
       }
-    } catch (error) {
-      console.warn('Failed to initialize Web Audio:', error)
     }
+
+    writeString(0, 'RIFF')
+    view.setUint32(4, 36 + length * 2, true)
+    writeString(8, 'WAVE')
+    writeString(12, 'fmt ')
+    view.setUint32(16, 16, true)
+    view.setUint16(20, 1, true)
+    view.setUint16(22, 1, true)
+    view.setUint32(24, buffer.sampleRate, true)
+    view.setUint32(28, buffer.sampleRate * 2, true)
+    view.setUint16(32, 2, true)
+    view.setUint16(34, 16, true)
+    writeString(36, 'data')
+    view.setUint32(40, length * 2, true)
+
+    let offset = 44
+    for (let i = 0; i < length; i++) {
+      const sample = Math.max(-1, Math.min(1, channelData[i]))
+      view.setInt16(offset, sample * 0x7FFF, true)
+      offset += 2
+    }
+
+    return arrayBuffer
   }, [])
-
-  const initMobileAudio = useCallback(() => {
-    try {
-      // Create audio context for mobile
-      const AudioContextClass = (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ||
-        (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-      if (AudioContextClass) {
-        audioContextRef.current = new AudioContextClass()
-      }
-
-      // Create HTML5 audio for background music on mobile
-      const musicBuffer = createMobileBackgroundTrack()
-      const blob = new Blob([musicBuffer], { type: 'audio/wav' })
-      const url = URL.createObjectURL(blob)
-      
-      html5BackgroundAudio.current = new Audio(url)
-      html5BackgroundAudio.current.loop = true
-      html5BackgroundAudio.current.volume = 0.1
-    } catch (error) {
-      console.warn('Failed to initialize mobile audio:', error)
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const createMobileBackgroundTrack = useCallback((): ArrayBuffer => {
     const sampleRate = 44100
@@ -253,42 +231,264 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
     }
     
     return encodeWAV(buffer)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [encodeWAV])
 
-  const encodeWAV = useCallback((buffer: AudioBuffer): ArrayBuffer => {
-    const length = buffer.length
-    const arrayBuffer = new ArrayBuffer(44 + length * 2)
-    const view = new DataView(arrayBuffer)
-    const channelData = buffer.getChannelData(0)
-
-    const writeString = (offset: number, string: string) => {
-      for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i))
+  const initMobileAudio = useCallback(() => {
+    try {
+      // Create audio context for mobile
+      const AudioContextClass = (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ||
+        (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      if (AudioContextClass) {
+        audioContextRef.current = new AudioContextClass()
       }
+
+      // Create HTML5 audio for background music on mobile
+      const musicBuffer = createMobileBackgroundTrack()
+      const blob = new Blob([musicBuffer], { type: 'audio/wav' })
+      const url = URL.createObjectURL(blob)
+
+      html5BackgroundAudio.current = new Audio(url)
+      html5BackgroundAudio.current.loop = true
+      html5BackgroundAudio.current.volume = 0.1
+    } catch (error) {
+      console.warn('Failed to initialize mobile audio:', error)
+    }
+  }, [createMobileBackgroundTrack])
+
+  const initWebAudio = useCallback(() => {
+    if (audioContextRef.current) return
+
+    try {
+      const AudioContextClass = (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ||
+        (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      if (AudioContextClass) {
+        audioContextRef.current = new AudioContextClass()
+
+        // Resume if suspended (browser autoplay policy)
+        if (audioContextRef.current.state === 'suspended') {
+          audioContextRef.current.resume()
+        }
+
+        // Set up gain nodes for volume control
+        gainNodeRef.current = audioContextRef.current.createGain()
+        gainNodeRef.current.gain.value = 0.15 // Overall volume
+        gainNodeRef.current.connect(audioContextRef.current.destination)
+
+        conversationGainNodeRef.current = audioContextRef.current.createGain()
+        conversationGainNodeRef.current.gain.value = 0.05 // Conversation volume
+        conversationGainNodeRef.current.connect(audioContextRef.current.destination)
+      }
+    } catch (error) {
+      console.warn('Failed to initialize Web Audio:', error)
+    }
+  }, [])
+
+  const initAudio = useCallback(() => {
+    if (isMobile.current) {
+      return initMobileAudio()
+    } else {
+      return initWebAudio()
+    }
+  }, [initMobileAudio, initWebAudio])
+
+  // 8-bit style oscillator with envelope
+  const play8BitNote = useCallback((frequency: number, startTime: number, duration: number, type: OscillatorType = 'square', gainTarget?: GainNode) => {
+    if (!audioContextRef.current || !gainNodeRef.current) return
+
+    const target = gainTarget || gainNodeRef.current
+    const osc = audioContextRef.current.createOscillator()
+    const noteGain = audioContextRef.current.createGain()
+
+    osc.type = type
+    osc.frequency.value = frequency
+
+    // ADSR envelope for 8-bit feel
+    noteGain.gain.setValueAtTime(0, startTime)
+    noteGain.gain.linearRampToValueAtTime(0.3, startTime + 0.01) // Attack
+    noteGain.gain.linearRampToValueAtTime(0.2, startTime + 0.05) // Decay
+    noteGain.gain.exponentialRampToValueAtTime(0.01, startTime + duration) // Release
+
+    osc.connect(noteGain)
+    noteGain.connect(target)
+
+    osc.start(startTime)
+    osc.stop(startTime + duration)
+  }, [])
+
+  const startMobileSoundtrack = useCallback(() => {
+    if (!html5BackgroundAudio.current) return
+
+    musicPlayingRef.current = true
+
+    // Resume audio context if suspended (mobile requirement)
+    if (audioContextRef.current?.state === 'suspended') {
+      audioContextRef.current.resume()
     }
 
-    writeString(0, 'RIFF')
-    view.setUint32(4, 36 + length * 2, true)
-    writeString(8, 'WAVE')
-    writeString(12, 'fmt ')
-    view.setUint32(16, 16, true)
-    view.setUint16(20, 1, true)
-    view.setUint16(22, 1, true)
-    view.setUint32(24, buffer.sampleRate, true)
-    view.setUint32(28, buffer.sampleRate * 2, true)
-    view.setUint16(32, 2, true)
-    view.setUint16(34, 16, true)
-    writeString(36, 'data')
-    view.setUint32(40, length * 2, true)
+    const playPromise = html5BackgroundAudio.current.play()
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        // Silent failure for mobile audio
+        musicPlayingRef.current = false
+      })
+    }
+  }, [])
 
-    let offset = 44
-    for (let i = 0; i < length; i++) {
-      const sample = Math.max(-1, Math.min(1, channelData[i]))
-      view.setInt16(offset, sample * 0x7FFF, true)
-      offset += 2
+  const startWebSoundtrack = useCallback(() => {
+    if (!audioContextRef.current || musicPlayingRef.current) return
+
+    // Resume audio context if it's suspended (browser autoplay policy)
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume().catch((error) => {
+        console.warn('Failed to resume audio context:', error)
+      })
     }
 
-    return arrayBuffer
+    musicPlayingRef.current = true
+
+    // Jazz chord progressions (ii-V-I in C major)
+    const chords = [
+      [146.83, 174.61, 220.00, 261.63], // Dm7
+      [196.00, 246.94, 293.66, 349.23], // G7
+      [130.81, 164.81, 196.00, 246.94], // Cmaj7
+      [110.00, 130.81, 164.81, 196.00], // Am7
+    ]
+
+    // Melody notes for jazzy licks
+    const melodyScale = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25] // C major scale
+
+    const bpm = 70 // Slow, chill tempo
+    const beatLength = 60 / bpm
+    let currentTime = audioContextRef.current.currentTime
+
+    // Main music loop
+    const scheduleMusic = () => {
+      if (!musicPlayingRef.current || !audioContextRef.current) return
+
+      const lookahead = 0.1
+      const scheduleAheadTime = 0.2
+
+      while (currentTime < audioContextRef.current.currentTime + scheduleAheadTime) {
+        // Play chord progression
+        const chordIndex = Math.floor((currentTime / (beatLength * 4)) % chords.length)
+        const currentChord = chords[chordIndex]
+
+        // Strum the chord with slight delay for jazz feel
+        currentChord.forEach((note, i) => {
+          play8BitNote(note, currentTime + i * 0.02, beatLength * 2, 'triangle')
+        })
+
+        // Add jazzy melody on top (random walk through scale)
+        if (Math.random() > 0.3) {
+          const melodyNote = melodyScale[Math.floor(Math.random() * melodyScale.length)]
+          play8BitNote(melodyNote * 2, currentTime + beatLength * Math.random(), beatLength * 0.3, 'square')
+        }
+
+        // Bass line (root notes)
+        const bassNote = currentChord[0] / 2
+        play8BitNote(bassNote, currentTime, beatLength * 2, 'sine')
+
+        // Walking bass pattern occasionally
+        if (Math.random() > 0.5) {
+          play8BitNote(bassNote * 1.125, currentTime + beatLength, beatLength * 0.5, 'sine')
+        }
+
+        currentTime += beatLength * 4
+      }
+
+      setTimeout(scheduleMusic, lookahead * 1000)
+    }
+
+    // Background conversation sounds
+    const scheduleConversation = () => {
+      if (!musicPlayingRef.current || !audioContextRef.current || !conversationGainNodeRef.current) return
+
+      // Create mumbling conversation sounds
+      setInterval(() => {
+        if (!musicPlayingRef.current || !audioContextRef.current || !conversationGainNodeRef.current) return
+
+        // Random conversation "words" using filtered noise and tones
+        for (let i = 0; i < 3; i++) {
+          setTimeout(() => {
+            if (!audioContextRef.current || !conversationGainNodeRef.current) return
+
+            const freq = 100 + Math.random() * 200 // Human voice range
+            const duration = 0.1 + Math.random() * 0.2
+
+            // Create formant-like sound
+            const osc1 = audioContextRef.current.createOscillator()
+            const osc2 = audioContextRef.current.createOscillator()
+            const conversationGain = audioContextRef.current.createGain()
+
+            osc1.type = 'sawtooth'
+            osc1.frequency.value = freq
+            osc2.type = 'sawtooth'
+            osc2.frequency.value = freq * 2.1
+
+            // Envelope for speech-like sound
+            conversationGain.gain.setValueAtTime(0, audioContextRef.current.currentTime)
+            conversationGain.gain.linearRampToValueAtTime(0.05, audioContextRef.current.currentTime + 0.01)
+            conversationGain.gain.exponentialRampToValueAtTime(0.001, audioContextRef.current.currentTime + duration)
+
+            // Bandpass filter for voice-like quality
+            const filter = audioContextRef.current.createBiquadFilter()
+            filter.type = 'bandpass'
+            filter.frequency.value = freq * 3
+            filter.Q.value = 5
+
+            osc1.connect(filter)
+            osc2.connect(filter)
+            filter.connect(conversationGain)
+            conversationGain.connect(conversationGainNodeRef.current)
+
+            osc1.start(audioContextRef.current.currentTime)
+            osc1.stop(audioContextRef.current.currentTime + duration)
+            osc2.start(audioContextRef.current.currentTime)
+            osc2.stop(audioContextRef.current.currentTime + duration)
+          }, i * 200 + Math.random() * 500)
+        }
+
+        // Occasional laughter
+        if (Math.random() > 0.9) {
+          for (let j = 0; j < 5; j++) {
+            setTimeout(() => {
+              if (!conversationGainNodeRef.current) return
+              play8BitNote(
+                300 + Math.random() * 100,
+                audioContextRef.current!.currentTime,
+                0.05,
+                'square',
+                conversationGainNodeRef.current
+              )
+            }, j * 50)
+          }
+        }
+      }, 3000 + Math.random() * 4000)
+    }
+
+    scheduleMusic()
+    scheduleConversation()
+  }, [play8BitNote])
+
+  // Start the chill jazz loop
+  const startSoundtrack = useCallback(() => {
+    if (musicPlayingRef.current) return
+
+    if (isMobile.current) {
+      startMobileSoundtrack()
+    } else {
+      startWebSoundtrack()
+    }
+  }, [startMobileSoundtrack, startWebSoundtrack])
+
+  // Stop soundtrack
+  const stopSoundtrack = useCallback(() => {
+    musicPlayingRef.current = false
+
+    if (isMobile.current && html5BackgroundAudio.current) {
+      html5BackgroundAudio.current.pause()
+      html5BackgroundAudio.current.currentTime = 0
+    }
   }, [])
 
   const initGame = useCallback(() => {
@@ -558,16 +758,6 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
       .filter(p => p.life > 0)
   }, [])
 
-  // Stop soundtrack
-  const stopSoundtrack = useCallback(() => {
-    musicPlayingRef.current = false
-    
-    if (isMobile.current && html5BackgroundAudio.current) {
-      html5BackgroundAudio.current.pause()
-      html5BackgroundAudio.current.currentTime = 0
-    }
-  }, [])
-
   const updateCamera = useCallback((camera: Camera, barge: Barge, canvas: HTMLCanvasElement, worldWidth: number, worldHeight: number): Camera => {
     // Faster camera on mobile for better responsiveness with touch controls
     const cameraSpeed = isMobile.current ? 0.3 : 0.2
@@ -592,7 +782,7 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
     }
   }, [])
 
-  const gameLoop = useCallback(() => {
+  const gameLoop = useCallback(function loop() {
     if (!canvasRef.current || !gameState.gameRunning) return
 
     const canvas = canvasRef.current
@@ -687,198 +877,8 @@ export const usePartyGame = (canvasRef: React.RefObject<HTMLCanvasElement | null
       }
     })
 
-    animationIdRef.current = requestAnimationFrame(gameLoop)
+    animationIdRef.current = requestAnimationFrame(loop)
   }, [canvasRef, gameState.gameRunning, updateBarge, updateCamera, updateGuests, checkRescues, checkCollisions, updateParticles, stopSoundtrack])
-
-  // 8-bit style oscillator with envelope
-  const play8BitNote = useCallback((frequency: number, startTime: number, duration: number, type: OscillatorType = 'square', gainTarget?: GainNode) => {
-    if (!audioContextRef.current || !gainNodeRef.current) return
-    
-    const target = gainTarget || gainNodeRef.current
-    const osc = audioContextRef.current.createOscillator()
-    const noteGain = audioContextRef.current.createGain()
-    
-    osc.type = type
-    osc.frequency.value = frequency
-    
-    // ADSR envelope for 8-bit feel
-    noteGain.gain.setValueAtTime(0, startTime)
-    noteGain.gain.linearRampToValueAtTime(0.3, startTime + 0.01) // Attack
-    noteGain.gain.linearRampToValueAtTime(0.2, startTime + 0.05) // Decay
-    noteGain.gain.exponentialRampToValueAtTime(0.01, startTime + duration) // Release
-    
-    osc.connect(noteGain)
-    noteGain.connect(target)
-    
-    osc.start(startTime)
-    osc.stop(startTime + duration)
-  }, [])
-
-  // Start the chill jazz loop
-  const startSoundtrack = useCallback(() => {
-    if (musicPlayingRef.current) return
-    
-    if (isMobile.current) {
-      startMobileSoundtrack()
-    } else {
-      startWebSoundtrack()
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const startMobileSoundtrack = useCallback(() => {
-    if (!html5BackgroundAudio.current) return
-    
-    musicPlayingRef.current = true
-    
-    // Resume audio context if suspended (mobile requirement)
-    if (audioContextRef.current?.state === 'suspended') {
-      audioContextRef.current.resume()
-    }
-    
-    const playPromise = html5BackgroundAudio.current.play()
-    if (playPromise !== undefined) {
-      playPromise.catch(() => {
-        // Silent failure for mobile audio
-        musicPlayingRef.current = false
-      })
-    }
-  }, [])
-
-  const startWebSoundtrack = useCallback(() => {
-    if (!audioContextRef.current || musicPlayingRef.current) return
-    
-    // Resume audio context if it's suspended (browser autoplay policy)
-    if (audioContextRef.current.state === 'suspended') {
-      audioContextRef.current.resume().catch((error) => {
-        console.warn('Failed to resume audio context:', error)
-      })
-    }
-    
-    musicPlayingRef.current = true
-    
-    // Jazz chord progressions (ii-V-I in C major)
-    const chords = [
-      [146.83, 174.61, 220.00, 261.63], // Dm7
-      [196.00, 246.94, 293.66, 349.23], // G7
-      [130.81, 164.81, 196.00, 246.94], // Cmaj7
-      [110.00, 130.81, 164.81, 196.00], // Am7
-    ]
-    
-    // Melody notes for jazzy licks
-    const melodyScale = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25] // C major scale
-    
-    const bpm = 70 // Slow, chill tempo
-    const beatLength = 60 / bpm
-    let currentTime = audioContextRef.current.currentTime
-    
-    // Main music loop
-    const scheduleMusic = () => {
-      if (!musicPlayingRef.current || !audioContextRef.current) return
-      
-      const lookahead = 0.1
-      const scheduleAheadTime = 0.2
-      
-      while (currentTime < audioContextRef.current.currentTime + scheduleAheadTime) {
-        // Play chord progression
-        const chordIndex = Math.floor((currentTime / (beatLength * 4)) % chords.length)
-        const currentChord = chords[chordIndex]
-        
-        // Strum the chord with slight delay for jazz feel
-        currentChord.forEach((note, i) => {
-          play8BitNote(note, currentTime + i * 0.02, beatLength * 2, 'triangle')
-        })
-        
-        // Add jazzy melody on top (random walk through scale)
-        if (Math.random() > 0.3) {
-          const melodyNote = melodyScale[Math.floor(Math.random() * melodyScale.length)]
-          play8BitNote(melodyNote * 2, currentTime + beatLength * Math.random(), beatLength * 0.3, 'square')
-        }
-        
-        // Bass line (root notes)
-        const bassNote = currentChord[0] / 2
-        play8BitNote(bassNote, currentTime, beatLength * 2, 'sine')
-        
-        // Walking bass pattern occasionally
-        if (Math.random() > 0.5) {
-          play8BitNote(bassNote * 1.125, currentTime + beatLength, beatLength * 0.5, 'sine')
-        }
-        
-        currentTime += beatLength * 4
-      }
-      
-      setTimeout(scheduleMusic, lookahead * 1000)
-    }
-    
-    // Background conversation sounds
-    const scheduleConversation = () => {
-      if (!musicPlayingRef.current || !audioContextRef.current || !conversationGainNodeRef.current) return
-      
-      // Create mumbling conversation sounds
-      setInterval(() => {
-        if (!musicPlayingRef.current || !audioContextRef.current || !conversationGainNodeRef.current) return
-        
-        // Random conversation "words" using filtered noise and tones
-        for (let i = 0; i < 3; i++) {
-          setTimeout(() => {
-            if (!audioContextRef.current || !conversationGainNodeRef.current) return
-            
-            const freq = 100 + Math.random() * 200 // Human voice range
-            const duration = 0.1 + Math.random() * 0.2
-            
-            // Create formant-like sound
-            const osc1 = audioContextRef.current.createOscillator()
-            const osc2 = audioContextRef.current.createOscillator()
-            const conversationGain = audioContextRef.current.createGain()
-            
-            osc1.type = 'sawtooth'
-            osc1.frequency.value = freq
-            osc2.type = 'sawtooth'
-            osc2.frequency.value = freq * 2.1
-            
-            // Envelope for speech-like sound
-            conversationGain.gain.setValueAtTime(0, audioContextRef.current.currentTime)
-            conversationGain.gain.linearRampToValueAtTime(0.05, audioContextRef.current.currentTime + 0.01)
-            conversationGain.gain.exponentialRampToValueAtTime(0.001, audioContextRef.current.currentTime + duration)
-            
-            // Bandpass filter for voice-like quality
-            const filter = audioContextRef.current.createBiquadFilter()
-            filter.type = 'bandpass'
-            filter.frequency.value = freq * 3
-            filter.Q.value = 5
-            
-            osc1.connect(filter)
-            osc2.connect(filter)
-            filter.connect(conversationGain)
-            conversationGain.connect(conversationGainNodeRef.current)
-            
-            osc1.start(audioContextRef.current.currentTime)
-            osc1.stop(audioContextRef.current.currentTime + duration)
-            osc2.start(audioContextRef.current.currentTime)
-            osc2.stop(audioContextRef.current.currentTime + duration)
-          }, i * 200 + Math.random() * 500)
-        }
-        
-        // Occasional laughter
-        if (Math.random() > 0.9) {
-          for (let j = 0; j < 5; j++) {
-            setTimeout(() => {
-              if (!conversationGainNodeRef.current) return
-              play8BitNote(
-                300 + Math.random() * 100,
-                audioContextRef.current!.currentTime,
-                0.05,
-                'square',
-                conversationGainNodeRef.current
-              )
-            }, j * 50)
-          }
-        }
-      }, 3000 + Math.random() * 4000)
-    }
-    
-    scheduleMusic()
-    scheduleConversation()
-  }, [play8BitNote])
 
   const startGame = useCallback(() => {
     initAudio()

@@ -425,7 +425,7 @@ export const useQuestGame = (props?: UseQuestGameProps) => {
     drawPlayer(ctx)
   }, [drawBackground, drawTerminals, drawParticles, drawPlayer])
 
-  const gameLoop = useCallback(() => {
+  const gameLoop = useCallback(function loop() {
     if (gameState.gameStarted) {
       updatePlayer()
       updateParticles()
@@ -441,7 +441,7 @@ export const useQuestGame = (props?: UseQuestGameProps) => {
       
       draw()
     }
-    animationIdRef.current = requestAnimationFrame(gameLoop)
+    animationIdRef.current = requestAnimationFrame(loop)
   }, [gameState.gameStarted, updatePlayer, updateParticles, draw])
 
   const startGame = useCallback(() => {

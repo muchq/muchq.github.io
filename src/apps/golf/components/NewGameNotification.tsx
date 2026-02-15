@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import styles from './NewGameNotification.module.css'
 import PermalinkDisplay from './PermalinkDisplay'
 import { generateGamePermalink } from '../../../utils/golfPermalinks'
@@ -22,8 +22,14 @@ const NewGameNotification = ({
   
   const gamePermalink = `${window.location.origin}${generateGamePermalink(roomId, gameId)}`
   
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 60000)
+    return () => clearInterval(interval)
+  }, [])
+
   const formatTimeAgo = (timestamp: number) => {
-    const now = Date.now()
     const diff = now - timestamp
     const minutes = Math.floor(diff / 60000)
     
