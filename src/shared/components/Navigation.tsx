@@ -113,7 +113,7 @@ const Navigation = ({ className }: NavigationProps) => {
               <span className={styles.accordionIcon}>›</span>
             </a>
             <div className={styles.dropdown}>
-              <a href="https://git.much.com" className={styles.dropdownItem}>MuchQ</a>
+              <a href="https://git.muchq.com" className={styles.dropdownItem}>MuchQ</a>
               <a href="https://github.com/muchq" className={styles.dropdownItem}>GitHub</a>
             </div>
           </li>
