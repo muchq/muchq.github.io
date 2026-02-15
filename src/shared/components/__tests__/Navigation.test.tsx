@@ -15,7 +15,7 @@ const renderWithRouter = (component: React.ReactElement) => {
 describe('Navigation', () => {
   it('renders navigation logo', () => {
     renderWithRouter(<Navigation />)
-    expect(testingScreen.getByText('MuchQ')).toBeDefined()
+    expect(testingScreen.getAllByText('MuchQ')).toHaveLength(2)
   })
 
   it('renders navigation links', () => {
@@ -23,6 +23,7 @@ describe('Navigation', () => {
     expect(testingScreen.getByText('Projects')).toBeDefined()
     // expect(testingScreen.getByText('Interests')).toBeDefined()
     expect(testingScreen.getByText('Games')).toBeDefined()
+    expect(testingScreen.getByText('Code')).toBeDefined()
     expect(testingScreen.getByText('Metrics')).toBeDefined()
   })
 })
