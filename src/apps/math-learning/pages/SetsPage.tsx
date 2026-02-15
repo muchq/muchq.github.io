@@ -10,14 +10,10 @@ import styles from './SetsPage.module.css'
 
 const SetsPage = () => {
   const [activeModule, setActiveModule] = useState('overview')
-  const [completedModules, setCompletedModules] = useState<Set<string>>(new Set())
-
-  useEffect(() => {
+  const [completedModules, setCompletedModules] = useState<Set<string>>(() => {
     const saved = localStorage.getItem('setsProgress')
-    if (saved) {
-      setCompletedModules(new Set(JSON.parse(saved)))
-    }
-  }, [])
+    return saved ? new Set(JSON.parse(saved)) : new Set()
+  })
 
   useEffect(() => {
     localStorage.setItem('setsProgress', JSON.stringify(Array.from(completedModules)))

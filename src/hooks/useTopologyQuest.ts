@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 
 export type ModuleType = 
@@ -79,13 +79,14 @@ const isValidModule = (module: string): module is ModuleType => {
 export const useTopologyQuest = () => {
   const params = useParams<{ module: string }>()
   const navigate = useNavigate()
-  const [activeModule, setActiveModule] = useState<ModuleType>('sets')
   
-  // Sync with URL params
+  const activeModule: ModuleType = (params.module && isValidModule(params.module))
+    ? params.module
+    : 'sets'
+
+  // Redirect if invalid module
   useEffect(() => {
-    if (params.module && isValidModule(params.module)) {
-      setActiveModule(params.module)
-    } else if (params.module) {
+    if (params.module && !isValidModule(params.module)) {
       // Invalid module, redirect to sets
       navigate('/top/sets', { replace: true })
     }
@@ -96,7 +97,6 @@ export const useTopologyQuest = () => {
   }, [activeModule])
   
   const navigateToModule = useCallback((module: ModuleType) => {
-    setActiveModule(module)
     navigate(`/top/${module}`)
   }, [navigate])
   
@@ -105,7 +105,6 @@ export const useTopologyQuest = () => {
     const currentIndex = modules.indexOf(activeModule)
     if (currentIndex < modules.length - 1) {
       const nextModule = modules[currentIndex + 1]
-      setActiveModule(nextModule)
       navigate(`/top/${nextModule}`)
     }
   }, [activeModule, navigate])
@@ -115,7 +114,6 @@ export const useTopologyQuest = () => {
     const currentIndex = modules.indexOf(activeModule)
     if (currentIndex > 0) {
       const prevModule = modules[currentIndex - 1]
-      setActiveModule(prevModule)
       navigate(`/top/${prevModule}`)
     }
   }, [activeModule, navigate])

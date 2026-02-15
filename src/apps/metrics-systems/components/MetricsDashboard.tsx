@@ -70,6 +70,67 @@ interface MetricsDashboardProps {
   onTabChange?: (tab: 'system' | 'containers' | 'portrait') => void
 }
 
+const formatBytes = (bytes: number) => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
+// Helper component for no data state
+const NoDataMessage = ({ message = "No data available" }: { message?: string }) => (
+  <div className={styles.noData}>
+    {message}
+  </div>
+)
+
+// Custom tooltip that sorts values in descending order
+const SortedTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; name: string; color: string }>; label?: string }) => {
+  if (active && payload && payload.length) {
+    const sortedPayload = [...payload].sort((a, b) => b.value - a.value)
+    return (
+      <div style={{
+        backgroundColor: 'rgba(13, 17, 32, 0.9)',
+        border: '1px solid rgba(255, 255, 255, 0.3)',
+        borderRadius: '8px',
+        padding: '8px 12px',
+        fontSize: '12px'
+      }}>
+        <p style={{ margin: '0 0 4px 0', fontWeight: 'bold' }}>{label}</p>
+        {sortedPayload.map((entry, index) => (
+          <p key={index} style={{ margin: '2px 0', color: entry.color }}>
+            {entry.name}: {Number(entry.value).toFixed(1)}%
+          </p>
+        ))}
+      </div>
+    )
+  }
+  return null
+}
+
+// Custom tooltip for Memory Breakdown pie chart
+const MemoryTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number; payload: { name: string; value: number; percentage: number } }> }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload
+    return (
+      <div style={{
+        backgroundColor: 'rgba(13, 17, 32, 0.9)',
+        border: '1px solid rgba(255, 255, 255, 0.3)',
+        borderRadius: '8px',
+        padding: '8px 12px',
+        fontSize: '12px',
+        color: '#fff'
+      }}>
+        <p style={{ margin: '0', color: '#fff' }}>
+          {data.name}: {data.percentage.toFixed(1)}% ({formatBytes(data.value)})
+        </p>
+      </div>
+    )
+  }
+  return null
+}
+
 const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTabChange }: MetricsDashboardProps) => {
   const [systemMetrics, setSystemMetrics] = useState<SystemMetrics | null>(null)
   const [systemTimeseries, setSystemTimeseries] = useState<TimeSeriesResponse | null>(null)
@@ -81,7 +142,8 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
 
   const fetchMetrics = useCallback(async () => {
     try {
-      onConnectionStateChange('connecting')
+      // Use setTimeout to avoid synchronous state update in useEffect
+      setTimeout(() => onConnectionStateChange('connecting'), 0)
 
       // Use environment variable for API URL, defaulting to production URL
       const apiUrl = import.meta.env.VITE_METRICS_API_URL || 'https://api.muchq.com/metrics/v1'
@@ -164,18 +226,10 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
   }, [timeRange, onConnectionStateChange])
 
   useEffect(() => {
-    fetchMetrics()
+    setTimeout(fetchMetrics, 0)
     const interval = setInterval(fetchMetrics, 30000) // Update every 30 seconds
     return () => clearInterval(interval)
   }, [fetchMetrics])
-
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B'
-    const k = 1024
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-  }
 
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString()
@@ -441,59 +495,6 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
     danger: '#ff6666',
     info: '#ff66ff',
     secondary: '#88ccff'
-  }
-
-  // Helper component for no data state
-  const NoDataMessage = ({ message = "No data available" }: { message?: string }) => (
-    <div className={styles.noData}>
-      {message}
-    </div>
-  )
-
-  // Custom tooltip that sorts values in descending order
-  const SortedTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; name: string; color: string }>; label?: string }) => {
-    if (active && payload && payload.length) {
-      const sortedPayload = [...payload].sort((a, b) => b.value - a.value)
-      return (
-        <div style={{
-          backgroundColor: 'rgba(13, 17, 32, 0.9)',
-          border: '1px solid rgba(255, 255, 255, 0.3)',
-          borderRadius: '8px',
-          padding: '8px 12px',
-          fontSize: '12px'
-        }}>
-          <p style={{ margin: '0 0 4px 0', fontWeight: 'bold' }}>{label}</p>
-          {sortedPayload.map((entry, index) => (
-            <p key={index} style={{ margin: '2px 0', color: entry.color }}>
-              {entry.name}: {Number(entry.value).toFixed(1)}%
-            </p>
-          ))}
-        </div>
-      )
-    }
-    return null
-  }
-
-  // Custom tooltip for Memory Breakdown pie chart
-  const MemoryTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number; payload: { name: string; value: number; percentage: number } }> }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload
-      return (
-        <div style={{
-          backgroundColor: 'rgba(13, 17, 32, 0.9)',
-          border: '1px solid rgba(255, 255, 255, 0.3)',
-          borderRadius: '8px',
-          padding: '8px 12px',
-          fontSize: '12px',
-          color: '#fff'
-        }}>
-          <p style={{ margin: '0', color: '#fff' }}>
-            {data.name}: {data.percentage.toFixed(1)}% ({formatBytes(data.value)})
-          </p>
-        </div>
-      )
-    }
-    return null
   }
 
   return (

@@ -1,24 +1,22 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import styles from './RelationMatrixCalculator.module.css'
 
-interface RelationProperties {
-  reflexive: boolean
-  symmetric: boolean
-  transitive: boolean
-  antisymmetric: boolean
-}
+const PropertyIndicator = ({ property, value, description }: { property: string, value: boolean, description: string }) => (
+  <div className={`${styles.property} ${value ? styles.satisfied : styles.notSatisfied}`}>
+    <div className={styles.propertyHeader}>
+      <span className={styles.propertyName}>{property}</span>
+      <span className={`${styles.checkmark} ${value ? styles.true : styles.false}`}>
+        {value ? '✓' : '✗'}
+      </span>
+    </div>
+    <p className={styles.description}>{description}</p>
+  </div>
+)
 
 const RelationMatrixCalculator = () => {
   const [matrix, setMatrix] = useState<boolean[][]>(
     Array(4).fill(null).map(() => Array(4).fill(false))
   )
-  const [properties, setProperties] = useState<RelationProperties>({
-    reflexive: false,
-    symmetric: false,
-    transitive: false,
-    antisymmetric: false
-  })
-
   const toggleCell = (row: number, col: number) => {
     const newMatrix = matrix.map((r, i) => 
       i === row ? r.map((c, j) => j === col ? !c : c) : [...r]
@@ -52,9 +50,7 @@ const RelationMatrixCalculator = () => {
     return { reflexive, symmetric, transitive, antisymmetric }
   }
 
-  useEffect(() => {
-    setProperties(checkProperties(matrix))
-  }, [matrix])
+  const properties = checkProperties(matrix)
 
   const presets = [
     {
@@ -82,18 +78,6 @@ const RelationMatrixCalculator = () => {
   const clearMatrix = () => {
     setMatrix(Array(4).fill(null).map(() => Array(4).fill(false)))
   }
-
-  const PropertyIndicator = ({ property, value, description }: { property: string, value: boolean, description: string }) => (
-    <div className={`${styles.property} ${value ? styles.satisfied : styles.notSatisfied}`}>
-      <div className={styles.propertyHeader}>
-        <span className={styles.propertyName}>{property}</span>
-        <span className={`${styles.checkmark} ${value ? styles.true : styles.false}`}>
-          {value ? '✓' : '✗'}
-        </span>
-      </div>
-      <p className={styles.description}>{description}</p>
-    </div>
-  )
 
   return (
     <div className={styles.container}>

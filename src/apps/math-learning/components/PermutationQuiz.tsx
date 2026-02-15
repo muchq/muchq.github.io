@@ -75,8 +75,18 @@ const questions: Record<number, Question[]> = {
     ]
 }
 
-const PermutationQuiz = ({ chapter }: { chapter: number }) => {
+const PermutationQuiz = ({ chapter }: { chapter: number }) => (
+  <PermutationQuizContent key={chapter} chapter={chapter} />
+)
+
+const PermutationQuizContent = ({ chapter }: { chapter: number }) => {
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null)
+
+  useEffect(() => {
+    const chapterQuestions = questions[chapter] || questions[1]
+    const randomIndex = Math.floor(Math.random() * chapterQuestions.length)
+    setTimeout(() => setCurrentQuestion(chapterQuestions[randomIndex]), 0)
+  }, [chapter])
   const [userAnswer, setUserAnswer] = useState('')
   const [showFeedback, setShowFeedback] = useState(false)
   const [isCorrect, setIsCorrect] = useState(false)
@@ -89,15 +99,6 @@ const PermutationQuiz = ({ chapter }: { chapter: number }) => {
     const randomIndex = Math.floor(Math.random() * chapterQuestions.length)
     return chapterQuestions[randomIndex]
   }
-
-  useEffect(() => {
-    const chapterQuestions = questions[chapter] || questions[1]
-    const randomIndex = Math.floor(Math.random() * chapterQuestions.length)
-    setCurrentQuestion(chapterQuestions[randomIndex])
-    setShowFeedback(false)
-    setUserAnswer('')
-    setShowHint(false)
-  }, [chapter])
 
   const checkAnswer = () => {
     if (!currentQuestion) return

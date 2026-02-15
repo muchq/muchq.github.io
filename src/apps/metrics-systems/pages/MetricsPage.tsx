@@ -7,12 +7,13 @@ const MetricsPage = () => {
   const { tab } = useParams<{ tab: string }>()
   const navigate = useNavigate()
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'failed'>('disconnected')
-  const [activeTab, setActiveTab] = useState<'system' | 'containers' | 'portrait'>('system')
+
+  const activeTab = (tab === 'system' || tab === 'containers' || tab === 'portrait')
+    ? tab
+    : 'system'
 
   useEffect(() => {
-    if (tab === 'system' || tab === 'containers' || tab === 'portrait') {
-      setActiveTab(tab as 'system' | 'containers' | 'portrait')
-    } else {
+    if (tab !== 'system' && tab !== 'containers' && tab !== 'portrait') {
       navigate('/metrics/system', { replace: true })
     }
   }, [tab, navigate])

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef } from 'react'
 import styles from './FunctionVisualizer.module.css'
 
 interface FunctionMapping {
@@ -6,63 +6,72 @@ interface FunctionMapping {
   to: number | null
 }
 
-interface FunctionProperties {
-  isInjective: boolean
-  isSurjective: boolean
-  isBijective: boolean
-  isFunction: boolean
-}
+const PropertyBadge = ({ property, value, label }: { property: string, value: boolean, label: string }) => (
+  <div className={`${styles.propertyBadge} ${value ? styles.satisfied : styles.notSatisfied}`}>
+    <span className={styles.propertyLabel}>{property}</span>
+    <span className={`${styles.propertyValue} ${value ? styles.true : styles.false}`}>
+      {value ? '✓' : '✗'}
+    </span>
+    <div className={styles.tooltip}>{label}</div>
+  </div>
+)
 
 const FunctionVisualizer = () => {
   const [domainSize, setDomainSize] = useState(4)
   const [codomainSize, setCodomainSize] = useState(4)
-  const [mappings, setMappings] = useState<FunctionMapping[]>([])
-  const [draggedElement, setDraggedElement] = useState<number | null>(null)
-  const [properties, setProperties] = useState<FunctionProperties>({
-    isInjective: false,
-    isSurjective: false,
-    isBijective: false,
-    isFunction: false
+  const [mappings, setMappings] = useState<FunctionMapping[]>(() => {
+    const initialMappings: FunctionMapping[] = []
+    for (let i = 1; i <= 4; i++) {
+      initialMappings.push({ from: i, to: null })
+    }
+    return initialMappings
   })
+  const [draggedElement, setDraggedElement] = useState<number | null>(null)
   
   const svgRef = useRef<SVGSVGElement>(null)
 
-  const initializeMappings = useCallback(() => {
+  const updateDomainSize = (size: number) => {
+    setDomainSize(size)
     const newMappings: FunctionMapping[] = []
-    for (let i = 1; i <= domainSize; i++) {
-      newMappings.push({ from: i, to: null })
+    for (let i = 1; i <= size; i++) {
+      // Try to preserve existing mappings if possible
+      const existing = mappings.find(m => m.from === i)
+      newMappings.push({ from: i, to: existing ? existing.to : null })
     }
     setMappings(newMappings)
-  }, [domainSize])
+  }
 
-  const analyzeFunction = useCallback(() => {
-    const definedMappings = mappings.filter(m => m.to !== null)
-    
-    // Is it a function? Every domain element must map to exactly one codomain element
-    const isFunction = definedMappings.length === domainSize
-    
-    // Is it injective? No two domain elements map to the same codomain element
-    const usedTargets = definedMappings.map(m => m.to)
-    const isInjective = isFunction && new Set(usedTargets).size === usedTargets.length
-    
-    // Is it surjective? Every codomain element is mapped to by at least one domain element
-    const targetSet = new Set(usedTargets)
-    const isSurjective = isFunction && targetSet.size === codomainSize && 
-                        Array.from({length: codomainSize}, (_, i) => i + 1).every(i => targetSet.has(i))
-    
-    // Is it bijective? Both injective and surjective
-    const isBijective = isInjective && isSurjective
-    
-    setProperties({ isInjective, isSurjective, isBijective, isFunction })
-  }, [mappings, domainSize, codomainSize])
+  const updateCodomainSize = (size: number) => {
+    setCodomainSize(size)
+    // Clear mappings that are out of bounds
+    const newMappings = mappings.map(m => {
+      if (m.to && m.to > size) {
+        return { ...m, to: null }
+      }
+      return m
+    })
+    setMappings(newMappings)
+  }
 
-  useEffect(() => {
-    initializeMappings()
-  }, [domainSize, codomainSize, initializeMappings])
+  // Derived properties
+  const definedMappings = mappings.filter(m => m.to !== null)
 
-  useEffect(() => {
-    analyzeFunction()
-  }, [mappings, domainSize, codomainSize, analyzeFunction])
+  // Is it a function? Every domain element must map to exactly one codomain element
+  const isFunction = definedMappings.length === domainSize
+
+  // Is it injective? No two domain elements map to the same codomain element
+  const usedTargets = definedMappings.map(m => m.to)
+  const isInjective = isFunction && new Set(usedTargets).size === usedTargets.length
+
+  // Is it surjective? Every codomain element is mapped to by at least one domain element
+  const targetSet = new Set(usedTargets)
+  const isSurjective = isFunction && targetSet.size === codomainSize &&
+                      Array.from({length: codomainSize}, (_, i) => i + 1).every(i => targetSet.has(i))
+
+  // Is it bijective? Both injective and surjective
+  const isBijective = isInjective && isSurjective
+
+  const properties = { isInjective, isSurjective, isBijective, isFunction }
 
   const handleDragStart = (domainElement: number) => {
     setDraggedElement(domainElement)
@@ -145,16 +154,6 @@ const FunctionVisualizer = () => {
     return `${styles.codomainElement} ${isMappedTo ? styles.targeted : styles.untargeted}`
   }
 
-  const PropertyBadge = ({ property, value, label }: { property: string, value: boolean, label: string }) => (
-    <div className={`${styles.propertyBadge} ${value ? styles.satisfied : styles.notSatisfied}`}>
-      <span className={styles.propertyLabel}>{property}</span>
-      <span className={`${styles.propertyValue} ${value ? styles.true : styles.false}`}>
-        {value ? '✓' : '✗'}
-      </span>
-      <div className={styles.tooltip}>{label}</div>
-    </div>
-  )
-
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -166,7 +165,7 @@ const FunctionVisualizer = () => {
         <div className={styles.sizeControls}>
           <div className={styles.inputGroup}>
             <label>Domain size:</label>
-            <select value={domainSize} onChange={(e) => setDomainSize(Number(e.target.value))}>
+            <select value={domainSize} onChange={(e) => updateDomainSize(Number(e.target.value))}>
               {[2, 3, 4, 5, 6].map(n => (
                 <option key={n} value={n}>{n}</option>
               ))}
@@ -174,7 +173,7 @@ const FunctionVisualizer = () => {
           </div>
           <div className={styles.inputGroup}>
             <label>Codomain size:</label>
-            <select value={codomainSize} onChange={(e) => setCodomainSize(Number(e.target.value))}>
+            <select value={codomainSize} onChange={(e) => updateCodomainSize(Number(e.target.value))}>
               {[2, 3, 4, 5, 6].map(n => (
                 <option key={n} value={n}>{n}</option>
               ))}
