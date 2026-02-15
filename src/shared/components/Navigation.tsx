@@ -98,6 +98,25 @@ const Navigation = ({ className }: NavigationProps) => {
               {/* <Link to="/quest" className={styles.dropdownItem}>Quest</Link> */}
             </div>
           </li>
+          <li className={`${styles.navItem} nav-item ${expandedItems.has('code') ? styles.expanded : ''}`}>
+            <a
+              href="#"
+              className={styles.navLink}
+              onClick={(e) => {
+                if (window.innerWidth <= 768) {
+                  e.preventDefault()
+                  toggleAccordion('code')
+                }
+              }}
+            >
+              Code
+              <span className={styles.accordionIcon}>›</span>
+            </a>
+            <div className={styles.dropdown}>
+              <a href="https://git.much.com" className={styles.dropdownItem}>MuchQ</a>
+              <a href="https://github.com/muchq" className={styles.dropdownItem}>GitHub</a>
+            </div>
+          </li>
         </ul>
         <button
           className={styles.mobileMenuToggle}
