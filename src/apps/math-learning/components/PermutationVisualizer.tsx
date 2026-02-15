@@ -7,6 +7,7 @@ const PermutationVisualizer = () => {
   const [draggingFrom, setDraggingFrom] = useState<number | null>(null)
   const [dragOverPosition, setDragOverPosition] = useState<number | null>(null)
   const [isAnimating, setIsAnimating] = useState(false)
+  // selectedPosition is used for tap-to-select (accessibility/touch)
   const [selectedPosition, setSelectedPosition] = useState<number | null>(null)
   const [isTouchDevice] = useState(() => 'ontouchstart' in window)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -14,6 +15,7 @@ const PermutationVisualizer = () => {
   const handleDragStart = (e: React.DragEvent, position: number) => {
     setDraggingFrom(position)
     e.dataTransfer.effectAllowed = 'move'
+    // Set drag image or data if needed
   }
 
   const handleDragOver = (e: React.DragEvent, position: number) => {
@@ -28,11 +30,28 @@ const PermutationVisualizer = () => {
 
   const handleDrop = (e: React.DragEvent, targetPosition: number) => {
     e.preventDefault()
-    if (draggingFrom === null) return
+    if (draggingFrom === null || draggingFrom === targetPosition) {
+      setDraggingFrom(null)
+      setDragOverPosition(null)
+      return
+    }
+
+    // Swap logic
+    const mapping = permutation.getMappingArray()
+    const valFrom = mapping[draggingFrom]
+    const valTo = mapping[targetPosition]
 
     const newPerm = permutation.clone()
-    // Convert positions to 1-indexed for the permutation class
-    newPerm.setMapping(draggingFrom + 1, targetPosition + 1)
+    // Set mapping for the two positions involved in the swap
+    // draggingFrom is the index (0-based) of the source position
+    // targetPosition is the index (0-based) of the target position
+    // We want the value at draggingFrom to move to targetPosition, and vice-versa?
+    // "Swap" usually means exchange values.
+    // So new mapping at draggingFrom index gets valTo
+    // new mapping at targetPosition index gets valFrom
+    newPerm.setMapping(draggingFrom + 1, valTo)
+    newPerm.setMapping(targetPosition + 1, valFrom)
+
     setPermutation(newPerm)
     
     setDraggingFrom(null)
@@ -47,7 +66,6 @@ const PermutationVisualizer = () => {
   const handleElementClick = (clickedPosition: number, e?: React.MouseEvent) => {
     if (!isTouchDevice) return
     
-    // Prevent any default behavior that might cause navigation
     if (e) {
       e.preventDefault()
       e.stopPropagation()
@@ -60,9 +78,14 @@ const PermutationVisualizer = () => {
       // Tapped same position: deselect
       setSelectedPosition(null)
     } else {
-      // Second tap: create mapping
+      // Second tap: swap
+      const mapping = permutation.getMappingArray()
+      const valFrom = mapping[selectedPosition]
+      const valTo = mapping[clickedPosition]
+
       const newPerm = permutation.clone()
-      newPerm.setMapping(selectedPosition + 1, clickedPosition + 1)
+      newPerm.setMapping(selectedPosition + 1, valTo)
+      newPerm.setMapping(clickedPosition + 1, valFrom)
       setPermutation(newPerm)
       
       setSelectedPosition(null)
@@ -84,7 +107,7 @@ const PermutationVisualizer = () => {
     setTimeout(() => setIsAnimating(false), 300)
   }
 
-
+  const mappingArray = permutation.getMappingArray()
 
   return (
     <div className={styles.visualizer}>
@@ -97,122 +120,123 @@ const PermutationVisualizer = () => {
         </button>
       </div>
 
-      <div className={styles.permutationDisplay}>
-        <div className={styles.twoLineNotation}>
-          <div className={styles.row}>
-            <span className={styles.label}>Original:</span>
-            {[1, 2, 3, 4].map(num => (
-              <span key={num} className={styles.number}>{num}</span>
-            ))}
-          </div>
-          <div className={styles.row}>
-            <span className={styles.label}>Maps to:</span>
-            {permutation.getMappingArray().map((value, idx) => (
-              <span key={idx} className={styles.number}>
-                {value}
-              </span>
-            ))}
-          </div>
-        </div>
+      <div className={styles.permutationDisplay} style={{ textAlign: 'center' }}>
+        <h3>Two-Line Notation (Definition)</h3>
+        <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '20px' }}>
+          Top row is the input (domain), bottom row is the output (image).
+        </p>
 
-        {permutation.isBijection() ? (
-          <div className={styles.cycleNotation}>
-            <span className={styles.label}>Cycle notation:</span>
-            <span className={styles.cycle}>{permutation.getCycleNotation()}</span>
+        <div className={styles.positions} style={{ flexDirection: 'column', gap: '10px' }}>
+           {/* Top Row: Domain (1, 2, 3, 4) */}
+           <div style={{ display: 'flex', justifyContent: 'center', gap: '40px' }}>
+            {[0, 1, 2, 3].map(position => (
+              <div
+                key={`domain-${position}`}
+                className={styles.position}
+                style={{
+                  borderColor: 'transparent',
+                  background: 'transparent',
+                  height: '40px',
+                  width: '80px',
+                  marginBottom: '-10px',
+                  color: '#7f8c8d',
+                  fontWeight: 'bold'
+                 }}
+              >
+                {position + 1}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '-15px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: '2px',
+                  height: '10px',
+                  background: '#bdc3c7'
+                }} />
+              </div>
+            ))}
           </div>
-        ) : (
-          <div className={styles.validationFeedback}>
-            {(() => {
-              const errors = permutation.getBijectionErrors()
-              const messages: string[] = []
-              
-              if (errors.unmappedSources.length > 0) {
-                messages.push(`Unmapped: ${errors.unmappedSources.join(', ')}`)
-              }
-              
-              if (errors.duplicateTargets.size > 0) {
-                const duplicates = Array.from(errors.duplicateTargets.entries())
-                  .map(([target, sources]) => `${sources.join(', ')} → ${target}`)
-                messages.push(`Multiple mappings to same target: ${duplicates.join('; ')}`)
-              }
-              
-              if (messages.length === 0) {
-                messages.push('Complete the mapping to form a bijection')
-              }
+
+          {/* Bottom Row: Image (Draggable Values) */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '40px' }}>
+            {[0, 1, 2, 3].map(position => {
+              const value = mappingArray[position]
               
               return (
-                <div className={styles.errorMessage}>
-                  <span className={styles.errorIcon}>⚠️</span>
-                  <span>{messages.join(' | ')}</span>
+                <div
+                  key={position}
+                  className={`${styles.position} ${dragOverPosition === position ? styles.dragOver : ''}`}
+                  onDragOver={(e) => handleDragOver(e, position)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, position)}
+                >
+                  <div
+                    className={`${styles.element} ${isAnimating ? styles.animating : ''} ${
+                      draggingFrom === position ? styles.dragging : ''
+                    } ${
+                      selectedPosition === position ? styles.selected : ''
+                    }`}
+                    draggable={!isTouchDevice}
+                    onDragStart={(e) => !isTouchDevice && handleDragStart(e, position)}
+                    onDragEnd={handleDragEnd}
+                    onClick={(e) => handleElementClick(position, e)}
+                    onTouchStart={(e) => {
+                      e.stopPropagation()
+                    }}
+                    onTouchEnd={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleElementClick(position)
+                    }}
+                    style={{
+                      backgroundColor: `hsl(${(value - 1) * 90}, 70%, 60%)`,
+                      cursor: 'grab'
+                    }}
+                  >
+                    {value}
+                  </div>
                 </div>
               )
-            })()}
+            })}
           </div>
-        )}
+        </div>
       </div>
 
-      <div className={styles.visualContainer} ref={containerRef}>
+      <div className={styles.visualContainer} ref={containerRef} style={{ marginTop: '40px' }}>
+        <h3 style={{ textAlign: 'center', marginBottom: '20px' }}>Cycle Graph (Structure)</h3>
+
+        {/* Graph Nodes (Fixed 1, 2, 3, 4) */}
         <div className={styles.positions}>
-          {[0, 1, 2, 3].map(position => {
-            const mappingValue = permutation.getMappingArray()[position]
-            const hasNonIdentityMapping = mappingValue !== position + 1
-            
-            return (
+          {[0, 1, 2, 3].map(position => (
+            <div
+              key={`graph-node-${position}`}
+              className={styles.position}
+              style={{ border: 'none', background: 'transparent' }}
+            >
               <div
-                key={position}
-                className={`${styles.position} ${dragOverPosition === position ? styles.dragOver : ''}`}
-                onDragOver={(e) => handleDragOver(e, position)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, position)}
+                className={styles.element}
+                style={{
+                   backgroundColor: '#ecf0f1',
+                   color: '#2c3e50',
+                   border: `2px solid hsl(${position * 90}, 70%, 60%)`,
+                   cursor: 'default',
+                   boxShadow: 'none'
+                }}
               >
-                <div
-                  className={`${styles.element} ${isAnimating ? styles.animating : ''} ${
-                    draggingFrom === position ? styles.dragging : ''
-                  } ${
-                    selectedPosition === position ? styles.selected : ''
-                  }`}
-                  draggable={!isTouchDevice}
-                  onDragStart={(e) => !isTouchDevice && handleDragStart(e, position)}
-                  onDragEnd={handleDragEnd}
-                  onClick={(e) => handleElementClick(position, e)}
-                  onTouchStart={(e) => {
-                    e.stopPropagation()
-                  }}
-                  onTouchEnd={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    handleElementClick(position)
-                  }}
-                  style={{
-                    backgroundColor: `hsl(${position * 90}, 70%, 60%)`
-                  }}
-                >
-                  {position + 1}
-                  {hasNonIdentityMapping && (
-                    <button
-                      className={styles.clearMapping}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        const newPerm = permutation.clone()
-                        newPerm.setMapping(position + 1, position + 1)
-                        setPermutation(newPerm)
-                      }}
-                      aria-label={`Clear mapping for ${position + 1}`}
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
+                {position + 1}
               </div>
-            )
-          })}
+            </div>
+          ))}
         </div>
 
         <div className={styles.arrows}>
           {(() => {
-            // Calculate arrow paths and detect overlaps
+            // Calculate arrow paths
+            // Arrows go from i to sigma(i)
+            // i is the position (0..3), sigma(i) is mappingArray[i] (1..4)
+            // So arrow from i to mappingArray[i] - 1
             const arrows: Array<{from: number, to: number, idx: number}> = []
-            permutation.getMappingArray().forEach((targetValue, sourceIdx) => {
+            mappingArray.forEach((targetValue, sourceIdx) => {
               const from = sourceIdx
               const to = targetValue - 1
               if (from !== to) {
@@ -232,7 +256,7 @@ const PermutationVisualizer = () => {
             
             return arrows.map(arrow => {
               const { from, to, idx } = arrow
-              const spacing = 120
+              const spacing = 120 // Assumed spacing from CSS
               const startX = from * spacing + 40
               const endX = to * spacing + 40
               const width = Math.abs(endX - startX)
@@ -292,11 +316,16 @@ const PermutationVisualizer = () => {
         </div>
       </div>
 
+      <div style={{ textAlign: 'center', marginTop: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
+         <span className={styles.label}>Current Cycle Notation:</span>
+         <span className={styles.cycle} style={{ marginLeft: '10px' }}>{permutation.getCycleNotation()}</span>
+      </div>
+
       <div className={styles.instructions}>
-        <p>🎯 {isTouchDevice ? 'Tap two numbers to create a mapping' : 'Drag a number onto another to create a mapping'}</p>
-        <p>📝 Create a complete bijection to see the cycle notation</p>
+        <p>🎯 Drag numbers in the bottom row to swap them and define the permutation.</p>
+        <p>📝 The top row is the input, the bottom row is the output.</p>
         {isTouchDevice && selectedPosition !== null && (
-          <p className={styles.hint}>✨ Now tap where {selectedPosition + 1} should map to</p>
+          <p className={styles.hint}>✨ Now tap another number to swap</p>
         )}
       </div>
     </div>
