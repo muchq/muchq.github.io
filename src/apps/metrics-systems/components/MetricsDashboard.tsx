@@ -64,10 +64,27 @@ interface ContainerMetrics {
   containers: ContainerStats[]
 }
 
+interface MicrogptScalar {
+  timestamp: string
+  requests: {
+    rate_per_sec: number
+    generate_total: number
+    chat_total: number
+    success_count_5m: number
+    failure_count_5m: number
+  }
+  inference: {
+    tokens_generated_total: number
+    tokens_per_second_avg: number
+    avg_duration_ms: number
+    conversation_total: number
+  }
+}
+
 interface MetricsDashboardProps {
   onConnectionStateChange: (status: 'connecting' | 'connected' | 'disconnected' | 'failed') => void
-  activeTab?: 'system' | 'containers' | 'portrait'
-  onTabChange?: (tab: 'system' | 'containers' | 'portrait') => void
+  activeTab?: 'system' | 'containers' | 'portrait' | 'microgpt'
+  onTabChange?: (tab: 'system' | 'containers' | 'portrait' | 'microgpt') => void
 }
 
 const formatBytes = (bytes: number) => {
@@ -137,6 +154,8 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
   const [containerMetrics, setContainerMetrics] = useState<ContainerMetrics | null>(null)
   const [containerTimeseries, setContainerTimeseries] = useState<TimeSeriesResponse | null>(null)
   const [portraitTimeseries, setPortraitTimeseries] = useState<TimeSeriesResponse | null>(null)
+  const [microgptScalar, setMicrogptScalar] = useState<MicrogptScalar | null>(null)
+  const [microgptTimeseries, setMicrogptTimeseries] = useState<TimeSeriesResponse | null>(null)
   const [timeRange, setTimeRange] = useState<'30m' | '1d' | '7d'>('1d')
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
 
@@ -212,6 +231,32 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
           if (text.trim()) {
             const portraitTimeseriesData = JSON.parse(text)
             setPortraitTimeseries(portraitTimeseriesData)
+          }
+        }
+      } catch {
+        // Silently handle error - UI will show "no data" state
+      }
+
+      // Fetch microgpt scalar
+      try {
+        const microgptScalarResponse = await fetch(`${apiUrl}/scalar/microgpt`)
+        if (microgptScalarResponse.ok) {
+          const text = await microgptScalarResponse.text()
+          if (text.trim()) {
+            setMicrogptScalar(JSON.parse(text))
+          }
+        }
+      } catch {
+        // Silently handle error - UI will show "no data" state
+      }
+
+      // Fetch microgpt timeseries
+      try {
+        const microgptTimeseriesResponse = await fetch(`${apiUrl}/timeseries/microgpt/${timeRange}`)
+        if (microgptTimeseriesResponse.ok) {
+          const text = await microgptTimeseriesResponse.text()
+          if (text.trim()) {
+            setMicrogptTimeseries(JSON.parse(text))
           }
         }
       } catch {
@@ -538,6 +583,12 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
           onClick={() => onTabChange?.('portrait')}
         >
           Portrait Metrics
+        </button>
+        <button
+          className={`${styles.tab} ${activeTab === 'microgpt' ? styles.activeTab : ''}`}
+          onClick={() => onTabChange?.('microgpt')}
+        >
+          MicroGPT Metrics
         </button>
       </div>
 
@@ -1078,6 +1129,210 @@ const MetricsDashboard = ({ onConnectionStateChange, activeTab = 'system', onTab
                     <NoDataMessage />
                   )}
                 </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === 'microgpt' && (
+          <>
+            {/* Overview cards */}
+            {microgptScalar && (
+              <div className={styles.overviewCards}>
+                <div className={styles.miniCard}>
+                  <div className={styles.miniLabel}>Req/s</div>
+                  <div className={styles.miniValue}>{(microgptScalar.requests.rate_per_sec || 0).toFixed(2)}</div>
+                </div>
+                <div className={styles.miniCard}>
+                  <div className={styles.miniLabel}>Tokens/s</div>
+                  <div className={styles.miniValue}>{(microgptScalar.inference.tokens_per_second_avg || 0).toFixed(1)}</div>
+                </div>
+                <div className={styles.miniCard}>
+                  <div className={styles.miniLabel}>Chats</div>
+                  <div className={styles.miniValue}>{(microgptScalar.inference.conversation_total || 0).toFixed(0)}</div>
+                </div>
+                <div className={styles.miniCard}>
+                  <div className={styles.miniLabel}>Avg ms</div>
+                  <div className={styles.miniValue}>{(microgptScalar.inference.avg_duration_ms || 0).toFixed(0)}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Inference Activity */}
+            <div className={styles.section}>
+              <h2 className={styles.sectionTitle}>Inference Activity</h2>
+              <div className={styles.sectionGrid}>
+                {/* Tokens per Second */}
+                <div className={styles.compactChart}>
+                  <h4>Tokens / Second</h4>
+                  {(() => {
+                    const series = microgptTimeseries?.series?.find(s => s.metric_name === 'tokens_per_second')
+                    if (!series?.values?.length) return <NoDataMessage />
+                    const data = series.values.map(v => ({ time: formatTimestamp(v.timestamp), value: Math.max(0, v.value || 0) }))
+                    return (
+                      <ChartErrorBoundary>
+                        <ResponsiveContainer width="100%" height={180}>
+                          <AreaChart data={data}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                            <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                            <YAxis stroke="#888" fontSize={10} />
+                            <Tooltip
+                              contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                              formatter={(value) => [`${Number(value).toFixed(1)} tok/s`, 'Tokens/s']}
+                            />
+                            <Area type="monotone" dataKey="value" stroke={COLORS.info} fill="rgba(255, 102, 255, 0.3)" strokeWidth={2} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </ChartErrorBoundary>
+                    )
+                  })()}
+                </div>
+
+                {/* Request Rate */}
+                <div className={styles.compactChart}>
+                  <h4>Request Rate</h4>
+                  {(() => {
+                    const series = microgptTimeseries?.series?.find(s => s.metric_name === 'request_rate')
+                    if (!series?.values?.length) return <NoDataMessage />
+                    const data = series.values.map(v => ({ time: formatTimestamp(v.timestamp), value: Math.max(0, v.value || 0) }))
+                    return (
+                      <ChartErrorBoundary>
+                        <ResponsiveContainer width="100%" height={180}>
+                          <LineChart data={data}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                            <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                            <YAxis stroke="#888" fontSize={10} />
+                            <Tooltip
+                              contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                              formatter={(value) => [`${Number(value).toFixed(3)} req/s`, 'Request Rate']}
+                            />
+                            <Line type="monotone" dataKey="value" stroke={COLORS.primary} strokeWidth={2} dot={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </ChartErrorBoundary>
+                    )
+                  })()}
+                </div>
+
+                {/* Average Request Duration */}
+                <div className={styles.compactChart}>
+                  <h4>Avg Request Duration</h4>
+                  {(() => {
+                    const series = microgptTimeseries?.series?.find(s => s.metric_name === 'request_duration_ms')
+                    if (!series?.values?.length) return <NoDataMessage />
+                    const data = series.values.map(v => ({ time: formatTimestamp(v.timestamp), value: Math.max(0, v.value || 0) }))
+                    return (
+                      <ChartErrorBoundary>
+                        <ResponsiveContainer width="100%" height={180}>
+                          <AreaChart data={data}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                            <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                            <YAxis stroke="#888" fontSize={10} tickFormatter={(v) => `${v.toFixed(0)}ms`} />
+                            <Tooltip
+                              contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 204, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                              formatter={(value) => [`${Number(value).toFixed(0)} ms`, 'Avg Duration']}
+                            />
+                            <Area type="monotone" dataKey="value" stroke={COLORS.warning} fill="rgba(255, 204, 102, 0.3)" strokeWidth={2} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </ChartErrorBoundary>
+                    )
+                  })()}
+                </div>
+
+                {/* Conversation Rate */}
+                <div className={styles.compactChart}>
+                  <h4>Chat Conversation Rate</h4>
+                  {(() => {
+                    const series = microgptTimeseries?.series?.find(s => s.metric_name === 'conversation_rate')
+                    if (!series?.values?.length) return <NoDataMessage />
+                    const data = series.values.map(v => ({ time: formatTimestamp(v.timestamp), value: Math.max(0, v.value || 0) }))
+                    return (
+                      <ChartErrorBoundary>
+                        <ResponsiveContainer width="100%" height={180}>
+                          <LineChart data={data}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                            <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                            <YAxis stroke="#888" fontSize={10} />
+                            <Tooltip
+                              contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                              formatter={(value) => [`${Number(value).toFixed(3)} conv/s`, 'Conversation Rate']}
+                            />
+                            <Line type="monotone" dataKey="value" stroke={COLORS.success} strokeWidth={2} dot={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </ChartErrorBoundary>
+                    )
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            {/* Health */}
+            <div className={styles.section}>
+              <h2 className={styles.sectionTitle}>Service Health</h2>
+              <div className={styles.sectionGrid}>
+                {/* Success Count */}
+                <div className={styles.compactChart}>
+                  <h4>Success Count (5m windows)</h4>
+                  <ChartErrorBoundary>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <BarChart data={fillTimeSeriesData(microgptTimeseries?.series?.find(s => s.metric_name === 'success_count'), 0)}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                        <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                        <YAxis stroke="#888" fontSize={10} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 255, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                          formatter={(value) => [`${Number(value).toFixed(0)}`, 'Successes']}
+                        />
+                        <Bar dataKey="count" fill={COLORS.success} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartErrorBoundary>
+                </div>
+
+                {/* Failure Count */}
+                <div className={styles.compactChart}>
+                  <h4>Failure Count (5m windows)</h4>
+                  <ChartErrorBoundary>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <BarChart data={fillTimeSeriesData(microgptTimeseries?.series?.find(s => s.metric_name === 'failure_count'), 0)}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                        <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+                        <YAxis stroke="#888" fontSize={10} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 102, 102, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                          formatter={(value) => [`${Number(value).toFixed(0)}`, 'Failures']}
+                        />
+                        <Bar dataKey="count" fill={COLORS.danger} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartErrorBoundary>
+                </div>
+
+                {/* Endpoint breakdown (current totals) */}
+                {microgptScalar && (
+                  <div className={styles.compactChart}>
+                    <h4>Endpoint Totals</h4>
+                    <ChartErrorBoundary>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <BarChart data={[
+                          { name: 'Generate', total: microgptScalar.requests.generate_total || 0 },
+                          { name: 'Chat', total: microgptScalar.requests.chat_total || 0 },
+                        ]}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis dataKey="name" stroke="#888" fontSize={10} />
+                          <YAxis stroke="#888" fontSize={10} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(102, 182, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+                            formatter={(value) => [`${Number(value).toFixed(0)}`, 'Requests']}
+                          />
+                          <Bar dataKey="total" fill={COLORS.primary} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </ChartErrorBoundary>
+                  </div>
+                )}
               </div>
             </div>
           </>
