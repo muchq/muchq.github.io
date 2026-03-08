@@ -38,6 +38,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
   const {
     gameState,
     roomState,
+    playerId,
     roomCode,
     selectedCardIndex,
     isInLobby,
@@ -345,17 +346,26 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
           <div className={styles.gameHeaderInfo}>
             <h2>Room: {gameState.id}</h2>
             <div className={styles.playerList}>
-              {gameState.players.map((player, index) => (
-                <div
-                  key={player.id}
-                  className={`${styles.playerInfo} ${index === gameState.currentPlayerIndex ? styles.active : ''}`}
-                >
-                  <span>{getDisplayName(player)}</span>
-                  {gameState.gamePhase === 'ended' && (
-                    <span className={styles.score}>Score: {player.score}</span>
-                  )}
-                </div>
-              ))}
+              {gameState.players.map((player, index) => {
+                const isActivePlayer = index === gameState.currentPlayerIndex && gameState.gamePhase === 'playing'
+                return (
+                  <div
+                    key={player.id}
+                    className={`${styles.playerInfo} ${isActivePlayer ? styles.active : ''}`}
+                  >
+                    <span>{getDisplayName(player)}</span>
+                    {isActivePlayer && player.id !== playerId && (
+                      <span className={styles.turnLabel}>their turn</span>
+                    )}
+                    {isActivePlayer && player.id === playerId && (
+                      <span className={styles.turnLabel}>your turn</span>
+                    )}
+                    {gameState.gamePhase === 'ended' && (
+                      <span className={styles.score}>Score: {player.score}</span>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
           {currentGamePermalink && (
@@ -541,12 +551,16 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                 )}
               </div>
 
-              {gameState.drawnCard && isMyTurn && (
-                <div className={styles.pile}>
-                  <h3>Drawn Card</h3>
-                  {renderCard(gameState.drawnCard, -2, true, false)}
-                </div>
-              )}
+              <div className={styles.pile}>
+                <h3>{gameState.drawnCard && isMyTurn ? 'Drawn Card' : '\u00A0'}</h3>
+                {gameState.drawnCard && isMyTurn ? (
+                  <div className={styles.drawnCardWrapper}>
+                    {renderCard(gameState.drawnCard, -2, true, false)}
+                  </div>
+                ) : (
+                  <div className={styles.emptyPileReserved} />
+                )}
+              </div>
             </div>
           </div>
 
@@ -573,7 +587,11 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                   </>
                 ) : (
                   <>
-                    <button onClick={swapCard} className={styles.actionButton}>
+                    <button
+                      onClick={swapCard}
+                      className={`${styles.actionButton} ${selectedCardIndex === null ? styles.actionButtonDisabled : ''}`}
+                      disabled={selectedCardIndex === null}
+                    >
                       Swap Card
                     </button>
                     <button onClick={discardDrawn} className={styles.actionButton}>
