@@ -175,8 +175,17 @@
 }
 
 .playerInfo.active {
-  background: rgba(144, 238, 144, 0.2);
+  background: rgba(144, 238, 144, 0.25);
   border: 1px solid #90ee90;
+  box-shadow: 0 0 12px rgba(144, 238, 144, 0.3);
+}
+
+.turnLabel {
+  font-size: 0.7rem;
+  color: #90ee90;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
 }
 
 .score {
@@ -245,8 +254,10 @@
 }
 
 .card.selected {
-  border: 3px solid #90ee90;
+  outline: 3px solid #ffd700;
+  outline-offset: -3px;
   transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
 }
 
 .card.clickable,
@@ -338,6 +349,12 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
+.drawnCardHighlight .card {
+  outline: 3px solid #ffd700;
+  outline-offset: -3px;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+}
+
 .playerArea {
   background: rgba(255, 255, 255, 0.1);
   padding: 2rem;
@@ -395,6 +412,20 @@
 .actionButton:active {
   transform: scale(0.95);
   transition: transform 0.1s ease;
+}
+
+.actionButtonDisabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.actionButtonDisabled:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.actionButtonDisabled:active {
+  transform: none;
 }
 
 .knockButton {
@@ -609,9 +640,10 @@
   }
 
   .card.selected {
-    border: 3px solid #90ee90;
+    outline: 3px solid #ffd700;
+    outline-offset: -3px;
     transform: scale(1.08);
-    box-shadow: 0 0 20px rgba(144, 238, 144, 0.5);
+    box-shadow: 0 0 24px rgba(255, 215, 0, 0.6);
   }
 
   .cardRank {
