@@ -158,7 +158,9 @@ export class GolfNetworkAdapter {
     this.manager.connect({
       url,
       gameType: 'golf',
-      reconnect: false // Golf game doesn't auto-reconnect
+      reconnect: true, // Enable reconnection with JWT session restore
+      reconnectDelay: 2000, // Try to reconnect after 2 seconds
+      maxReconnectAttempts: 10 // Try up to 10 times (covers the 5-minute grace period)
     })
   }
 
