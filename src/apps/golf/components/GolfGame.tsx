@@ -584,41 +584,39 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
               )}
             </div>
 
-            {isMyTurn && (
-              <div className={styles.actions}>
-                {!gameState.drawnCard ? (
-                  <>
-                    <button onClick={handleDrawCard} className={styles.actionButton}>
-                      Draw Card
-                    </button>
-                    {gameState.discardPile.length > 0 && (
-                      <button onClick={handleTakeFromDiscard} className={styles.actionButton}>
-                        Take from Discard
-                      </button>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={swapCard}
-                      className={`${styles.actionButton} ${selectedCardIndex === null ? styles.actionButtonDisabled : ''}`}
-                      disabled={selectedCardIndex === null}
-                    >
-                      Swap Card
-                    </button>
-                    <button onClick={discardDrawn} className={styles.actionButton}>
-                      Discard
-                    </button>
-                  </>
-                )}
-
-                {gameState.gamePhase === 'playing' && !gameState.drawnCard && (
-                  <button onClick={knock} className={styles.knockButton}>
-                    Knock
+            <div className={styles.actions} style={!isMyTurn ? { visibility: 'hidden' } : undefined}>
+              {!gameState.drawnCard ? (
+                <>
+                  <button onClick={handleDrawCard} className={styles.actionButton}>
+                    Draw Card
                   </button>
-                )}
-              </div>
-            )}
+                  {gameState.discardPile.length > 0 && (
+                    <button onClick={handleTakeFromDiscard} className={styles.actionButton}>
+                      Take from Discard
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={swapCard}
+                    className={`${styles.actionButton} ${selectedCardIndex === null ? styles.actionButtonDisabled : ''}`}
+                    disabled={selectedCardIndex === null}
+                  >
+                    Swap Card
+                  </button>
+                  <button onClick={discardDrawn} className={styles.actionButton}>
+                    Discard
+                  </button>
+                </>
+              )}
+
+              {gameState.gamePhase === 'playing' && !gameState.drawnCard && (
+                <button onClick={knock} className={styles.knockButton}>
+                  Knock
+                </button>
+              )}
+            </div>
 
             {currentPlayer.revealedCards.length < 2 && gameState.gamePhase === 'playing' && !currentPlayer.hasPeeked && (
               <div className={styles.peekHint}>
