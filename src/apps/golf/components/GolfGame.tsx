@@ -69,6 +69,19 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     joinNewGame
   } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams })
 
+  const [drawnFromRaw, setDrawnFromRaw] = useState<'deck' | 'discard' | null>(null)
+  const drawnFrom = gameState?.drawnCard ? drawnFromRaw : null
+
+  const handleDrawCard = () => {
+    setDrawnFromRaw('deck')
+    drawCard()
+  }
+
+  const handleTakeFromDiscard = () => {
+    setDrawnFromRaw('discard')
+    takeFromDiscard()
+  }
+
   const renderCard = (card: Card | null, index: number, isRevealed: boolean, isPlayer: boolean) => {
     const isSelected = selectedCardIndex === index
     const canInteract = isPlayer && (isMyTurn || (currentPlayer && !currentPlayer.hasPeeked && gameState?.gamePhase === 'playing'))
@@ -520,45 +533,44 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
             <div className={styles.piles}>
               <div className={styles.pile}>
                 <h3>Draw Pile</h3>
-                <div
-                  className={`${styles.card} ${isMyTurn && !gameState.drawnCard ? styles.clickable : ''}`}
-                  onClick={() => isMyTurn && !gameState.drawnCard && drawCard()}
-                  onTouchEnd={(e) => {
-                    e.preventDefault()
-                    if (isMyTurn && !gameState.drawnCard) drawCard()
-                  }}
-                >
-                  <span className={styles.cardBack}>?</span>
-                  <span className={styles.cardCount}>{gameState.drawPile}</span>
-                </div>
+                {gameState.drawnCard && isMyTurn && drawnFrom === 'deck' ? (
+                  <div className={styles.drawnCardHighlight}>
+                    {renderCard(gameState.drawnCard, -2, true, false)}
+                  </div>
+                ) : (
+                  <div
+                    className={`${styles.card} ${isMyTurn && !gameState.drawnCard ? styles.clickable : ''}`}
+                    onClick={() => isMyTurn && !gameState.drawnCard && handleDrawCard()}
+                    onTouchEnd={(e) => {
+                      e.preventDefault()
+                      if (isMyTurn && !gameState.drawnCard) handleDrawCard()
+                    }}
+                  >
+                    <span className={styles.cardBack}>?</span>
+                    <span className={styles.cardCount}>{gameState.drawPile}</span>
+                  </div>
+                )}
               </div>
 
               <div className={styles.pile}>
                 <h3>Discard Pile</h3>
-                {gameState.discardPile.length > 0 ? (
+                {gameState.drawnCard && isMyTurn && drawnFrom === 'discard' ? (
+                  <div className={styles.drawnCardHighlight}>
+                    {renderCard(gameState.drawnCard, -2, true, false)}
+                  </div>
+                ) : gameState.discardPile.length > 0 ? (
                   <div
                     className={`${isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0 ? styles.clickable : ''}`}
-                    onClick={() => isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0 && takeFromDiscard()}
+                    onClick={() => isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0 && handleTakeFromDiscard()}
                     onTouchEnd={(e) => {
                       e.preventDefault()
-                      if (isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0) takeFromDiscard()
+                      if (isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0) handleTakeFromDiscard()
                     }}
                   >
                     {renderCard(gameState.discardPile[gameState.discardPile.length - 1], -1, true, false)}
                   </div>
                 ) : (
                   <div className={styles.emptyPile}>Empty</div>
-                )}
-              </div>
-
-              <div className={styles.pile}>
-                <h3>{gameState.drawnCard && isMyTurn ? 'Drawn Card' : '\u00A0'}</h3>
-                {gameState.drawnCard && isMyTurn ? (
-                  <div className={styles.drawnCardWrapper}>
-                    {renderCard(gameState.drawnCard, -2, true, false)}
-                  </div>
-                ) : (
-                  <div className={styles.emptyPileReserved} />
                 )}
               </div>
             </div>
@@ -576,11 +588,11 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
               <div className={styles.actions}>
                 {!gameState.drawnCard ? (
                   <>
-                    <button onClick={drawCard} className={styles.actionButton}>
+                    <button onClick={handleDrawCard} className={styles.actionButton}>
                       Draw Card
                     </button>
                     {gameState.discardPile.length > 0 && (
-                      <button onClick={takeFromDiscard} className={styles.actionButton}>
+                      <button onClick={handleTakeFromDiscard} className={styles.actionButton}>
                         Take from Discard
                       </button>
                     )}

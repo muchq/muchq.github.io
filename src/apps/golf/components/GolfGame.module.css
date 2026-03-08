@@ -254,15 +254,10 @@
 }
 
 .card.selected {
-  border: 3px solid #ffd700;
-  transform: scale(1.08);
-  box-shadow: 0 0 16px rgba(255, 215, 0, 0.5);
-  animation: selectedPulse 1.2s ease-in-out infinite;
-}
-
-@keyframes selectedPulse {
-  0%, 100% { box-shadow: 0 0 12px rgba(255, 215, 0, 0.4); }
-  50% { box-shadow: 0 0 24px rgba(255, 215, 0, 0.8); }
+  outline: 3px solid #ffd700;
+  outline-offset: -3px;
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
 }
 
 .card.clickable,
@@ -354,15 +349,10 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
-.emptyPileReserved {
-  width: 80px;
-  height: 120px;
-  visibility: hidden;
-}
-
-.drawnCardWrapper .card {
-  border: 2px solid #ffd700;
-  box-shadow: 0 0 16px rgba(255, 215, 0, 0.4);
+.drawnCardHighlight .card {
+  outline: 3px solid #ffd700;
+  outline-offset: -3px;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
 }
 
 .playerArea {
@@ -650,8 +640,9 @@
   }
 
   .card.selected {
-    border: 3px solid #ffd700;
-    transform: scale(1.1);
+    outline: 3px solid #ffd700;
+    outline-offset: -3px;
+    transform: scale(1.08);
     box-shadow: 0 0 24px rgba(255, 215, 0, 0.6);
   }
 
@@ -678,11 +669,6 @@
   }
 
   .emptyPile {
-    width: 70px;
-    height: 100px;
-  }
-
-  .emptyPileReserved {
     width: 70px;
     height: 100px;
   }
@@ -884,11 +870,6 @@
   }
 
   .emptyPile {
-    width: 55px;
-    height: 80px;
-  }
-
-  .emptyPileReserved {
     width: 55px;
     height: 80px;
   }
