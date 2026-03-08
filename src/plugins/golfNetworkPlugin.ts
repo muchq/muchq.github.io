@@ -9,14 +9,15 @@ import type { Player, GameState as GolfGameState, Room, FinalScore } from '@/typ
 
 // Golf-specific message types
 interface GolfMessage extends BaseNetworkMessage {
-  type: 'createRoom' | 'joinRoom' | 'createGame' | 'joinGame' | 'roomJoined' | 'roomStateUpdate' | 'gameState' | 'error' | 
+  type: 'authenticate' | 'authenticated' | 'createRoom' | 'joinRoom' | 'createGame' | 'joinGame' | 'roomJoined' | 'roomStateUpdate' | 'gameState' | 'error' |
         'gameStarted' | 'turnChanged' | 'playerKnocked' | 'gameEnded' | 'newGameStarted' |
-        'startGame' | 'peekCard' | 'drawCard' | 'takeFromDiscard' | 
+        'startGame' | 'peekCard' | 'drawCard' | 'takeFromDiscard' |
         'swapCard' | 'discardDrawn' | 'knock' | 'hideCards' | 'startNewGame'
   // Request fields
   roomId?: string
   gameId?: string
   cardIndex?: number
+  sessionToken?: string
   // Response fields
   playerId?: string
   gameState?: GolfGameState
@@ -25,6 +26,7 @@ interface GolfMessage extends BaseNetworkMessage {
   winner?: string
   finalScores?: FinalScore[]
   previousGameId?: string
+  reconnected?: boolean
 }
 
 // Golf plugin state
@@ -35,6 +37,8 @@ interface GolfPluginState {
   gameContext: { roomId: string; gameId: string } | null
   isInLobby: boolean
 }
+
+const SESSION_TOKEN_KEY = 'golf_session_token'
 
 export class GolfNetworkPlugin implements GameNetworkPlugin {
   gameType = 'golf'
@@ -68,6 +72,7 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
 
   getMessageHandlers(): MessageHandlerMap {
     return {
+      'authenticated': (msg, ctx) => this.handleAuthenticated(msg as GolfMessage, ctx),
       'roomJoined': (msg, ctx) => this.handleRoomJoined(msg as GolfMessage, ctx),
       'roomStateUpdate': (msg, ctx) => this.handleRoomStateUpdate(msg as GolfMessage, ctx),
       'gameJoined': (msg, ctx) => this.handleGameJoined(msg as GolfMessage, ctx),
@@ -83,7 +88,7 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
 
   validateMessage(message: BaseNetworkMessage): boolean {
     const validTypes = [
-      'roomJoined', 'roomStateUpdate', 'gameJoined', 'gameState', 'error', 
+      'authenticated', 'roomJoined', 'roomStateUpdate', 'gameJoined', 'gameState', 'error',
       'gameStarted', 'turnChanged', 'playerKnocked', 'gameEnded', 'newGameStarted'
     ]
     return validTypes.includes(message.type)
@@ -99,21 +104,23 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
     }
   }
 
-  onConnect(_context: NetworkContext): void {
+  onConnect(context: NetworkContext): void {
     console.log('🎮 Golf game connected')
+
+    // Send authenticate message as first message
+    const storedToken = this.getStoredSessionToken()
+    context.send({
+      type: 'authenticate',
+      sessionToken: storedToken || '',
+      timestamp: Date.now()
+    })
+    console.log(`📤 Sent authenticate request ${storedToken ? 'with stored token' : 'for new session'}`)
   }
 
-  onDisconnect(context: NetworkContext): void {
-    console.log('🎮 Golf game disconnected')
-    // Reset state on disconnect
-    context.updateGameState<GolfPluginState>(s => ({
-      ...s,
-      playerId: null,
-      gameState: null,
-      roomState: null,
-      gameContext: null,
-      isInLobby: true
-    }))
+  onDisconnect(_context: NetworkContext): void {
+    console.log('🎮 Golf game disconnected — keeping state for reconnection')
+    // Don't reset state on disconnect. The server will restore room/game
+    // state when we reconnect and re-authenticate with our session token.
   }
 
   // Message handlers
@@ -196,6 +203,16 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
   private handleError(message: GolfMessage, context: NetworkContext): void {
     const errorMessage = message.message || 'Unknown error occurred'
     console.error('🚫 Game error:', errorMessage)
+
+    // Clear stored session token if error is related to authentication
+    if (errorMessage.toLowerCase().includes('session') ||
+        errorMessage.toLowerCase().includes('token') ||
+        errorMessage.toLowerCase().includes('authentication') ||
+        errorMessage.toLowerCase().includes('unauthenticated')) {
+      console.log('🔐 Clearing invalid session token')
+      this.clearSessionToken()
+    }
+
     this.notify(errorMessage, context)
   }
 
@@ -235,12 +252,29 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
   private handleNewGameStarted(message: GolfMessage, context: NetworkContext): void {
     const gameId = message.gameId
     const previousGameId = message.previousGameId
-    
+
     console.log(`🆕 New game started in room! Game ID: ${gameId}${previousGameId ? `, Previous: ${previousGameId}` : ''}`)
     this.notify('New game started!', context)
-    
+
     if (this.onNewGameStarted && gameId) {
       this.onNewGameStarted(gameId, previousGameId)
+    }
+  }
+
+  private handleAuthenticated(message: GolfMessage, _context: NetworkContext): void {
+    if (!message.sessionToken) {
+      console.error('Authenticated message missing session token')
+      return
+    }
+
+    // Store the session token
+    this.storeSessionToken(message.sessionToken)
+
+    const isReconnect = message.reconnected || false
+    console.log(`🔐 Authenticated successfully ${isReconnect ? '(reconnected to existing session)' : '(new session)'}`)
+
+    if (isReconnect) {
+      console.log('♻️  Session restored - you should be back in your previous room/game')
     }
   }
 
@@ -362,11 +396,43 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
     console.log('📤 Sent start new game request')
   }
 
+  // Session token management
+  private storeSessionToken(token: string): void {
+    try {
+      localStorage.setItem(SESSION_TOKEN_KEY, token)
+      console.log('💾 Session token stored in localStorage')
+    } catch (error) {
+      console.error('Failed to store session token:', error)
+    }
+  }
+
+  private getStoredSessionToken(): string | null {
+    try {
+      const token = localStorage.getItem(SESSION_TOKEN_KEY)
+      if (token) {
+        console.log('🔑 Retrieved stored session token')
+      }
+      return token
+    } catch (error) {
+      console.error('Failed to retrieve session token:', error)
+      return null
+    }
+  }
+
+  private clearSessionToken(): void {
+    try {
+      localStorage.removeItem(SESSION_TOKEN_KEY)
+      console.log('🗑️  Session token cleared from localStorage')
+    } catch (error) {
+      console.error('Failed to clear session token:', error)
+    }
+  }
+
   // Helper to check if it's the player's turn
   isMyTurn(context: NetworkContext): boolean {
     const state = context.getGameState<GolfPluginState>()
     if (!state.gameState || !state.playerId) return false
-    
+
     const currentPlayer = state.gameState.players[state.gameState.currentPlayerIndex]
     return currentPlayer?.id === state.playerId
   }
@@ -375,7 +441,7 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
   getCurrentPlayer(context: NetworkContext): Player | null {
     const state = context.getGameState<GolfPluginState>()
     if (!state.gameState || !state.playerId) return null
-    
+
     return state.gameState.players.find(p => p.id === state.playerId) || null
   }
 }
