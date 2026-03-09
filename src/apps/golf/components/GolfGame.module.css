@@ -841,22 +841,9 @@
     font-size: 1.2rem;
   }
 
-  .winner {
-    font-size: 1rem;
-  }
-
   .scoreRow {
     font-size: 0.85rem;
     padding: 0.4rem;
-  }
-
-  .gameEndActions {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .gameEndActions button {
-    width: 100%;
   }
 
   .rulesContent {
@@ -1071,70 +1058,30 @@
   }
 }
 
-.celebration {
+.celebrationStage {
   text-align: center;
+  cursor: pointer;
+}
+
+.celebrationEmoji {
+  font-size: 5rem;
+  animation: bounce 1.5s ease-in-out infinite;
   margin-bottom: 1rem;
 }
 
-.trophy {
-  font-size: 3rem;
-  display: block;
-  animation: bounce 2s ease-in-out infinite;
-  margin-bottom: 0.5rem;
-}
-
-.gameOverTitle {
+.celebrationTitle {
+  font-size: 2.5rem;
   color: white;
   font-family: 'Lexend', sans-serif;
-  font-size: 1.8rem;
+  font-weight: 300;
   margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
-.winnerSection {
-  margin: 1.5rem 0;
-  padding: 1rem;
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 165, 0, 0.1));
-  border-radius: 0.5rem;
-  border: 1px solid rgba(255, 215, 0, 0.3);
-}
-
-.confetti {
-  text-align: center;
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
-  animation: pulse 1s ease-in-out infinite;
-}
-
-.winner {
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.winnerLabel {
-  color: #90ee90;
+.celebrationTap {
+  color: rgba(255, 255, 255, 0.5);
   font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-family: 'Lexend', sans-serif;
-}
-
-.winnerName {
-  color: #ffd700;
-  font-size: 1.8rem;
-  font-weight: bold;
-  font-family: 'Lexend', sans-serif;
-  text-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
-}
-
-.winnerMessage {
-  color: white;
-  font-size: 0.95rem;
-  font-family: 'Lexend', sans-serif;
-  opacity: 0.9;
+  margin-top: 1.5rem;
+  animation: pulse 2s ease-in-out infinite;
 }
 
 @keyframes bounce {
@@ -1204,27 +1151,70 @@
   font-size: 0.9rem;
 }
 
-.gameEndInfo {
-  text-align: center;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 0.75rem;
-  margin: 0;
+.playAgainButton {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.2rem;
   font-family: 'Lexend', sans-serif;
-  padding-top: 0.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 500;
+  background: #90ee90;
+  color: #0d5016;
+  border: none;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-.gameEndActions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 1rem;
-  justify-content: center;
+.playAgainButton:active {
+  transform: scale(0.97);
 }
 
-.gameEndActions button {
-  flex: 1;
-  padding: 0.5rem 1rem;
+.roomTotalsDetails {
+  margin: 0.75rem 0;
+}
+
+.roomTotalsSummary {
+  color: rgba(255, 255, 255, 0.6);
   font-size: 0.9rem;
+  font-family: 'Lexend', sans-serif;
+  cursor: pointer;
+  padding: 0.5rem;
+  text-align: center;
+  list-style: none;
+}
+
+.roomTotalsSummary::-webkit-details-marker {
+  display: none;
+}
+
+.roomTotalsSummary:hover {
+  color: white;
+}
+
+.textLink {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: 'Lexend', sans-serif;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.textLink:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.gameEndLinks {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
 }
 
 /* Rules Modal Styles */
@@ -1605,30 +1595,6 @@
 .cumulativeRow .playerAverage {
   color: rgba(255, 255, 255, 0.8);
   text-align: center;
-}
-
-.gameEndActions {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.tertiaryButton {
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-  font-family: 'Lexend', sans-serif;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.tertiaryButton:hover {
-  color: white;
-  border-color: rgba(255, 255, 255, 0.4);
 }
 
 /* Permalink Display Sections */
