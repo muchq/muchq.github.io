@@ -122,6 +122,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                 onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
                 className={styles.input}
                 maxLength={6}
+                autoFocus
               />
               <button onClick={joinRoom} className={styles.secondaryButton}>
                 Join Room
@@ -384,10 +385,10 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
 
       {gameState.gamePhase === 'waiting' && (
         <div className={styles.waitingRoom}>
-          <h3>Waiting for players...</h3>
+          <h3 className={styles.waitingPulse}>Waiting for players...</h3>
           <p>{gameState.players.length}/4 players</p>
           {gameState.players.length >= 2 && (
-            <button onClick={startGame} className={styles.primaryButton}>
+            <button onClick={startGame} className={`${styles.primaryButton} ${styles.startGameButton}`}>
               Start Game
             </button>
           )}
