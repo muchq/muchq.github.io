@@ -40,7 +40,6 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     roomState,
     playerId,
     roomCode,
-    selectedCardIndex,
     isInLobby,
     isInRoom,
     notification,
@@ -59,7 +58,6 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     startNewGame,
     drawCard,
     takeFromDiscard,
-    swapCard,
     discardDrawn,
     knock,
     handleCardClick,
@@ -71,13 +69,12 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
 
 
   const renderCard = (card: Card | null, index: number, isRevealed: boolean, isPlayer: boolean) => {
-    const isSelected = selectedCardIndex === index
     const canInteract = isPlayer && (isMyTurn || (currentPlayer && !currentPlayer.hasPeeked && gameState?.gamePhase === 'playing'))
 
     return (
       <div
         key={index}
-        className={`${styles.card} ${isSelected ? styles.selected : ''} ${isRevealed ? styles.revealed : ''} ${canInteract ? styles.interactive : ''}`}
+        className={`${styles.card} ${isRevealed ? styles.revealed : ''} ${canInteract ? styles.interactive : ''}`}
         onClick={() => canInteract && handleCardClick(index)}
         onTouchEnd={(e) => {
           e.preventDefault()
@@ -591,13 +588,6 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
             <div className={styles.actions} style={!isMyTurn ? { visibility: 'hidden' } : undefined}>
               {gameState.drawnCard ? (
                 <>
-                  <button
-                    onClick={swapCard}
-                    className={`${styles.actionButton} ${selectedCardIndex === null ? styles.actionButtonDisabled : ''}`}
-                    disabled={selectedCardIndex === null}
-                  >
-                    Swap Card
-                  </button>
                   <button onClick={discardDrawn} className={styles.actionButton}>
                     Discard
                   </button>
