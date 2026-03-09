@@ -97,14 +97,19 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
         }}
       >
         {isRevealed && card ? (
-          <>
-            <span className={`${styles.cardRank} ${(card.suit === '♥' || card.suit === '♦') ? styles.red : ''}`}>
-              {card.rank}
-            </span>
-            <span className={`${styles.cardSuit} ${(card.suit === '♥' || card.suit === '♦') ? styles.red : ''}`}>
+          <div className={styles.cardFace}>
+            <div className={`${styles.cardCorner} ${styles.topLeft} ${(card.suit === '♥' || card.suit === '♦') ? styles.red : ''}`}>
+              <span className={styles.cornerRank}>{card.rank}</span>
+              <span className={styles.cornerSuit}>{card.suit}</span>
+            </div>
+            <span className={`${styles.cardCenter} ${(card.suit === '♥' || card.suit === '♦') ? styles.red : ''}`}>
               {card.suit}
             </span>
-          </>
+            <div className={`${styles.cardCorner} ${styles.bottomRight} ${(card.suit === '♥' || card.suit === '♦') ? styles.red : ''}`}>
+              <span className={styles.cornerRank}>{card.rank}</span>
+              <span className={styles.cornerSuit}>{card.suit}</span>
+            </div>
+          </div>
         ) : (
           <div className={styles.cardBack} />
         )}

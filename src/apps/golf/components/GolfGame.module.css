@@ -280,7 +280,59 @@
 }
 
 .card.revealed {
-  background: white;
+  background: #faf8f0;
+  color: #1a1a1a;
+}
+
+.cardFace {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cardCorner {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+
+.topLeft {
+  top: 6px;
+  left: 6px;
+}
+
+.bottomRight {
+  bottom: 6px;
+  right: 6px;
+  transform: rotate(180deg);
+}
+
+.cornerRank {
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: 'Lexend', sans-serif;
+}
+
+.cornerSuit {
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.cardCenter {
+  font-size: 2.2rem;
+}
+
+.red {
+  color: #dc3545;
+}
+
+/* Revealed cards in player grid get a warm glow */
+.playerArea .card.revealed {
+  box-shadow: 0 2px 12px rgba(255, 200, 60, 0.25);
 }
 
 .cardBack {
@@ -305,23 +357,6 @@
     linear-gradient(135deg, #1a5c2a, #0d3f18);
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
   border: 2px solid rgba(144, 238, 144, 0.2);
-}
-
-.cardRank {
-  font-weight: bold;
-  font-size: 2rem;
-}
-
-.cardRank.red,
-.cardSuit.red {
-  color: #e53935;
-}
-
-.cardSuit {
-  position: absolute;
-  bottom: 0.5rem;
-  right: 0.5rem;
-  font-size: 1.5rem;
 }
 
 .cardCount {
@@ -664,15 +699,11 @@
     box-shadow: 0 0 24px rgba(255, 215, 0, 0.6);
   }
 
-  .cardRank {
-    font-size: 1.5rem;
-  }
-
-  .cardSuit {
-    font-size: 1.2rem;
-    bottom: 0.4rem;
-    right: 0.4rem;
-  }
+  .cornerRank { font-size: 0.85rem; }
+  .cornerSuit { font-size: 0.6rem; }
+  .cardCenter { font-size: 1.8rem; }
+  .topLeft { top: 4px; left: 4px; }
+  .bottomRight { bottom: 4px; right: 4px; }
 
   .cardGrid {
     gap: 0.8rem;
@@ -863,13 +894,11 @@
     height: 92px;
   }
 
-  .cardRank {
-    font-size: 1.2rem;
-  }
-
-  .cardSuit {
-    font-size: 1rem;
-  }
+  .cornerRank { font-size: 0.75rem; }
+  .cornerSuit { font-size: 0.5rem; }
+  .cardCenter { font-size: 1.4rem; }
+  .topLeft { top: 3px; left: 3px; }
+  .bottomRight { bottom: 3px; right: 3px; }
 
   .piles {
     gap: 0.5rem;
