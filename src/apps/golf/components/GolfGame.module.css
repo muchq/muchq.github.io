@@ -220,6 +220,12 @@
   align-items: center;
 }
 
+.cardGridDimmed {
+  opacity: 0.6;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
 .card {
   width: 90px;
   height: 130px;
@@ -248,7 +254,7 @@
 
 .card.interactive:active {
   transform: scale(0.95);
-  transition: transform 0.1s ease;
+  transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .card.selected {
@@ -264,6 +270,12 @@
   transition: all 0.2s ease;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  animation: subtlePulse 2s ease-in-out infinite;
+}
+
+@keyframes subtlePulse {
+  0%, 100% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); }
+  50% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 12px rgba(144, 238, 144, 0.3); }
 }
 
 .card.clickable:hover,

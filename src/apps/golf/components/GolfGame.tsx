@@ -579,7 +579,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
 
           <div className={styles.playerArea}>
             <h3>Your Cards</h3>
-            <div className={styles.cardGrid}>
+            <div className={`${styles.cardGrid} ${!isMyTurn && currentPlayer.hasPeeked && (gameState.gamePhase === 'playing' || gameState.gamePhase === 'knocked') ? styles.cardGridDimmed : ''}`}>
               {currentPlayer.cards.map((card, index) =>
                 renderCard(card, index, currentPlayer.revealedCards.includes(index), true)
               )}
