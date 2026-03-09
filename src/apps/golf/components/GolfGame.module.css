@@ -4,14 +4,14 @@
   align-items: center;
   justify-content: center;
   min-height: 400px;
-  padding: 2rem;
+  padding: 1.5rem;
 }
 
 .title {
   font-family: 'Lexend', sans-serif;
-  font-size: 3rem;
+  font-size: 2.5rem;
   font-weight: 300;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   color: white;
 }
 
@@ -22,10 +22,6 @@
   border-radius: 1rem;
   width: 100%;
   max-width: 400px;
-}
-
-.inputGroup {
-  margin-bottom: 1.5rem;
 }
 
 .input {
@@ -63,6 +59,7 @@
   border-radius: 0.5rem;
   cursor: pointer;
   transition: all 0.3s ease;
+  min-height: 48px;
 }
 
 .primaryButton {
@@ -198,6 +195,17 @@
   padding: 3rem;
 }
 
+.waitingPulse {
+  animation: pulse 2s ease-in-out infinite;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.startGameButton {
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
+  min-height: 56px;
+}
+
 .gameArea {
   position: relative;
   display: flex;
@@ -214,25 +222,29 @@
 
 .cardGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
+  grid-template-columns: repeat(2, auto);
+  gap: 0.75rem;
   justify-content: center;
   align-items: center;
 }
 
+.cardGridDimmed {
+  opacity: 0.6;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
 .card {
-  width: 80px;
-  height: 120px;
-  background: white;
-  border-radius: 0.5rem;
+  width: 90px;
+  height: 130px;
+  border-radius: 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   font-size: 1.5rem;
-  color: #333;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   user-select: none;
   -webkit-user-select: none;
@@ -250,14 +262,7 @@
 
 .card.interactive:active {
   transform: scale(0.95);
-  transition: transform 0.1s ease;
-}
-
-.card.selected {
-  outline: 3px solid #ffd700;
-  outline-offset: -3px;
-  transform: scale(1.05);
-  box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+  transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .card.clickable,
@@ -266,6 +271,12 @@
   transition: all 0.2s ease;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  animation: subtlePulse 2s ease-in-out infinite;
+}
+
+@keyframes subtlePulse {
+  0%, 100% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); }
+  50% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 12px rgba(144, 238, 144, 0.3); }
 }
 
 .card.clickable:hover,
@@ -282,29 +293,83 @@
 }
 
 .card.revealed {
-  background: white;
+  background: #faf8f0;
+  color: #1a1a1a;
+}
+
+.cardFace {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cardCorner {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+
+.topLeft {
+  top: 6px;
+  left: 6px;
+}
+
+.bottomRight {
+  bottom: 6px;
+  right: 6px;
+  transform: rotate(180deg);
+}
+
+.cornerRank {
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: 'Lexend', sans-serif;
+}
+
+.cornerSuit {
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.cardCenter {
+  font-size: 2.2rem;
+}
+
+.red {
+  color: #dc3545;
+}
+
+/* Revealed cards in player grid get a warm glow */
+.playerArea .card.revealed {
+  box-shadow: 0 2px 12px rgba(255, 200, 60, 0.25);
 }
 
 .cardBack {
-  font-size: 2rem;
-  color: #0d5016;
-}
-
-.cardRank {
-  font-weight: bold;
-  font-size: 2rem;
-}
-
-.cardRank.red,
-.cardSuit.red {
-  color: #e53935;
-}
-
-.cardSuit {
   position: absolute;
-  bottom: 0.5rem;
-  right: 0.5rem;
-  font-size: 1.5rem;
+  inset: 0;
+  border-radius: 0.75rem;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 8px,
+      rgba(144, 238, 144, 0.12) 8px,
+      rgba(144, 238, 144, 0.12) 9px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 8px,
+      rgba(144, 238, 144, 0.12) 8px,
+      rgba(144, 238, 144, 0.12) 9px
+    ),
+    linear-gradient(135deg, #1a5c2a, #0d3f18);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(144, 238, 144, 0.2);
 }
 
 .cardCount {
@@ -339,8 +404,8 @@
 }
 
 .emptyPile {
-  width: 80px;
-  height: 120px;
+  width: 90px;
+  height: 130px;
   border: 2px dashed rgba(255, 255, 255, 0.3);
   border-radius: 0.5rem;
   display: flex;
@@ -349,10 +414,52 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
-.drawnCardHighlight .card {
-  outline: 3px solid #ffd700;
-  outline-offset: -3px;
-  box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+.heldCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  animation: bobbing 2s ease-in-out infinite;
+}
+
+.heldCard .card {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+.heldCardLabel {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: 'Lexend', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@keyframes bobbing {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.pileDepleted {
+  opacity: 0.4;
+}
+
+.turnIndicator {
+  text-align: center;
+  padding: 0.5rem 1rem;
+  font-family: 'Lexend', sans-serif;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 0.5rem;
+  min-height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.waitingText {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .playerArea {
@@ -415,20 +522,6 @@
   transition: transform 0.1s ease;
 }
 
-.actionButtonDisabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.actionButtonDisabled:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
-.actionButtonDisabled:active {
-  transform: none;
-}
-
 .knockButton {
   background: #ff6b6b;
   color: white;
@@ -442,12 +535,6 @@
 .knockButton:active {
   transform: scale(0.95);
   transition: transform 0.1s ease;
-}
-
-.peekHint {
-  margin-top: 1rem;
-  color: #90ee90;
-  font-size: 0.9rem;
 }
 
 .notification {
@@ -624,8 +711,8 @@
   }
 
   .card {
-    width: 70px;
-    height: 100px;
+    width: 78px;
+    height: 112px;
     font-size: 1.1rem;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
@@ -640,38 +727,48 @@
     transition: transform 0.1s ease;
   }
 
-  .card.selected {
-    outline: 3px solid #ffd700;
-    outline-offset: -3px;
-    transform: scale(1.08);
-    box-shadow: 0 0 24px rgba(255, 215, 0, 0.6);
-  }
-
-  .cardRank {
-    font-size: 1.5rem;
-  }
-
-  .cardSuit {
-    font-size: 1.2rem;
-    bottom: 0.4rem;
-    right: 0.4rem;
-  }
-
-  .cardBack {
-    font-size: 1.8rem;
-  }
+  .cornerRank { font-size: 0.85rem; }
+  .cornerSuit { font-size: 0.6rem; }
+  .cardCenter { font-size: 1.8rem; }
+  .topLeft { top: 4px; left: 4px; }
+  .bottomRight { bottom: 4px; right: 4px; }
 
   .cardGrid {
-    gap: 0.8rem;
-    grid-template-columns: repeat(2, 1fr);
-    max-width: 170px;
+    gap: 0.75rem;
+    grid-template-columns: repeat(2, auto);
+    max-width: 180px;
     margin: 0 auto;
     padding: 0;
   }
 
+  .playerArea .cardGrid {
+    max-width: 180px;
+  }
+
   .emptyPile {
-    width: 70px;
-    height: 100px;
+    width: 78px;
+    height: 112px;
+  }
+
+  .turnIndicator {
+    font-size: 0.9rem;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .heldCard .card {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4), 0 0 14px rgba(255, 215, 0, 0.3);
+  }
+
+  .heldCardLabel {
+    font-size: 0.75rem;
+  }
+
+  .celebrationEmoji {
+    font-size: 4rem;
+  }
+
+  .celebrationTitle {
+    font-size: 2rem;
   }
 
   .playerArea {
@@ -737,22 +834,9 @@
     font-size: 1.2rem;
   }
 
-  .winner {
-    font-size: 1rem;
-  }
-
   .scoreRow {
     font-size: 0.85rem;
     padding: 0.4rem;
-  }
-
-  .gameEndActions {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .gameEndActions button {
-    width: 100%;
   }
 
   .rulesContent {
@@ -783,11 +867,6 @@
   .cumulativeScores {
     padding: 1rem;
     margin: 1rem 0;
-  }
-
-  .cumulativeTitle {
-    font-size: 1rem;
-    margin-bottom: 0.75rem;
   }
 
   .cumulativeRow {
@@ -846,21 +925,15 @@
   }
 
   .card {
-    width: 55px;
-    height: 80px;
+    width: 64px;
+    height: 92px;
   }
 
-  .cardRank {
-    font-size: 1.2rem;
-  }
-
-  .cardSuit {
-    font-size: 1rem;
-  }
-
-  .cardBack {
-    font-size: 1.4rem;
-  }
+  .cornerRank { font-size: 0.75rem; }
+  .cornerSuit { font-size: 0.5rem; }
+  .cardCenter { font-size: 1.4rem; }
+  .topLeft { top: 3px; left: 3px; }
+  .bottomRight { bottom: 3px; right: 3px; }
 
   .piles {
     gap: 0.5rem;
@@ -871,13 +944,13 @@
   }
 
   .emptyPile {
-    width: 55px;
-    height: 80px;
+    width: 64px;
+    height: 92px;
   }
 
   .cardGrid {
-    max-width: 130px;
-    gap: 0.6rem;
+    max-width: 145px;
+    gap: 0.75rem;
   }
 
   .primaryButton,
@@ -894,7 +967,26 @@
   }
 
   .playerArea .cardGrid {
-    max-width: 130px;
+    max-width: 145px;
+  }
+
+  .turnIndicator {
+    font-size: 0.85rem;
+    padding: 0.35rem 0.5rem;
+    min-height: 2rem;
+  }
+
+  .celebrationEmoji {
+    font-size: 3.5rem;
+  }
+
+  .celebrationTitle {
+    font-size: 1.75rem;
+  }
+
+  .playAgainButton {
+    font-size: 1.1rem;
+    padding: 0.85rem;
   }
 
   .actions {
@@ -912,10 +1004,6 @@
   .cumulativeScores {
     padding: 0.75rem;
     margin: 0.75rem 0;
-  }
-
-  .cumulativeTitle {
-    font-size: 0.95rem;
   }
 
   .cumulativeRow {
@@ -973,70 +1061,30 @@
   }
 }
 
-.celebration {
+.celebrationStage {
   text-align: center;
+  cursor: pointer;
+}
+
+.celebrationEmoji {
+  font-size: 5rem;
+  animation: bounce 1.5s ease-in-out infinite;
   margin-bottom: 1rem;
 }
 
-.trophy {
-  font-size: 3rem;
-  display: block;
-  animation: bounce 2s ease-in-out infinite;
-  margin-bottom: 0.5rem;
-}
-
-.gameOverTitle {
+.celebrationTitle {
+  font-size: 2.5rem;
   color: white;
   font-family: 'Lexend', sans-serif;
-  font-size: 1.8rem;
+  font-weight: 300;
   margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
-.winnerSection {
-  margin: 1.5rem 0;
-  padding: 1rem;
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 165, 0, 0.1));
-  border-radius: 0.5rem;
-  border: 1px solid rgba(255, 215, 0, 0.3);
-}
-
-.confetti {
-  text-align: center;
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
-  animation: pulse 1s ease-in-out infinite;
-}
-
-.winner {
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.winnerLabel {
-  color: #90ee90;
+.celebrationTap {
+  color: rgba(255, 255, 255, 0.5);
   font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-family: 'Lexend', sans-serif;
-}
-
-.winnerName {
-  color: #ffd700;
-  font-size: 1.8rem;
-  font-weight: bold;
-  font-family: 'Lexend', sans-serif;
-  text-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
-}
-
-.winnerMessage {
-  color: white;
-  font-size: 0.95rem;
-  font-family: 'Lexend', sans-serif;
-  opacity: 0.9;
+  margin-top: 1.5rem;
+  animation: pulse 2s ease-in-out infinite;
 }
 
 @keyframes bounce {
@@ -1106,27 +1154,70 @@
   font-size: 0.9rem;
 }
 
-.gameEndInfo {
-  text-align: center;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 0.75rem;
-  margin: 0;
+.playAgainButton {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.2rem;
   font-family: 'Lexend', sans-serif;
-  padding-top: 0.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 500;
+  background: #90ee90;
+  color: #0d5016;
+  border: none;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-.gameEndActions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 1rem;
-  justify-content: center;
+.playAgainButton:active {
+  transform: scale(0.97);
 }
 
-.gameEndActions button {
-  flex: 1;
-  padding: 0.5rem 1rem;
+.roomTotalsDetails {
+  margin: 0.75rem 0;
+}
+
+.roomTotalsSummary {
+  color: rgba(255, 255, 255, 0.6);
   font-size: 0.9rem;
+  font-family: 'Lexend', sans-serif;
+  cursor: pointer;
+  padding: 0.5rem;
+  text-align: center;
+  list-style: none;
+}
+
+.roomTotalsSummary::-webkit-details-marker {
+  display: none;
+}
+
+.roomTotalsSummary:hover {
+  color: white;
+}
+
+.textLink {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: 'Lexend', sans-serif;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.textLink:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.gameEndLinks {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
 }
 
 /* Rules Modal Styles */
@@ -1469,14 +1560,6 @@
   margin: 1.5rem 0;
 }
 
-.cumulativeTitle {
-  color: #90ee90;
-  font-family: 'Lexend', sans-serif;
-  font-size: 1.3rem;
-  margin: 0 0 1rem 0;
-  text-align: center;
-}
-
 .cumulativeRow {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
@@ -1509,39 +1592,9 @@
   text-align: center;
 }
 
-.gameEndActions {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.tertiaryButton {
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-  font-family: 'Lexend', sans-serif;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.tertiaryButton:hover {
-  color: white;
-  border-color: rgba(255, 255, 255, 0.4);
-}
-
 /* Permalink Display Sections */
 .permalinkSection {
   margin-bottom: 1.5rem;
-}
-
-.gamePermalinkSection {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* New Game Notifications */
@@ -1649,11 +1702,6 @@
 @media (max-width: 768px) {
   .permalinkSection {
     margin-bottom: 1rem;
-  }
-  
-  .gamePermalinkSection {
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
   }
   
   .newGameNotificationsSection {
