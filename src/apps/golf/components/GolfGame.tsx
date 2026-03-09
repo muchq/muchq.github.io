@@ -106,7 +106,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
             </span>
           </>
         ) : (
-          <span className={styles.cardBack}>?</span>
+          <div className={styles.cardBack} />
         )}
       </div>
     )
@@ -546,7 +546,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                       if (isMyTurn && !gameState.drawnCard) handleDrawCard()
                     }}
                   >
-                    <span className={styles.cardBack}>?</span>
+                    <div className={styles.cardBack} />
                     <span className={styles.cardCount}>{gameState.drawPile}</span>
                   </div>
                 )}
