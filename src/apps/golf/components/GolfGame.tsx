@@ -181,7 +181,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
               <div className={styles.rulesSection}>
                 <h3>Setup</h3>
                 <ul>
-                  <li>Each player gets 6 cards face down in a 2×3 grid</li>
+                  <li>Each player gets 4 cards face down in a 2×2 grid</li>
                   <li>Players peek at any 2 of their cards at the start</li>
                   <li>Try to remember your cards!</li>
                 </ul>
@@ -555,16 +555,18 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                   <div className={styles.emptyPile}>Empty</div>
                 )}
               </div>
+
+              {/* Held card — inline with piles to avoid layout shift */}
+              <div className={`${styles.pile} ${styles.heldCardPile} ${gameState.drawnCard && isMyTurn ? '' : styles.heldCardEmpty}`}>
+                <h3>Held</h3>
+                {gameState.drawnCard && isMyTurn ? (
+                  renderCard(gameState.drawnCard, -2, true, false)
+                ) : (
+                  <div className={styles.emptyPile} />
+                )}
+              </div>
             </div>
           </div>
-
-          {/* Floating held card */}
-          {gameState.drawnCard && isMyTurn && (
-            <div className={styles.heldCard}>
-              <span className={styles.heldCardLabel}>Held card</span>
-              {renderCard(gameState.drawnCard, -2, true, false)}
-            </div>
-          )}
 
           <div className={styles.playerArea}>
             <h3>Your Cards</h3>
@@ -583,7 +585,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                 </>
               ) : null}
 
-              {gameState.gamePhase === 'playing' && !gameState.drawnCard && (
+              {gameState.gamePhase === 'playing' && !gameState.drawnCard && gameState.allPlayersPeeked && (
                 <button onClick={knock} className={styles.knockButton}>
                   Knock
                 </button>
