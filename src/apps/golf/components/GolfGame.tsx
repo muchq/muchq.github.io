@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import styles from './GolfGame.module.css'
 import { useGolfGame } from '@/hooks/useGolfGame'
 import PermalinkDisplay from './PermalinkDisplay'
@@ -26,6 +26,7 @@ interface GolfGameProps {
 
 const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams }: GolfGameProps) => {
   const [showRules, setShowRules] = useState(false)
+  const [showScores, setShowScores] = useState(false)
 
   // Pass permalink parameters to useGolfGame hook for automatic joining
 
@@ -40,7 +41,6 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     roomState,
     playerId,
     roomCode,
-    selectedCardIndex,
     isInLobby,
     isInRoom,
     notification,
@@ -59,7 +59,6 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     startNewGame,
     drawCard,
     takeFromDiscard,
-    swapCard,
     discardDrawn,
     knock,
     handleCardClick,
@@ -69,27 +68,24 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     joinNewGame
   } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams })
 
-  const [drawnFromRaw, setDrawnFromRaw] = useState<'deck' | 'discard' | null>(null)
-  const drawnFrom = gameState?.drawnCard ? drawnFromRaw : null
-
-  const handleDrawCard = () => {
-    setDrawnFromRaw('deck')
-    drawCard()
-  }
-
-  const handleTakeFromDiscard = () => {
-    setDrawnFromRaw('discard')
-    takeFromDiscard()
-  }
+  useEffect(() => {
+    if (gameState?.gamePhase === 'ended') {
+      const hideTimer = setTimeout(() => setShowScores(false), 0)
+      const showTimer = setTimeout(() => setShowScores(true), 3000)
+      return () => {
+        clearTimeout(hideTimer)
+        clearTimeout(showTimer)
+      }
+    }
+  }, [gameState?.gamePhase])
 
   const renderCard = (card: Card | null, index: number, isRevealed: boolean, isPlayer: boolean) => {
-    const isSelected = selectedCardIndex === index
     const canInteract = isPlayer && (isMyTurn || (currentPlayer && !currentPlayer.hasPeeked && gameState?.gamePhase === 'playing'))
 
     return (
       <div
         key={index}
-        className={`${styles.card} ${isSelected ? styles.selected : ''} ${isRevealed ? styles.revealed : ''} ${canInteract ? styles.interactive : ''}`}
+        className={`${styles.card} ${isRevealed ? styles.revealed : ''} ${canInteract ? styles.interactive : ''}`}
         onClick={() => canInteract && handleCardClick(index)}
         onTouchEnd={(e) => {
           e.preventDefault()
@@ -97,16 +93,21 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
         }}
       >
         {isRevealed && card ? (
-          <>
-            <span className={`${styles.cardRank} ${(card.suit === '♥' || card.suit === '♦') ? styles.red : ''}`}>
-              {card.rank}
-            </span>
-            <span className={`${styles.cardSuit} ${(card.suit === '♥' || card.suit === '♦') ? styles.red : ''}`}>
+          <div className={styles.cardFace}>
+            <div className={`${styles.cardCorner} ${styles.topLeft} ${(card.suit === '♥' || card.suit === '♦') ? styles.red : ''}`}>
+              <span className={styles.cornerRank}>{card.rank}</span>
+              <span className={styles.cornerSuit}>{card.suit}</span>
+            </div>
+            <span className={`${styles.cardCenter} ${(card.suit === '♥' || card.suit === '♦') ? styles.red : ''}`}>
               {card.suit}
             </span>
-          </>
+            <div className={`${styles.cardCorner} ${styles.bottomRight} ${(card.suit === '♥' || card.suit === '♦') ? styles.red : ''}`}>
+              <span className={styles.cornerRank}>{card.rank}</span>
+              <span className={styles.cornerSuit}>{card.suit}</span>
+            </div>
+          </div>
         ) : (
-          <span className={styles.cardBack}>?</span>
+          <div className={styles.cardBack} />
         )}
       </div>
     )
@@ -132,6 +133,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                 onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
                 className={styles.input}
                 maxLength={6}
+                autoFocus
               />
               <button onClick={joinRoom} className={styles.secondaryButton}>
                 Join Room
@@ -179,7 +181,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
               <div className={styles.rulesSection}>
                 <h3>Setup</h3>
                 <ul>
-                  <li>Each player gets 6 cards face down in a 2×3 grid</li>
+                  <li>Each player gets 4 cards face down in a 2×2 grid</li>
                   <li>Players peek at any 2 of their cards at the start</li>
                   <li>Try to remember your cards!</li>
                 </ul>
@@ -394,50 +396,39 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
 
       {gameState.gamePhase === 'waiting' && (
         <div className={styles.waitingRoom}>
-          <h3>Waiting for players...</h3>
+          <h3 className={styles.waitingPulse}>Waiting for players...</h3>
           <p>{gameState.players.length}/4 players</p>
           {gameState.players.length >= 2 && (
-            <button onClick={startGame} className={styles.primaryButton}>
+            <button onClick={startGame} className={`${styles.primaryButton} ${styles.startGameButton}`}>
               Start Game
             </button>
           )}
         </div>
       )}
 
-      {gameState.gamePhase === 'ended' && (
+      {gameState.gamePhase === 'ended' && !showScores && (
+        <div className={styles.gameEndOverlay} onClick={() => setShowScores(true)}>
+          <div className={styles.celebrationStage}>
+            <div className={styles.celebrationEmoji}>
+              {currentPlayer && getDisplayName(currentPlayer) === winner ? '🏆' : '😤'}
+            </div>
+            <h2 className={styles.celebrationTitle}>
+              {currentPlayer && getDisplayName(currentPlayer) === winner
+                ? 'You won!'
+                : `${winner} wins!`}
+            </h2>
+            <p className={styles.celebrationTap}>Tap to see scores</p>
+          </div>
+        </div>
+      )}
+
+      {gameState.gamePhase === 'ended' && showScores && (
         <div className={styles.gameEndOverlay}>
           <div className={styles.gameEndContent}>
-            <div className={styles.celebration}>
-              {currentPlayer && getDisplayName(currentPlayer) === winner ? (
-                <span className={styles.trophy}>🏆</span>
-              ) : (
-                <span className={styles.trophy}>😢</span>
-              )}
-              <h2 className={styles.gameOverTitle}>Game Over!</h2>
-            </div>
-            {winner && (
-              <div className={styles.winnerSection}>
-                {currentPlayer && getDisplayName(currentPlayer) === winner ? (
-                  <div className={styles.confetti}>🎉 🎊 🎉</div>
-                ) : (
-                  <div className={styles.confetti}></div>
-                )}
-                <div className={styles.winner}>
-                  {currentPlayer && getDisplayName(currentPlayer) === winner ? (
-                    <>
-                      <span className={styles.winnerLabel}>Congratulations!</span>
-                      <span className={styles.winnerMessage}>You've won with the lowest score!</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className={styles.winnerLabel}>Game Over</span>
-                      <span className={styles.winnerName}>{winner} wins!</span>
-                      <span className={styles.winnerMessage}>Better luck next time!</span>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
+            <button onClick={startNewGame} className={styles.playAgainButton}>
+              Play Again
+            </button>
+
             <div className={styles.finalScores}>
               <h3 className={styles.scoresTitle}>Final Scores</h3>
               {gameState.players
@@ -452,29 +443,29 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                   </div>
                 ))}
             </div>
-            <div className={styles.gameEndInfo}>
-              <small>Lower scores win • Pairs cancel out</small>
-            </div>
+
             {roomState && (
-              <div className={styles.cumulativeScores}>
-                <h3 className={styles.cumulativeTitle}>Room Totals</h3>
-                {roomState.players
-                  .sort((a, b) => (a.gamesPlayed > 0 ? a.totalScore / a.gamesPlayed : 0) - (b.gamesPlayed > 0 ? b.totalScore / b.gamesPlayed : 0))
-                  .map((player, index) => (
-                    <div key={player.id} className={`${styles.cumulativeRow} ${index === 0 && player.gamesPlayed > 0 ? styles.bestAverage : ''}`}>
-                      <span className={styles.playerName}>{getDisplayName(player)}</span>
-                      <span className={styles.playerGames}>{player.gamesPlayed} games</span>
-                      <span className={styles.playerWins}>{player.gamesWon} wins</span>
-                      <span className={styles.playerTotal}>{player.totalScore} total</span>
-                      <span className={styles.playerAverage}>
-                        {player.gamesPlayed > 0 ? (player.totalScore / player.gamesPlayed).toFixed(1) : 'N/A'} avg
-                      </span>
-                    </div>
-                  ))}
-              </div>
+              <details className={styles.roomTotalsDetails}>
+                <summary className={styles.roomTotalsSummary}>Room Totals</summary>
+                <div className={styles.cumulativeScores}>
+                  {roomState.players
+                    .sort((a, b) => (a.gamesPlayed > 0 ? a.totalScore / a.gamesPlayed : 0) - (b.gamesPlayed > 0 ? b.totalScore / b.gamesPlayed : 0))
+                    .map((player, index) => (
+                      <div key={player.id} className={`${styles.cumulativeRow} ${index === 0 && player.gamesPlayed > 0 ? styles.bestAverage : ''}`}>
+                        <span className={styles.playerName}>{getDisplayName(player)}</span>
+                        <span className={styles.playerGames}>{player.gamesPlayed} games</span>
+                        <span className={styles.playerWins}>{player.gamesWon} wins</span>
+                        <span className={styles.playerTotal}>{player.totalScore} total</span>
+                        <span className={styles.playerAverage}>
+                          {player.gamesPlayed > 0 ? (player.totalScore / player.gamesPlayed).toFixed(1) : 'N/A'} avg
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </details>
             )}
 
-            {/* New Game Join Options */}
+            {/* New Game Join Options - keep if they exist */}
             {roomState && newGameNotifications.filter(n => !n.dismissed).length > 0 && (
               <div className={styles.newGameJoinSection}>
                 <h3 className={styles.newGameJoinTitle}>🎮 Join New Games</h3>
@@ -482,7 +473,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                   {newGameNotifications
                     .filter(n => !n.dismissed)
                     .sort((a, b) => b.timestamp - a.timestamp)
-                    .slice(0, 3) // Show max 3 most recent
+                    .slice(0, 3)
                     .map(notification => (
                       <div key={notification.gameId} className={styles.newGameJoinItem}>
                         <div className={styles.newGameJoinInfo}>
@@ -503,24 +494,12 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
               </div>
             )}
 
-            <div className={styles.gameEndActions}>
-              <button
-                onClick={startNewGame}
-                className={styles.primaryButton}
-              >
-                Start New Game
-              </button>
-              <button
-                onClick={clearGameState}
-                className={styles.secondaryButton}
-              >
+            <div className={styles.gameEndLinks}>
+              <button onClick={clearGameState} className={styles.textLink}>
                 Back to Room
               </button>
-              <button
-                onClick={() => window.location.reload()}
-                className={styles.tertiaryButton}
-              >
-                Leave Room
+              <button onClick={() => window.location.reload()} className={styles.textLink}>
+                Leave
               </button>
             </div>
           </div>
@@ -529,42 +508,45 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
 
       {gameState.gamePhase !== 'waiting' && currentPlayer && (
         <div className={styles.gameArea}>
+          {/* Turn indicator */}
+          <div className={styles.turnIndicator}>
+            {!isMyTurn ? (
+              <span className={styles.waitingText}>Waiting for {gameState.players[gameState.currentPlayerIndex]?.id}...</span>
+            ) : !currentPlayer.hasPeeked && gameState.gamePhase === 'playing' ? (
+              <span>Tap {2 - currentPlayer.revealedCards.length} cards to peek</span>
+            ) : !gameState.drawnCard ? (
+              <span>Your turn — tap a pile to draw</span>
+            ) : (
+              <span>Tap a card to swap, or discard</span>
+            )}
+          </div>
+
           <div className={styles.tableArea}>
             <div className={styles.piles}>
               <div className={styles.pile}>
-                <h3>Draw Pile</h3>
-                {gameState.drawnCard && isMyTurn && drawnFrom === 'deck' ? (
-                  <div className={styles.drawnCardHighlight}>
-                    {renderCard(gameState.drawnCard, -2, true, false)}
-                  </div>
-                ) : (
-                  <div
-                    className={`${styles.card} ${isMyTurn && !gameState.drawnCard ? styles.clickable : ''}`}
-                    onClick={() => isMyTurn && !gameState.drawnCard && handleDrawCard()}
-                    onTouchEnd={(e) => {
-                      e.preventDefault()
-                      if (isMyTurn && !gameState.drawnCard) handleDrawCard()
-                    }}
-                  >
-                    <span className={styles.cardBack}>?</span>
-                    <span className={styles.cardCount}>{gameState.drawPile}</span>
-                  </div>
-                )}
+                <h3>Deck</h3>
+                <div
+                  className={`${styles.card} ${isMyTurn && !gameState.drawnCard ? styles.clickable : ''} ${gameState.drawnCard ? styles.pileDepleted : ''}`}
+                  onClick={() => isMyTurn && !gameState.drawnCard && drawCard()}
+                  onTouchEnd={(e) => {
+                    e.preventDefault()
+                    if (isMyTurn && !gameState.drawnCard) drawCard()
+                  }}
+                >
+                  <div className={styles.cardBack} />
+                  <span className={styles.cardCount}>{gameState.drawPile}</span>
+                </div>
               </div>
 
               <div className={styles.pile}>
-                <h3>Discard Pile</h3>
-                {gameState.drawnCard && isMyTurn && drawnFrom === 'discard' ? (
-                  <div className={styles.drawnCardHighlight}>
-                    {renderCard(gameState.drawnCard, -2, true, false)}
-                  </div>
-                ) : gameState.discardPile.length > 0 ? (
+                <h3>Discard</h3>
+                {gameState.discardPile.length > 0 ? (
                   <div
-                    className={`${isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0 ? styles.clickable : ''}`}
-                    onClick={() => isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0 && handleTakeFromDiscard()}
+                    className={`${isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0 ? styles.clickable : ''} ${gameState.drawnCard ? styles.pileDepleted : ''}`}
+                    onClick={() => isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0 && takeFromDiscard()}
                     onTouchEnd={(e) => {
                       e.preventDefault()
-                      if (isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0) handleTakeFromDiscard()
+                      if (isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0) takeFromDiscard()
                     }}
                   >
                     {renderCard(gameState.discardPile[gameState.discardPile.length - 1], -1, true, false)}
@@ -573,56 +555,42 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                   <div className={styles.emptyPile}>Empty</div>
                 )}
               </div>
+
+              {/* Held card — inline with piles to avoid layout shift */}
+              <div className={`${styles.pile} ${styles.heldCardPile} ${gameState.drawnCard && isMyTurn ? '' : styles.heldCardEmpty}`}>
+                <h3>Held</h3>
+                {gameState.drawnCard && isMyTurn ? (
+                  renderCard(gameState.drawnCard, -2, true, false)
+                ) : (
+                  <div className={styles.emptyPile} />
+                )}
+              </div>
             </div>
           </div>
 
           <div className={styles.playerArea}>
             <h3>Your Cards</h3>
-            <div className={styles.cardGrid}>
+            <div className={`${styles.cardGrid} ${!isMyTurn && currentPlayer.hasPeeked && (gameState.gamePhase === 'playing' || gameState.gamePhase === 'knocked') ? styles.cardGridDimmed : ''}`}>
               {currentPlayer.cards.map((card, index) =>
                 renderCard(card, index, currentPlayer.revealedCards.includes(index), true)
               )}
             </div>
 
             <div className={styles.actions} style={!isMyTurn ? { visibility: 'hidden' } : undefined}>
-              {!gameState.drawnCard ? (
+              {gameState.drawnCard ? (
                 <>
-                  <button onClick={handleDrawCard} className={styles.actionButton}>
-                    Draw Card
-                  </button>
-                  {gameState.discardPile.length > 0 && (
-                    <button onClick={handleTakeFromDiscard} className={styles.actionButton}>
-                      Take from Discard
-                    </button>
-                  )}
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={swapCard}
-                    className={`${styles.actionButton} ${selectedCardIndex === null ? styles.actionButtonDisabled : ''}`}
-                    disabled={selectedCardIndex === null}
-                  >
-                    Swap Card
-                  </button>
                   <button onClick={discardDrawn} className={styles.actionButton}>
                     Discard
                   </button>
                 </>
-              )}
+              ) : null}
 
-              {gameState.gamePhase === 'playing' && !gameState.drawnCard && (
+              {gameState.gamePhase === 'playing' && !gameState.drawnCard && gameState.allPlayersPeeked && (
                 <button onClick={knock} className={styles.knockButton}>
                   Knock
                 </button>
               )}
             </div>
-
-            {currentPlayer.revealedCards.length < 2 && gameState.gamePhase === 'playing' && !currentPlayer.hasPeeked && (
-              <div className={styles.peekHint}>
-                Click on {2 - currentPlayer.revealedCards.length} cards to peek at them
-              </div>
-            )}
           </div>
         </div>
       )}

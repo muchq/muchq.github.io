@@ -66,7 +66,7 @@ interface UseGolfGameReturn {
   peekCard: (index: number) => void
   drawCard: () => void
   takeFromDiscard: () => void
-  swapCard: () => void
+  swapCard: (index?: number) => void
   discardDrawn: () => void
   knock: () => void
   handleCardClick: (index: number) => void
@@ -230,8 +230,9 @@ export const useGolfGame = ({
     networkAdapterRef.current.takeFromDiscard()
   }, [showNotification])
 
-  const swapCard = useCallback(() => {
-    if (selectedCardIndex === null) {
+  const swapCard = useCallback((index?: number) => {
+    const swapIndex = index ?? selectedCardIndex
+    if (swapIndex === null) {
       showNotification('Select a card to swap first')
       return
     }
@@ -239,7 +240,7 @@ export const useGolfGame = ({
       showNotification('Not connected to server')
       return
     }
-    networkAdapterRef.current.swapCard(selectedCardIndex)
+    networkAdapterRef.current.swapCard(swapIndex)
     setSelectedCardIndex(null)
   }, [selectedCardIndex, showNotification])
 
@@ -271,9 +272,9 @@ export const useGolfGame = ({
     if (currentPlayer.revealedCards.length < 2 && !currentPlayer.hasPeeked && !currentPlayer.revealedCards.includes(index)) {
       peekCard(index)
     } else if (isPlayersTurn && gameState?.drawnCard) {
-      setSelectedCardIndex(index)
+      swapCard(index)
     }
-  }, [gameState, playerId, peekCard, peekCountdown])
+  }, [gameState, playerId, peekCard, peekCountdown, swapCard])
 
   const clearGameState = useCallback(() => {
     setGameState(null)
@@ -375,10 +376,16 @@ export const useGolfGame = ({
       showNotification('Must be in a room to join a game')
       return
     }
-    
+
     // Dismiss the notification
     dismissNewGameNotification(gameId)
-    
+
+    // Clear current game state before joining the new one
+    setGameState(null)
+    setWinner(null)
+    setFinalScores(null)
+    setSelectedCardIndex(null)
+
     // Join the game
     joinGame(gameId)
   }, [roomState?.id, dismissNewGameNotification, joinGame, showNotification])
