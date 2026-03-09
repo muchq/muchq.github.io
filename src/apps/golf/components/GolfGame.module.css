@@ -458,6 +458,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
 }
 
 .playerArea h3 {
@@ -469,7 +470,7 @@
 .playerArea .cardGrid {
   justify-content: center;
   margin-bottom: 1.5rem;
-  max-width: 200px;
+  gap: 1rem;
 }
 
 .actions {
