@@ -376,10 +376,16 @@ export const useGolfGame = ({
       showNotification('Must be in a room to join a game')
       return
     }
-    
+
     // Dismiss the notification
     dismissNewGameNotification(gameId)
-    
+
+    // Clear current game state before joining the new one
+    setGameState(null)
+    setWinner(null)
+    setFinalScores(null)
+    setSelectedCardIndex(null)
+
     // Join the game
     joinGame(gameId)
   }, [roomState?.id, dismissNewGameNotification, joinGame, showNotification])
