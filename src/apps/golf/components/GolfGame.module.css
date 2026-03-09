@@ -24,10 +24,6 @@
   max-width: 400px;
 }
 
-.inputGroup {
-  margin-bottom: 1.5rem;
-}
-
 .input {
   width: 100%;
   padding: 0.75rem;
@@ -267,13 +263,6 @@
 .card.interactive:active {
   transform: scale(0.95);
   transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.card.selected {
-  outline: 3px solid #ffd700;
-  outline-offset: -3px;
-  transform: scale(1.05);
-  box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
 }
 
 .card.clickable,
@@ -533,20 +522,6 @@
   transition: transform 0.1s ease;
 }
 
-.actionButtonDisabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.actionButtonDisabled:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
-.actionButtonDisabled:active {
-  transform: none;
-}
-
 .knockButton {
   background: #ff6b6b;
   color: white;
@@ -752,13 +727,6 @@
     transition: transform 0.1s ease;
   }
 
-  .card.selected {
-    outline: 3px solid #ffd700;
-    outline-offset: -3px;
-    transform: scale(1.08);
-    box-shadow: 0 0 24px rgba(255, 215, 0, 0.6);
-  }
-
   .cornerRank { font-size: 0.85rem; }
   .cornerSuit { font-size: 0.6rem; }
   .cardCenter { font-size: 1.8rem; }
@@ -901,11 +869,6 @@
     margin: 1rem 0;
   }
 
-  .cumulativeTitle {
-    font-size: 1rem;
-    margin-bottom: 0.75rem;
-  }
-
   .cumulativeRow {
     grid-template-columns: 1.5fr 0.8fr 0.8fr 0.8fr 0.9fr;
     gap: 0.3rem;
@@ -1041,10 +1004,6 @@
   .cumulativeScores {
     padding: 0.75rem;
     margin: 0.75rem 0;
-  }
-
-  .cumulativeTitle {
-    font-size: 0.95rem;
   }
 
   .cumulativeRow {
@@ -1601,14 +1560,6 @@
   margin: 1.5rem 0;
 }
 
-.cumulativeTitle {
-  color: #90ee90;
-  font-family: 'Lexend', sans-serif;
-  font-size: 1.3rem;
-  margin: 0 0 1rem 0;
-  text-align: center;
-}
-
 .cumulativeRow {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
@@ -1644,12 +1595,6 @@
 /* Permalink Display Sections */
 .permalinkSection {
   margin-bottom: 1.5rem;
-}
-
-.gamePermalinkSection {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* New Game Notifications */
@@ -1757,11 +1702,6 @@
 @media (max-width: 768px) {
   .permalinkSection {
     margin-bottom: 1rem;
-  }
-  
-  .gamePermalinkSection {
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
   }
   
   .newGameNotificationsSection {

@@ -70,9 +70,12 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
 
   useEffect(() => {
     if (gameState?.gamePhase === 'ended') {
-      setShowScores(false)
-      const timer = setTimeout(() => setShowScores(true), 3000)
-      return () => clearTimeout(timer)
+      const hideTimer = setTimeout(() => setShowScores(false), 0)
+      const showTimer = setTimeout(() => setShowScores(true), 3000)
+      return () => {
+        clearTimeout(hideTimer)
+        clearTimeout(showTimer)
+      }
     }
   }, [gameState?.gamePhase])
 
