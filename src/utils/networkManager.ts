@@ -103,7 +103,7 @@ export class NetworkManager {
             
             // If we have accumulated JSON that couldn't be parsed, it's an error
             if (currentJson.trim()) {
-              throw new Error('Incomplete JSON message')
+              throw new Error('Incomplete JSON message', { cause: firstError })
             }
             
             // Process all successfully parsed messages

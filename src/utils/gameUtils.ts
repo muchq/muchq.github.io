@@ -10,7 +10,7 @@ export function generateRandomColor(): [number, number, number] {
   const x = c * (1 - Math.abs((h % 2) - 1))
   const m = lightness - c / 2
 
-  let r: number = 0, g: number = 0, b: number = 0
+  let r: number, g: number, b: number
   if (h < 1) { r = c; g = x; b = 0; }
   else if (h < 2) { r = x; g = c; b = 0; }
   else if (h < 3) { r = 0; g = c; b = x; }

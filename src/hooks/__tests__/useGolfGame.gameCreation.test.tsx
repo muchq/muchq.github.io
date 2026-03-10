@@ -89,11 +89,11 @@ const mockAdapter = {
 }
 
 vi.mock('../../utils/networkAdapter', () => ({
-  GolfNetworkAdapter: vi.fn().mockImplementation((callbacks: {
+  GolfNetworkAdapter: vi.fn().mockImplementation(function (callbacks: {
     onRoomJoined?: (playerId: string, roomState: Room) => void
     onGameJoined?: (playerId: string, gameState: GolfGameState) => void
     onNewGameStarted?: (gameId: string, previousGameId?: string) => void
-  }) => {
+  }) {
     // Store callbacks for later use in tests
     mockAdapter._callbacks = callbacks
     // Update roomState when onRoomJoined is called

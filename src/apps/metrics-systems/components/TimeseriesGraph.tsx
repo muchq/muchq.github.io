@@ -100,15 +100,11 @@ export const TimeseriesGraph = ({
       // Add y-axis labels
       if (i < 4) { // Don't label the top line
         const value = maxValue - (i / 4) * range
-        let label = ''
-        
-        if (unit === 'ms' && value > 1000) {
-          label = `${(value / 1000).toFixed(1)}s`
-        } else if (unit === '%') {
-          label = `${Math.round(value)}%`
-        } else {
-          label = `${Math.round(value)}`
-        }
+        const label = unit === 'ms' && value > 1000
+          ? `${(value / 1000).toFixed(1)}s`
+          : unit === '%'
+            ? `${Math.round(value)}%`
+            : `${Math.round(value)}`
         
         ctx.fillText(label, width - 2, y - 2)
       }

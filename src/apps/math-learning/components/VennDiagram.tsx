@@ -168,8 +168,8 @@ const VennDiagram: React.FC<VennDiagramProps> = ({ setA, setB, setC }) => {
     
     // Position elements based on set membership
     universe.forEach(el => {
-      let x = centerX;
-      let y = centerY;
+      let x: number;
+      let y: number;
       
       const inA = setA.includes(el);
       const inB = setB.includes(el);
