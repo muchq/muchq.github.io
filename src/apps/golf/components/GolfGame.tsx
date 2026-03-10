@@ -585,7 +585,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                 </>
               ) : null}
 
-              {gameState.gamePhase === 'playing' && !gameState.drawnCard && gameState.allPlayersPeeked && (
+              {gameState.gamePhase === 'playing' && !gameState.drawnCard && (
                 <button onClick={knock} className={styles.knockButton}>
                   Knock
                 </button>
