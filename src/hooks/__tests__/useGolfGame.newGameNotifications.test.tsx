@@ -33,7 +33,7 @@ const mockNetworkAdapter = {
 }
 
 vi.mock('@/utils/networkAdapter', () => ({
-  GolfNetworkAdapter: vi.fn().mockImplementation((callbacks) => {
+  GolfNetworkAdapter: vi.fn().mockImplementation(function (callbacks) {
     mockNetworkAdapter._callbacks = callbacks
     return mockNetworkAdapter
   })

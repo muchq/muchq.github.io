@@ -421,7 +421,7 @@ export class AudioSystem implements IAudioSystem {
       const progress = noteTime / duration
 
       // Same envelope shape as Web Audio version
-      let envelope = 0
+      let envelope: number
       if (progress < 0.1) {
         // Attack phase - linear ramp up
         envelope = progress / 0.1

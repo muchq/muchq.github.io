@@ -348,10 +348,8 @@ describe('Game Canvas Setup', () => {
     })
 
     it('should handle canvas resizing', () => {
-      let canvas = createMockCanvas(1000, 800)
-      
       // Simulate resize
-      canvas = createMockCanvas(800, 640)
+      const canvas = createMockCanvas(800, 640)
       
       expect(canvas.width).toBe(800)
       expect(canvas.height).toBe(640)

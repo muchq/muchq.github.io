@@ -252,14 +252,11 @@ const OpenSetInvestigator: React.FC = () => {
               const t1Name = topologyDefinitions[t1].name;
               const t2Name = topologyDefinitions[t2].name;
               
-              let message = '';
-              if (comparison === 'finer') {
-                message = `${t1Name} topology is finer than ${t2Name} topology`;
-              } else if (comparison === 'coarser') {
-                message = `${t1Name} topology is coarser than ${t2Name} topology`;
-              } else {
-                message = `${t1Name} and ${t2Name} topologies are incomparable`;
-              }
+              const message = comparison === 'finer'
+                ? `${t1Name} topology is finer than ${t2Name} topology`
+                : comparison === 'coarser'
+                  ? `${t1Name} topology is coarser than ${t2Name} topology`
+                  : `${t1Name} and ${t2Name} topologies are incomparable`;
               
               return (
                 <div className={styles.comparisonMessage}>

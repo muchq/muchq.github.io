@@ -28,7 +28,7 @@ const mockAdapter = {
 }
 
 vi.mock('../../utils/networkAdapter', () => ({
-  GolfNetworkAdapter: vi.fn().mockImplementation(() => mockAdapter)
+  GolfNetworkAdapter: vi.fn().mockImplementation(function () { return mockAdapter })
 }))
 
 // Mock window.location

@@ -10,7 +10,7 @@ vi.mock('react-router-dom', () => ({
 
 // Simple mock for the network adapter
 vi.mock('../../utils/networkAdapter', () => ({
-  GolfNetworkAdapter: vi.fn().mockImplementation(() => ({
+  GolfNetworkAdapter: vi.fn().mockImplementation(function () { return {
     connect: vi.fn(),
     disconnect: vi.fn(),
     joinRoom: vi.fn(),
@@ -26,7 +26,7 @@ vi.mock('../../utils/networkAdapter', () => ({
     discardDrawn: vi.fn(),
     knock: vi.fn(),
     hideCards: vi.fn()
-  }))
+  }})
 }))
 
 describe('useGolfGame permalink functionality', () => {
