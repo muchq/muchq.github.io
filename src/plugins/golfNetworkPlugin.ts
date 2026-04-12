@@ -49,6 +49,8 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
   private onNotification?: (message: string) => void
   private onGameEnded?: (winner: string, finalScores: FinalScore[]) => void
   private onNewGameStarted?: (gameId: string, previousGameId?: string) => void
+  private onReconnecting?: () => void
+  private onGameError?: (message: string) => void
 
   constructor(callbacks?: {
     onRoomJoined?: (playerId: string, roomState: Room) => void
@@ -58,6 +60,8 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
     onNotification?: (message: string) => void
     onGameEnded?: (winner: string, finalScores: FinalScore[]) => void
     onNewGameStarted?: (gameId: string, previousGameId?: string) => void
+    onReconnecting?: () => void
+    onGameError?: (message: string) => void
   }) {
     if (callbacks) {
       this.onRoomJoined = callbacks.onRoomJoined
@@ -67,6 +71,8 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
       this.onNotification = callbacks.onNotification
       this.onGameEnded = callbacks.onGameEnded
       this.onNewGameStarted = callbacks.onNewGameStarted
+      this.onReconnecting = callbacks.onReconnecting
+      this.onGameError = callbacks.onGameError
     }
   }
 
@@ -213,6 +219,7 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
       this.clearSessionToken()
     }
 
+    this.onGameError?.(errorMessage)
     this.notify(errorMessage, context)
   }
 
@@ -275,6 +282,7 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
 
     if (isReconnect) {
       console.log('♻️  Session restored - you should be back in your previous room/game')
+      this.onReconnecting?.()
     }
   }
 
