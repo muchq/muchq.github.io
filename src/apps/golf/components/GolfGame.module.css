@@ -152,7 +152,8 @@
   flex: 1;
 }
 
-.gameHeaderShare {
+.gameHeaderShare,
+.gameHeaderShareWaiting {
   flex-shrink: 0;
 }
 

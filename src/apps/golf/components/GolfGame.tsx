@@ -388,7 +388,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
             </div>
           </div>
           {currentGamePermalink && (
-            <div className={styles.gameHeaderShare}>
+            <div className={gameState.gamePhase === 'waiting' ? styles.gameHeaderShareWaiting : styles.gameHeaderShare}>
               <PermalinkDisplay
                 label="Share Game"
                 url={currentGamePermalink}
