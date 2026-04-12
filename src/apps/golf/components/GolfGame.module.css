@@ -50,6 +50,13 @@
   gap: 1rem;
 }
 
+.permalinkError {
+  color: #ff6b6b;
+  text-align: center;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
 .primaryButton,
 .secondaryButton {
   padding: 0.75rem 1.5rem;

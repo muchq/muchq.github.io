@@ -64,7 +64,8 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     setRoomCode,
     leaveGame,
     dismissNewGameNotification,
-    joinNewGame
+    joinNewGame,
+    permalinkJoinAttempt
   } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams })
 
   const confirmLeave = useCallback(() => {
@@ -355,6 +356,21 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
   }
 
   if (!gameState) {
+    if (permalinkJoinAttempt.error) {
+      return (
+        <div className={styles.lobby}>
+          <h1 className={styles.title}>Golf Card Game</h1>
+          <div className={styles.lobbyContent}>
+            <div className={styles.lobbyActions}>
+              <p className={styles.permalinkError}>{permalinkJoinAttempt.error}</p>
+              <button onClick={createRoom} className={styles.primaryButton}>
+                Create New Room
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+    }
     return <div className={styles.loading}>Loading...</div>
   }
 
