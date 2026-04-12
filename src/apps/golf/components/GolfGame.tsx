@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import styles from './GolfGame.module.css'
 import { useGolfGame } from '@/hooks/useGolfGame'
 import PermalinkDisplay from './PermalinkDisplay'
@@ -27,8 +27,7 @@ interface GolfGameProps {
 const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams }: GolfGameProps) => {
   const [showRules, setShowRules] = useState(false)
   const [showScores, setShowScores] = useState(false)
-
-  // Pass permalink parameters to useGolfGame hook for automatic joining
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
 
   // Helper function to get display name (now just use the ID directly)
   const getDisplayName = (player: Player | null) => {
@@ -63,10 +62,16 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     knock,
     handleCardClick,
     setRoomCode,
-    clearGameState,
+    leaveGame,
     dismissNewGameNotification,
-    joinNewGame
+    joinNewGame,
+    permalinkJoinAttempt
   } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams })
+
+  const confirmLeave = useCallback(() => {
+    setShowLeaveConfirm(false)
+    leaveGame()
+  }, [leaveGame])
 
   useEffect(() => {
     if (gameState?.gamePhase === 'ended') {
@@ -351,6 +356,21 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
   }
 
   if (!gameState) {
+    if (permalinkJoinAttempt.error) {
+      return (
+        <div className={styles.lobby}>
+          <h1 className={styles.title}>Golf Card Game</h1>
+          <div className={styles.lobbyContent}>
+            <div className={styles.lobbyActions}>
+              <p className={styles.permalinkError}>{permalinkJoinAttempt.error}</p>
+              <button onClick={createRoom} className={styles.primaryButton}>
+                Create New Room
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+    }
     return <div className={styles.loading}>Loading...</div>
   }
 
@@ -384,14 +404,24 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
             </div>
           </div>
           {currentGamePermalink && (
-            <div className={styles.gameHeaderShare}>
+            <div className={gameState.gamePhase === 'waiting' ? styles.gameHeaderShareWaiting : styles.gameHeaderShare}>
               <PermalinkDisplay
                 label="Share Game"
                 url={currentGamePermalink}
               />
             </div>
           )}
+          <button onClick={() => setShowLeaveConfirm(true)} className={styles.leaveGameLink}>
+            ✕
+          </button>
         </div>
+        {showLeaveConfirm && (
+          <div className={styles.leaveConfirm}>
+            <span>Leave this game?</span>
+            <button onClick={confirmLeave} className={styles.leaveConfirmYes}>Leave</button>
+            <button onClick={() => setShowLeaveConfirm(false)} className={styles.leaveConfirmNo}>Stay</button>
+          </div>
+        )}
       </div>
 
       {gameState.gamePhase === 'waiting' && (
@@ -403,6 +433,9 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
               Start Game
             </button>
           )}
+          <button onClick={leaveGame} className={styles.textLink}>
+            Leave Game
+          </button>
         </div>
       )}
 
@@ -495,11 +528,8 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
             )}
 
             <div className={styles.gameEndLinks}>
-              <button onClick={clearGameState} className={styles.textLink}>
+              <button onClick={leaveGame} className={styles.textLink}>
                 Back to Room
-              </button>
-              <button onClick={() => window.location.reload()} className={styles.textLink}>
-                Leave
               </button>
             </div>
           </div>

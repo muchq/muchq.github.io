@@ -72,6 +72,7 @@ interface UseGolfGameReturn {
   handleCardClick: (index: number) => void
   setRoomCode: (code: string) => void
   clearGameState: () => void
+  leaveGame: () => void
 
   // Computed
   currentPlayer: Player | undefined
@@ -104,6 +105,7 @@ export const useGolfGame = ({
     error: null as string | null,
     gameJoinAttempted: false
   })
+  const [isReconnecting, setIsReconnecting] = useState(false)
   const [isManualNavigation, setIsManualNavigation] = useState(false)
   const [, setIsCreatingNewGame] = useState(false)
   const [newGameNotifications, setNewGameNotifications] = useState<Array<{
@@ -115,6 +117,7 @@ export const useGolfGame = ({
   const networkAdapterRef = useRef<GolfNetworkAdapter | null>(null)
   const permalinkTimeoutRef = useRef<number | null>(null)
   const notificationTimeoutRef = useRef<number | null>(null)
+  const reconnectTimeoutRef = useRef<number | null>(null)
   const countdownIntervalRef = useRef<number | null>(null)
   const navigate = useNavigate()
 
@@ -283,6 +286,14 @@ export const useGolfGame = ({
     setSelectedCardIndex(null)
   }, [])
 
+  const leaveGame = useCallback(() => {
+    networkAdapterRef.current?.leaveGame()
+    setGameState(null)
+    setWinner(null)
+    setFinalScores(null)
+    setSelectedCardIndex(null)
+  }, [])
+
   // Navigation helper functions
   const navigateToRoom = useCallback((roomId: string) => {
     const roomUrl = generateRoomPermalink(roomId)
@@ -398,7 +409,19 @@ export const useGolfGame = ({
   useEffect(() => {
     // Create network adapter with callbacks
     const adapter = new GolfNetworkAdapter({
+      onReconnecting: () => {
+        setIsReconnecting(true)
+        // Safety: clear after 2s in case server has no state to restore
+        reconnectTimeoutRef.current = window.setTimeout(() => {
+          setIsReconnecting(false)
+        }, 2000)
+      },
       onRoomJoined: (newPlayerId, newRoomState) => {
+        setIsReconnecting(false)
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current)
+          reconnectTimeoutRef.current = null
+        }
         setPlayerId(newPlayerId)
         setRoomState(newRoomState)
         setIsInRoom(true)
@@ -471,33 +494,29 @@ export const useGolfGame = ({
       },
       onNotification: (message) => {
         showNotification(message)
-        
-        // Handle permalink join errors
-        if (permalinkJoinAttempt.isAttempting) {
-          // Check for common error messages that indicate join failure
-          if (message.includes('not found') || message.includes('does not exist') || 
-              message.includes('failed to join') || message.includes('error')) {
-            // Clear timeout and set error
-            if (permalinkTimeoutRef.current) {
-              clearTimeout(permalinkTimeoutRef.current)
-              permalinkTimeoutRef.current = null
-            }
-            setPermalinkJoinAttempt({
-              isAttempting: false,
-              roomId: null,
-              gameId: null,
-              error: message,
-              gameJoinAttempted: false
-            })
-          }
-        }
-        
+
         // Parse game end notifications
         if (message.includes('Winner:')) {
           const winnerMatch = message.match(/Winner: (.+)/)
           if (winnerMatch) {
             setWinner(winnerMatch[1])
           }
+        }
+      },
+      onGameError: (errorMessage) => {
+        if (permalinkJoinAttempt.isAttempting &&
+            (errorMessage.includes('not found') || errorMessage.includes('does not exist'))) {
+          if (permalinkTimeoutRef.current) {
+            clearTimeout(permalinkTimeoutRef.current)
+            permalinkTimeoutRef.current = null
+          }
+          setPermalinkJoinAttempt({
+            isAttempting: false,
+            roomId: null,
+            gameId: null,
+            error: 'This room no longer exists.',
+            gameJoinAttempted: false
+          })
         }
       },
       onConnectionChange: (connected) => {
@@ -553,6 +572,9 @@ export const useGolfGame = ({
       if (permalinkTimeoutRef.current) {
         clearTimeout(permalinkTimeoutRef.current)
       }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, showNotification])
@@ -561,7 +583,8 @@ export const useGolfGame = ({
   // Handle permalink-based automatic joining
   useEffect(() => {
     // Only attempt permalink joining if we have valid params and are connected
-    if (!permalinkParams || !permalinkParams.isValid || !isConnected || !networkAdapterRef.current) {
+    // Skip while reconnection state restore is in progress to avoid racing
+    if (!permalinkParams || !permalinkParams.isValid || !isConnected || isReconnecting || !networkAdapterRef.current) {
       return
     }
 
@@ -618,7 +641,7 @@ export const useGolfGame = ({
       // Join the room first
       networkAdapterRef.current.joinRoom(permalinkParams.roomId)
     }
-  }, [permalinkParams, isConnected, roomState?.id, gameState?.id, permalinkJoinAttempt.isAttempting, permalinkJoinAttempt.gameJoinAttempted, showNotification])
+  }, [permalinkParams, isConnected, isReconnecting, roomState?.id, gameState?.id, permalinkJoinAttempt.isAttempting, permalinkJoinAttempt.gameJoinAttempted, showNotification])
 
   // Handle successful room join for permalink flow
   useEffect(() => {
@@ -803,7 +826,8 @@ export const useGolfGame = ({
     handleCardClick,
     setRoomCode,
     clearGameState,
-    
+    leaveGame,
+
     // Navigation helpers
     navigateToRoom,
     navigateToGame,
