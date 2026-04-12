@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import styles from './GolfGame.module.css'
 import { useGolfGame } from '@/hooks/useGolfGame'
 import PermalinkDisplay from './PermalinkDisplay'
@@ -27,8 +27,7 @@ interface GolfGameProps {
 const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams }: GolfGameProps) => {
   const [showRules, setShowRules] = useState(false)
   const [showScores, setShowScores] = useState(false)
-
-  // Pass permalink parameters to useGolfGame hook for automatic joining
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
 
   // Helper function to get display name (now just use the ID directly)
   const getDisplayName = (player: Player | null) => {
@@ -63,10 +62,15 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     knock,
     handleCardClick,
     setRoomCode,
-    clearGameState,
+    leaveGame,
     dismissNewGameNotification,
     joinNewGame
   } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams })
+
+  const confirmLeave = useCallback(() => {
+    setShowLeaveConfirm(false)
+    leaveGame()
+  }, [leaveGame])
 
   useEffect(() => {
     if (gameState?.gamePhase === 'ended') {
@@ -391,7 +395,17 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
               />
             </div>
           )}
+          <button onClick={() => setShowLeaveConfirm(true)} className={styles.leaveGameLink}>
+            ✕
+          </button>
         </div>
+        {showLeaveConfirm && (
+          <div className={styles.leaveConfirm}>
+            <span>Leave this game?</span>
+            <button onClick={confirmLeave} className={styles.leaveConfirmYes}>Leave</button>
+            <button onClick={() => setShowLeaveConfirm(false)} className={styles.leaveConfirmNo}>Stay</button>
+          </div>
+        )}
       </div>
 
       {gameState.gamePhase === 'waiting' && (
@@ -403,6 +417,9 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
               Start Game
             </button>
           )}
+          <button onClick={leaveGame} className={styles.textLink}>
+            Leave Game
+          </button>
         </div>
       )}
 
@@ -495,11 +512,8 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
             )}
 
             <div className={styles.gameEndLinks}>
-              <button onClick={clearGameState} className={styles.textLink}>
+              <button onClick={leaveGame} className={styles.textLink}>
                 Back to Room
-              </button>
-              <button onClick={() => window.location.reload()} className={styles.textLink}>
-                Leave
               </button>
             </div>
           </div>

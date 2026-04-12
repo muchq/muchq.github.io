@@ -72,6 +72,7 @@ interface UseGolfGameReturn {
   handleCardClick: (index: number) => void
   setRoomCode: (code: string) => void
   clearGameState: () => void
+  leaveGame: () => void
 
   // Computed
   currentPlayer: Player | undefined
@@ -277,6 +278,14 @@ export const useGolfGame = ({
   }, [gameState, playerId, peekCard, peekCountdown, swapCard])
 
   const clearGameState = useCallback(() => {
+    setGameState(null)
+    setWinner(null)
+    setFinalScores(null)
+    setSelectedCardIndex(null)
+  }, [])
+
+  const leaveGame = useCallback(() => {
+    networkAdapterRef.current?.leaveGame()
     setGameState(null)
     setWinner(null)
     setFinalScores(null)
@@ -803,7 +812,8 @@ export const useGolfGame = ({
     handleCardClick,
     setRoomCode,
     clearGameState,
-    
+    leaveGame,
+
     // Navigation helpers
     navigateToRoom,
     navigateToGame,
