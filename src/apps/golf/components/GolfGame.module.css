@@ -156,6 +156,62 @@
   flex-shrink: 0;
 }
 
+.leaveGameLink {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.25rem 0.5rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.leaveGameLink:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.leaveConfirm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 80, 80, 0.15);
+  border-radius: 0.4rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.leaveConfirmYes {
+  background: rgba(255, 80, 80, 0.6);
+  border: none;
+  border-radius: 0.3rem;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.leaveConfirmYes:hover {
+  background: rgba(255, 80, 80, 0.8);
+}
+
+.leaveConfirmNo {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  border-radius: 0.3rem;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.leaveConfirmNo:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
 .playerList {
   display: flex;
   gap: 1rem;
@@ -641,39 +697,58 @@
   }
 
   .gameHeader {
-    margin-bottom: 0.5rem;
-    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.25rem;
+    padding: 0.35rem 0.5rem;
   }
 
   .gameHeader h2 {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     margin: 0;
+    white-space: nowrap;
   }
 
   .gameHeaderTop {
     flex-direction: row;
-    gap: 0.5rem;
+    gap: 0.4rem;
     align-items: center;
   }
 
   .gameHeaderInfo {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
     text-align: left;
     min-width: 0;
+    overflow: hidden;
   }
 
   .playerList {
-    flex-wrap: wrap;
-    gap: 0.2rem;
-    margin-top: 0.2rem;
+    flex-wrap: nowrap;
+    gap: 0.15rem;
+    margin-top: 0;
+    overflow: hidden;
   }
 
   .playerInfo {
-    font-size: 0.7rem;
-    padding: 0.15rem 0.35rem;
+    font-size: 0.65rem;
+    padding: 0.1rem 0.3rem;
+    white-space: nowrap;
   }
 
   .turnLabel {
-    font-size: 0.6rem;
+    font-size: 0.55rem;
+  }
+
+  .leaveGameLink {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.35rem;
+  }
+
+  .leaveConfirm {
+    margin-top: 0.35rem;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.75rem;
+    gap: 0.5rem;
   }
 
   .gameArea {
