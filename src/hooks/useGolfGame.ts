@@ -73,6 +73,7 @@ interface UseGolfGameReturn {
   setRoomCode: (code: string) => void
   clearGameState: () => void
   leaveGame: () => void
+  leaveRoom: () => void
 
   // Computed
   currentPlayer: Player | undefined
@@ -293,6 +294,21 @@ export const useGolfGame = ({
     setFinalScores(null)
     setSelectedCardIndex(null)
   }, [])
+
+  const leaveRoom = useCallback(() => {
+    if (roomState?.id) {
+      networkAdapterRef.current?.leaveRoom(roomState.id)
+    }
+    setRoomState(null)
+    setGameState(null)
+    setIsInRoom(false)
+    setIsInLobby(true)
+    setWinner(null)
+    setFinalScores(null)
+    setSelectedCardIndex(null)
+    setNewGameNotifications([])
+    navigate('/golf', { replace: true })
+  }, [roomState?.id, navigate])
 
   // Navigation helper functions
   const navigateToRoom = useCallback((roomId: string) => {
@@ -827,6 +843,7 @@ export const useGolfGame = ({
     setRoomCode,
     clearGameState,
     leaveGame,
+    leaveRoom,
 
     // Navigation helpers
     navigateToRoom,

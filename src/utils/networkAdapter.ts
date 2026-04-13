@@ -259,6 +259,10 @@ export class GolfNetworkAdapter {
     this.plugin.leaveGame(this.getContext())
   }
 
+  leaveRoom(roomId: string): void {
+    this.plugin.leaveRoom(roomId, this.getContext())
+  }
+
   isMyTurn(): boolean {
     return this.plugin.isMyTurn(this.getContext())
   }
