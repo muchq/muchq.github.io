@@ -12,7 +12,7 @@ interface GolfMessage extends BaseNetworkMessage {
   type: 'authenticate' | 'authenticated' | 'createRoom' | 'joinRoom' | 'createGame' | 'joinGame' | 'roomJoined' | 'roomStateUpdate' | 'gameState' | 'error' |
         'gameStarted' | 'turnChanged' | 'playerKnocked' | 'gameEnded' | 'newGameStarted' |
         'startGame' | 'peekCard' | 'drawCard' | 'takeFromDiscard' |
-        'swapCard' | 'discardDrawn' | 'knock' | 'hideCards' | 'startNewGame' | 'leaveGame'
+        'swapCard' | 'discardDrawn' | 'knock' | 'hideCards' | 'startNewGame' | 'leaveGame' | 'leaveRoom'
   // Request fields
   roomId?: string
   gameId?: string
@@ -410,6 +410,15 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
       timestamp: Date.now()
     })
     console.log('📤 Sent leave game request')
+  }
+
+  leaveRoom(roomId: string, context: NetworkContext): void {
+    context.send({
+      type: 'leaveRoom',
+      roomId: roomId,
+      timestamp: Date.now()
+    })
+    console.log(`📤 Sent leave room request for room ${roomId}`)
   }
 
   // Session token management

@@ -63,6 +63,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     handleCardClick,
     setRoomCode,
     leaveGame,
+    leaveRoom,
     dismissNewGameNotification,
     joinNewGame,
     permalinkJoinAttempt
@@ -344,6 +345,10 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
               </div>
             </div>
           )}
+
+          <button onClick={leaveRoom} className={styles.textLink}>
+            Leave Room
+          </button>
         </div>
 
         {notification && (
