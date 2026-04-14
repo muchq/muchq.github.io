@@ -19,7 +19,7 @@
     "deploy": "wrangler deploy"
   },
   "dependencies": {
-    "react": "^19.1.0",
+    "react": "^19.2.5",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.14.0",
     "react-select": "^5.10.2",
