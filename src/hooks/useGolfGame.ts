@@ -619,6 +619,7 @@ export const useGolfGame = ({
         // We're in the right room but need to join the game
         // Only attempt if we haven't already tried to join this game
         if (!permalinkJoinAttempt.gameJoinAttempted) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- state machine transition before network call
           setPermalinkJoinAttempt({
             isAttempting: true,
             roomId: permalinkParams.roomId,
@@ -672,6 +673,7 @@ export const useGolfGame = ({
         // Check if the game exists in the room
         if (roomState.games[permalinkJoinAttempt.gameId]) {
           // Mark that we're attempting to join the game to prevent duplicate calls
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- state machine transition before network call
           setPermalinkJoinAttempt(prev => ({
             ...prev,
             gameJoinAttempted: true
@@ -718,6 +720,7 @@ export const useGolfGame = ({
         clearTimeout(permalinkTimeoutRef.current)
         permalinkTimeoutRef.current = null
       }
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- state machine transition on external event
       setPermalinkJoinAttempt({
         isAttempting: false,
         roomId: null,
@@ -757,9 +760,6 @@ export const useGolfGame = ({
   // Handle peek countdown when all players have peeked
   useEffect(() => {
     if (gameState?.gamePhase === 'peeking' && gameState?.allPlayersPeeked) {
-      // Start countdown at 3
-      setPeekCountdown(3)
-
       const startTime = Date.now()
       countdownIntervalRef.current = window.setInterval(() => {
         const elapsed = Date.now() - startTime
@@ -784,20 +784,15 @@ export const useGolfGame = ({
           }
         }
       }, 100) // Update more frequently for smoother countdown
-    } else if (gameState?.gamePhase !== 'peeking') {
-      // Clear countdown if we're no longer in peeking phase
-      setPeekCountdown(null)
+    }
+
+    // Cleanup: clear countdown and interval when phase changes or on unmount
+    return () => {
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current)
         countdownIntervalRef.current = null
       }
-    }
-
-    // Cleanup on unmount
-    return () => {
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current)
-      }
+      setPeekCountdown(null)
     }
   }, [gameState?.gamePhase, gameState?.allPlayersPeeked])
 

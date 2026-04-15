@@ -402,13 +402,8 @@ const ConnectedComponentFinder: React.FC = () => {
   }, [algorithm, generateDFSSteps, generateBFSSteps, generateUnionFindSteps, resetVisualization]);
 
   useEffect(() => {
-    if (!isRunning || currentStep >= steps.length) {
-      if (currentStep >= steps.length) {
-        setIsRunning(false);
-      }
-      return;
-    }
-    
+    if (!isRunning || currentStep >= steps.length) return;
+
     const timer = setTimeout(() => {
       const step = steps[currentStep];
       
@@ -447,9 +442,13 @@ const ConnectedComponentFinder: React.FC = () => {
         setQueue(prev => prev.slice(1));
       }
       
-      setCurrentStep(prev => prev + 1);
+      const nextStep = currentStep + 1;
+      setCurrentStep(nextStep);
+      if (nextStep >= steps.length) {
+        setIsRunning(false);
+      }
     }, speed);
-    
+
     return () => clearTimeout(timer);
   }, [isRunning, currentStep, steps, speed, algorithm, nodes, edges]);
 

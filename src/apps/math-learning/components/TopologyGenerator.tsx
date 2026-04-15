@@ -1,33 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import styles from './TopologyGenerator.module.css';
 
-interface AxiomCheck {
-  emptySet: boolean;
-  fullSet: boolean;
-  finiteUnions: boolean;
-  arbitraryIntersections: boolean;
-  isTopology: boolean;
-}
-
-interface Violations {
-  unionViolations: string[];
-  intersectionViolations: string[];
-}
 
 const TopologyGenerator: React.FC = () => {
   const [setSize, setSetSize] = useState<number>(3);
   const [selectedSubsets, setSelectedSubsets] = useState<Set<string>>(new Set());
-  const [axiomCheck, setAxiomCheck] = useState<AxiomCheck>({
-    emptySet: false,
-    fullSet: false,
-    finiteUnions: true,
-    arbitraryIntersections: true,
-    isTopology: false
-  });
-  const [violations, setViolations] = useState<Violations>({
-    unionViolations: [],
-    intersectionViolations: []
-  });
   const [autoComplete, setAutoComplete] = useState<boolean>(false);
   const [showViolations, setShowViolations] = useState<boolean>(true);
 
@@ -106,15 +83,16 @@ const TopologyGenerator: React.FC = () => {
       }
     }
     
-    setAxiomCheck({
-      emptySet: hasEmptySet,
-      fullSet: hasFullSet,
-      finiteUnions: finiteUnionsValid,
-      arbitraryIntersections: arbitraryIntersectionsValid,
-      isTopology: hasEmptySet && hasFullSet && finiteUnionsValid && arbitraryIntersectionsValid
-    });
-    
-    setViolations({ unionViolations, intersectionViolations });
+    return {
+      axiomCheck: {
+        emptySet: hasEmptySet,
+        fullSet: hasFullSet,
+        finiteUnions: finiteUnionsValid,
+        arbitraryIntersections: arbitraryIntersectionsValid,
+        isTopology: hasEmptySet && hasFullSet && finiteUnionsValid && arbitraryIntersectionsValid
+      },
+      violations: { unionViolations, intersectionViolations }
+    };
   };
 
   const completeToTopology = () => {
@@ -155,8 +133,8 @@ const TopologyGenerator: React.FC = () => {
     setSelectedSubsets(newSelected);
   };
 
-  useEffect(() => {
-    checkTopologyAxioms();
+  const { axiomCheck, violations } = useMemo(() => {
+    return checkTopologyAxioms();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSubsets, setSize]);
 
