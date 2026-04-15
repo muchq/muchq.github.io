@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import Select from 'react-select';
 import { retroSelectStyles } from '@/styles/ReactSelectStyles';
 import styles from './ContinuityChecker.module.css';
@@ -36,8 +36,6 @@ const ContinuityChecker: React.FC = () => {
   const [domainTopology, setDomainTopology] = useState<TopologyType>('discrete');
   const [codomainTopology, setCodomainTopology] = useState<TopologyType>('standard');
   const [selectedFunction, setSelectedFunction] = useState<number>(0);
-  const [continuityChecks, setContinuityChecks] = useState<ContinuityCheck[]>([]);
-  const [isContinuous, setIsContinuous] = useState<boolean>(false);
   const [showDetails, setShowDetails] = useState<boolean>(true);
 
   const domain = Array.from({ length: domainSize }, (_, i) => i + 1);
@@ -185,12 +183,11 @@ const ContinuityChecker: React.FC = () => {
       });
     }
     
-    setContinuityChecks(checks);
-    setIsContinuous(continuous);
+    return { checks, continuous };
   };
 
-  useEffect(() => {
-    checkContinuity();
+  const { checks: continuityChecks, continuous: isContinuous } = useMemo(() => {
+    return checkContinuity();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [domainTopology, codomainTopology, selectedFunction]);
 

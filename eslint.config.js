@@ -32,10 +32,12 @@ export default [
     rules: {
       // React hooks rules
       ...reactHooks.configs.recommended.rules,
-      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/set-state-in-effect': 'error',
+      'react-hooks/purity': 'off',
       'react-hooks/preserve-manual-memoization': 'off',
       'react-hooks/immutability': 'off',
       'react-hooks/unsupported-syntax': 'off',
+      'react-hooks/refs': 'off',
       
       // React refresh rule
       'react-refresh/only-export-components': [

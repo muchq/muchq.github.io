@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Select from 'react-select';
 import { retroSelectStyles } from '@/styles/ReactSelectStyles';
 import styles from './SequenceConvergence.module.css';
@@ -71,7 +71,8 @@ const SequenceConvergence: React.FC = () => {
     return points;
   };
 
-  const [sequence, setSequence] = useState<Point[]>(generateSequence(sequenceType));
+  const sequence = useMemo(() => generateSequence(sequenceType), [sequenceType]);
+  const prevSequenceTypeRef = useRef(sequenceType);
 
   const sequenceOptions: SequenceOption[] = [
     { value: 'converging', label: 'Converging Spiral' },
@@ -89,10 +90,11 @@ const SequenceConvergence: React.FC = () => {
   const sequenceSelectStyles = retroSelectStyles<SequenceOption>();
   const metricSelectStyles = retroSelectStyles<MetricOption>();
 
-  useEffect(() => {
-    setSequence(generateSequence(sequenceType));
+  // Reset index when sequence type changes
+  if (prevSequenceTypeRef.current !== sequenceType) {
+    prevSequenceTypeRef.current = sequenceType;
     setCurrentIndex(0);
-  }, [sequenceType]);
+  }
 
   const calculateDistance = (p1: Point, p2: { x: number; y: number }): number => {
     switch (metric) {
@@ -317,15 +319,18 @@ const SequenceConvergence: React.FC = () => {
   }, [sequence, currentIndex, epsilon, metric, showEpsilonBall, showTail]);
 
   useEffect(() => {
-    if (isPlaying && currentIndex < sequence.length - 1) {
-      const timeoutId = setTimeout(() => {
-        setCurrentIndex(prev => prev + 1);
-      }, 1000 / animationSpeed);
-      
-      return () => clearTimeout(timeoutId);
-    } else if (isPlaying && currentIndex >= sequence.length - 1) {
-      setIsPlaying(false);
-    }
+    if (!isPlaying) return;
+    if (currentIndex >= sequence.length - 1) return;
+
+    const timeoutId = setTimeout(() => {
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
+      if (nextIndex >= sequence.length - 1) {
+        setIsPlaying(false);
+      }
+    }, 1000 / animationSpeed);
+
+    return () => clearTimeout(timeoutId);
   }, [isPlaying, currentIndex, sequence.length, animationSpeed]);
 
   const handlePlayPause = () => {

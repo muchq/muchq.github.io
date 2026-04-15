@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import styles from './BasisBuilder.module.css';
 
 interface BasisElement {
@@ -10,7 +10,6 @@ interface BasisElement {
 const BasisBuilder: React.FC = () => {
   const [setSize, setSetSize] = useState<number>(5);
   const [basisElements, setBasisElements] = useState<BasisElement[]>([]);
-  const [generatedTopology, setGeneratedTopology] = useState<Set<string>>(new Set());
   const [showSteps, setShowSteps] = useState<boolean>(false);
   const [subbasisMode, setSubbasisMode] = useState<boolean>(false);
 
@@ -102,7 +101,7 @@ const BasisBuilder: React.FC = () => {
       }
     }
     
-    setGeneratedTopology(topology);
+    return topology;
   };
 
   const getCombinations = <T,>(arr: T[], size: number): T[][] => {
@@ -175,12 +174,11 @@ const BasisBuilder: React.FC = () => {
     }
   };
 
-  useEffect(() => {
+  const generatedTopology = useMemo(() => {
     if (basisElements.length > 0) {
-      generateTopologyFromBasis();
-    } else {
-      setGeneratedTopology(new Set());
+      return generateTopologyFromBasis();
     }
+    return new Set<string>();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [basisElements, subbasisMode]);
 

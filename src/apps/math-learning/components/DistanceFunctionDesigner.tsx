@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import styles from './DistanceFunctionDesigner.module.css';
 
 type MetricType = 'euclidean' | 'manhattan' | 'discrete' | 'custom';
@@ -26,8 +26,7 @@ const DistanceFunctionDesigner: React.FC = () => {
     { x: 1, y: 1 },
     { x: -2, y: 2 }
   ]);
-  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
-  const [distanceMatrix, setDistanceMatrix] = useState<number[][]>([]);
+  // verificationResult and distanceMatrix are computed via useMemo below
 
   const calculateDistance = (p1: Point, p2: Point): number => {
     switch (selectedMetric) {
@@ -69,8 +68,6 @@ const DistanceFunctionDesigner: React.FC = () => {
       }
     }
     
-    setDistanceMatrix(matrix);
-
     const result: VerificationResult = {
       nonNegativity: true,
       symmetry: true,
@@ -115,11 +112,11 @@ const DistanceFunctionDesigner: React.FC = () => {
     result.isMetric = result.nonNegativity && result.symmetry && 
                       result.triangleInequality && result.identityOfIndiscernibles;
     
-    setVerificationResult(result);
+    return { matrix, result };
   };
 
-  useEffect(() => {
-    verifyMetricAxioms();
+  const { matrix: distanceMatrix, result: verificationResult } = useMemo(() => {
+    return verifyMetricAxioms();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMetric, customFormula, testPoints]);
 
