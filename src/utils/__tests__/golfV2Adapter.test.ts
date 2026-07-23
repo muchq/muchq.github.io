@@ -174,8 +174,7 @@ describe('GolfV2NetworkAdapter', () => {
     expect(state.id).toBe('GAME01')
     expect(state.currentPlayerIndex).toBe(1) // bob
     expect(state.drawPile).toBe(40)
-    expect(state.discardPile).toHaveLength(3)
-    expect(state.discardPile[2]).toEqual({ rank: 'Q', suit: '♥' })
+    expect(state.discardPile).toEqual([{ rank: 'Q', suit: '♥' }])
     expect(state.players[0].cards).toEqual([{ rank: 'A', suit: '♠' }, null, null, null])
     expect(state.players[0].revealedCards).toEqual([0])
     expect(state.players[1].hasPeeked).toBe(true)
@@ -191,7 +190,7 @@ describe('GolfV2NetworkAdapter', () => {
     adapter.takeFromDiscard()
     expect(ws.sent.length).toBe(sentBefore) // nothing left the browser
     expect(adapter.gameState?.drawnCard).toEqual({ rank: 'Q', suit: '♥' })
-    expect(adapter.gameState?.discardPile).toHaveLength(2)
+    expect(adapter.gameState?.discardPile).toHaveLength(0)
 
     adapter.swapCard(2)
     expect(ws.lastSent()).toEqual({
@@ -217,18 +216,18 @@ describe('GolfV2NetworkAdapter', () => {
     adapter.discardDrawn()
     expect(ws.sent.length).toBe(sentBefore)
     expect(adapter.gameState?.drawnCard).toBeNull()
-    expect(adapter.gameState?.discardPile).toHaveLength(3)
+    expect(adapter.gameState?.discardPile).toEqual([{ rank: 'Q', suit: '♥' }])
   })
 
-  it('swallows the gameCreated echo for its own create, announces others', async () => {
+  it('swallows its own gameCreated echo by creator id, announces others', async () => {
     const [adapter, ws] = await connect()
 
     adapter.createGame('ignored-room-id')
     expect(ws.lastSent()).toEqual({ event: 'golf', payload: { move: { createGame: {} } } })
-    ws.receive('golf', { update: { gameCreated: { gameId: 'GAME01' } } })
+    ws.receive('golf', { update: { gameCreated: { gameId: 'GAME01', createdBy: 'alice' } } })
     expect(callbacks.onNewGameStarted).not.toHaveBeenCalled()
 
-    ws.receive('golf', { update: { gameCreated: { gameId: 'GAME02' } } })
+    ws.receive('golf', { update: { gameCreated: { gameId: 'GAME02', createdBy: 'bob' } } })
     expect(callbacks.onNewGameStarted).toHaveBeenCalledWith('GAME02')
   })
 
@@ -293,8 +292,6 @@ describe('GolfV2NetworkAdapter', () => {
     const [adapter, ws] = await connect()
     adapter.joinRoom('ROOM77')
     expect(ws.lastSent()).toEqual({ event: 'joinRoom', payload: { roomId: 'ROOM77' } })
-    adapter.sendChat('hello!')
-    expect(ws.lastSent()).toEqual({ event: 'chat', payload: { text: 'hello!' } })
     adapter.drawCard()
     expect(ws.lastSent()).toEqual({ event: 'golf', payload: { move: { drawCard: {} } } })
     adapter.peekCard(3)
@@ -305,4 +302,159 @@ describe('GolfV2NetworkAdapter', () => {
     adapter.knock()
     expect(ws.lastSent()).toEqual({ event: 'golf', payload: { move: { knock: {} } } })
   })
+  it('maps an ended view: knocker, held card, absent current player, empty pile', async () => {
+    const [adapter, ws] = await connect()
+    ws.receive('golf', {
+      update: {
+        gameState: {
+          view: {
+            ...sampleView,
+            phase: 'ended',
+            currentPlayerId: undefined,
+            knockedPlayerId: 'bob',
+            drawnCard: { rank: '7', suit: '♦' },
+            allPlayersPeeked: true,
+            discardTop: undefined,
+            discardCount: 0
+          }
+        }
+      }
+    })
+
+    const state = adapter.gameState as GameState
+    expect(state.gamePhase).toBe('ended')
+    expect(state.currentPlayerIndex).toBe(0) // absent current player defaults to seat 0
+    expect(state.knockedPlayerId).toBe('bob')
+    expect(state.drawnCard).toEqual({ rank: '7', suit: '♦' })
+    expect(state.allPlayersPeeked).toBe(true)
+    expect(state.discardPile).toEqual([])
+  })
+
+  it('delivers gameJoined with the mapped state', async () => {
+    const [adapter, ws] = await connect()
+    ws.receive('golf', { update: { gameJoined: { view: sampleView } } })
+    expect(callbacks.onGameJoined).toHaveBeenCalledTimes(1)
+    const [playerId, state] = callbacks.onGameJoined.mock.calls[0]
+    expect(playerId).toBe('alice')
+    expect(state.id).toBe('GAME01')
+    expect(callbacks.onNotification).toHaveBeenCalledWith('Joined game successfully!')
+    expect(adapter.gameState?.id).toBe('GAME01')
+  })
+
+  it('gameLeft clears the held game state', async () => {
+    const [adapter, ws] = await connect()
+    ws.receive('golf', { update: { gameState: { view: sampleView } } })
+    expect(adapter.gameState).not.toBeNull()
+    ws.receive('golf', { update: { gameLeft: { gameId: 'GAME01' } } })
+    expect(adapter.gameState).toBeNull()
+  })
+
+  it('takeFromDiscard is a no-op with nothing on the pile', async () => {
+    const [adapter, ws] = await connect()
+    ws.receive('golf', {
+      update: { gameState: { view: { ...sampleView, discardTop: undefined, discardCount: 0 } } }
+    })
+    const updates = callbacks.onGameStateUpdate.mock.calls.length
+    adapter.takeFromDiscard()
+    expect(callbacks.onGameStateUpdate).toHaveBeenCalledTimes(updates)
+    expect(adapter.gameState?.drawnCard).toBeNull()
+  })
+
+  it('leaveRoom sends the envelope and re-announces the next room', async () => {
+    const [adapter, ws] = await connect()
+    const room = { roomId: 'ROOM01', players: [], games: [] }
+    ws.receive('roomState', room)
+    expect(callbacks.onRoomJoined).toHaveBeenCalledTimes(1)
+
+    adapter.leaveRoom('ROOM01')
+    expect(ws.lastSent()).toEqual({ event: 'leaveRoom', payload: {} })
+
+    ws.receive('roomState', room)
+    expect(callbacks.onRoomJoined).toHaveBeenCalledTimes(2)
+  })
+
+  it('signals connection state on open and close', async () => {
+    const [, ws] = await connect()
+    expect(callbacks.onConnectionChange).toHaveBeenCalledWith(true)
+    ws.close()
+    expect(callbacks.onConnectionChange).toHaveBeenLastCalledWith(false)
+  })
+
+  it('re-dials with a fresh mint after an abrupt close', async () => {
+    vi.useFakeTimers()
+    try {
+      const adapter = new GolfV2NetworkAdapter(callbacks)
+      adapter.connect()
+      await vi.advanceTimersByTimeAsync(0)
+      const first = FakeWebSocket.instances[0]
+      first.open()
+      first.receive('sessionReady', { playerId: 'alice', resumed: false })
+
+      first.close() // abrupt loss
+      await vi.advanceTimersByTimeAsync(2000)
+
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      // The re-mint rides the stored resume token, so the seat resumes.
+      const [, init] = fetchMock.mock.calls[1]
+      expect(JSON.parse((init as { body: string }).body)).toEqual({ resumeToken: 'rt-456' })
+      expect(FakeWebSocket.instances).toHaveLength(2)
+      adapter.disconnect()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a failed mint schedules a retry', async () => {
+    vi.useFakeTimers()
+    try {
+      fetchMock.mockResolvedValueOnce({ ok: false, status: 503 })
+      const adapter = new GolfV2NetworkAdapter(callbacks)
+      adapter.connect()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(FakeWebSocket.instances).toHaveLength(0)
+
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(FakeWebSocket.instances).toHaveLength(1)
+      adapter.disconnect()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('disconnect stops the reconnect loop', async () => {
+    vi.useFakeTimers()
+    try {
+      const adapter = new GolfV2NetworkAdapter(callbacks)
+      adapter.connect()
+      await vi.advanceTimersByTimeAsync(0)
+      FakeWebSocket.instances[0].open()
+
+      adapter.disconnect()
+      await vi.advanceTimersByTimeAsync(10_000)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(FakeWebSocket.instances).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('gives up with an error after the reconnect budget', async () => {
+    vi.useFakeTimers()
+    try {
+      fetchMock.mockRejectedValue(new Error('down'))
+      const adapter = new GolfV2NetworkAdapter(callbacks)
+      adapter.connect()
+      await vi.advanceTimersByTimeAsync(0)
+      for (let i = 0; i < 10; i++) {
+        await vi.advanceTimersByTimeAsync(2000)
+      }
+      expect(callbacks.onGameError).toHaveBeenCalledWith('Lost connection to the golf server')
+      expect(fetchMock).toHaveBeenCalledTimes(11)
+      adapter.disconnect()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
 })

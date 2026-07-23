@@ -4,6 +4,7 @@ import type { GameState, Player, Room } from '@/types/golf'
 import { GolfNetworkAdapter } from '@/utils/networkAdapter'
 import { GolfV2NetworkAdapter } from '@/utils/golfV2Adapter'
 import { isGolfV2Enabled } from '@/utils/golfV2'
+import type { GolfGameAdapter } from '@/types/golfAdapter'
 import type { ParsedPermalinkParams } from '@/utils/golfPermalinks'
 import { generateRoomPermalink, generateGamePermalink } from '@/utils/golfPermalinks'
 
@@ -119,7 +120,7 @@ export const useGolfGame = ({
     dismissed: boolean
   }>>([])
   const isCreatingNewGameRef = useRef(false)
-  const networkAdapterRef = useRef<GolfNetworkAdapter | GolfV2NetworkAdapter | null>(null)
+  const networkAdapterRef = useRef<GolfGameAdapter | null>(null)
   const permalinkTimeoutRef = useRef<number | null>(null)
   const notificationTimeoutRef = useRef<number | null>(null)
   const reconnectTimeoutRef = useRef<number | null>(null)

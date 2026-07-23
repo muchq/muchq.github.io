@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 // The golf v2 client (MoonBase#1187 phase 3): the smithy event-stream
-// wire, presented through the exact same adapter surface as the v1
+// wire, presented through the same GolfGameAdapter surface as the v1
 // GolfNetworkAdapter so useGolfGame and the components don't change.
 //
 // Wire shape (smithy-cpp ADR-0018 JSON-text mode):
@@ -12,20 +12,42 @@
 //
 // Two deliberate translations keep the v1 UI untouched:
 //   - v2 GameView -> v1 GameState (ids to indexes, slots to nullable
-//     cards, discard top+count to a pile array).
+//     cards). Bridge-lifetime shims, gone with v1 in phase 5: the
+//     discard renders as a one-card pile (v2 sends top + count; only the
+//     top is drawn), room game summaries carry fake seat players to
+//     satisfy the v1 Player[] shape, and gameHistory is empty — the v2
+//     wire doesn't carry it, so the "Recent Games" panel is blank on v2.
 //   - v1's take-then-place discard flow is emulated locally: the discard
 //     top is public, so "taking" it reveals nothing; the real v2
 //     takeFromDiscard{cardIndex} is sent when the player places it.
 
 import type { Card, GameState as GolfGameState, Player, Room, FinalScore } from '@/types/golf'
+import type { GolfAdapterCallbacks, GolfGameAdapter } from '@/types/golfAdapter'
+import {
+  JOINED_ROOM,
+  JOINED_GAME,
+  NEW_GAME,
+  GAME_STARTED,
+  turnMessage,
+  knockedMessage,
+  gameOverMessage
+} from './golfNotifications'
+import { safeLocalStorage } from './safeLocalStorage'
 import { golfV2PlayUrl, golfV2SessionUrl } from './golfV2'
+
+export type { GolfAdapterCallbacks } from '@/types/golfAdapter'
 
 const RESUME_TOKEN_KEY = 'golf_v2_resume_token'
 const SUBPROTOCOL = 'smithy.eventstream.v1+json'
+const MINT_TIMEOUT_MS = 10_000
+// 2s x 10 covers the hub's 5-minute reconnect grace, matching the v1
+// adapter's tuning (networkAdapter.ts connect config).
 const RECONNECT_DELAY_MS = 2000
 const MAX_RECONNECT_ATTEMPTS = 10
 
 // --- v2 wire shapes (mirrors model/games.smithy + model/golf_hub.smithy) ---
+
+type GamePhase = GolfGameState['gamePhase']
 
 interface V2CardSlot {
   card?: Card
@@ -41,7 +63,7 @@ interface V2GamePlayer {
 
 interface V2GameView {
   gameId: string
-  phase: 'waiting' | 'playing' | 'peeking' | 'knocked' | 'ended'
+  phase: GamePhase
   players: V2GamePlayer[]
   currentPlayerId?: string
   drawPileCount: number
@@ -62,7 +84,7 @@ interface V2PlayerInfo {
 
 interface V2GameSummary {
   gameId: string
-  status: string
+  status: GamePhase
   playerCount: number
 }
 
@@ -72,28 +94,56 @@ interface V2RoomState {
   games: V2GameSummary[]
 }
 
-interface V2Events {
-  sessionReady?: { playerId: string; resumed: boolean; roomId?: string }
-  roomState?: V2RoomState
-  roomLeft?: { roomId: string }
-  roomChat?: { playerId: string; text: string }
-  commandRejected?: { reason: string }
-  golf?: { update: V2GolfUpdate }
+interface V2SessionReady {
+  playerId: string
+  resumed: boolean
+  roomId?: string
 }
 
+// The golf update union's JSON encoding: exactly one member present.
 interface V2GolfUpdate {
   gameJoined?: { view: V2GameView }
   gameState?: { view: V2GameView }
-  gameCreated?: { gameId: string }
+  gameCreated?: { gameId: string; createdBy?: string }
   gameStarted?: Record<string, never>
   turnChanged?: { playerId: string }
   playerKnocked?: { playerId: string }
-  gameEnded?: { winner: string; winners: string[]; finalScores: { playerId: string; score: number }[] }
+  gameEnded?: {
+    winner: string
+    winners: string[]
+    finalScores: { playerId: string; score: number }[]
+  }
   gameLeft?: { gameId: string }
 }
 
+// Inbound frames as a discriminated union: the switch narrows each case,
+// and a new event is a compile-time hole instead of a silent cast.
+type V2Frame =
+  | { event: 'sessionReady'; payload: V2SessionReady }
+  | { event: 'roomState'; payload: V2RoomState }
+  | { event: 'roomLeft'; payload: { roomId: string } }
+  | { event: 'roomChat'; payload: { playerId: string; text: string } }
+  | { event: 'commandRejected'; payload: { reason: string } }
+  | { event: 'golf'; payload: { update: V2GolfUpdate } }
+
+type V2CommandEvent = 'createRoom' | 'joinRoom' | 'leaveRoom' | 'getRoomState' | 'chat' | 'golf'
+type V2MoveName =
+  | 'createGame'
+  | 'joinGame'
+  | 'startGame'
+  | 'leaveGame'
+  | 'peekCard'
+  | 'drawCard'
+  | 'takeFromDiscard'
+  | 'swapCard'
+  | 'discardDrawn'
+  | 'knock'
+  | 'hideCards'
+
 // --- v2 -> v1 shape translation ---
 
+// v2 has no separate display names: the whimsical playerId is the label,
+// so it fills both id and name.
 function stubPlayer(id: string): Player {
   return {
     id,
@@ -112,6 +162,12 @@ function stubPlayer(id: string): Player {
   }
 }
 
+// Fake seats carrying only a count — the v1 Room shape wants Player[]
+// where v2 sends playerCount, and the lobby reads only the length.
+function stubSeats(count: number): Player[] {
+  return Array.from({ length: count }, (_, i) => stubPlayer(`seat-${i}`))
+}
+
 function mapGamePlayer(player: V2GamePlayer): Player {
   return {
     ...stubPlayer(player.playerId),
@@ -123,17 +179,19 @@ function mapGamePlayer(player: V2GamePlayer): Player {
 }
 
 function mapGameView(view: V2GameView): GolfGameState {
-  // The v1 shape carries the whole discard pile; v2 sends top + count.
-  // Only the top is ever rendered, so backfill with copies of the top.
-  const discardPile: Card[] =
-    view.discardTop == null ? [] : Array<Card>(view.discardCount).fill(view.discardTop)
-  const currentPlayerIndex = view.currentPlayerId
-    ? Math.max(0, view.players.findIndex(p => p.playerId === view.currentPlayerId))
-    : 0
+  // The UI renders only the discard top, and holding the top during the
+  // take emulation must not "reveal" a card beneath that this client was
+  // never sent — so the pile maps to at most one card.
+  const discardPile: Card[] = view.discardTop == null ? [] : [view.discardTop]
+  const currentSeat = view.currentPlayerId
+    ? view.players.findIndex(p => p.playerId === view.currentPlayerId)
+    : -1
   return {
     id: view.gameId,
     players: view.players.map(mapGamePlayer),
-    currentPlayerIndex,
+    // An absent or unknown current player (e.g. an ended game) shows as
+    // seat 0; nothing turn-gated renders in those phases.
+    currentPlayerIndex: currentSeat >= 0 ? currentSeat : 0,
     drawPile: view.drawPileCount,
     discardPile,
     gamePhase: view.phase,
@@ -148,11 +206,11 @@ function mapRoomState(room: V2RoomState): Room {
   for (const summary of room.games) {
     games[summary.gameId] = {
       id: summary.gameId,
-      players: Array.from({ length: summary.playerCount }, (_, i) => stubPlayer(`seat-${i}`)),
+      players: stubSeats(summary.playerCount),
       currentPlayerIndex: 0,
       drawPile: 0,
       discardPile: [],
-      gamePhase: summary.status as GolfGameState['gamePhase'],
+      gamePhase: summary.status,
       knockedPlayerId: null,
       drawnCard: null,
       allPlayersPeeked: false
@@ -176,20 +234,7 @@ function mapRoomState(room: V2RoomState): Room {
 
 // --- the adapter ---
 
-export interface GolfAdapterCallbacks {
-  onRoomJoined?: (playerId: string, roomState: Room) => void
-  onGameJoined?: (playerId: string, gameState: GolfGameState) => void
-  onGameStateUpdate?: (gameState: GolfGameState) => void
-  onRoomStateUpdate?: (roomState: Room) => void
-  onNotification?: (message: string) => void
-  onConnectionChange?: (connected: boolean) => void
-  onGameEnded?: (winner: string, finalScores: FinalScore[], winners?: string[]) => void
-  onNewGameStarted?: (gameId: string, previousGameId?: string) => void
-  onReconnecting?: () => void
-  onGameError?: (message: string) => void
-}
-
-export class GolfV2NetworkAdapter {
+export class GolfV2NetworkAdapter implements GolfGameAdapter {
   private callbacks: GolfAdapterCallbacks
   private ws: WebSocket | null = null
   private _playerId: string | null = null
@@ -202,18 +247,21 @@ export class GolfV2NetworkAdapter {
 
   // The room the UI has been told it joined; the next different
   // roomState fires onRoomJoined, same-room ones fire onRoomStateUpdate.
+  // Sound because the hub only sends roomState to members: a new roomId
+  // always means this player joined (or resumed into) that room.
   private announcedRoomId: string | null = null
-  // Our in-flight createGame requests: swallow their room-wide
-  // gameCreated echo (the creator is auto-seated and gets gameJoined).
-  private pendingOwnCreates = 0
   // v1's take-then-place discard flow, emulated locally.
   private pendingDiscardTake = false
+  // The last authoritative server view, kept so the discard-take
+  // emulation can be reverted without inventing state.
   private lastServerView: V2GameView | null = null
 
   constructor(callbacks?: GolfAdapterCallbacks) {
     this.callbacks = callbacks ?? {}
   }
 
+  // The url parameter is part of the shared adapter surface; v2 resolves
+  // its own endpoints from golfV2.ts, so it is accepted and ignored.
   connect(_url?: string): void {
     this.closed = false
     void this.dial()
@@ -249,11 +297,14 @@ export class GolfV2NetworkAdapter {
 
   private async dial(): Promise<void> {
     try {
-      const stored = this.getResumeToken()
+      const stored = safeLocalStorage.get(RESUME_TOKEN_KEY)
       const response = await fetch(golfV2SessionUrl(), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(stored ? { resumeToken: stored } : {})
+        body: JSON.stringify(stored ? { resumeToken: stored } : {}),
+        // A hung server must count as a failed attempt, not stall the
+        // bounded reconnect loop forever.
+        signal: AbortSignal.timeout(MINT_TIMEOUT_MS)
       })
       if (!response.ok) {
         throw new Error(`session mint failed: ${response.status}`)
@@ -264,7 +315,7 @@ export class GolfV2NetworkAdapter {
         resumeToken: string
       }
       this._playerId = session.playerId
-      this.storeResumeToken(session.resumeToken)
+      safeLocalStorage.set(RESUME_TOKEN_KEY, session.resumeToken)
 
       const url = `${golfV2PlayUrl()}?ticket=${encodeURIComponent(session.ticket)}`
       const ws = new WebSocket(url, SUBPROTOCOL)
@@ -278,7 +329,9 @@ export class GolfV2NetworkAdapter {
       }
       ws.onmessage = event => {
         try {
-          this.handleFrame(JSON.parse(event.data as string) as { event?: string; payload?: unknown })
+          // The one boundary cast: frames are validated by shape of use,
+          // not a runtime schema — unknown events fall through the switch.
+          this.handleFrame(JSON.parse(event.data as string) as V2Frame)
         } catch (error) {
           console.error('golf v2: bad frame', error)
         }
@@ -288,7 +341,7 @@ export class GolfV2NetworkAdapter {
         if (!this.sawSessionReady) {
           // Refused before admission (spent ticket, seat conflict, bad
           // resume token): drop the token so the next dial mints fresh.
-          this.clearResumeToken()
+          safeLocalStorage.remove(RESUME_TOKEN_KEY)
         }
         this.scheduleReconnect()
       }
@@ -312,7 +365,7 @@ export class GolfV2NetworkAdapter {
     this.reconnectTimeout = window.setTimeout(() => void this.dial(), RECONNECT_DELAY_MS)
   }
 
-  private sendEvent(event: string, payload: unknown): void {
+  private sendEvent(event: V2CommandEvent, payload: unknown): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       console.warn('golf v2: cannot send, not connected')
       return
@@ -320,49 +373,40 @@ export class GolfV2NetworkAdapter {
     this.ws.send(JSON.stringify({ event, payload }))
   }
 
-  private sendMove(move: string, payload: unknown = {}): void {
+  private sendMove(move: V2MoveName, payload: unknown = {}): void {
     this.sendEvent('golf', { move: { [move]: payload } })
   }
 
   // --- inbound events ---
 
-  private handleFrame(frame: { event?: string; payload?: unknown }): void {
-    if (!frame.event) {
-      console.warn('golf v2: frame without event', frame)
-      return
-    }
-    const payload = (frame.payload ?? {}) as V2Events[keyof V2Events]
-    switch (frame.event as keyof V2Events) {
+  private handleFrame(frame: V2Frame): void {
+    switch (frame.event) {
       case 'sessionReady':
-        this.handleSessionReady(payload as NonNullable<V2Events['sessionReady']>)
+        this.handleSessionReady(frame.payload)
         return
       case 'roomState':
-        this.handleRoomState(payload as V2RoomState)
+        this.handleRoomState(frame.payload)
         return
       case 'roomLeft':
         this.announcedRoomId = null
         this._roomState = null
         return
-      case 'roomChat': {
-        const chat = payload as NonNullable<V2Events['roomChat']>
-        this.callbacks.onNotification?.(`${chat.playerId}: ${chat.text}`)
+      case 'roomChat':
+        this.callbacks.onNotification?.(`${frame.payload.playerId}: ${frame.payload.text}`)
         return
-      }
-      case 'commandRejected': {
-        const rejected = payload as NonNullable<V2Events['commandRejected']>
-        this.callbacks.onGameError?.(rejected.reason)
-        this.callbacks.onNotification?.(rejected.reason)
+      case 'commandRejected':
+        this.callbacks.onGameError?.(frame.payload.reason)
+        this.callbacks.onNotification?.(frame.payload.reason)
         return
-      }
       case 'golf':
-        this.handleUpdate((payload as NonNullable<V2Events['golf']>).update)
+        this.handleUpdate(frame.payload.update)
         return
       default:
-        console.warn(`golf v2: unknown event ${frame.event}`)
+        console.warn('golf v2: unknown event', frame)
     }
   }
 
-  private handleSessionReady(ready: { playerId: string; resumed: boolean; roomId?: string }): void {
+  private handleSessionReady(ready: V2SessionReady): void {
     this._playerId = ready.playerId
     this.sawSessionReady = true
     if (ready.resumed && ready.roomId) {
@@ -377,7 +421,7 @@ export class GolfV2NetworkAdapter {
     if (this.announcedRoomId !== room.roomId) {
       this.announcedRoomId = room.roomId
       this.callbacks.onRoomJoined?.(this._playerId ?? '', mapped)
-      this.callbacks.onNotification?.('Joined room successfully!')
+      this.callbacks.onNotification?.(JOINED_ROOM)
     } else {
       this.callbacks.onRoomStateUpdate?.(mapped)
     }
@@ -385,37 +429,36 @@ export class GolfV2NetworkAdapter {
 
   private handleUpdate(update: V2GolfUpdate): void {
     if (update.gameJoined) {
-      this.acceptView(update.gameJoined.view)
-      this.callbacks.onGameJoined?.(this._playerId ?? '', this._gameState!)
-      this.callbacks.onNotification?.('Joined game successfully!')
+      const state = this.acceptView(update.gameJoined.view)
+      this.callbacks.onGameJoined?.(this._playerId ?? '', state)
+      this.callbacks.onNotification?.(JOINED_GAME)
       return
     }
     if (update.gameState) {
-      this.acceptView(update.gameState.view)
-      this.callbacks.onGameStateUpdate?.(this._gameState!)
+      const state = this.acceptView(update.gameState.view)
+      this.callbacks.onGameStateUpdate?.(state)
       return
     }
     if (update.gameCreated) {
-      if (this.pendingOwnCreates > 0) {
+      if (update.gameCreated.createdBy === this._playerId) {
         // Our own create: the gameJoined we also receive carries the
         // state, and announcing it would make the hook double-join.
-        this.pendingOwnCreates--
         return
       }
-      this.callbacks.onNotification?.('New game started!')
+      this.callbacks.onNotification?.(NEW_GAME)
       this.callbacks.onNewGameStarted?.(update.gameCreated.gameId)
       return
     }
     if (update.gameStarted) {
-      this.callbacks.onNotification?.('Game started! Each player can peek at 2 cards.')
+      this.callbacks.onNotification?.(GAME_STARTED)
       return
     }
     if (update.turnChanged) {
-      this.callbacks.onNotification?.(`It's ${update.turnChanged.playerId}'s turn`)
+      this.callbacks.onNotification?.(turnMessage(update.turnChanged.playerId))
       return
     }
     if (update.playerKnocked) {
-      this.callbacks.onNotification?.(`${update.playerKnocked.playerId} has knocked! Last round!`)
+      this.callbacks.onNotification?.(knockedMessage(update.playerKnocked.playerId))
       return
     }
     if (update.gameEnded) {
@@ -424,7 +467,7 @@ export class GolfV2NetworkAdapter {
         playerName: score.playerId,
         score: score.score
       }))
-      this.callbacks.onNotification?.(`Game over! Winner: ${ended.winner}`)
+      this.callbacks.onNotification?.(gameOverMessage(ended.winner))
       this.callbacks.onGameEnded?.(ended.winner, finalScores, ended.winners)
       return
     }
@@ -437,15 +480,16 @@ export class GolfV2NetworkAdapter {
     console.warn('golf v2: unknown update', update)
   }
 
-  private acceptView(view: V2GameView): void {
+  private acceptView(view: V2GameView): GolfGameState {
     // Server state is authoritative: any update ends the local
     // take-from-discard emulation.
     this.lastServerView = view
     this.pendingDiscardTake = false
     this._gameState = mapGameView(view)
+    return this._gameState
   }
 
-  // --- actions (the v1 adapter surface) ---
+  // --- actions (the shared GolfGameAdapter surface) ---
 
   createRoom(): void {
     this.sendEvent('createRoom', {})
@@ -460,16 +504,16 @@ export class GolfV2NetworkAdapter {
     this.sendEvent('leaveRoom', {})
   }
 
-  getRoomState(): void {
-    this.sendEvent('getRoomState', {})
-  }
-
-  sendChat(text: string): void {
-    this.sendEvent('chat', { text })
-  }
-
   createGame(_roomId: string): void {
-    this.pendingOwnCreates++
+    this.requestCreateGame()
+  }
+
+  startNewGame(): void {
+    // v2 folded startNewGame into createGame; the creator is auto-seated.
+    this.requestCreateGame()
+  }
+
+  private requestCreateGame(): void {
     this.sendMove('createGame')
   }
 
@@ -479,11 +523,6 @@ export class GolfV2NetworkAdapter {
 
   startGame(): void {
     this.sendMove('startGame')
-  }
-
-  startNewGame(): void {
-    // v2 folded startNewGame into createGame; the creator is auto-seated.
-    this.createGame('')
   }
 
   leaveGame(): void {
@@ -507,7 +546,7 @@ export class GolfV2NetworkAdapter {
     this._gameState = {
       ...this._gameState,
       drawnCard: view.discardTop,
-      discardPile: this._gameState.discardPile.slice(0, -1)
+      discardPile: []
     }
     this.callbacks.onGameStateUpdate?.(this._gameState)
   }
@@ -550,31 +589,5 @@ export class GolfV2NetworkAdapter {
   getCurrentPlayer(): Player | null {
     if (!this._gameState || !this._playerId) return null
     return this._gameState.players.find(p => p.id === this._playerId) ?? null
-  }
-
-  // --- resume token storage ---
-
-  private storeResumeToken(token: string): void {
-    try {
-      localStorage.setItem(RESUME_TOKEN_KEY, token)
-    } catch {
-      // Private mode: sessions just won't resume.
-    }
-  }
-
-  private getResumeToken(): string | null {
-    try {
-      return localStorage.getItem(RESUME_TOKEN_KEY)
-    } catch {
-      return null
-    }
-  }
-
-  private clearResumeToken(): void {
-    try {
-      localStorage.removeItem(RESUME_TOKEN_KEY)
-    } catch {
-      // Nothing to clear.
-    }
   }
 }

@@ -3,7 +3,8 @@ import { NetworkManager } from './networkManager'
 import { ThoughtsNetworkPlugin } from '@/plugins/thoughtsNetworkPlugin'
 import { GolfNetworkPlugin } from '@/plugins/golfNetworkPlugin'
 import type { GameState } from '@/types/game'
-import type { GameState as GolfGameState, Room, FinalScore } from '@/types/golf'
+import type { GameState as GolfGameState, Room } from '@/types/golf'
+import type { GolfAdapterCallbacks, GolfGameAdapter } from '@/types/golfAdapter'
 import { ConnectionState, BaseNetworkMessage } from '@/types/network'
 
 // Factory function to create a network manager with pre-registered plugins
@@ -96,7 +97,7 @@ export class ThoughtsNetworkAdapter {
 }
 
 // Adapter for Golf game
-export class GolfNetworkAdapter {
+export class GolfNetworkAdapter implements GolfGameAdapter {
   private manager: NetworkManager
   private plugin: GolfNetworkPlugin
   private _playerId: string | null = null
@@ -104,18 +105,7 @@ export class GolfNetworkAdapter {
 
   private _roomState: Room | null = null
 
-  constructor(callbacks?: {
-    onRoomJoined?: (playerId: string, roomState: Room) => void
-    onGameJoined?: (playerId: string, gameState: GolfGameState) => void
-    onGameStateUpdate?: (gameState: GolfGameState) => void
-    onRoomStateUpdate?: (roomState: Room) => void
-    onNotification?: (message: string) => void
-    onConnectionChange?: (connected: boolean) => void
-    onGameEnded?: (winner: string, finalScores: FinalScore[], winners?: string[]) => void
-    onNewGameStarted?: (gameId: string, previousGameId?: string) => void
-    onReconnecting?: () => void
-    onGameError?: (message: string) => void
-  }) {
+  constructor(callbacks?: GolfAdapterCallbacks) {
     // Create manager with connection state callback
     this.manager = new NetworkManager({
       onConnectionStateChange: (state: ConnectionState) => {
