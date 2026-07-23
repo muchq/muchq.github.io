@@ -24,6 +24,7 @@ interface GolfMessage extends BaseNetworkMessage {
   roomState?: Room
   message?: string
   winner?: string
+  winners?: string[]
   finalScores?: FinalScore[]
   previousGameId?: string
   reconnected?: boolean
@@ -47,7 +48,7 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
   private onGameStateUpdate?: (gameState: GolfGameState) => void
   private onRoomStateUpdate?: (roomState: Room) => void
   private onNotification?: (message: string) => void
-  private onGameEnded?: (winner: string, finalScores: FinalScore[]) => void
+  private onGameEnded?: (winner: string, finalScores: FinalScore[], winners?: string[]) => void
   private onNewGameStarted?: (gameId: string, previousGameId?: string) => void
   private onReconnecting?: () => void
   private onGameError?: (message: string) => void
@@ -58,7 +59,7 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
     onGameStateUpdate?: (gameState: GolfGameState) => void
     onRoomStateUpdate?: (roomState: Room) => void
     onNotification?: (message: string) => void
-    onGameEnded?: (winner: string, finalScores: FinalScore[]) => void
+    onGameEnded?: (winner: string, finalScores: FinalScore[], winners?: string[]) => void
     onNewGameStarted?: (gameId: string, previousGameId?: string) => void
     onReconnecting?: () => void
     onGameError?: (message: string) => void
@@ -250,9 +251,10 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
       console.log('Final scores:', message.finalScores)
     }
     
-    // Call the onGameEnded callback if provided
+    // Call the onGameEnded callback if provided. winners is the typed
+    // list on shared wins; winner stays the display string ("a & b").
     if (this.onGameEnded && message.finalScores) {
-      this.onGameEnded(winner, message.finalScores)
+      this.onGameEnded(winner, message.finalScores, message.winners)
     }
   }
 

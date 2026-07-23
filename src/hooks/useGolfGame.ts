@@ -26,6 +26,7 @@ interface UseGolfGameReturn {
   isConnected: boolean
   peekCountdown: number | null
   winner: string | null
+  winners: string[] | null
   finalScores: Array<{ playerName: string; score: number }> | null
   
   // New game notifications
@@ -98,6 +99,7 @@ export const useGolfGame = ({
   const [isConnected, setIsConnected] = useState(false)
   const [peekCountdown, setPeekCountdown] = useState<number | null>(null)
   const [winner, setWinner] = useState<string | null>(null)
+  const [winners, setWinners] = useState<string[] | null>(null)
   const [finalScores, setFinalScores] = useState<Array<{ playerName: string; score: number }> | null>(null)
   const [permalinkJoinAttempt, setPermalinkJoinAttempt] = useState({
     isAttempting: false,
@@ -283,6 +285,7 @@ export const useGolfGame = ({
   const clearGameState = useCallback(() => {
     setGameState(null)
     setWinner(null)
+    setWinners(null)
     setFinalScores(null)
     setSelectedCardIndex(null)
   }, [])
@@ -291,6 +294,7 @@ export const useGolfGame = ({
     networkAdapterRef.current?.leaveGame()
     setGameState(null)
     setWinner(null)
+    setWinners(null)
     setFinalScores(null)
     setSelectedCardIndex(null)
   }, [])
@@ -304,6 +308,7 @@ export const useGolfGame = ({
     setIsInRoom(false)
     setIsInLobby(true)
     setWinner(null)
+    setWinners(null)
     setFinalScores(null)
     setSelectedCardIndex(null)
     setNewGameNotifications([])
@@ -410,6 +415,7 @@ export const useGolfGame = ({
     // Clear current game state before joining the new one
     setGameState(null)
     setWinner(null)
+    setWinners(null)
     setFinalScores(null)
     setSelectedCardIndex(null)
 
@@ -465,6 +471,7 @@ export const useGolfGame = ({
         if (gameState && !newRoomState.games[gameState.id]) {
           setGameState(null)
           setWinner(null)
+          setWinners(null)
           setFinalScores(null)
         }
       },
@@ -539,8 +546,9 @@ export const useGolfGame = ({
         setIsConnected(connected)
         onConnectionChange?.(connected)
       },
-      onGameEnded: (winnerName, scores) => {
+      onGameEnded: (winnerName, scores, winnerNames) => {
         setWinner(winnerName)
+        setWinners(winnerNames ?? null)
         setFinalScores(scores)
       },
       onNewGameStarted: (gameId, _previousGameId) => {
@@ -809,6 +817,7 @@ export const useGolfGame = ({
     isConnected,
     peekCountdown,
     winner,
+    winners,
     finalScores,
   
     // New game notifications

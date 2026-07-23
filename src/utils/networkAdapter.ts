@@ -111,7 +111,7 @@ export class GolfNetworkAdapter {
     onRoomStateUpdate?: (roomState: Room) => void
     onNotification?: (message: string) => void
     onConnectionChange?: (connected: boolean) => void
-    onGameEnded?: (winner: string, finalScores: FinalScore[]) => void
+    onGameEnded?: (winner: string, finalScores: FinalScore[], winners?: string[]) => void
     onNewGameStarted?: (gameId: string, previousGameId?: string) => void
     onReconnecting?: () => void
     onGameError?: (message: string) => void
