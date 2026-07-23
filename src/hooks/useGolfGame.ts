@@ -2,6 +2,8 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { GameState, Player, Room } from '@/types/golf'
 import { GolfNetworkAdapter } from '@/utils/networkAdapter'
+import { GolfV2NetworkAdapter } from '@/utils/golfV2Adapter'
+import { isGolfV2Enabled } from '@/utils/golfV2'
 import type { ParsedPermalinkParams } from '@/utils/golfPermalinks'
 import { generateRoomPermalink, generateGamePermalink } from '@/utils/golfPermalinks'
 
@@ -117,7 +119,7 @@ export const useGolfGame = ({
     dismissed: boolean
   }>>([])
   const isCreatingNewGameRef = useRef(false)
-  const networkAdapterRef = useRef<GolfNetworkAdapter | null>(null)
+  const networkAdapterRef = useRef<GolfNetworkAdapter | GolfV2NetworkAdapter | null>(null)
   const permalinkTimeoutRef = useRef<number | null>(null)
   const notificationTimeoutRef = useRef<number | null>(null)
   const reconnectTimeoutRef = useRef<number | null>(null)
@@ -429,8 +431,10 @@ export const useGolfGame = ({
 
   // Initialize network adapter and connect on mount
   useEffect(() => {
-    // Create network adapter with callbacks
-    const adapter = new GolfNetworkAdapter({
+    // Create network adapter with callbacks; ?golf=v2 opts this browser
+    // into the smithy hub (MoonBase#1187 phase 3), ?golf=v1 opts out.
+    const AdapterClass = isGolfV2Enabled() ? GolfV2NetworkAdapter : GolfNetworkAdapter
+    const adapter = new AdapterClass({
       onReconnecting: () => {
         setIsReconnecting(true)
         // Safety: clear after 2s in case server has no state to restore
@@ -583,7 +587,7 @@ export const useGolfGame = ({
 
     networkAdapterRef.current = adapter
 
-    // Connect to server
+    // Connect to server (the v2 adapter resolves its own endpoints)
     const websocketUrl = import.meta.env.VITE_GOLF_WEBSOCKET_URL || 'wss://api.muchq.com/games/v1/golf-ws'
     adapter.connect(websocketUrl)
 

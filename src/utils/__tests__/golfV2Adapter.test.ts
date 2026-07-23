@@ -1,0 +1,308 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import type { Mock } from 'vitest'
+import { GolfV2NetworkAdapter } from '../golfV2Adapter'
+import type { GolfAdapterCallbacks } from '../golfV2Adapter'
+import type { GameState } from '@/types/golf'
+
+type MockedCallbacks = {
+  [K in keyof Required<GolfAdapterCallbacks>]: Mock<Required<GolfAdapterCallbacks>[K]>
+}
+
+// The v2 adapter against a scripted wire: session mint, the smithy
+// JSON-text envelopes, v2->v1 shape translation, and the local
+// take-from-discard emulation (MoonBase#1187 phase 3).
+
+class FakeWebSocket {
+  static instances: FakeWebSocket[] = []
+  static OPEN = 1
+  readonly OPEN = 1
+  url: string
+  protocol: string
+  readyState = 0
+  sent: string[] = []
+  onopen: (() => void) | null = null
+  onmessage: ((event: { data: string }) => void) | null = null
+  onclose: (() => void) | null = null
+  onerror: (() => void) | null = null
+
+  constructor(url: string, protocol: string) {
+    this.url = url
+    this.protocol = protocol
+    FakeWebSocket.instances.push(this)
+  }
+
+  send(data: string): void {
+    this.sent.push(data)
+  }
+
+  close(): void {
+    this.readyState = 3
+    this.onclose?.()
+  }
+
+  open(): void {
+    this.readyState = 1
+    this.onopen?.()
+  }
+
+  receive(event: string, payload: unknown): void {
+    this.onmessage?.({ data: JSON.stringify({ event, payload }) })
+  }
+
+  lastSent(): { event: string; payload: Record<string, unknown> } {
+    return JSON.parse(this.sent[this.sent.length - 1])
+  }
+}
+
+const flushAsync = () => new Promise(resolve => setTimeout(resolve, 0))
+
+describe('GolfV2NetworkAdapter', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+  let callbacks: MockedCallbacks
+
+  const sampleView = {
+    gameId: 'GAME01',
+    phase: 'playing' as const,
+    players: [
+      {
+        playerId: 'alice',
+        cards: [{ card: { rank: 'A', suit: '♠' } }, {}, {}, {}],
+        revealedIndexes: [0],
+        hasPeeked: false
+      },
+      { playerId: 'bob', cards: [{}, {}, {}, {}], revealedIndexes: [], hasPeeked: true }
+    ],
+    currentPlayerId: 'bob',
+    drawPileCount: 40,
+    discardCount: 3,
+    discardTop: { rank: 'Q', suit: '♥' },
+    allPlayersPeeked: false
+  }
+
+  beforeEach(() => {
+    FakeWebSocket.instances = []
+    vi.stubGlobal('WebSocket', FakeWebSocket)
+    fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({ playerId: 'alice', ticket: 't-123', resumeToken: 'rt-456' })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    localStorage.clear()
+    callbacks = {
+      onRoomJoined: vi.fn(),
+      onGameJoined: vi.fn(),
+      onGameStateUpdate: vi.fn(),
+      onRoomStateUpdate: vi.fn(),
+      onNotification: vi.fn(),
+      onConnectionChange: vi.fn(),
+      onGameEnded: vi.fn(),
+      onNewGameStarted: vi.fn(),
+      onReconnecting: vi.fn(),
+      onGameError: vi.fn()
+    }
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  const connect = async (): Promise<[GolfV2NetworkAdapter, FakeWebSocket]> => {
+    const adapter = new GolfV2NetworkAdapter(callbacks)
+    adapter.connect()
+    await flushAsync()
+    const ws = FakeWebSocket.instances[0]
+    ws.open()
+    ws.receive('sessionReady', { playerId: 'alice', resumed: false })
+    return [adapter, ws]
+  }
+
+  it('mints a session, stores the resume token, and dials with the ticket', async () => {
+    const [, ws] = await connect()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toContain('/games/v2/session')
+    expect(JSON.parse((init as { body: string }).body)).toEqual({})
+
+    expect(ws.url).toContain('?ticket=t-123')
+    expect(ws.protocol).toBe('smithy.eventstream.v1+json')
+    expect(localStorage.getItem('golf_v2_resume_token')).toBe('rt-456')
+  })
+
+  it('re-mints with the stored resume token', async () => {
+    localStorage.setItem('golf_v2_resume_token', 'rt-old')
+    await connect()
+    const [, init] = fetchMock.mock.calls[0]
+    expect(JSON.parse((init as { body: string }).body)).toEqual({ resumeToken: 'rt-old' })
+  })
+
+  it('announces a room once, then streams updates', async () => {
+    const [, ws] = await connect()
+    const room = {
+      roomId: 'ROOM01',
+      players: [
+        { playerId: 'alice', connected: true, gamesPlayed: 2, gamesWon: 1, totalScore: 7 }
+      ],
+      games: [{ gameId: 'GAME01', status: 'waiting', playerCount: 1 }]
+    }
+
+    ws.receive('roomState', room)
+    expect(callbacks.onRoomJoined).toHaveBeenCalledTimes(1)
+    const [playerId, mapped] = callbacks.onRoomJoined.mock.calls[0]
+    expect(playerId).toBe('alice')
+    expect(mapped.id).toBe('ROOM01')
+    expect(mapped.players[0].totalScore).toBe(7)
+    expect(mapped.players[0].gamesWon).toBe(1)
+    expect(mapped.games['GAME01'].gamePhase).toBe('waiting')
+    expect(mapped.games['GAME01'].players).toHaveLength(1)
+
+    ws.receive('roomState', { ...room, games: [] })
+    expect(callbacks.onRoomJoined).toHaveBeenCalledTimes(1)
+    expect(callbacks.onRoomStateUpdate).toHaveBeenCalledTimes(1)
+
+    ws.receive('roomLeft', { roomId: 'ROOM01' })
+    ws.receive('roomState', room)
+    expect(callbacks.onRoomJoined).toHaveBeenCalledTimes(2)
+  })
+
+  it('translates game views into the v1 shape', async () => {
+    const [adapter, ws] = await connect()
+    ws.receive('golf', { update: { gameState: { view: sampleView } } })
+
+    const state = adapter.gameState as GameState
+    expect(state.id).toBe('GAME01')
+    expect(state.currentPlayerIndex).toBe(1) // bob
+    expect(state.drawPile).toBe(40)
+    expect(state.discardPile).toHaveLength(3)
+    expect(state.discardPile[2]).toEqual({ rank: 'Q', suit: '♥' })
+    expect(state.players[0].cards).toEqual([{ rank: 'A', suit: '♠' }, null, null, null])
+    expect(state.players[0].revealedCards).toEqual([0])
+    expect(state.players[1].hasPeeked).toBe(true)
+    expect(state.drawnCard).toBeNull()
+    expect(callbacks.onGameStateUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  it('emulates take-from-discard locally and sends on placement', async () => {
+    const [adapter, ws] = await connect()
+    ws.receive('golf', { update: { gameState: { view: sampleView } } })
+    const sentBefore = ws.sent.length
+
+    adapter.takeFromDiscard()
+    expect(ws.sent.length).toBe(sentBefore) // nothing left the browser
+    expect(adapter.gameState?.drawnCard).toEqual({ rank: 'Q', suit: '♥' })
+    expect(adapter.gameState?.discardPile).toHaveLength(2)
+
+    adapter.swapCard(2)
+    expect(ws.lastSent()).toEqual({
+      event: 'golf',
+      payload: { move: { takeFromDiscard: { cardIndex: 2 } } }
+    })
+
+    // A fresh server view ends any emulation; a plain swap goes out as-is.
+    ws.receive('golf', { update: { gameState: { view: sampleView } } })
+    adapter.swapCard(1)
+    expect(ws.lastSent()).toEqual({
+      event: 'golf',
+      payload: { move: { swapCard: { cardIndex: 1 } } }
+    })
+  })
+
+  it('putting the taken discard back restores the server view silently', async () => {
+    const [adapter, ws] = await connect()
+    ws.receive('golf', { update: { gameState: { view: sampleView } } })
+    const sentBefore = ws.sent.length
+
+    adapter.takeFromDiscard()
+    adapter.discardDrawn()
+    expect(ws.sent.length).toBe(sentBefore)
+    expect(adapter.gameState?.drawnCard).toBeNull()
+    expect(adapter.gameState?.discardPile).toHaveLength(3)
+  })
+
+  it('swallows the gameCreated echo for its own create, announces others', async () => {
+    const [adapter, ws] = await connect()
+
+    adapter.createGame('ignored-room-id')
+    expect(ws.lastSent()).toEqual({ event: 'golf', payload: { move: { createGame: {} } } })
+    ws.receive('golf', { update: { gameCreated: { gameId: 'GAME01' } } })
+    expect(callbacks.onNewGameStarted).not.toHaveBeenCalled()
+
+    ws.receive('golf', { update: { gameCreated: { gameId: 'GAME02' } } })
+    expect(callbacks.onNewGameStarted).toHaveBeenCalledWith('GAME02')
+  })
+
+  it('maps gameEnded scores and passes the winners list through', async () => {
+    const [, ws] = await connect()
+    ws.receive('golf', {
+      update: {
+        gameEnded: {
+          winner: 'alice & bob',
+          winners: ['alice', 'bob'],
+          finalScores: [
+            { playerId: 'alice', score: 0 },
+            { playerId: 'bob', score: 0 }
+          ]
+        }
+      }
+    })
+    expect(callbacks.onGameEnded).toHaveBeenCalledWith(
+      'alice & bob',
+      [
+        { playerName: 'alice', score: 0 },
+        { playerName: 'bob', score: 0 }
+      ],
+      ['alice', 'bob']
+    )
+  })
+
+  it('surfaces rejections in-band and keeps the session', async () => {
+    const [, ws] = await connect()
+    ws.receive('commandRejected', { reason: 'not your turn' })
+    expect(callbacks.onGameError).toHaveBeenCalledWith('not your turn')
+    expect(localStorage.getItem('golf_v2_resume_token')).toBe('rt-456')
+  })
+
+  it('signals a resumed session', async () => {
+    const adapter = new GolfV2NetworkAdapter(callbacks)
+    adapter.connect()
+    await flushAsync()
+    const ws = FakeWebSocket.instances[0]
+    ws.open()
+    ws.receive('sessionReady', { playerId: 'alice', resumed: true, roomId: 'ROOM01' })
+    expect(callbacks.onReconnecting).toHaveBeenCalledTimes(1)
+    adapter.disconnect()
+  })
+
+  it('drops the resume token when refused before admission', async () => {
+    const adapter = new GolfV2NetworkAdapter(callbacks)
+    adapter.connect()
+    await flushAsync()
+    expect(localStorage.getItem('golf_v2_resume_token')).toBe('rt-456')
+
+    // Closed without ever seeing sessionReady: spent ticket or seat
+    // conflict — the next dial must mint fresh.
+    const ws = FakeWebSocket.instances[0]
+    ws.open()
+    ws.close()
+    expect(localStorage.getItem('golf_v2_resume_token')).toBeNull()
+    adapter.disconnect()
+  })
+
+  it('sends room commands as bare envelopes and moves inside golf', async () => {
+    const [adapter, ws] = await connect()
+    adapter.joinRoom('ROOM77')
+    expect(ws.lastSent()).toEqual({ event: 'joinRoom', payload: { roomId: 'ROOM77' } })
+    adapter.sendChat('hello!')
+    expect(ws.lastSent()).toEqual({ event: 'chat', payload: { text: 'hello!' } })
+    adapter.drawCard()
+    expect(ws.lastSent()).toEqual({ event: 'golf', payload: { move: { drawCard: {} } } })
+    adapter.peekCard(3)
+    expect(ws.lastSent()).toEqual({
+      event: 'golf',
+      payload: { move: { peekCard: { cardIndex: 3 } } }
+    })
+    adapter.knock()
+    expect(ws.lastSent()).toEqual({ event: 'golf', payload: { move: { knock: {} } } })
+  })
+})
