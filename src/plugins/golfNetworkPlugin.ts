@@ -6,6 +6,16 @@ import type {
   NetworkContext
 } from '@/types/network'
 import type { Player, GameState as GolfGameState, Room, FinalScore } from '@/types/golf'
+import type { GolfAdapterCallbacks } from '@/types/golfAdapter'
+import {
+  JOINED_ROOM,
+  JOINED_GAME,
+  NEW_GAME,
+  GAME_STARTED,
+  turnMessage,
+  knockedMessage,
+  gameOverMessage
+} from '@/utils/golfNotifications'
 
 // Golf-specific message types
 interface GolfMessage extends BaseNetworkMessage {
@@ -53,17 +63,8 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
   private onReconnecting?: () => void
   private onGameError?: (message: string) => void
 
-  constructor(callbacks?: {
-    onRoomJoined?: (playerId: string, roomState: Room) => void
-    onGameJoined?: (playerId: string, gameState: GolfGameState) => void
-    onGameStateUpdate?: (gameState: GolfGameState) => void
-    onRoomStateUpdate?: (roomState: Room) => void
-    onNotification?: (message: string) => void
-    onGameEnded?: (winner: string, finalScores: FinalScore[], winners?: string[]) => void
-    onNewGameStarted?: (gameId: string, previousGameId?: string) => void
-    onReconnecting?: () => void
-    onGameError?: (message: string) => void
-  }) {
+  // onConnectionChange is unused here — the NetworkManager owns it.
+  constructor(callbacks?: GolfAdapterCallbacks) {
     if (callbacks) {
       this.onRoomJoined = callbacks.onRoomJoined
       this.onGameJoined = callbacks.onGameJoined
@@ -150,7 +151,7 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
       this.onRoomJoined(message.playerId, message.roomState)
     }
     
-    this.notify('Joined room successfully!', context)
+    this.notify(JOINED_ROOM, context)
   }
 
   private handleRoomStateUpdate(message: GolfMessage, context: NetworkContext): void {
@@ -188,7 +189,7 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
       this.onGameJoined(message.playerId, message.gameState)
     }
     
-    this.notify('Joined game successfully!', context)
+    this.notify(JOINED_GAME, context)
   }
 
   private handleGameState(message: GolfMessage, context: NetworkContext): void {
@@ -226,25 +227,25 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
 
   private handleGameStarted(_message: GolfMessage, context: NetworkContext): void {
     console.log('🎮 Game started!')
-    this.notify('Game started! Each player can peek at 2 cards.', context)
+    this.notify(GAME_STARTED, context)
   }
 
   private handleTurnChanged(message: GolfMessage, context: NetworkContext): void {
     const playerName = (message as GolfMessage & { playerName?: string }).playerName || 'Unknown'
     console.log(`🔄 Turn changed to ${playerName}`)
-    this.notify(`It's ${playerName}'s turn`, context)
+    this.notify(turnMessage(playerName), context)
   }
 
   private handlePlayerKnocked(message: GolfMessage, context: NetworkContext): void {
     const playerName = (message as GolfMessage & { playerName?: string }).playerName || 'Unknown'
     console.log(`🔔 ${playerName} has knocked!`)
-    this.notify(`${playerName} has knocked! Last round!`, context)
+    this.notify(knockedMessage(playerName), context)
   }
 
   private handleGameEnded(message: GolfMessage, context: NetworkContext): void {
     const winner = message.winner || 'Unknown'
     console.log(`🏆 Game ended! Winner: ${winner}`)
-    this.notify(`Game over! Winner: ${winner}`, context)
+    this.notify(gameOverMessage(winner), context)
     
     // Log final scores if provided
     if (message.finalScores) {
@@ -263,7 +264,7 @@ export class GolfNetworkPlugin implements GameNetworkPlugin {
     const previousGameId = message.previousGameId
 
     console.log(`🆕 New game started in room! Game ID: ${gameId}${previousGameId ? `, Previous: ${previousGameId}` : ''}`)
-    this.notify('New game started!', context)
+    this.notify(NEW_GAME, context)
 
     if (this.onNewGameStarted && gameId) {
       this.onNewGameStarted(gameId, previousGameId)
