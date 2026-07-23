@@ -752,10 +752,12 @@ export const useGolfGame = ({
       return
     }
 
+    // Compare path AND query: permalinks carry ?golf=v2 while the beta is
+    // active, and a pathname-only comparison would re-navigate every run.
     // If we have both room and game state, ensure URL reflects game
     if (roomState && gameState && roomState.id && gameState.id) {
       const expectedUrl = generateGamePermalink(roomState.id, gameState.id)
-      const currentPath = window.location.pathname
+      const currentPath = window.location.pathname + window.location.search
       if (currentPath !== expectedUrl) {
         navigate(expectedUrl, { replace: true })
       }
@@ -763,7 +765,7 @@ export const useGolfGame = ({
     // If we only have room state, ensure URL reflects room
     else if (roomState && roomState.id && !gameState) {
       const expectedUrl = generateRoomPermalink(roomState.id)
-      const currentPath = window.location.pathname
+      const currentPath = window.location.pathname + window.location.search
       if (currentPath !== expectedUrl && !currentPath.includes('/game/')) {
         navigate(expectedUrl, { replace: true })
       }

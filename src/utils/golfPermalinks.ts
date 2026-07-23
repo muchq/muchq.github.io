@@ -30,7 +30,9 @@ export function isValidId(id: string | undefined): boolean {
 /**
  * While the v2 beta is active, minted permalinks carry the opt-in flag so
  * a shared link lands its recipient on the same backend as its sender —
- * a v2 room does not exist on the v1 hub.
+ * a v2 room does not exist on the v1 hub. Deliberately applied on every
+ * generated path, not just explicit share links: navigation pushes these
+ * into the address bar, and a hand-copied URL must carry the flag too.
  */
 function betaSuffix(): string {
   return isGolfV2Enabled() ? '?golf=v2' : ''
@@ -58,7 +60,7 @@ export function parsePermalinkParams(params: GolfRouteParams): ParsedPermalinkPa
       roomId: null,
       gameId: null,
       isValid: false,
-      error: 'Invalid room ID format. Room IDs must be alphanumeric.'
+      error: 'Invalid room ID format. Room IDs may contain only letters, numbers, and hyphens.'
     }
   }
   
@@ -68,7 +70,7 @@ export function parsePermalinkParams(params: GolfRouteParams): ParsedPermalinkPa
       roomId: roomId || null,
       gameId: null,
       isValid: false,
-      error: 'Invalid game ID format. Game IDs must be alphanumeric.'
+      error: 'Invalid game ID format. Game IDs may contain only letters, numbers, and hyphens.'
     }
   }
   

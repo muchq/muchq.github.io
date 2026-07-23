@@ -72,7 +72,7 @@ describe('golfPermalinks', () => {
         roomId: null,
         gameId: null,
         isValid: false,
-        error: 'Invalid room ID format. Room IDs must be alphanumeric.'
+        error: 'Invalid room ID format. Room IDs may contain only letters, numbers, and hyphens.'
       })
     })
 
@@ -83,7 +83,7 @@ describe('golfPermalinks', () => {
         roomId: 'room123',
         gameId: null,
         isValid: false,
-        error: 'Invalid game ID format. Game IDs must be alphanumeric.'
+        error: 'Invalid game ID format. Game IDs may contain only letters, numbers, and hyphens.'
       })
     })
 
@@ -114,6 +114,11 @@ describe('golfPermalinks', () => {
       expect(generateRoomPermalink('room123')).toBe('/golf/room/room123?golf=v2')
       localStorage.clear()
     })
+
+    it('omits the beta flag while v2 is disabled', () => {
+      localStorage.clear()
+      expect(generateRoomPermalink('room123')).toBe('/golf/room/room123')
+    })
   })
 
   describe('generateGamePermalink', () => {
@@ -134,6 +139,11 @@ describe('golfPermalinks', () => {
       localStorage.setItem('golf_v2_beta', '1')
       expect(generateGamePermalink('room123', 'game456')).toBe('/golf/room/room123/game/game456?golf=v2')
       localStorage.clear()
+    })
+
+    it('omits the beta flag while v2 is disabled', () => {
+      localStorage.clear()
+      expect(generateGamePermalink('room123', 'game456')).toBe('/golf/room/room123/game/game456')
     })
   })
 
@@ -211,7 +221,7 @@ describe('golfPermalinks', () => {
         roomId: null,
         gameId: null,
         isValid: false,
-        error: 'Invalid room ID format. Room IDs must be alphanumeric.'
+        error: 'Invalid room ID format. Room IDs may contain only letters, numbers, and hyphens.'
       })
     })
   })
