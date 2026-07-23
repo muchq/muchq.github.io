@@ -47,6 +47,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     isMyTurn,
     peekCountdown,
     winner,
+    winners,
     currentRoomPermalink,
     currentGamePermalink,
     newGameNotifications,
@@ -68,6 +69,13 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     joinNewGame,
     permalinkJoinAttempt
   } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams })
+
+  const isGameWinner = (player: Player | null | undefined) => {
+    if (!player) return false
+    const name = getDisplayName(player)
+    if (winners && winners.length > 0) return winners.includes(name)
+    return name === winner
+  }
 
   const confirmLeave = useCallback(() => {
     setShowLeaveConfirm(false)
@@ -448,10 +456,10 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
         <div className={styles.gameEndOverlay} onClick={() => setShowScores(true)}>
           <div className={styles.celebrationStage}>
             <div className={styles.celebrationEmoji}>
-              {currentPlayer && getDisplayName(currentPlayer) === winner ? '🏆' : '😤'}
+              {isGameWinner(currentPlayer) ? '🏆' : '😤'}
             </div>
             <h2 className={styles.celebrationTitle}>
-              {currentPlayer && getDisplayName(currentPlayer) === winner
+              {isGameWinner(currentPlayer)
                 ? 'You won!'
                 : `${winner} wins!`}
             </h2>
@@ -472,9 +480,9 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
               {gameState.players
                 .sort((a, b) => a.score - b.score)
                 .map((player, index) => (
-                  <div key={player.id} className={`${styles.scoreRow} ${index === 0 ? styles.winnerRow : ''}`}>
+                  <div key={player.id} className={`${styles.scoreRow} ${isGameWinner(player) ? styles.winnerRow : ''}`}>
                     <span className={styles.rank}>
-                      {index === 0 ? '👑' : `#${index + 1}`}
+                      {isGameWinner(player) ? '👑' : `#${index + 1}`}
                     </span>
                     <span className={styles.playerName}>{getDisplayName(player)}</span>
                     <span className={styles.finalScore}>{player.score} pts</span>
