@@ -2,6 +2,8 @@
  * Golf permalink utilities for URL parameter parsing and validation
  */
 
+import { isGolfV2Enabled } from './golfV2'
+
 export interface GolfRouteParams extends Record<string, string | undefined> {
   roomId?: string
   gameId?: string
@@ -15,13 +17,23 @@ export interface ParsedPermalinkParams {
 }
 
 /**
- * Validates if a room or game ID has the correct format
- * IDs should be alphanumeric strings
+ * Validates if a room or game ID has the correct format.
+ * Hub-minted ids are alphanumeric codes; hyphens are tolerated so an
+ * unexpected id shape degrades to an invalid-permalink message instead
+ * of a throw mid-render.
  */
 export function isValidId(id: string | undefined): boolean {
   if (!id) return false
-  // Check if ID is alphanumeric (letters and numbers only)
-  return /^[a-zA-Z0-9]+$/.test(id)
+  return /^[a-zA-Z0-9-]+$/.test(id)
+}
+
+/**
+ * While the v2 beta is active, minted permalinks carry the opt-in flag so
+ * a shared link lands its recipient on the same backend as its sender —
+ * a v2 room does not exist on the v1 hub.
+ */
+function betaSuffix(): string {
+  return isGolfV2Enabled() ? '?golf=v2' : ''
 }
 
 /**
@@ -84,7 +96,7 @@ export function generateRoomPermalink(roomId: string): string {
   if (!isValidId(roomId)) {
     throw new Error('Invalid room ID provided for permalink generation')
   }
-  return `/golf/room/${roomId}`
+  return `/golf/room/${roomId}${betaSuffix()}`
 }
 
 /**
@@ -97,7 +109,7 @@ export function generateGamePermalink(roomId: string, gameId: string): string {
   if (!isValidId(gameId)) {
     throw new Error('Invalid game ID provided for permalink generation')
   }
-  return `/golf/room/${roomId}/game/${gameId}`
+  return `/golf/room/${roomId}/game/${gameId}${betaSuffix()}`
 }
 
 /**

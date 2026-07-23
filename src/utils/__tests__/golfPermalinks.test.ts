@@ -18,9 +18,12 @@ describe('golfPermalinks', () => {
       expect(isValidId('Room1')).toBe(true)
     })
 
+    it('tolerates hyphens (hub session ids carry them)', () => {
+      expect(isValidId('abc-123')).toBe(true)
+    })
+
     it('should return false for invalid IDs', () => {
       expect(isValidId('')).toBe(false)
-      expect(isValidId('abc-123')).toBe(false)
       expect(isValidId('abc_123')).toBe(false)
       expect(isValidId('abc 123')).toBe(false)
       expect(isValidId('abc@123')).toBe(false)
@@ -63,7 +66,7 @@ describe('golfPermalinks', () => {
     })
 
     it('should return error for invalid room ID', () => {
-      const params: GolfRouteParams = { roomId: 'room-123' }
+      const params: GolfRouteParams = { roomId: 'room@123' }
       const result = parsePermalinkParams(params)
       expect(result).toEqual({
         roomId: null,
@@ -74,7 +77,7 @@ describe('golfPermalinks', () => {
     })
 
     it('should return error for invalid game ID', () => {
-      const params: GolfRouteParams = { roomId: 'room123', gameId: 'game-456' }
+      const params: GolfRouteParams = { roomId: 'room123', gameId: 'game@456' }
       const result = parsePermalinkParams(params)
       expect(result).toEqual({
         roomId: 'room123',
@@ -103,7 +106,13 @@ describe('golfPermalinks', () => {
     })
 
     it('should throw error for invalid room ID', () => {
-      expect(() => generateRoomPermalink('room-123')).toThrow('Invalid room ID provided for permalink generation')
+      expect(() => generateRoomPermalink('room 123')).toThrow('Invalid room ID provided for permalink generation')
+    })
+
+    it('carries the beta flag while v2 is enabled', () => {
+      localStorage.setItem('golf_v2_beta', '1')
+      expect(generateRoomPermalink('room123')).toBe('/golf/room/room123?golf=v2')
+      localStorage.clear()
     })
   })
 
@@ -114,11 +123,17 @@ describe('golfPermalinks', () => {
     })
 
     it('should throw error for invalid room ID', () => {
-      expect(() => generateGamePermalink('room-123', 'game456')).toThrow('Invalid room ID provided for permalink generation')
+      expect(() => generateGamePermalink('room 123', 'game456')).toThrow('Invalid room ID provided for permalink generation')
     })
 
     it('should throw error for invalid game ID', () => {
-      expect(() => generateGamePermalink('room123', 'game-456')).toThrow('Invalid game ID provided for permalink generation')
+      expect(() => generateGamePermalink('room123', 'game 456')).toThrow('Invalid game ID provided for permalink generation')
+    })
+
+    it('carries the beta flag while v2 is enabled', () => {
+      localStorage.setItem('golf_v2_beta', '1')
+      expect(generateGamePermalink('room123', 'game456')).toBe('/golf/room/room123/game/game456?golf=v2')
+      localStorage.clear()
     })
   })
 
@@ -191,7 +206,7 @@ describe('golfPermalinks', () => {
     })
 
     it('should validate extracted IDs', () => {
-      const result = extractIdsFromUrl('http://localhost:3000/golf/room/room-123')
+      const result = extractIdsFromUrl('http://localhost:3000/golf/room/room@123')
       expect(result).toEqual({
         roomId: null,
         gameId: null,

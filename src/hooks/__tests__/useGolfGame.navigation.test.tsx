@@ -85,7 +85,7 @@ describe('useGolfGame navigation functionality', () => {
       
       expect(() => {
         act(() => {
-          result.current.navigateToRoom('invalid-room')
+          result.current.navigateToRoom('invalid room')
         })
       }).toThrow('Invalid room ID provided for permalink generation')
     })
@@ -95,7 +95,7 @@ describe('useGolfGame navigation functionality', () => {
       
       expect(() => {
         act(() => {
-          result.current.navigateToGame('room123', 'invalid-game')
+          result.current.navigateToGame('room123', 'invalid game')
         })
       }).toThrow('Invalid game ID provided for permalink generation')
     })
