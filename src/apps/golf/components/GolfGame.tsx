@@ -35,7 +35,11 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
 
   const toggleV2Beta = () => {
     setGolfV2Enabled(!v2Beta)
-    window.location.reload()
+    // Reload without any golf query param: the param outranks the stored
+    // choice on load, so keeping it would immediately undo the toggle.
+    const url = new URL(window.location.href)
+    url.searchParams.delete('golf')
+    window.location.href = url.toString()
   }
 
   // Helper function to get display name (now just use the ID directly)
