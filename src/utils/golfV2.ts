@@ -26,6 +26,12 @@ export function isGolfV2Enabled(): boolean {
   return import.meta.env.VITE_GOLF_V2_DEFAULT === 'true'
 }
 
+// The lobby toggle's setter: an explicit choice, same persistence the
+// query param uses. Callers reload — the adapter is chosen at mount.
+export function setGolfV2Enabled(enabled: boolean): void {
+  safeLocalStorage.set(V2_FLAG_KEY, enabled ? '1' : '0')
+}
+
 export function golfV2PlayUrl(): string {
   return import.meta.env.VITE_GOLF_V2_WEBSOCKET_URL || 'wss://api.muchq.com/games/v2/golf/play'
 }

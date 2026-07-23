@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { isGolfV2Enabled, golfV2SessionUrl } from '../golfV2'
+import { isGolfV2Enabled, setGolfV2Enabled, golfV2SessionUrl } from '../golfV2'
 
 describe('golf v2 beta switch', () => {
   const setSearch = (search: string) => {
@@ -33,6 +33,15 @@ describe('golf v2 beta switch', () => {
     expect(isGolfV2Enabled()).toBe(false)
 
     setSearch('')
+    expect(isGolfV2Enabled()).toBe(false)
+  })
+
+  it('the toggle setter persists an explicit choice both ways', () => {
+    setSearch('')
+    setGolfV2Enabled(true)
+    expect(isGolfV2Enabled()).toBe(true)
+
+    setGolfV2Enabled(false)
     expect(isGolfV2Enabled()).toBe(false)
   })
 
