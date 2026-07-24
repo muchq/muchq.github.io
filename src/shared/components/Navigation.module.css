@@ -12,18 +12,13 @@
 }
 
 .navContainer {
-  max-width: 650px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 0 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   height: 60px;
-}
-
-/* App pages carry a brand suffix and a context slot, so give them more room */
-.navContainer.wide {
-  max-width: 960px;
 }
 
 .contextSlot {

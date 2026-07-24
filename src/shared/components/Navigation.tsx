@@ -83,11 +83,10 @@ const Navigation = ({ className, appName, context, floating }: NavigationProps) 
   const navClasses = [styles.nav, floating ? 'homepage-nav' : '', className || '']
     .filter(Boolean)
     .join(' ')
-  const hasContext = Boolean(appName || context)
 
   return (
     <nav className={navClasses}>
-      <div className={`${styles.navContainer} ${hasContext ? styles.wide : ''} nav-container`}>
+      <div className={`${styles.navContainer} nav-container`}>
         <Link to="/" className={`${styles.navLogo} nav-logo`}>
           MuchQ{appName ? ` : ${appName}` : ''}
         </Link>
