@@ -4,6 +4,7 @@ import Navigation from '@/shared/components/Navigation'
 import NavTagline from '@/shared/components/nav/NavTagline'
 import ImageUploader from '../components/ImageUploader'
 import { handleApiResponse } from '@/utils/apiUtils'
+import { formatToMime, formatToExtension } from '../imageFormat'
 
 interface BlurResponse {
   width: number
@@ -129,9 +130,11 @@ const PosterizePage = () => {
   const downloadImage = () => {
     if (!blurredImage) return
 
+    const mime = formatToMime(blurredImage.format)
+    const extension = formatToExtension(blurredImage.format)
     const link = document.createElement('a')
-    link.href = `data:image/png;base64,${blurredImage.image_data}`
-    link.download = 'blurred-image.png'
+    link.href = `data:${mime};base64,${blurredImage.image_data}`
+    link.download = `posterized-image.${extension}`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -141,9 +144,24 @@ const PosterizePage = () => {
     if (!blurredImage) return
 
     try {
-      // Convert base64 to blob
-      const response = await fetch(`data:image/png;base64,${blurredImage.image_data}`)
-      const blob = await response.blob()
+      // Browser clipboard image support is effectively PNG-only, so re-encode
+      // whatever format the API returned to PNG via a canvas before copying.
+      const mime = formatToMime(blurredImage.format)
+      const image = new Image()
+      image.src = `data:${mime};base64,${blurredImage.image_data}`
+      await image.decode()
+
+      const canvas = document.createElement('canvas')
+      canvas.width = image.naturalWidth
+      canvas.height = image.naturalHeight
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Canvas is not supported')
+      ctx.drawImage(image, 0, 0)
+
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, 'image/png')
+      )
+      if (!blob) throw new Error('Failed to encode image')
 
       await navigator.clipboard.write([
         new ClipboardItem({
@@ -267,7 +285,7 @@ const PosterizePage = () => {
               <div className={styles.result}>
                 <img
                   id="result-image"
-                  src={`data:image/png;base64,${blurredImage.image_data}`}
+                  src={`data:${formatToMime(blurredImage.format)};base64,${blurredImage.image_data}`}
                   alt="Processed result"
                   className={styles.resultImage}
                 />
