@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, act, screen } from '@testing-library/react'
+import { render, act, screen, fireEvent } from '@testing-library/react'
 import ServiceDashboard from '../ServiceDashboard'
 
 vi.mock('recharts', () => ({
@@ -120,6 +120,43 @@ describe('ServiceDashboard', () => {
     expect(screen.getByText('Serving')).toBeTruthy()
     expect(screen.queryByText('Sessions')).toBeNull()
     expect(screen.queryByText('Trends')).toBeNull()
+  })
+
+  it('drops stale data and refetches when the service changes', async () => {
+    const { rerender } = render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+    expect(screen.getByText('Sessions')).toBeTruthy()
+
+    // Portrait's endpoints resolve to nothing, so anything still on
+    // screen after the switch would be golf_hub's stale data.
+    rerender(<ServiceDashboard service="portrait" onConnectionStateChange={vi.fn()} />)
+    expect(screen.queryByText('Sessions')).toBeNull()
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+    expect(screen.queryByText('Sessions')).toBeNull()
+    const urls = mockFetch.mock.calls.map((call) => String(call[0]))
+    expect(urls.some((url) => url.endsWith('/service/portrait'))).toBe(true)
+  })
+
+  it('refetches with the selected range', async () => {
+    const { container } = render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    fireEvent.change(container.querySelector('select')!, { target: { value: '30m' } })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    const urls = mockFetch.mock.calls.map((call) => String(call[0]))
+    expect(urls.some((url) => url.endsWith('/service/golf_hub/timeseries/30m'))).toBe(true)
   })
 
   it('reports failure and keeps the page shape when the API is down', async () => {

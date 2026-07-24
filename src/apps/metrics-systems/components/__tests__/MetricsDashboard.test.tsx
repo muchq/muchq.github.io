@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, act, screen } from '@testing-library/react'
+import { render, act, screen, fireEvent } from '@testing-library/react'
 import MetricsDashboard from '../MetricsDashboard'
 
 // Mock the recharts library to avoid canvas issues in tests
@@ -109,6 +109,23 @@ describe('MetricsDashboard (host view)', () => {
     expect(urls.some((url) => url.includes('/host/timeseries/'))).toBe(true)
     expect(urls.some((url) => url.includes('/scalar/'))).toBe(false)
     expect(urls.some((url) => url.includes('/timeseries/system'))).toBe(false)
+  })
+
+  it('refetches with the selected range', async () => {
+    const { container } = render(<MetricsDashboard onConnectionStateChange={vi.fn()} />)
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    const select = container.querySelector('select')!
+    fireEvent.change(select, { target: { value: '7d' } })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    const urls = mockFetch.mock.calls.map((call) => String(call[0]))
+    expect(urls.some((url) => url.endsWith('/host/timeseries/7d'))).toBe(true)
   })
 
   it('stays up with empty sections when the API is down', async () => {

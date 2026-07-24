@@ -88,3 +88,23 @@ export function serviceDisplayName(name: string): string {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
 }
+
+// The host timeseries payload merges host and container series, the
+// latter namespaced with a container_ prefix (see prom_proxy's
+// GetHostMetricsTimeSeries). Split and strip here so chart code keys on
+// the bare cadvisor names.
+export function splitHostTimeseries(merged: TimeSeriesResponse): {
+  system: TimeSeries[]
+  container: TimeSeries[]
+} {
+  const system: TimeSeries[] = []
+  const container: TimeSeries[] = []
+  for (const series of merged.series ?? []) {
+    if (series.metric_name.startsWith('container_')) {
+      container.push({ ...series, metric_name: series.metric_name.slice('container_'.length) })
+    } else {
+      system.push(series)
+    }
+  }
+  return { system, container }
+}

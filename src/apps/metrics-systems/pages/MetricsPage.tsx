@@ -47,7 +47,9 @@ const MetricsPage = () => {
       navigate(`/metrics/${LEGACY_TABS[tab ?? ''] ?? 'host'}`, { replace: true })
       return
     }
-    // Only bounce unknown names once the catalog can actually judge them.
+    // Only bounce unknown names once the catalog can actually judge them;
+    // if the catalog never loads, unknown names stay in place (an empty
+    // service page) rather than guessing at a redirect.
     if (catalog && tab !== 'host' && !catalog.services.some((s) => s.name === tab)) {
       navigate('/metrics/host', { replace: true })
     }
