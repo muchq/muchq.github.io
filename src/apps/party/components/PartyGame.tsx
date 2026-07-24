@@ -185,46 +185,49 @@ const PartyGame = () => {
       ctx.restore()
     })
 
-    // Draw barge
+    // Draw barge (only once a game has placed it; before the first start it
+    // sits at world origin and would poke out of the canvas corner)
     const barge = gameState.barge
-    ctx.save()
-    ctx.translate(barge.x, barge.y)
-    ctx.rotate(barge.angle)
+    if (gameState.gameRunning || gameState.gameOver) {
+      ctx.save()
+      ctx.translate(barge.x, barge.y)
+      ctx.rotate(barge.angle)
 
-    ctx.fillStyle = '#8B4513'
-    ctx.fillRect(-barge.width/2, -barge.height/2, barge.width, barge.height)
+      ctx.fillStyle = '#8B4513'
+      ctx.fillRect(-barge.width/2, -barge.height/2, barge.width, barge.height)
 
-    ctx.fillStyle = '#D2691E'
-    ctx.fillRect(-barge.width/2 + 5, -barge.height/2 + 5, barge.width - 10, barge.height - 10)
+      ctx.fillStyle = '#D2691E'
+      ctx.fillRect(-barge.width/2 + 5, -barge.height/2 + 5, barge.width - 10, barge.height - 10)
 
-    const colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A8E6CF']
-    for (let i = 0; i < 4; i++) {
-      ctx.fillStyle = colors[i]
+      const colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A8E6CF']
+      for (let i = 0; i < 4; i++) {
+        ctx.fillStyle = colors[i]
+        ctx.beginPath()
+        ctx.arc(-barge.width/2 + 15 + i * 20, 0, 3, 0, Math.PI * 2)
+        ctx.fill()
+      }
+
+      ctx.strokeStyle = '#666'
+      ctx.lineWidth = 1
       ctx.beginPath()
-      ctx.arc(-barge.width/2 + 15 + i * 20, 0, 3, 0, Math.PI * 2)
+      ctx.moveTo(-barge.width/2 + 10, -barge.height/2)
+      ctx.lineTo(-barge.width/2 + 10, -barge.height/2 - 15)
+      ctx.moveTo(barge.width/2 - 10, -barge.height/2)
+      ctx.lineTo(barge.width/2 - 10, -barge.height/2 - 15)
+      ctx.stroke()
+
+      ctx.fillStyle = '#FF6B6B'
+      ctx.beginPath()
+      ctx.arc(-barge.width/2 + 10, -barge.height/2 - 20, 8, 0, Math.PI * 2)
       ctx.fill()
+
+      ctx.fillStyle = '#4ECDC4'
+      ctx.beginPath()
+      ctx.arc(barge.width/2 - 10, -barge.height/2 - 20, 8, 0, Math.PI * 2)
+      ctx.fill()
+
+      ctx.restore()
     }
-
-    ctx.strokeStyle = '#666'
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.moveTo(-barge.width/2 + 10, -barge.height/2)
-    ctx.lineTo(-barge.width/2 + 10, -barge.height/2 - 15)
-    ctx.moveTo(barge.width/2 - 10, -barge.height/2)
-    ctx.lineTo(barge.width/2 - 10, -barge.height/2 - 15)
-    ctx.stroke()
-
-    ctx.fillStyle = '#FF6B6B'
-    ctx.beginPath()
-    ctx.arc(-barge.width/2 + 10, -barge.height/2 - 20, 8, 0, Math.PI * 2)
-    ctx.fill()
-
-    ctx.fillStyle = '#4ECDC4'
-    ctx.beginPath()
-    ctx.arc(barge.width/2 - 10, -barge.height/2 - 20, 8, 0, Math.PI * 2)
-    ctx.fill()
-
-    ctx.restore()
 
     // Draw guests
     gameState.guests.forEach(guest => {
