@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 import styles from './ImageUploader.module.css'
+import { ACCEPTED_UPLOAD_MIME_TYPES } from '../imageFormat'
 
 interface ImageUploaderProps {
   onImageSelect: (base64: string) => void
@@ -12,8 +13,8 @@ const ImageUploader = ({ onImageSelect, isLoading }: ImageUploaderProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const processFile = useCallback((file: File) => {
-    if (!file.type.startsWith('image/png')) {
-      alert('Please select a PNG image file')
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file (PNG, JPEG, GIF, BMP, TIFF, or WebP)')
       return
     }
 
@@ -21,7 +22,7 @@ const ImageUploader = ({ onImageSelect, isLoading }: ImageUploaderProps) => {
     reader.onload = (e) => {
       const result = e.target?.result as string
       if (result) {
-        // Extract base64 data (remove data:image/png;base64, prefix)
+        // Extract base64 data (strip the leading data:<mime>;base64, prefix)
         const base64Data = result.split(',')[1]
         setPreviewUrl(result)
         onImageSelect(base64Data)
@@ -65,7 +66,7 @@ const ImageUploader = ({ onImageSelect, isLoading }: ImageUploaderProps) => {
         for (const type of clipboardItem.types) {
           if (type.startsWith('image/')) {
             const blob = await clipboardItem.getType(type)
-            const file = new File([blob], 'pasted-image.png', { type: 'image/png' })
+            const file = new File([blob], 'pasted-image', { type })
             processFile(file)
             return
           }
@@ -96,7 +97,7 @@ const ImageUploader = ({ onImageSelect, isLoading }: ImageUploaderProps) => {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/png"
+          accept={ACCEPTED_UPLOAD_MIME_TYPES.join(',')}
           onChange={handleFileInput}
           className={styles.hiddenInput}
         />
@@ -111,8 +112,8 @@ const ImageUploader = ({ onImageSelect, isLoading }: ImageUploaderProps) => {
         ) : (
           <div className={styles.uploadPrompt}>
             <div className={styles.uploadIcon}>📁</div>
-            <h3>Drop your PNG here</h3>
-            <p>or click to browse files</p>
+            <h3>Drop your image here</h3>
+            <p>PNG, JPEG, GIF, BMP, TIFF, or WebP — or click to browse files</p>
           </div>
         )}
       </div>
