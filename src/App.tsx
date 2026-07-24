@@ -30,7 +30,7 @@ function App() {
       <Route path="/tracy" element={<TracyPage />} />
       <Route path="/posterize" element={<PosterizePage />} />
       <Route path="/wordchains" element={<WordchainsPage />} />
-      <Route path="/metrics" element={<Navigate to="/metrics/system" replace />} />
+      <Route path="/metrics" element={<Navigate to="/metrics/host" replace />} />
       <Route path="/metrics/:tab" element={<MetricsPage />} />
       <Route path="/resilience" element={<SystemsPage />} />
       <Route path="/resilience/phase1/level1" element={<ResilienceGamePage />} />
