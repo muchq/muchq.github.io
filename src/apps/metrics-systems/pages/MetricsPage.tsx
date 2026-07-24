@@ -4,6 +4,9 @@ import Navigation from '@/shared/components/Navigation'
 import ConnectionStatus, { ConnectionState } from '@/shared/components/nav/ConnectionStatus'
 import RotatingText from '@/shared/components/nav/RotatingText'
 import MetricsDashboard from '../components/MetricsDashboard'
+import ServiceDashboard from '../components/ServiceDashboard'
+import styles from '../components/MetricsDashboard.module.css'
+import { METRICS_API_URL, fetchJson, serviceDisplayName, type ServiceCatalog } from '../api'
 
 const metricsFacts = [
   "Metrics reveal system health patterns.",
@@ -14,39 +17,72 @@ const metricsFacts = [
   "Metrics are the heartbeat of software."
 ]
 
-const VALID_TABS = ['system', 'containers', 'portrait', 'microgpt'] as const
-type Tab = typeof VALID_TABS[number]
+// Pre-overhaul deep links keep working.
+const LEGACY_TABS: Record<string, string> = {
+  system: 'host',
+  containers: 'host',
+  microgpt: 'microgpt-serve',
+}
 
 const MetricsPage = () => {
   const { tab } = useParams<{ tab: string }>()
   const navigate = useNavigate()
   const [connectionStatus, setConnectionStatus] = useState<ConnectionState>('disconnected')
-
-  const activeTab: Tab = (VALID_TABS as readonly string[]).includes(tab ?? '')
-    ? tab as Tab
-    : 'system'
+  const [catalog, setCatalog] = useState<ServiceCatalog | null>(null)
 
   useEffect(() => {
-    if (!(VALID_TABS as readonly string[]).includes(tab ?? '')) {
-      navigate('/metrics/system', { replace: true })
+    let cancelled = false
+    fetchJson<ServiceCatalog>(`${METRICS_API_URL}/services`).then((result) => {
+      if (!cancelled && result) setCatalog(result)
+    })
+    return () => {
+      cancelled = true
     }
-  }, [tab, navigate])
+  }, [])
+
+  const activeTab = LEGACY_TABS[tab ?? ''] ?? tab ?? 'host'
+
+  useEffect(() => {
+    if (LEGACY_TABS[tab ?? ''] || !tab) {
+      navigate(`/metrics/${LEGACY_TABS[tab ?? ''] ?? 'host'}`, { replace: true })
+      return
+    }
+    // Only bounce unknown names once the catalog can actually judge them.
+    if (catalog && tab !== 'host' && !catalog.services.some((s) => s.name === tab)) {
+      navigate('/metrics/host', { replace: true })
+    }
+  }, [tab, catalog, navigate])
 
   const handleConnectionStateChange = useCallback((status: ConnectionState) => {
     setConnectionStatus(status)
   }, [])
 
-  const handleTabChange = useCallback((newTab: Tab) => {
-    navigate(`/metrics/${newTab}`)
-  }, [navigate])
+  const tabs = [
+    { id: 'host', label: 'Host' },
+    ...(catalog?.services ?? []).map((service) => ({
+      id: service.name,
+      label: serviceDisplayName(service.name),
+    })),
+  ]
 
   return (
-    <div>
-      <MetricsDashboard
-        onConnectionStateChange={handleConnectionStateChange}
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-      />
+    <div className={styles.dashboard}>
+      <div className={styles.tabNavigation}>
+        {tabs.map((entry) => (
+          <button
+            key={entry.id}
+            className={`${styles.tab} ${activeTab === entry.id ? styles.activeTab : ''}`}
+            onClick={() => navigate(`/metrics/${entry.id}`)}
+          >
+            {entry.label}
+          </button>
+        ))}
+      </div>
+      {activeTab === 'host' ? (
+        <MetricsDashboard onConnectionStateChange={handleConnectionStateChange} />
+      ) : (
+        <ServiceDashboard service={activeTab} onConnectionStateChange={handleConnectionStateChange} />
+      )}
       <Navigation
         appName="Metrics"
         context={

@@ -139,6 +139,11 @@
   letter-spacing: -0.3px;
 }
 
+.miniUnit {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 /* Main Metrics Grid */
 .metricsGrid {
   max-width: 1400px;
