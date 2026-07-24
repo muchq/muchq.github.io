@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import styles from './PosterizePage.module.css'
-import PosterizeNavigation from '../components/PosterizeNavigation'
+import Navigation from '@/shared/components/Navigation'
+import NavTagline from '@/shared/components/nav/NavTagline'
 import ImageUploader from '../components/ImageUploader'
 import { handleApiResponse } from '@/utils/apiUtils'
 
@@ -167,7 +168,7 @@ const PosterizePage = () => {
 
   return (
     <div className={styles.container}>
-      <PosterizeNavigation />
+      <Navigation appName="Posterize" context={<NavTagline text="Blur your images with ease" />} />
 
       <header className={styles.header}>
         <h1>Posterize</h1>

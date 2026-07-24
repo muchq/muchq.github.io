@@ -12,13 +12,24 @@
 }
 
 .navContainer {
-  max-width: 650px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 0 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   height: 60px;
+}
+
+.contextSlot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+  padding: 0 16px;
+  overflow: hidden;
 }
 
 .navLogo {
@@ -100,6 +111,11 @@
   background: rgba(68, 68, 68, 0.05);
 }
 
+.currentItem {
+  background: rgba(103, 126, 234, 0.08);
+  font-weight: 500;
+}
+
 .dropdownItem span {
   display: block;
   cursor: default;
@@ -175,6 +191,16 @@
 
 /* Mobile Styles */
 @media (max-width: 768px) {
+  .navLogo {
+    font-size: 18px;
+  }
+
+  .contextSlot {
+    gap: 8px;
+    padding: 0 8px;
+    justify-content: flex-end;
+  }
+
   .navMenu {
     position: absolute;
     top: 100%;

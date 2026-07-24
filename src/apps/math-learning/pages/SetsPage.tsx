@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import SetsNavigation from '../components/SetsNavigation'
+import Navigation from '@/shared/components/Navigation'
 import VennDiagramBuilder from '../components/VennDiagramBuilder'
 import SetOperationsVisualizer from '../components/SetOperationsVisualizer'
 import RelationMatrixCalculator from '../components/RelationMatrixCalculator'
@@ -25,7 +25,7 @@ const SetsPage = () => {
 
   return (
     <div className={styles.setsPage}>
-      <SetsNavigation />
+      <Navigation appName="Sets" />
       
       <main className={styles.content}>
         <header className={styles.header}>

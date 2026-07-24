@@ -1,7 +1,18 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import MetricsNavigation from '../components/MetricsNavigation'
+import Navigation from '@/shared/components/Navigation'
+import ConnectionStatus, { ConnectionState } from '@/shared/components/nav/ConnectionStatus'
+import RotatingText from '@/shared/components/nav/RotatingText'
 import MetricsDashboard from '../components/MetricsDashboard'
+
+const metricsFacts = [
+  "Metrics reveal system health patterns.",
+  "Real-time data drives better decisions.",
+  "Performance monitoring prevents issues.",
+  "Observability is the key to reliability.",
+  "Data tells the story of your system.",
+  "Metrics are the heartbeat of software."
+]
 
 const VALID_TABS = ['system', 'containers', 'portrait', 'microgpt'] as const
 type Tab = typeof VALID_TABS[number]
@@ -9,7 +20,7 @@ type Tab = typeof VALID_TABS[number]
 const MetricsPage = () => {
   const { tab } = useParams<{ tab: string }>()
   const navigate = useNavigate()
-  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'failed'>('disconnected')
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionState>('disconnected')
 
   const activeTab: Tab = (VALID_TABS as readonly string[]).includes(tab ?? '')
     ? tab as Tab
@@ -21,7 +32,7 @@ const MetricsPage = () => {
     }
   }, [tab, navigate])
 
-  const handleConnectionStateChange = useCallback((status: 'connecting' | 'connected' | 'disconnected' | 'failed') => {
+  const handleConnectionStateChange = useCallback((status: ConnectionState) => {
     setConnectionStatus(status)
   }, [])
 
@@ -36,8 +47,22 @@ const MetricsPage = () => {
         activeTab={activeTab}
         onTabChange={handleTabChange}
       />
-      <MetricsNavigation
-        connectionStatus={connectionStatus}
+      <Navigation
+        appName="Metrics"
+        context={
+          <>
+            <RotatingText items={metricsFacts} />
+            <ConnectionStatus
+              status={connectionStatus}
+              labels={{
+                connecting: 'Connecting to metrics API...',
+                connected: 'Live Data',
+                disconnected: 'Offline',
+                failed: 'API Unavailable',
+              }}
+            />
+          </>
+        }
       />
     </div>
   )

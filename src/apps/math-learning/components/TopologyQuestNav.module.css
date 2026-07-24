@@ -1,32 +1,25 @@
-/* TopologyQuest Navigation - Clean Theme Matching ThoughtsNav */
+/* TopologyQuest module switcher - secondary bar under the shared Navigation */
 .nav {
   position: fixed;
-  top: 0;
+  top: 60px;
   left: 0;
   width: 100%;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(68, 68, 68, 0.1);
-  z-index: 1000;
+  z-index: 999;
   transition: all 0.3s ease;
   font-family: "Lexend Deca", sans-serif;
 }
 
 .navContainer {
-  max-width: 650px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 0 20px;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  height: 60px;
-}
-
-.navLogo {
-  font-size: 20px;
-  font-weight: 300;
-  color: #444;
-  text-decoration: none;
+  height: 48px;
 }
 
 .phaseButtons {
@@ -145,14 +138,7 @@
 @media (max-width: 768px) {
   .navContainer {
     height: auto;
-    padding: 12px 20px;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .navLogo {
-    font-size: 18px;
+    padding: 8px 20px;
   }
 
   .phaseButtons {

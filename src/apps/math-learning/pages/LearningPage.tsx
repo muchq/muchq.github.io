@@ -1,5 +1,6 @@
 import React from 'react'
 import { useTopologyQuest } from '@/hooks/useTopologyQuest'
+import Navigation from '@/shared/components/Navigation'
 import TopologyQuestNav from '../components/TopologyQuestNav'
 import TopologyQuestModules from '../components/TopologyQuestModules'
 import styles from './LearningPage.module.css'
@@ -16,9 +17,10 @@ const LearningPage: React.FC = () => {
 
   return (
     <div className={styles.container}>
-      <TopologyQuestNav 
-        activeModule={activeModule} 
-        onModuleChange={setActiveModule} 
+      <Navigation appName="Topology" />
+      <TopologyQuestNav
+        activeModule={activeModule}
+        onModuleChange={setActiveModule}
       />
       
       <main className={styles.main}>
