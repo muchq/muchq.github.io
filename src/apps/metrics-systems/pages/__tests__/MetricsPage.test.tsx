@@ -94,6 +94,21 @@ describe('MetricsPage', () => {
     expect(screen.getByTestId('location').textContent).toBe('/metrics/host')
   })
 
+  it('keeps the Host page alive when the catalog never loads', async () => {
+    globalThis.fetch = vi.fn().mockImplementation(() =>
+      Promise.resolve({ ok: false, text: () => Promise.resolve('') })
+    ) as unknown as typeof fetch
+
+    renderAt('/metrics/host')
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    expect(screen.getByText('Host Metrics')).toBeTruthy()
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toContain('Host')
+  })
+
   it('renders a service dashboard for a catalog service', async () => {
     renderAt('/metrics/golf_hub')
 

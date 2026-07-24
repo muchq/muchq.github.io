@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
 import ChartErrorBoundary from './ChartErrorBoundary'
 import styles from './MetricsDashboard.module.css'
+import { METRICS_API_URL, fetchJson, splitHostTimeseries, type TimeSeriesResponse } from '../api'
 
 interface SystemMetrics {
   timestamp: string
@@ -29,23 +30,6 @@ interface SystemMetrics {
     tx_rate_bytes_per_sec: number
     errors_per_sec: number
   }>
-}
-
-interface TimeSeries {
-  metric_name: string
-  labels?: Record<string, string>
-  values: Array<{
-    timestamp: string
-    value: number
-  }>
-}
-
-interface TimeSeriesResponse {
-  time_range: string
-  start_time: string
-  end_time: string
-  step: string
-  series: TimeSeries[]
 }
 
 interface ContainerStats {
@@ -143,65 +127,45 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
   const [timeRange, setTimeRange] = useState<'30m' | '1d' | '7d'>('1d')
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
 
-  const fetchMetrics = useCallback(async () => {
-    try {
-      // Use setTimeout to avoid synchronous state update in useEffect
-      setTimeout(() => onConnectionStateChange('connecting'), 0)
+  useEffect(() => {
+    // The flag discards resolutions that land after a range change (or
+    // unmount), so a slow fetch can't write back stale data.
+    let active = true
+    const fetchMetrics = async () => {
+      onConnectionStateChange('connecting')
 
-      // Use environment variable for API URL, defaulting to production URL
-      const apiUrl = import.meta.env.VITE_METRICS_API_URL || 'https://api.muchq.com/metrics/v1'
+      const [hostData, merged] = await Promise.all([
+        fetchJson<HostMetricsResponse>(`${METRICS_API_URL}/host`),
+        fetchJson<TimeSeriesResponse>(`${METRICS_API_URL}/host/timeseries/${timeRange}`),
+      ])
+      if (!active) return
 
-      // The merged host endpoint (#1199): system + per-container scalars in
-      // one payload, container series namespaced container_* in the other.
-      try {
-        const hostResponse = await fetch(`${apiUrl}/host`)
-        if (hostResponse.ok) {
-          const text = await hostResponse.text()
-          if (text.trim()) {
-            const hostData: HostMetricsResponse = JSON.parse(text)
-            if (hostData.system) setSystemMetrics(hostData.system)
-            setContainerMetrics({ timestamp: hostData.timestamp, containers: hostData.containers || [] })
-          }
-        }
-      } catch {
-        // Silently handle error - UI will show "no data" state
+      if (hostData) {
+        if (hostData.system) setSystemMetrics(hostData.system)
+        setContainerMetrics({ timestamp: hostData.timestamp, containers: hostData.containers || [] })
+      }
+      if (merged) {
+        const { system, container } = splitHostTimeseries(merged)
+        setSystemTimeseries({ ...merged, series: system })
+        setContainerTimeseries({ ...merged, series: container })
       }
 
-      try {
-        const hostTimeseriesResponse = await fetch(`${apiUrl}/host/timeseries/${timeRange}`)
-        if (hostTimeseriesResponse.ok) {
-          const text = await hostTimeseriesResponse.text()
-          if (text.trim()) {
-            const merged: TimeSeriesResponse = JSON.parse(text)
-            const hostSeries: TimeSeries[] = []
-            const containerSeries: TimeSeries[] = []
-            for (const series of merged.series || []) {
-              if (series.metric_name.startsWith('container_')) {
-                containerSeries.push({ ...series, metric_name: series.metric_name.slice('container_'.length) })
-              } else {
-                hostSeries.push(series)
-              }
-            }
-            setSystemTimeseries({ ...merged, series: hostSeries })
-            setContainerTimeseries({ ...merged, series: containerSeries })
-          }
-        }
-      } catch {
-        // Silently handle error - UI will show "no data" state
+      if (hostData || merged) {
+        setLastUpdate(new Date())
+        onConnectionStateChange('connected')
+      } else {
+        onConnectionStateChange('failed')
       }
+    }
 
-      setLastUpdate(new Date())
-      onConnectionStateChange('connected')
-    } catch {
-      onConnectionStateChange('failed')
+    const start = setTimeout(fetchMetrics, 0)
+    const interval = setInterval(fetchMetrics, 30000) // Update every 30 seconds
+    return () => {
+      active = false
+      clearTimeout(start)
+      clearInterval(interval)
     }
   }, [timeRange, onConnectionStateChange])
-
-  useEffect(() => {
-    setTimeout(fetchMetrics, 0)
-    const interval = setInterval(fetchMetrics, 30000) // Update every 30 seconds
-    return () => clearInterval(interval)
-  }, [fetchMetrics])
 
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString()
@@ -411,8 +375,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
 
       {/* Tab Content */}
       <div className={styles.metricsGrid}>
-        {(
-          <>
+        <>
             {/* System Overview Cards */}
             {systemMetrics && (
               <div className={styles.overviewCards}>
@@ -634,11 +597,9 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
             </div>
           </div>
         </div>
-          </>
-        )}
+        </>
 
-        {(
-          <>
+        <>
             {/* Container Overview Cards */}
             {containerMetrics && containerMetrics.containers.length > 0 && (
               <div className={styles.overviewCards}>
@@ -948,8 +909,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                 </div>
               </div>
             </div>
-          </>
-        )}
+        </>
       </div>
     </div>
   )

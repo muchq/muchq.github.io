@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import ChartErrorBoundary from './ChartErrorBoundary'
 import styles from './MetricsDashboard.module.css'
@@ -18,6 +18,9 @@ interface ServiceDashboardProps {
 
 // The five series every service page charts; anything else in the
 // timeseries payload is a custom series and renders generically below.
+// Must match the keys of standardTimeseriesQueries in prom_proxy's
+// registry.go — and custom series names must not collide with these, or
+// they classify as standard and never chart.
 const STANDARD_SERIES = new Set([
   'request_rate',
   'error_rate_percent',
@@ -57,40 +60,42 @@ const SeriesChart = ({
   const formatTimestamp = (timestamp: string) =>
     new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
+  if (!series?.values?.length) {
+    return (
+      <div className={styles.compactChart}>
+        <h4>{title}</h4>
+        <NoDataMessage />
+      </div>
+    )
+  }
+
+  const data = series.values.map((v) => ({
+    time: formatTimestamp(v.timestamp),
+    value: scale(Math.max(0, v.value || 0)),
+  }))
+  const ChartComponent = area ? AreaChart : LineChart
+
   return (
     <div className={styles.compactChart}>
       <h4>{title}</h4>
-      {series?.values?.length ? (
-        <ChartErrorBoundary>
-          <ResponsiveContainer width="100%" height={180}>
+      <ChartErrorBoundary>
+        <ResponsiveContainer width="100%" height={180}>
+          <ChartComponent data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+            <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
+            <YAxis stroke="#888" fontSize={10} />
+            <Tooltip
+              contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
+              formatter={(value) => [`${formatValue(Number(value))}${unit ? ` ${unit}` : ''}`, title]}
+            />
             {area ? (
-              <AreaChart data={series.values.map((v) => ({ time: formatTimestamp(v.timestamp), value: scale(Math.max(0, v.value || 0)) }))}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                <YAxis stroke="#888" fontSize={10} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                  formatter={(value) => [`${formatValue(Number(value))}${unit ? ` ${unit}` : ''}`, title]}
-                />
-                <Area type="monotone" dataKey="value" stroke={color} fill={`${color}44`} strokeWidth={2} />
-              </AreaChart>
+              <Area type="monotone" dataKey="value" stroke={color} fill={`${color}44`} strokeWidth={2} />
             ) : (
-              <LineChart data={series.values.map((v) => ({ time: formatTimestamp(v.timestamp), value: scale(Math.max(0, v.value || 0)) }))}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="time" stroke="#888" fontSize={10} interval="preserveStartEnd" />
-                <YAxis stroke="#888" fontSize={10} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
-                  formatter={(value) => [`${formatValue(Number(value))}${unit ? ` ${unit}` : ''}`, title]}
-                />
-                <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false} />
-              </LineChart>
+              <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false} />
             )}
-          </ResponsiveContainer>
-        </ChartErrorBoundary>
-      ) : (
-        <NoDataMessage />
-      )}
+          </ChartComponent>
+        </ResponsiveContainer>
+      </ChartErrorBoundary>
     </div>
   )
 }
@@ -110,29 +115,39 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
     setTimeseries(null)
   }
 
-  const fetchMetrics = useCallback(async () => {
-    setTimeout(() => onConnectionStateChange('connecting'), 0)
+  useEffect(() => {
+    // The flag discards resolutions that land after a service or range
+    // switch — without it, a slow fetch for the previous service would
+    // write its data back under the new title.
+    let active = true
+    const fetchMetrics = async () => {
+      onConnectionStateChange('connecting')
 
-    const [scalarData, seriesData] = await Promise.all([
-      fetchJson<ServiceMetricsResponse>(`${METRICS_API_URL}/service/${service}`),
-      fetchJson<TimeSeriesResponse>(`${METRICS_API_URL}/service/${service}/timeseries/${timeRange}`),
-    ])
-    if (scalarData) setScalar(scalarData)
-    if (seriesData) setTimeseries(seriesData)
+      const [scalarData, seriesData] = await Promise.all([
+        fetchJson<ServiceMetricsResponse>(`${METRICS_API_URL}/service/${service}`),
+        fetchJson<TimeSeriesResponse>(`${METRICS_API_URL}/service/${service}/timeseries/${timeRange}`),
+      ])
+      if (!active) return
 
-    if (scalarData || seriesData) {
-      setLastUpdate(new Date())
-      onConnectionStateChange('connected')
-    } else {
-      onConnectionStateChange('failed')
+      if (scalarData) setScalar(scalarData)
+      if (seriesData) setTimeseries(seriesData)
+
+      if (scalarData || seriesData) {
+        setLastUpdate(new Date())
+        onConnectionStateChange('connected')
+      } else {
+        onConnectionStateChange('failed')
+      }
+    }
+
+    const start = setTimeout(fetchMetrics, 0)
+    const interval = setInterval(fetchMetrics, 30000)
+    return () => {
+      active = false
+      clearTimeout(start)
+      clearInterval(interval)
     }
   }, [service, timeRange, onConnectionStateChange])
-
-  useEffect(() => {
-    setTimeout(fetchMetrics, 0)
-    const interval = setInterval(fetchMetrics, 30000)
-    return () => clearInterval(interval)
-  }, [fetchMetrics])
 
   const findSeries = (name: string) => timeseries?.series?.find((s) => s.metric_name === name)
   const customSeries = (timeseries?.series ?? []).filter((s) => !STANDARD_SERIES.has(s.metric_name))
