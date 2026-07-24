@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import ResilienceNavigation from '../components/ResilienceNavigation'
+import Navigation from '@/shared/components/Navigation'
+import NavStat from '@/shared/components/nav/NavStat'
+import NavStatus from '@/shared/components/nav/NavStatus'
 import { SystemDiagram } from '../components/SystemDiagram'
 import { TimeseriesGraph } from '../components/TimeseriesGraph'
 import styles from './ResilienceGamePage.module.css'
@@ -340,15 +342,24 @@ const ResilienceGamePage = () => {
   }
 
 
+  const navStatus = {
+    setup: { tone: 'neutral' as const, label: 'Ready to Start' },
+    running: { tone: 'ok' as const, label: `Monitoring (${systemState.rps} RPS)` },
+    scaling: { tone: 'busy' as const, label: `Scaling Up (${systemState.rps} RPS)` },
+  }[gamePhase]
+
   return (
     <div className={styles.gamePage}>
-      <ResilienceNavigation 
-        level="Level 1"
-        phase="Phase 1"
-        currentRps={systemState.rps}
-        gamePhase={gamePhase}
+      <Navigation
+        appName="Resilience"
+        context={
+          <>
+            <NavStat value={'Phase 1 - Level 1: "The Startup Launch"'} />
+            <NavStatus tone={navStatus.tone} label={navStatus.label} />
+          </>
+        }
       />
-      
+
       <main className={styles.content}>
         <div className={styles.header}>
           <h1>Level 1: "The Startup Launch"</h1>

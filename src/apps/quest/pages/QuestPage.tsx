@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
+import Navigation from '@/shared/components/Navigation'
+import NavStat from '@/shared/components/nav/NavStat'
 import QuestGame from '../components/QuestGame'
-import QuestNavigation from '../components/QuestNavigation'
 import styles from './QuestPage.module.css'
 
 interface QuestPageProps {
@@ -22,10 +23,16 @@ const QuestPage = () => {
 
   return (
     <div className={styles.questPage}>
-      <QuestNavigation 
-        score={questData.score || 0}
-        level={questData.level || 'Classic'}
-        gameStarted={questData.gameStarted || false}
+      <Navigation
+        appName="Quest"
+        context={
+          questData.gameStarted && (
+            <>
+              <NavStat label="Level" value={questData.level || 'Classic'} />
+              <NavStat label="Score" value={(questData.score || 0).toLocaleString()} />
+            </>
+          )
+        }
       />
       <main className={styles.content}>
         <QuestGame onGameDataChange={handleGameDataChange} />

@@ -1,4 +1,4 @@
-import GroupsNavigation from '../components/GroupsNavigation'
+import Navigation from '@/shared/components/Navigation'
 import PermutationVisualizer from '../components/PermutationVisualizer'
 import CycleDecomposer from '../components/CycleDecomposer'
 import PermutationQuiz from '../components/PermutationQuiz'
@@ -16,7 +16,7 @@ const GroupsPage = () => {
 
   return (
     <div className={styles.groupsPage}>
-      <GroupsNavigation />
+      <Navigation appName="Groups" />
       
       <main className={styles.content}>
         <header className={styles.header}>

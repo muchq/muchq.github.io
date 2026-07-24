@@ -1,12 +1,12 @@
-import ResilienceNavigation from '../components/ResilienceNavigation'
+import Navigation from '@/shared/components/Navigation'
 import styles from './SystemsPage.module.css'
 
 const SystemsPage = () => {
 
   return (
     <div className={styles.systemsPage}>
-      <ResilienceNavigation showGameInfo={false} />
-      
+      <Navigation appName="Resilience" />
+
       <main className={styles.content}>
         <div className={styles.header}>
           <h1>System Architect: The Resilience Challenge</h1>

@@ -5,7 +5,7 @@
   overflow: hidden;
 }
 
-/* Navigation styling moved to HomePage.css for global class targeting */
+/* Floating nav animation lives in shared/components/NavigationFloating.css */
 
 .content {
   margin: 40px auto;
@@ -25,5 +25,3 @@
 .content p {
   font-family: Latin Modern Math, math;
 }
-
-/* Animation keyframes moved to HomePage.css */

@@ -1,36 +1,40 @@
-/* Homepage-specific navigation animations */
-.homepage-nav .nav-container {
-  animation: drift-nav 60s ease-in-out 3s infinite alternate;
-}
+/* Floating variant of the shared Navigation (home page only).
+   Applied via the `floating` prop, which adds the .homepage-nav class. */
 
-.homepage-nav .nav-logo {
-  position: relative;
-  animation: float-logo 45s ease-in-out 3.5s infinite alternate;
-}
+@media (prefers-reduced-motion: no-preference) {
+  .homepage-nav .nav-container {
+    animation: drift-nav 60s ease-in-out 3s infinite alternate;
+  }
 
-.homepage-nav .nav-item:nth-child(1) {
-  position: relative;
-  animation: float-item-1 50s ease-in-out 4s infinite alternate;
-}
+  .homepage-nav .nav-logo {
+    position: relative;
+    animation: float-logo 45s ease-in-out 3.5s infinite alternate;
+  }
 
-.homepage-nav .nav-item:nth-child(2) {
-  position: relative;
-  animation: float-item-2 55s ease-in-out 4.2s infinite alternate;
-}
+  .homepage-nav .nav-item:nth-child(1) {
+    position: relative;
+    animation: float-item-1 50s ease-in-out 4s infinite alternate;
+  }
 
-.homepage-nav .nav-item:nth-child(3) {
-  position: relative;
-  animation: float-item-3 48s ease-in-out 4.5s infinite alternate;
-}
+  .homepage-nav .nav-item:nth-child(2) {
+    position: relative;
+    animation: float-item-2 55s ease-in-out 4.2s infinite alternate;
+  }
 
-.homepage-nav .nav-item:nth-child(4) {
-  position: relative;
-  animation: float-item-4 52s ease-in-out 4.8s infinite alternate;
-}
+  .homepage-nav .nav-item:nth-child(3) {
+    position: relative;
+    animation: float-item-3 48s ease-in-out 4.5s infinite alternate;
+  }
 
-.homepage-nav .nav-item:nth-child(5) {
-  position: relative;
-  animation: float-item-5 53s ease-in-out 5s infinite alternate;
+  .homepage-nav .nav-item:nth-child(4) {
+    position: relative;
+    animation: float-item-4 52s ease-in-out 4.8s infinite alternate;
+  }
+
+  .homepage-nav .nav-item:nth-child(5) {
+    position: relative;
+    animation: float-item-5 53s ease-in-out 5s infinite alternate;
+  }
 }
 
 /* Float Animation Keyframes */

@@ -33,7 +33,6 @@ const TopologyQuestNav = ({ activeModule }: TopologyQuestNavProps) => {
   return (
     <nav className={styles.nav}>
       <div className={styles.navContainer}>
-        <Link to="/" className={styles.navLogo}>MuchQ</Link>
         <ul className={styles.phaseButtons}>
           {/* Before Topology Phase */}
           <li className={styles.phaseDropdown}>

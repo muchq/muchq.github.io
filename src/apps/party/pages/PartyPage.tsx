@@ -1,11 +1,11 @@
-import PartyNavigation from '../components/PartyNavigation'
+import Navigation from '@/shared/components/Navigation'
 import PartyGame from '../components/PartyGame'
 import styles from './PartyPage.module.css'
 
 const PartyPage = () => {
   return (
     <div className={styles.partyPage}>
-      <PartyNavigation />
+      <Navigation appName="Rescue Party" />
       <main className={styles.content}>
         <PartyGame />
       </main>

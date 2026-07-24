@@ -1,0 +1,14 @@
+.tagline {
+  font-size: 14px;
+  color: #666;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .tagline {
+    font-size: 12px;
+  }
+}

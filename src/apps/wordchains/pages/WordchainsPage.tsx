@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import styles from './WordchainsPage.module.css'
 import WordchainGame from '../components/WordchainGame'
-import WordchainsNavigation from '../components/WordchainsNavigation'
+import Navigation from '@/shared/components/Navigation'
+import NavTagline from '@/shared/components/nav/NavTagline'
 
 const WordchainsPage = () => {
   const [result, setResult] = useState<string[] | null>(null)
@@ -62,7 +63,7 @@ const WordchainsPage = () => {
 
   return (
     <div className={styles.container}>
-      <WordchainsNavigation />
+      <Navigation appName="Wordchains" context={<NavTagline text="Word Chain Solver" />} />
       <header className={styles.header}>
         <h1>Wordchains</h1>
         <p>Find the shortest path between two words</p>

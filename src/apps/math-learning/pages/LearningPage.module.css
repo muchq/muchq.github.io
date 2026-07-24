@@ -30,7 +30,7 @@
 }
 
 .main {
-  padding: 100px 20px 40px;
+  padding: 140px 20px 40px;
   max-width: 1400px;
   margin: 0 auto;
   position: relative;
@@ -102,7 +102,7 @@
 @media (max-width: 768px) {
   .main {
     padding: 1rem;
-    padding-top: 120px; /* Account for two-row nav on mobile */
+    padding-top: 130px; /* Account for main nav + module switcher bar */
   }
 
   .header {

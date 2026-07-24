@@ -21,6 +21,22 @@
   height: 60px;
 }
 
+/* App pages carry a brand suffix and a context slot, so give them more room */
+.navContainer.wide {
+  max-width: 960px;
+}
+
+.contextSlot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+  padding: 0 16px;
+  overflow: hidden;
+}
+
 .navLogo {
   font-size: 20px;
   font-weight: 300;
@@ -100,6 +116,11 @@
   background: rgba(68, 68, 68, 0.05);
 }
 
+.currentItem {
+  background: rgba(103, 126, 234, 0.08);
+  font-weight: 500;
+}
+
 .dropdownItem span {
   display: block;
   cursor: default;
@@ -175,6 +196,16 @@
 
 /* Mobile Styles */
 @media (max-width: 768px) {
+  .navLogo {
+    font-size: 18px;
+  }
+
+  .contextSlot {
+    gap: 8px;
+    padding: 0 8px;
+    justify-content: flex-end;
+  }
+
   .navMenu {
     position: absolute;
     top: 100%;
