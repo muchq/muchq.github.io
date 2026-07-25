@@ -237,6 +237,86 @@ export interface TimeSeriesResponse {
   series: TimeSeries[]
 }
 
+// Go's Duration.String() emits "30s", "5m0s", "1h0m0s"; hand-written configs
+// may send bare "5m". Sum every number+unit pair; null when nothing matches.
+export function parseDurationMs(text: string | undefined): number | null {
+  if (!text) return null
+  const matches = [...text.matchAll(/(\d+(?:\.\d+)?)(ms|h|m|s)/g)]
+  if (!matches.length) return null
+  const unitMs: Record<string, number> = { h: 3600000, m: 60000, s: 1000, ms: 1 }
+  return matches.reduce((total, match) => total + Number(match[1]) * unitMs[match[2]], 0)
+}
+
+// What the proxy's step is expected to be per range, for payloads whose step
+// field is missing or unparseable.
+const FALLBACK_STEP_MS: Record<string, number> = {
+  '30m': 30_000,
+  '1d': 5 * 60_000,
+  '7d': 30 * 60_000,
+}
+
+export interface SeriesWindow {
+  startMs: number
+  endMs: number
+  stepMs: number
+}
+
+// The bucket grid the API actually answered for. A chart that plots only the
+// samples it got shrinks its axis to wherever data happens to exist — select
+// 7d with four hours of samples and the graph shows four hours. Everything
+// here comes from the response so the grid matches the samples' own alignment
+// rather than a client-side guess anchored to "now".
+export function seriesWindow(
+  response: Pick<TimeSeriesResponse, 'start_time' | 'end_time' | 'step' | 'time_range'> | null,
+): SeriesWindow | null {
+  if (!response) return null
+  const startMs = Date.parse(response.start_time)
+  const endMs = Date.parse(response.end_time)
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return null
+  let stepMs = parseDurationMs(response.step) ?? FALLBACK_STEP_MS[response.time_range] ?? 0
+  if (stepMs <= 0) return null
+  // Backstop: a pathologically small step would mint tens of thousands of
+  // buckets and stall the chart. Coarsen rather than refuse to draw.
+  while ((endMs - startMs) / stepMs > 4000) stepMs *= 2
+  return { startMs, endMs, stepMs }
+}
+
+// Snap a sample onto the window's grid so filling can key on exact bucket
+// times instead of hoping timestamps line up.
+export function bucketMs(timestamp: string, window: SeriesWindow): number {
+  return window.startMs + Math.round((Date.parse(timestamp) - window.startMs) / window.stepMs) * window.stepMs
+}
+
+// Six ticks that all say "6:35 AM" identify no day at all, so multi-day
+// windows carry the date in the label.
+export function timeTickFormatter(window: SeriesWindow): (ms: number) => string {
+  const multiDay = window.endMs - window.startMs > 24 * 3600 * 1000
+  return (ms: number) => {
+    const date = new Date(ms)
+    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    if (!multiDay) return time
+    return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`
+  }
+}
+
+// One row per bucket across the whole window, missing buckets taking
+// `defaults` (zeroes), so the x-axis always spans the range the user selected.
+export function fillWindow<T extends Record<string, number | string>>(
+  window: SeriesWindow,
+  rows: Map<number, Partial<T>>,
+  defaults: T,
+): Array<T & { time: string; timeMs: number }> {
+  const format = timeTickFormatter(window)
+  const filled: Array<T & { time: string; timeMs: number }> = []
+  for (let t = window.startMs; t <= window.endMs; t += window.stepMs) {
+    filled.push({ ...defaults, ...(rows.get(t) ?? {}), time: format(t), timeMs: t } as T & {
+      time: string
+      timeMs: number
+    })
+  }
+  return filled
+}
+
 // null on any failure — sections render their no-data state instead of
 // tearing the page down.
 export async function fetchJson<T>(url: string): Promise<T | null> {

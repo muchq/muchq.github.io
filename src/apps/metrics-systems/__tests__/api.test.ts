@@ -1,19 +1,24 @@
 import { describe, it, expect, vi } from 'vitest'
 import {
+  bucketMs,
   byHealthThenName,
   containerDisplayName,
   containerLabel,
   fetchJson,
+  fillWindow,
   formatUptime,
   buildUrl,
   commitUrl,
   containerState,
   formatBytes,
   hasDrifted,
+  parseDurationMs,
+  seriesWindow,
   serviceDisplayName,
   stackVersion,
   shortVersion,
   splitHostTimeseries,
+  timeTickFormatter,
   type ContainerStats,
   type TimeSeriesResponse,
 } from '../api'
@@ -247,6 +252,93 @@ describe('commit and build links', () => {
     expect(commitUrl(sha)).toBe(`https://github.com/muchq/MoonBase/commit/${sha}`)
     expect(buildUrl(sha)).toBe(`https://github.com/muchq/MoonBase/commit/${sha}/checks`)
     expect(shortVersion(sha)).toBe('c0bcc50')
+  })
+})
+
+describe('parseDurationMs', () => {
+  it('parses bare and Go-composed durations', () => {
+    // Go's Duration.String() writes 5 minutes as "5m0s" and an hour as
+    // "1h0m0s"; hand-written configs send the bare forms.
+    expect(parseDurationMs('30s')).toBe(30_000)
+    expect(parseDurationMs('5m')).toBe(300_000)
+    expect(parseDurationMs('5m0s')).toBe(300_000)
+    expect(parseDurationMs('1h0m0s')).toBe(3_600_000)
+    expect(parseDurationMs('100ms')).toBe(100)
+  })
+
+  it('has no opinion on text with no duration in it', () => {
+    expect(parseDurationMs('')).toBeNull()
+    expect(parseDurationMs(undefined)).toBeNull()
+    expect(parseDurationMs('soon')).toBeNull()
+  })
+})
+
+describe('seriesWindow', () => {
+  const response = (overrides: Record<string, string> = {}) => ({
+    time_range: '1d',
+    start_time: '2026-07-24T00:00:00Z',
+    end_time: '2026-07-25T00:00:00Z',
+    step: '5m0s',
+    ...overrides,
+  })
+
+  it('reads the grid from the response rather than guessing client-side', () => {
+    expect(seriesWindow(response())).toEqual({
+      startMs: Date.parse('2026-07-24T00:00:00Z'),
+      endMs: Date.parse('2026-07-25T00:00:00Z'),
+      stepMs: 300_000,
+    })
+  })
+
+  it('falls back to the known step for the range when the field is unusable', () => {
+    expect(seriesWindow(response({ step: 'garbage' }))?.stepMs).toBe(300_000)
+    expect(seriesWindow(response({ step: '', time_range: '7d' }))?.stepMs).toBe(1_800_000)
+  })
+
+  it('returns null when the window itself is unusable', () => {
+    expect(seriesWindow(null)).toBeNull()
+    expect(seriesWindow(response({ start_time: 'nope' }))).toBeNull()
+    expect(seriesWindow(response({ end_time: '2026-07-24T00:00:00Z' }))).toBeNull()
+    expect(seriesWindow(response({ step: 'garbage', time_range: 'nope' }))).toBeNull()
+  })
+
+  it('coarsens a step that would mint an absurd number of buckets', () => {
+    const window = seriesWindow(response({ step: '1s' }))!
+    expect((window.endMs - window.startMs) / window.stepMs).toBeLessThanOrEqual(4000)
+  })
+})
+
+describe('bucketMs and fillWindow', () => {
+  // One hour at a 5-minute step: 13 buckets.
+  const frame = {
+    startMs: Date.parse('2026-07-24T00:00:00Z'),
+    endMs: Date.parse('2026-07-24T01:00:00Z'),
+    stepMs: 300_000,
+  }
+
+  it('snaps samples onto the grid, including ones slightly off it', () => {
+    expect(bucketMs('2026-07-24T00:05:00Z', frame)).toBe(frame.startMs + 300_000)
+    expect(bucketMs('2026-07-24T00:06:40Z', frame)).toBe(frame.startMs + 300_000)
+  })
+
+  it('spans the whole window, zero-filling buckets with no sample', () => {
+    // The complaint this fixes: select 7d with four hours of samples and the
+    // chart used to show four hours, because only sampled points became rows.
+    const rows = new Map([[bucketMs('2026-07-24T00:10:00Z', frame), { value: 7 }]])
+    const filled = fillWindow(frame, rows, { value: 0 })
+    expect(filled.length).toBe(13)
+    expect(filled.filter((row) => row.value === 7).length).toBe(1)
+    expect(filled[0].value).toBe(0)
+    expect(filled[12].value).toBe(0)
+  })
+
+  it('labels ticks with the day only on multi-day windows', () => {
+    // Six ticks all reading "6:35 AM" on a 7d axis identify no day at all.
+    const dayless = timeTickFormatter(frame)(frame.startMs)
+    const wide = { ...frame, endMs: frame.startMs + 7 * 86_400_000 }
+    const dayful = timeTickFormatter(wide)(frame.startMs)
+    expect(dayful).toContain(dayless)
+    expect(dayful.length).toBeGreaterThan(dayless.length)
   })
 })
 

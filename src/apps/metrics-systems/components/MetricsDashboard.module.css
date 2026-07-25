@@ -10,7 +10,10 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  /* Same cap as .metricsGrid — on wide screens the title used to drift to the
+     viewport edge while the content stayed centered under it. */
+  max-width: 1400px;
+  margin: 0 auto 30px;
   padding: 0 10px;
 }
 
@@ -54,16 +57,20 @@
   letter-spacing: 0.3px;
 }
 
-/* Tab Navigation */
+/* Tab Navigation. Sized to its tabs rather than a fixed 400px — the bar holds
+   host + containers + one tab per catalog service, and a hard cap squeezed
+   five-plus tabs into wrapping, truncating labels. */
 .tabNavigation {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   margin-bottom: 30px;
   gap: 0;
   background: rgba(26, 31, 53, 0.4);
   border-radius: 8px;
   padding: 4px;
-  max-width: 400px;
+  width: fit-content;
+  max-width: 100%;
   margin-left: auto;
   margin-right: auto;
 }
@@ -98,15 +105,15 @@
   background: rgba(102, 182, 255, 0.25) !important;
 }
 
-/* Overview Cards - Top Row */
+/* Overview Cards — stat tile rows inside sections. Full content width so the
+   row lines up with the charts around it; the old 600px centered cap left a
+   narrow floating cluster inside 1400px-wide content. auto-fill keeps tiles at
+   a consistent size instead of stretching a short row across the page. */
 .overviewCards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 15px;
-  margin-bottom: 30px;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 .miniCard {
@@ -147,6 +154,79 @@
 .miniUnit {
   font-size: 0.7rem;
   color: rgba(255, 255, 255, 0.5);
+}
+
+/* Container status strip — one line of context above the charts, not a card
+   cluster competing with them. The state badge stays loud in the one case that
+   matters: a container that is down while every chart reads idle-healthy. */
+.statusStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 6px;
+  padding: 10px 14px;
+  margin-bottom: 30px;
+  background: rgba(26, 31, 53, 0.4);
+  border: 1px solid rgba(102, 182, 255, 0.15);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.statusStrip a {
+  color: #66b6ff;
+  text-decoration: none;
+  border-bottom: 1px dotted rgba(102, 182, 255, 0.4);
+}
+
+.statusStrip a:hover {
+  border-bottom-style: solid;
+}
+
+.statusLabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.statusState {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stateUp {
+  color: #66ff88;
+  background: rgba(102, 255, 136, 0.1);
+  border: 1px solid rgba(102, 255, 136, 0.35);
+}
+
+.stateWarn {
+  color: #ffcc66;
+  background: rgba(255, 204, 102, 0.1);
+  border: 1px solid rgba(255, 204, 102, 0.35);
+}
+
+.stateDown {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.45);
+}
+
+.stateUnknown {
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.statusItem + .statusItem::before {
+  content: '·';
+  margin-right: 8px;
+  color: rgba(255, 255, 255, 0.3);
 }
 
 /* Main Metrics Grid */
@@ -258,19 +338,17 @@
   }
   
   .tabNavigation {
-    max-width: none;
-    margin: 0 15px 20px 15px;
+    margin: 0 auto 20px;
   }
-  
+
   .tab {
     padding: 10px 16px;
     font-size: 0.85rem;
   }
-  
+
   .overviewCards {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
-    max-width: none;
   }
   
   .miniCard {
