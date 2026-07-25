@@ -44,18 +44,44 @@ const timeseriesResponse = {
   ],
 }
 
+// A healthy container, with the fields MoonBase#1218 added. Overrides let each
+// test state only the fields it is actually about.
+const containerDetail = (overrides: Record<string, unknown> = {}) => ({
+  timestamp: new Date().toISOString(),
+  container: {
+    name: 'ubuntu-golf_hub-1',
+    service: 'golf_hub',
+    cpu_usage_percent: 3.5,
+    cpu_throttled_seconds: 0,
+    memory_usage_bytes: 100,
+    memory_limit_bytes: 1000,
+    memory_usage_percent: 10,
+    network_rx_bytes_per_sec: 0,
+    network_tx_bytes_per_sec: 0,
+    restarts_last_hour: 0,
+    uptime_seconds: 7200,
+    crash_looping: false,
+    image: 'ghcr.io/muchq/golf_hub:abc1234',
+    version: 'abc1234',
+    reporting: true,
+    ...overrides,
+  },
+})
+
+const ok = (body: unknown) => Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify(body)) })
+const notFound = () => Promise.resolve({ ok: false, text: () => Promise.resolve('') })
+
 describe('ServiceDashboard', () => {
   let mockFetch: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     mockFetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('/service/golf_hub/timeseries/')) {
-        return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify(timeseriesResponse)) })
-      }
-      if (url.endsWith('/service/golf_hub')) {
-        return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify(scalarResponse)) })
-      }
-      return Promise.resolve({ ok: false, text: () => Promise.resolve('') })
+      if (url.includes('/service/golf_hub/timeseries/')) return ok(timeseriesResponse)
+      if (url.endsWith('/service/golf_hub')) return ok(scalarResponse)
+      // Keyed on the exact name so a request for the wrong container 404s
+      // rather than being answered with golf_hub's stats.
+      if (url.endsWith('/container/golf_hub')) return ok(containerDetail())
+      return notFound()
     })
     globalThis.fetch = mockFetch as unknown as typeof fetch
   })
@@ -171,5 +197,147 @@ describe('ServiceDashboard', () => {
     expect(onConnectionStateChange).toHaveBeenCalledWith('failed')
     expect(screen.getByText('Serving')).toBeTruthy()
     expect(screen.getAllByText('No data available').length).toBeGreaterThan(0)
+  })
+
+  describe('container health', () => {
+    const renderAndSettle = async (service = 'golf_hub') => {
+      render(<ServiceDashboard service={service} onConnectionStateChange={vi.fn()} />)
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      })
+      return mockFetch.mock.calls.map((call) => String(call[0]))
+    }
+
+    it('reads health from the per-container endpoint instead of the whole host payload', async () => {
+      const urls = await renderAndSettle()
+
+      expect(urls.some((url) => url.endsWith('/container/golf_hub'))).toBe(true)
+      // The point of the rewiring: the page used to pull every container's
+      // stats and keep one row. Asserting the absence is what makes this test
+      // fail against the previous implementation rather than pass either way.
+      expect(urls.some((url) => url.endsWith('/host'))).toBe(false)
+
+      expect(screen.getByTestId('container-state').textContent).toBe('up')
+      expect(screen.getByTestId('container-uptime').textContent).toBe('2h')
+      expect(screen.getByTestId('container-restarts').textContent).toBe('0')
+      expect(screen.getByTestId('container-version').textContent).toBe('abc1234')
+    })
+
+    it('surfaces a crash loop even when the service emits no metrics at all', async () => {
+      // The case the strip exists for. A container that dies during startup
+      // serves nothing, so both service endpoints come back empty and every
+      // panel below renders "no data" — indistinguishable from idle-healthy.
+      mockFetch.mockImplementation((url: string) => {
+        if (url.endsWith('/container/golf_hub')) {
+          return ok(containerDetail({ crash_looping: true, restarts_last_hour: 47, uptime_seconds: 8 }))
+        }
+        return notFound()
+      })
+
+      await renderAndSettle()
+
+      expect(screen.getByTestId('container-state').textContent).toBe('crash looping')
+      expect(screen.getByTestId('container-restarts').textContent).toBe('47')
+      expect(screen.getByTestId('container-uptime').textContent).toBe('8s')
+      // Proves the strip is not gated on the standard block, which is null here.
+      expect(screen.queryByText('Sessions')).toBeNull()
+    })
+
+    it('reports restarts that have not yet met the crash-loop rule', async () => {
+      mockFetch.mockImplementation((url: string) => {
+        if (url.endsWith('/container/golf_hub')) {
+          return ok(containerDetail({ crash_looping: false, restarts_last_hour: 2 }))
+        }
+        return notFound()
+      })
+
+      await renderAndSettle()
+
+      expect(screen.getByTestId('container-state').textContent).toBe('restarting')
+      expect(screen.getByTestId('container-restarts').textContent).toBe('2')
+    })
+
+    it('separates a non-reporting container from a healthy zero', async () => {
+      // cAdvisor returning nothing leaves 0 restarts and 0 uptime, which is
+      // byte-identical to a container that has never restarted. Only the
+      // `reporting` flag tells them apart, so rendering must consult it —
+      // drop that check and this container reads as "up".
+      mockFetch.mockImplementation((url: string) => {
+        if (url.endsWith('/container/golf_hub')) {
+          return ok(containerDetail({ reporting: false, restarts_last_hour: 0, uptime_seconds: 0 }))
+        }
+        return notFound()
+      })
+
+      await renderAndSettle()
+
+      expect(screen.getByTestId('container-state').textContent).toBe('not reporting')
+      expect(screen.getByTestId('container-uptime').textContent).toBe('—')
+      expect(screen.getByTestId('container-restarts').textContent).toBe('—')
+    })
+
+    it('says unknown when no container backs the service', async () => {
+      // portrait's container endpoint 404s under the default mock.
+      await renderAndSettle('portrait')
+
+      expect(screen.getByTestId('container-state').textContent).toBe('unknown')
+    })
+
+    it('clears the previous service\'s container when switching tabs', async () => {
+      const { rerender } = render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      })
+      expect(screen.getByTestId('container-state').textContent).toBe('up')
+
+      // portrait has no container. Leaving golf_hub's "up" on screen would
+      // report a healthy container for a service that has none.
+      rerender(<ServiceDashboard service="portrait" onConnectionStateChange={vi.fn()} />)
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      })
+
+      expect(screen.getByTestId('container-state').textContent).toBe('unknown')
+    })
+
+    it('clears a container that disappears between polls', async () => {
+      // Distinct from the tab switch, which resets during render. Here the
+      // service never changes: the container is removed under it, by a rename
+      // or a compose edit. Keeping the last good reading would report a
+      // healthy container for one that no longer exists — and unlike a blank
+      // panel, a stale "up" doesn't look like missing data.
+      vi.useFakeTimers()
+      try {
+        render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0)
+        })
+        expect(screen.getByTestId('container-state').textContent).toBe('up')
+
+        mockFetch.mockImplementation((url: string) => {
+          if (url.includes('/service/golf_hub/timeseries/')) return ok(timeseriesResponse)
+          if (url.endsWith('/service/golf_hub')) return ok(scalarResponse)
+          return notFound()
+        })
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(30000)
+        })
+
+        expect(screen.getByTestId('container-state').textContent).toBe('unknown')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('falls back to a dash when the image carries no tag', async () => {
+      mockFetch.mockImplementation((url: string) => {
+        if (url.endsWith('/container/golf_hub')) return ok(containerDetail({ image: 'golf_hub', version: '' }))
+        return notFound()
+      })
+
+      await renderAndSettle()
+
+      expect(screen.getByTestId('container-version').textContent).toBe('—')
+    })
   })
 })

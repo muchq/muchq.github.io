@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, act, screen, fireEvent } from '@testing-library/react'
+import { render, act, screen, fireEvent, within } from '@testing-library/react'
 import MetricsDashboard from '../MetricsDashboard'
 
 // Mock the recharts library to avoid canvas issues in tests
@@ -139,5 +139,129 @@ describe('MetricsDashboard (host view)', () => {
 
     expect(screen.getByText('Host Metrics')).toBeTruthy()
     expect(screen.queryByText('caddy')).toBeNull()
+  })
+
+  describe('container cards', () => {
+    // Six, because the bug this covers rendered the first four. A fixture of
+    // four or fewer passes either way and would prove nothing.
+    const makeContainer = (service: string, overrides: Record<string, unknown> = {}) => ({
+      name: `ubuntu-${service}-1`,
+      service,
+      cpu_usage_percent: 1.5,
+      cpu_throttled_seconds: 0,
+      memory_usage_bytes: 1048576,
+      memory_limit_bytes: 268435456,
+      memory_usage_percent: 0.4,
+      network_rx_bytes_per_sec: 0,
+      network_tx_bytes_per_sec: 0,
+      restarts_last_hour: 0,
+      uptime_seconds: 7200,
+      crash_looping: false,
+      image: `ghcr.io/muchq/${service}:abc1234`,
+      version: 'abc1234',
+      reporting: true,
+      ...overrides,
+    })
+
+    const withContainers = (containers: unknown[]) => {
+      mockFetch.mockImplementation((url: string) => {
+        if (url.includes('/host/timeseries/')) {
+          return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify(hostTimeseriesResponse)) })
+        }
+        if (url.endsWith('/host')) {
+          return Promise.resolve({
+            ok: true,
+            text: () => Promise.resolve(JSON.stringify({ ...hostResponse, containers })),
+          })
+        }
+        return Promise.resolve({ ok: false, text: () => Promise.resolve('') })
+      })
+    }
+
+    const settle = async () => {
+      render(<MetricsDashboard onConnectionStateChange={vi.fn()} />)
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      })
+    }
+
+    it('renders every container, not just the first four', async () => {
+      const services = ['caddy', 'postgres', 'prometheus', 'portrait', 'microgpt-serve', 'golf_hub']
+      withContainers(services.map((s) => makeContainer(s)))
+
+      await settle()
+
+      const cards = screen.getByTestId('container-cards')
+      expect(cards.children.length).toBe(6)
+      // Naming the two a slice(0, 4) would drop beats asserting a count alone:
+      // a truncated list still has a length, just the wrong one.
+      for (const service of services) {
+        expect(within(cards).getByText(service)).toBeTruthy()
+      }
+    })
+
+    it('sorts an unhealthy container to the front however the API ordered it', async () => {
+      // Last in the payload, so a render that preserves Prometheus's order
+      // leaves the only container worth looking at at the bottom — and, before
+      // the slice fix, off the page entirely.
+      withContainers([
+        makeContainer('caddy'),
+        makeContainer('postgres'),
+        makeContainer('prometheus'),
+        makeContainer('portrait'),
+        makeContainer('microgpt-serve', { restarts_last_hour: 2 }),
+        makeContainer('golf_hub', { crash_looping: true, restarts_last_hour: 47, uptime_seconds: 8 }),
+      ])
+
+      await settle()
+
+      const cards = screen.getByTestId('container-cards')
+      const order = Array.from(cards.children).map((card) => card.querySelector('div')!.textContent)
+      expect(order[0]).toBe('golf_hub')
+      expect(order[1]).toBe('microgpt-serve')
+      expect(screen.getByTestId('container-card-state-golf_hub').textContent).toBe('crash looping')
+      expect(screen.getByTestId('container-card-state-microgpt-serve').textContent).toBe('2 restarts')
+      expect(screen.getByTestId('container-card-state-caddy').textContent).toBe('up 2h')
+    })
+
+    it('marks a non-reporting container instead of rendering it as up', async () => {
+      // Zeroes from a failed cAdvisor query are indistinguishable from a
+      // container that simply has not restarted; only `reporting` separates
+      // them, and "up —" is a worse lie than an explicit gap.
+      withContainers([makeContainer('caddy', { reporting: false, restarts_last_hour: 0, uptime_seconds: 0 })])
+
+      await settle()
+
+      expect(screen.getByTestId('container-card-state-caddy').textContent).toBe('not reporting')
+    })
+
+    it('labels a container by its compose service, not by parsing the name', async () => {
+      // The project prefix is `ubuntu-` on the deployed host but the directory
+      // name under local_deploy.sh, so name-parsing is a guess that happens to
+      // be right in production. A fixture prefixed `ubuntu-` would pass either
+      // way; this one only passes if the label is what's rendered.
+      //
+      // The `-10` is the second trap: the old `.replace('-1', '')` cut the
+      // first literal "-1" anywhere in the string, giving `caddy0`.
+      withContainers([{ ...makeContainer('caddy'), name: 'moonbase-caddy-10' }])
+
+      await settle()
+
+      const cards = screen.getByTestId('container-cards')
+      expect(within(cards).getByText('caddy')).toBeTruthy()
+      expect(within(cards).queryByText('moonbase-caddy')).toBeNull()
+      expect(within(cards).queryByText('caddy0')).toBeNull()
+    })
+
+    it('falls back to the container name when the service label is absent', async () => {
+      // A prom_proxy older than MoonBase#1218 sends no `service` field.
+      const legacy: Record<string, unknown> = makeContainer('caddy')
+      delete legacy.service
+      withContainers([legacy])
+
+      await settle()
+
+      expect(within(screen.getByTestId('container-cards')).getByText('caddy')).toBeTruthy()
+    })
   })
 })

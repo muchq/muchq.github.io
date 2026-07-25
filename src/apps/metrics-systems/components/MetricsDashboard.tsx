@@ -2,7 +2,17 @@ import { useState, useEffect } from 'react'
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
 import ChartErrorBoundary from './ChartErrorBoundary'
 import styles from './MetricsDashboard.module.css'
-import { METRICS_API_URL, fetchJson, splitHostTimeseries, type TimeSeriesResponse } from '../api'
+import {
+  METRICS_API_URL,
+  byHealthThenName,
+  containerDisplayName,
+  containerLabel,
+  fetchJson,
+  formatUptime,
+  splitHostTimeseries,
+  type ContainerStats,
+  type TimeSeriesResponse,
+} from '../api'
 
 interface SystemMetrics {
   timestamp: string
@@ -30,17 +40,6 @@ interface SystemMetrics {
     tx_rate_bytes_per_sec: number
     errors_per_sec: number
   }>
-}
-
-interface ContainerStats {
-  name: string
-  cpu_usage_percent: number
-  cpu_throttled_seconds: number
-  memory_usage_bytes: number
-  memory_limit_bytes: number
-  memory_usage_percent: number
-  network_rx_bytes_per_sec: number
-  network_tx_bytes_per_sec: number
 }
 
 interface ContainerMetrics {
@@ -600,13 +599,26 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
         </>
 
         <>
-            {/* Container Overview Cards */}
+            {/* Container Overview Cards — every container, not the first four.
+                The host runs more than four, and the truncated list was in
+                arbitrary Prometheus order, so the one container worth looking
+                at was the one most likely to be cut. Sorted so anything
+                crash-looping or restarting sorts to the front. */}
             {containerMetrics && containerMetrics.containers.length > 0 && (
-              <div className={styles.overviewCards}>
-                {containerMetrics.containers.slice(0, 4).map(container => (
+              <div className={styles.overviewCards} data-testid="container-cards">
+                {[...containerMetrics.containers].sort(byHealthThenName).map(container => (
                   <div key={container.name} className={styles.miniCard}>
-                    <div className={styles.miniLabel}>{container.name.replace('ubuntu-', '').replace('-1', '')}</div>
+                    <div className={styles.miniLabel}>{containerLabel(container)}</div>
                     <div className={styles.miniValue}>{container.cpu_usage_percent.toFixed(1)}%</div>
+                    <div className={styles.miniUnit} data-testid={`container-card-state-${containerLabel(container)}`}>
+                      {container.reporting === false
+                        ? 'not reporting'
+                        : container.crash_looping
+                          ? 'crash looping'
+                          : (container.restarts_last_hour ?? 0) > 0
+                            ? `${container.restarts_last_hour} restarts`
+                            : `up ${formatUptime(container.uptime_seconds)}`}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -623,7 +635,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                     <ChartErrorBoundary>
                       <ResponsiveContainer width="100%" height={180}>
                         <BarChart data={containerMetrics.containers.map(c => ({
-                          name: c.name.replace('ubuntu-', '').replace('-1', ''),
+                          name: containerLabel(c),
                           cpu: c.cpu_usage_percent
                         }))}>
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
@@ -649,7 +661,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                     <ChartErrorBoundary>
                       <ResponsiveContainer width="100%" height={180}>
                         <BarChart data={containerMetrics.containers.map(c => ({
-                          name: c.name.replace('ubuntu-', '').replace('-1', ''),
+                          name: containerLabel(c),
                           throttled: c.cpu_throttled_seconds
                         }))}>
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
@@ -682,7 +694,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                           const defaultValues: Record<string, number> = {}
                           cpuSeries.forEach(s => {
                             if (s.labels?.name) {
-                              const shortName = s.labels.name.replace('ubuntu-', '').replace('-1', '')
+                              const shortName = containerDisplayName(s.labels.name)
                               defaultValues[shortName] = 0
                             }
                           })
@@ -696,7 +708,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                               const key = roundedTime.toISOString()
                               const existing = dataMap.get(key) || {}
                               if (s.labels?.name) {
-                                const shortName = s.labels.name.replace('ubuntu-', '').replace('-1', '')
+                                const shortName = containerDisplayName(s.labels.name)
                                 existing[shortName] = v.value
                               }
                               dataMap.set(key, existing)
@@ -718,7 +730,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                           <Tooltip content={<SortedTooltip />} />
                           {containerTimeseries.series.filter(s => s.metric_name === 'cpu_usage' && s.labels?.name).map((s, i) => {
                             const colors = [COLORS.primary, COLORS.success, COLORS.warning, COLORS.danger, COLORS.info, COLORS.secondary]
-                            const shortName = s.labels!.name.replace('ubuntu-', '').replace('-1', '')
+                            const shortName = containerDisplayName(s.labels!.name)
                             return <Line key={i} type="monotone" dataKey={shortName} stroke={colors[i % colors.length]} strokeWidth={2} dot={false} />
                           })}
                         </LineChart>
@@ -742,7 +754,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                     <ChartErrorBoundary>
                       <ResponsiveContainer width="100%" height={180}>
                         <BarChart data={containerMetrics.containers.map(c => ({
-                          name: c.name.replace('ubuntu-', '').replace('-1', ''),
+                          name: containerLabel(c),
                           memory: c.memory_usage_percent
                         }))}>
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
@@ -768,7 +780,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                     <ChartErrorBoundary>
                       <ResponsiveContainer width="100%" height={180}>
                         <BarChart data={containerMetrics.containers.map(c => ({
-                          name: c.name.replace('ubuntu-', '').replace('-1', ''),
+                          name: containerLabel(c),
                           used: c.memory_usage_bytes / (1024 * 1024),
                           limit: c.memory_limit_bytes / (1024 * 1024)
                         }))}>
@@ -803,7 +815,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                           const defaultValues: Record<string, number> = {}
                           memSeries.forEach(s => {
                             if (s.labels?.name) {
-                              const shortName = s.labels.name.replace('ubuntu-', '').replace('-1', '')
+                              const shortName = containerDisplayName(s.labels.name)
                               defaultValues[shortName] = 0
                             }
                           })
@@ -817,7 +829,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                               const key = roundedTime.toISOString()
                               const existing = dataMap.get(key) || {}
                               if (s.labels?.name) {
-                                const shortName = s.labels.name.replace('ubuntu-', '').replace('-1', '')
+                                const shortName = containerDisplayName(s.labels.name)
                                 existing[shortName] = v.value
                               }
                               dataMap.set(key, existing)
@@ -839,7 +851,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                           <Tooltip content={<SortedTooltip />} />
                           {containerTimeseries.series.filter(s => s.metric_name === 'memory_usage_percent' && s.labels?.name).map((s, i) => {
                             const colors = [COLORS.primary, COLORS.success, COLORS.warning, COLORS.danger, COLORS.info, COLORS.secondary]
-                            const shortName = s.labels!.name.replace('ubuntu-', '').replace('-1', '')
+                            const shortName = containerDisplayName(s.labels!.name)
                             return <Line key={i} type="monotone" dataKey={shortName} stroke={colors[i % colors.length]} strokeWidth={2} dot={false} />
                           })}
                         </LineChart>
@@ -863,7 +875,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                     <ChartErrorBoundary>
                       <ResponsiveContainer width="100%" height={180}>
                         <BarChart data={containerMetrics.containers.map(c => ({
-                          name: c.name.replace('ubuntu-', '').replace('-1', ''),
+                          name: containerLabel(c),
                           rx: c.network_rx_bytes_per_sec / 1024
                         }))}>
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
@@ -889,7 +901,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                     <ChartErrorBoundary>
                       <ResponsiveContainer width="100%" height={180}>
                         <BarChart data={containerMetrics.containers.map(c => ({
-                          name: c.name.replace('ubuntu-', '').replace('-1', ''),
+                          name: containerLabel(c),
                           tx: c.network_tx_bytes_per_sec / 1024
                         }))}>
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
