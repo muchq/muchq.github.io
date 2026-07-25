@@ -2,10 +2,13 @@ import { useState, useEffect } from 'react'
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import ChartErrorBoundary from './ChartErrorBoundary'
 import styles from './MetricsDashboard.module.css'
+import ContainerHealthStrip from './ContainerHealth'
 import {
   METRICS_API_URL,
   fetchJson,
   serviceDisplayName,
+  type ContainerDetail,
+  type ContainerStats,
   type ServiceMetricsResponse,
   type TimeSeries,
   type TimeSeriesResponse,
@@ -103,6 +106,7 @@ const SeriesChart = ({
 const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboardProps) => {
   const [scalar, setScalar] = useState<ServiceMetricsResponse | null>(null)
   const [timeseries, setTimeseries] = useState<TimeSeriesResponse | null>(null)
+  const [container, setContainer] = useState<ContainerStats | null>(null)
   const [timeRange, setTimeRange] = useState<'30m' | '1d' | '7d'>('1d')
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [lastService, setLastService] = useState(service)
@@ -113,6 +117,7 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
     setLastService(service)
     setScalar(null)
     setTimeseries(null)
+    setContainer(null)
   }
 
   useEffect(() => {
@@ -123,14 +128,23 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
     const fetchMetrics = async () => {
       onConnectionStateChange('connecting')
 
-      const [scalarData, seriesData] = await Promise.all([
+      // Container health can't come from the service endpoint: that reports
+      // what the app emitted, which is exactly what a container that won't
+      // start has none of. The dedicated endpoint (MoonBase#1218) resolves by
+      // service name server-side, so this no longer pulls the whole host
+      // payload — every other container's stats — to use one row of it.
+      const [scalarData, seriesData, containerData] = await Promise.all([
         fetchJson<ServiceMetricsResponse>(`${METRICS_API_URL}/service/${service}`),
         fetchJson<TimeSeriesResponse>(`${METRICS_API_URL}/service/${service}/timeseries/${timeRange}`),
+        fetchJson<ContainerDetail>(`${METRICS_API_URL}/container/${service}`),
       ])
       if (!active) return
 
       if (scalarData) setScalar(scalarData)
       if (seriesData) setTimeseries(seriesData)
+      // 404s to null — a service with no container is a real state, not a
+      // stale reading, so it must overwrite rather than leave the last one up.
+      setContainer(containerData?.container ?? null)
 
       if (scalarData || seriesData) {
         setLastUpdate(new Date())
@@ -184,6 +198,12 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
       </div>
 
       <div className={styles.metricsGrid}>
+        {/* Above the serving block, and deliberately not behind `standard`:
+            the case this exists for is a container that never got far enough
+            to emit a single metric, which is exactly when `standard` is null
+            and everything below renders empty. */}
+        <ContainerHealthStrip container={container} />
+
         {/* The standard serving block, identical for every service. */}
         {standard && (
           <div className={styles.overviewCards}>
