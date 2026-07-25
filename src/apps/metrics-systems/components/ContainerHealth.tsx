@@ -1,5 +1,5 @@
 import styles from './MetricsDashboard.module.css'
-import { containerLabel, formatUptime, type ContainerStats } from '../api'
+import { containerLabel, formatUptime, shortVersion, type ContainerStats } from '../api'
 
 // Three states a service page can't distinguish on its own. Every panel above
 // this strip is built from http_server_* series, and a container that dies
@@ -65,8 +65,8 @@ export function ContainerHealthStrip({ container }: { container: ContainerStats 
       </div>
       <div className={styles.miniCard}>
         <div className={styles.miniLabel}>Version</div>
-        <div className={styles.miniValue} data-testid="container-version">
-          {container.version || '—'}
+        <div className={styles.miniValue} data-testid="container-version" title={container.version || undefined}>
+          {container.version ? shortVersion(container.version) : '—'}
         </div>
         <div className={styles.miniUnit}>running</div>
       </div>

@@ -61,8 +61,11 @@ const containerDetail = (overrides: Record<string, unknown> = {}) => ({
     restarts_last_hour: 0,
     uptime_seconds: 7200,
     crash_looping: false,
-    image: 'ghcr.io/muchq/golf_hub:abc1234',
-    version: 'abc1234',
+    // A full 40-char commit SHA, which is what deploys actually pin (the old
+    // `abc1234` fixture was a short SHA the backend never sends, and it hid an
+    // overflow that shipped).
+    image: 'ghcr.io/muchq/golf_hub:c0bcc5049c30e654c319ae39627a4a8f7800d077',
+    version: 'c0bcc5049c30e654c319ae39627a4a8f7800d077',
     reporting: true,
     ...overrides,
   },
@@ -220,7 +223,32 @@ describe('ServiceDashboard', () => {
       expect(screen.getByTestId('container-state').textContent).toBe('up')
       expect(screen.getByTestId('container-uptime').textContent).toBe('2h')
       expect(screen.getByTestId('container-restarts').textContent).toBe('0')
-      expect(screen.getByTestId('container-version').textContent).toBe('abc1234')
+      expect(screen.getByTestId('container-version').textContent).toBe('c0bcc50')
+    })
+
+    it('shortens the pinned commit SHA but keeps the full one on hover', async () => {
+      // Deploys pin by full SHA, so this card gets 40 unbroken hex characters.
+      // Rendered raw it has no break opportunity and paints outside its card,
+      // shoving the strip across the page — which is what shipped in #243.
+      await renderAndSettle()
+
+      const version = screen.getByTestId('container-version')
+      expect(version.textContent).toBe('c0bcc50')
+      // Abbreviating is only acceptable because the full value stays reachable.
+      expect(version.getAttribute('title')).toBe('c0bcc5049c30e654c319ae39627a4a8f7800d077')
+    })
+
+    it('leaves a version that is not a SHA alone', async () => {
+      // Truncating `v2.1.0` to `v2.1.0`'s first 7 chars would be lossless by
+      // luck; truncating a longer tag would not. Only hex gets cut.
+      mockFetch.mockImplementation((url: string) => {
+        if (url.endsWith('/container/golf_hub')) return ok(containerDetail({ version: 'v2.1.0-rc.3' }))
+        if (url.endsWith('/service/golf_hub')) return ok(scalarResponse)
+        return ok(timeseriesResponse)
+      })
+      await renderAndSettle()
+
+      expect(screen.getByTestId('container-version').textContent).toBe('v2.1.0-rc.3')
     })
 
     it('surfaces a crash loop even when the service emits no metrics at all', async () => {
