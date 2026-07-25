@@ -1,5 +1,6 @@
 import styles from './MetricsDashboard.module.css'
-import { containerLabel, formatUptime, shortVersion, type ContainerStats } from '../api'
+import ContainerVersion from './ContainerVersion'
+import { containerLabel, containerState, formatUptime, type ContainerStats } from '../api'
 
 // Three states a service page can't distinguish on its own. Every panel above
 // this strip is built from http_server_* series, and a container that dies
@@ -33,13 +34,9 @@ export function ContainerHealthStrip({ container }: { container: ContainerStats 
   // no `reporting` field) reads as reporting rather than silently degraded.
   const reporting = container.reporting !== false
   const restarts = container.restarts_last_hour ?? 0
-  const state = !reporting
-    ? 'not reporting'
-    : container.crash_looping
-      ? 'crash looping'
-      : restarts > 0
-        ? 'restarting'
-        : 'up'
+  // Shared with the Containers tab so the two surfaces can't disagree about
+  // what "up" means for the same container.
+  const state = containerState(container)
 
   return (
     <div className={styles.overviewCards} data-testid="container-health">
@@ -65,8 +62,11 @@ export function ContainerHealthStrip({ container }: { container: ContainerStats 
       </div>
       <div className={styles.miniCard}>
         <div className={styles.miniLabel}>Version</div>
-        <div className={styles.miniValue} data-testid="container-version" title={container.version || undefined}>
-          {container.version ? shortVersion(container.version) : '—'}
+        {/* Drift isn't flagged here: it's a claim about the whole stack, and
+            this page only ever fetches its own container. The Containers tab
+            has the full list and is where that comparison belongs. */}
+        <div className={styles.miniValue} data-testid="container-version">
+          <ContainerVersion version={container.version} />
         </div>
         <div className={styles.miniUnit}>running</div>
       </div>

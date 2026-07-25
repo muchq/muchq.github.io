@@ -70,6 +70,19 @@ export interface ContainerStats {
   // False when cAdvisor returned nothing. Without it a failed query leaves
   // zeroes, and zero restarts with zero uptime reads as a healthy container.
   reporting?: boolean
+  // Seconds since cAdvisor last saw the container. Optional for the same
+  // reason as `service`: the UI deploys independently of prom_proxy.
+  last_seen_ago_seconds?: number
+  // Best-effort — absent on cAdvisor builds without the counter, which leaves
+  // it zero and indistinguishable from no kills.
+  oom_events_last_hour?: number
+}
+
+// Every container in the stack, including the infrastructure ones that emit no
+// app metrics and so have no service page at all.
+export interface ContainersResponse {
+  timestamp: string
+  containers: ContainerStats[]
 }
 
 // Single-container response from /metrics/v1/container/{name}.
@@ -93,6 +106,16 @@ export function containerLabel(container: ContainerStats): string {
   return container.service || containerDisplayName(container.name)
 }
 
+// Timeseries labels carry only the raw container name — the compose service
+// label rides on the containers list, not on the series. Charts therefore used
+// to re-derive a name with containerDisplayName while the cards next to them
+// used the label, so the two disagreed on any host whose compose project isn't
+// `ubuntu-`. Build the mapping once from the list and let both read from it.
+export function containerLabelLookup(containers: ContainerStats[]): (name: string) => string {
+  const byName = new Map(containers.map((c) => [c.name, containerLabel(c)]))
+  return (name: string) => byName.get(name) ?? containerDisplayName(name)
+}
+
 // Crash-looping first, then whatever else is restarting, so a failing container
 // can't sit below the fold of a long list.
 export function byHealthThenName(a: ContainerStats, b: ContainerStats): number {
@@ -112,6 +135,81 @@ const LONG_SHA = /^[0-9a-f]{12,}$/i
 
 export function shortVersion(version: string): string {
   return LONG_SHA.test(version) ? version.slice(0, 7) : version
+}
+
+// Only MoonBase images are pinned to a commit. `caddy:2-alpine` and
+// `prom/prometheus:v2.55.0` are upstream tags that have no business being
+// compared against a deploy SHA, so drift detection has to exclude them.
+export function isCommitSha(version: string): boolean {
+  return LONG_SHA.test(version)
+}
+
+const SOURCE_REPO = 'https://github.com/muchq/MoonBase'
+
+// The repo is public, so these need no auth. Display the short SHA, link the
+// full one (MoonBase#1208 §4).
+export function commitUrl(version: string): string {
+  return `${SOURCE_REPO}/commit/${version}`
+}
+
+export function buildUrl(version: string): string {
+  return `${SOURCE_REPO}/commit/${version}/checks`
+}
+
+// The revision most of the stack is running. Drift is measured against peers
+// rather than against the latest published build because the dashboard can't
+// see the registry — what it can see is one container disagreeing with the
+// others, which is exactly the "deploy didn't recreate it" case.
+//
+// Ties resolve to whichever revision appears first in the list; with a stack
+// split evenly across two revisions, either answer flags the other half, and
+// both readings are true.
+export function stackVersion(containers: ContainerStats[]): string | null {
+  const counts = new Map<string, number>()
+  for (const c of containers) {
+    if (c.version && isCommitSha(c.version)) {
+      counts.set(c.version, (counts.get(c.version) ?? 0) + 1)
+    }
+  }
+  let winner: string | null = null
+  let best = 0
+  for (const [version, count] of counts) {
+    if (count > best) {
+      winner = version
+      best = count
+    }
+  }
+  return winner
+}
+
+// A container has drifted when it runs a MoonBase revision that isn't the one
+// the rest of the stack runs. Upstream tags never drift — they aren't deployed
+// per commit — and neither does anything when the whole stack agrees.
+export function hasDrifted(container: ContainerStats, stack: string | null): boolean {
+  if (!stack || !container.version || !isCommitSha(container.version)) return false
+  return container.version !== stack
+}
+
+export type ContainerState = 'up' | 'restarting' | 'crash looping' | 'not reporting'
+
+// The health verdict, in one place so the service strip and the Containers tab
+// can't drift apart about what "up" means.
+//
+// `not reporting` cannot collapse into `up`: a failed cAdvisor query leaves
+// zero restarts and zero uptime, which is byte-identical to a healthy
+// container. `reporting !== false` rather than `=== true` so a payload from a
+// prom_proxy older than MoonBase#1218 reads as reporting rather than degraded.
+export function containerState(container: ContainerStats): ContainerState {
+  if (container.reporting === false) return 'not reporting'
+  if (container.crash_looping) return 'crash looping'
+  return (container.restarts_last_hour ?? 0) > 0 ? 'restarting' : 'up'
+}
+
+export function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  return `${parseFloat((bytes / Math.pow(1024, i)).toFixed(1))} ${units[i]}`
 }
 
 export function formatUptime(seconds: number): string {

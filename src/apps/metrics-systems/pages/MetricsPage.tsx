@@ -4,6 +4,7 @@ import Navigation from '@/shared/components/Navigation'
 import ConnectionStatus, { ConnectionState } from '@/shared/components/nav/ConnectionStatus'
 import RotatingText from '@/shared/components/nav/RotatingText'
 import MetricsDashboard from '../components/MetricsDashboard'
+import ContainersDashboard from '../components/ContainersDashboard'
 import ServiceDashboard from '../components/ServiceDashboard'
 import styles from '../components/MetricsDashboard.module.css'
 import { METRICS_API_URL, fetchJson, serviceDisplayName, type ServiceCatalog } from '../api'
@@ -18,11 +19,20 @@ const metricsFacts = [
 ]
 
 // Pre-overhaul deep links keep working.
+//
+// `containers` used to redirect here to `host`, because the overhaul folded the
+// old container view into the host page and the route had nowhere else to go.
+// It now resolves to the real Containers tab — the old link pointed at a
+// container view, and there is one again, so this is the redirect retiring
+// rather than a link breaking.
 const LEGACY_TABS: Record<string, string> = {
   system: 'host',
-  containers: 'host',
   microgpt: 'microgpt-serve',
 }
+
+// Tabs that aren't services, so the catalog can't vouch for them and the
+// unknown-tab redirect must not bounce them.
+const BUILT_IN_TABS = ['host', 'containers']
 
 const MetricsPage = () => {
   const { tab } = useParams<{ tab: string }>()
@@ -50,7 +60,7 @@ const MetricsPage = () => {
     // Only bounce unknown names once the catalog can actually judge them;
     // if the catalog never loads, unknown names stay in place (an empty
     // service page) rather than guessing at a redirect.
-    if (catalog && tab !== 'host' && !catalog.services.some((s) => s.name === tab)) {
+    if (catalog && !BUILT_IN_TABS.includes(tab) && !catalog.services.some((s) => s.name === tab)) {
       navigate('/metrics/host', { replace: true })
     }
   }, [tab, catalog, navigate])
@@ -61,6 +71,7 @@ const MetricsPage = () => {
 
   const tabs = [
     { id: 'host', label: 'Host' },
+    { id: 'containers', label: 'Containers' },
     ...(catalog?.services ?? []).map((service) => ({
       id: service.name,
       label: serviceDisplayName(service.name),
@@ -82,6 +93,8 @@ const MetricsPage = () => {
       </div>
       {activeTab === 'host' ? (
         <MetricsDashboard onConnectionStateChange={handleConnectionStateChange} />
+      ) : activeTab === 'containers' ? (
+        <ContainersDashboard onConnectionStateChange={handleConnectionStateChange} />
       ) : (
         <ServiceDashboard service={activeTab} onConnectionStateChange={handleConnectionStateChange} />
       )}

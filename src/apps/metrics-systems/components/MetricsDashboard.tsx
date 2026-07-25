@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
 import ChartErrorBoundary from './ChartErrorBoundary'
 import styles from './MetricsDashboard.module.css'
 import {
   METRICS_API_URL,
   byHealthThenName,
-  containerDisplayName,
   containerLabel,
+  containerLabelLookup,
   fetchJson,
   formatUptime,
   splitHostTimeseries,
@@ -125,6 +125,14 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
   const [containerTimeseries, setContainerTimeseries] = useState<TimeSeriesResponse | null>(null)
   const [timeRange, setTimeRange] = useState<'30m' | '1d' | '7d'>('1d')
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+
+  // Charts get their container names from timeseries labels, which carry only
+  // the raw name. Resolving through the containers list keeps every chart
+  // series named the same as the card above it.
+  const seriesLabel = useMemo(
+    () => containerLabelLookup(containerMetrics?.containers ?? []),
+    [containerMetrics],
+  )
 
   useEffect(() => {
     // The flag discards resolutions that land after a range change (or
@@ -694,7 +702,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                           const defaultValues: Record<string, number> = {}
                           cpuSeries.forEach(s => {
                             if (s.labels?.name) {
-                              const shortName = containerDisplayName(s.labels.name)
+                              const shortName = seriesLabel(s.labels.name)
                               defaultValues[shortName] = 0
                             }
                           })
@@ -708,7 +716,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                               const key = roundedTime.toISOString()
                               const existing = dataMap.get(key) || {}
                               if (s.labels?.name) {
-                                const shortName = containerDisplayName(s.labels.name)
+                                const shortName = seriesLabel(s.labels.name)
                                 existing[shortName] = v.value
                               }
                               dataMap.set(key, existing)
@@ -730,7 +738,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                           <Tooltip content={<SortedTooltip />} />
                           {containerTimeseries.series.filter(s => s.metric_name === 'cpu_usage' && s.labels?.name).map((s, i) => {
                             const colors = [COLORS.primary, COLORS.success, COLORS.warning, COLORS.danger, COLORS.info, COLORS.secondary]
-                            const shortName = containerDisplayName(s.labels!.name)
+                            const shortName = seriesLabel(s.labels!.name)
                             return <Line key={i} type="monotone" dataKey={shortName} stroke={colors[i % colors.length]} strokeWidth={2} dot={false} />
                           })}
                         </LineChart>
@@ -815,7 +823,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                           const defaultValues: Record<string, number> = {}
                           memSeries.forEach(s => {
                             if (s.labels?.name) {
-                              const shortName = containerDisplayName(s.labels.name)
+                              const shortName = seriesLabel(s.labels.name)
                               defaultValues[shortName] = 0
                             }
                           })
@@ -829,7 +837,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                               const key = roundedTime.toISOString()
                               const existing = dataMap.get(key) || {}
                               if (s.labels?.name) {
-                                const shortName = containerDisplayName(s.labels.name)
+                                const shortName = seriesLabel(s.labels.name)
                                 existing[shortName] = v.value
                               }
                               dataMap.set(key, existing)
@@ -851,7 +859,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                           <Tooltip content={<SortedTooltip />} />
                           {containerTimeseries.series.filter(s => s.metric_name === 'memory_usage_percent' && s.labels?.name).map((s, i) => {
                             const colors = [COLORS.primary, COLORS.success, COLORS.warning, COLORS.danger, COLORS.info, COLORS.secondary]
-                            const shortName = containerDisplayName(s.labels!.name)
+                            const shortName = seriesLabel(s.labels!.name)
                             return <Line key={i} type="monotone" dataKey={shortName} stroke={colors[i % colors.length]} strokeWidth={2} dot={false} />
                           })}
                         </LineChart>
@@ -859,6 +867,68 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                     </ChartErrorBoundary>
                   ) : (
                     <NoDataMessage />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Container Restarts — the one thing a point-in-time check can't
+                give. The cards above describe the current run, so a loop that
+                started and resolved overnight leaves no trace on them; this is
+                where it shows up. */}
+            <div className={styles.section}>
+              <h2 className={styles.sectionTitle}>Container Restarts</h2>
+              <div className={styles.sectionGrid}>
+                <div className={styles.compactChart}>
+                  <h4>Restarts Over Time</h4>
+                  {containerTimeseries?.series?.some(s => s.metric_name === 'restarts') ? (
+                    <ChartErrorBoundary>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <LineChart data={(() => {
+                          const restartSeries = containerTimeseries.series.filter(s => s.metric_name === 'restarts')
+
+                          const defaultValues: Record<string, number> = {}
+                          restartSeries.forEach(s => {
+                            if (s.labels?.name) defaultValues[seriesLabel(s.labels.name)] = 0
+                          })
+
+                          const dataMap = new Map()
+                          restartSeries.forEach(s => {
+                            s.values?.forEach(v => {
+                              const roundedTime = new Date(Math.round(new Date(v.timestamp).getTime() / 30000) * 30000)
+                              const key = roundedTime.toISOString()
+                              const existing = dataMap.get(key) || {}
+                              if (s.labels?.name) existing[seriesLabel(s.labels.name)] = v.value
+                              dataMap.set(key, existing)
+                            })
+                          })
+
+                          return fillTimeSeriesWithRange(dataMap, defaultValues)
+                        })()}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis
+                            dataKey="time"
+                            stroke="#888"
+                            fontSize={10}
+                            interval="preserveStartEnd"
+                            domain={['dataMin', 'dataMax']}
+                            type="category"
+                          />
+                          {/* Restarts are counts, so half a restart is not a
+                              reading the axis should offer. */}
+                          <YAxis stroke="#888" fontSize={10} allowDecimals={false} />
+                          {/* Not SortedTooltip: it suffixes every value with %,
+                              which is right for CPU and wrong for a count. */}
+                          <Tooltip />
+                          {containerTimeseries.series.filter(s => s.metric_name === 'restarts' && s.labels?.name).map((s, i) => {
+                            const colors = [COLORS.danger, COLORS.warning, COLORS.primary, COLORS.info, COLORS.success, COLORS.secondary]
+                            return <Line key={i} type="monotone" dataKey={seriesLabel(s.labels!.name)} stroke={colors[i % colors.length]} strokeWidth={2} dot={false} />
+                          })}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </ChartErrorBoundary>
+                  ) : (
+                    <NoDataMessage message="No restart data in this window" />
                   )}
                 </div>
               </div>

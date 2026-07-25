@@ -441,3 +441,70 @@
   color: rgba(255, 153, 153, 0.7);
   font-style: italic;
 }
+/* Containers tab. The stack runs ~14 containers with eight columns each, which
+   is wider than a phone; the table scrolls inside this wrapper rather than
+   making the page scroll sideways. */
+.tableScroll {
+  overflow-x: auto;
+}
+
+.containerTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.containerTable th {
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 400;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.5);
+  border-bottom: 1px solid rgba(102, 182, 255, 0.2);
+  white-space: nowrap;
+}
+
+.containerTable td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: #66b6ff;
+  white-space: nowrap;
+}
+
+.containerTable td:first-child {
+  color: #fff;
+}
+
+.containerTable a {
+  color: #66b6ff;
+  text-decoration: none;
+  border-bottom: 1px dotted rgba(102, 182, 255, 0.4);
+}
+
+.containerTable a:hover {
+  border-bottom-style: solid;
+}
+
+/* Unhealthy rows are already sorted to the top; this is so the boundary between
+   them and the healthy ones is visible without reading every state cell. */
+.rowUnhealthy td {
+  background: rgba(255, 107, 107, 0.06);
+}
+
+.rowUnhealthy td:nth-child(2) {
+  color: #ff6b6b;
+}
+
+.rowNote {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+}
+
+.driftFlag {
+  color: #ffd93d;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
