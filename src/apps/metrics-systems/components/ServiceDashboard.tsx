@@ -5,10 +5,14 @@ import styles from './MetricsDashboard.module.css'
 import ContainerHealthStrip from './ContainerHealth'
 import {
   METRICS_API_URL,
+  bucketMs,
   fetchJson,
+  fillWindow,
+  seriesWindow,
   serviceDisplayName,
   type ContainerDetail,
   type ContainerStats,
+  type SeriesWindow,
   type ServiceMetricsResponse,
   type TimeSeries,
   type TimeSeriesResponse,
@@ -43,39 +47,54 @@ const formatValue = (value: number) => {
 const prettyLabel = (label: string) =>
   label.split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 
-const NoDataMessage = () => <div className={styles.noData}>No data available</div>
+const NoDataMessage = ({ message = 'No data available' }: { message?: string }) => (
+  <div className={styles.noData}>{message}</div>
+)
 
 const SeriesChart = ({
   title,
   series,
+  frame,
   color,
   unit,
   area = false,
   scale = (value: number) => value,
+  emptyMessage,
 }: {
   title: string
   series: TimeSeries | undefined
+  frame: SeriesWindow | null
   color: string
   unit: string
   area?: boolean
   scale?: (value: number) => number
+  emptyMessage?: string
 }) => {
-  const formatTimestamp = (timestamp: string) =>
-    new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-
   if (!series?.values?.length) {
     return (
       <div className={styles.compactChart}>
         <h4>{title}</h4>
-        <NoDataMessage />
+        <NoDataMessage message={emptyMessage} />
       </div>
     )
   }
 
-  const data = series.values.map((v) => ({
-    time: formatTimestamp(v.timestamp),
-    value: scale(Math.max(0, v.value || 0)),
-  }))
+  // The samples cover whatever slice of the window the service was actually up
+  // and scraped for; the chart still spans the range the user selected, with
+  // the uncovered buckets zero-filled, instead of shrinking to fit the data.
+  let data: Array<{ time: string; value: number }>
+  if (frame) {
+    const rows = new Map<number, { value: number }>()
+    series.values.forEach((v) => {
+      rows.set(bucketMs(v.timestamp, frame), { value: scale(Math.max(0, v.value || 0)) })
+    })
+    data = fillWindow(frame, rows, { value: 0 })
+  } else {
+    data = series.values.map((v) => ({
+      time: new Date(v.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      value: scale(Math.max(0, v.value || 0)),
+    }))
+  }
   const ChartComponent = area ? AreaChart : LineChart
 
   return (
@@ -110,6 +129,10 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
   const [timeRange, setTimeRange] = useState<'30m' | '1d' | '7d'>('1d')
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [lastService, setLastService] = useState(service)
+  // True until the first fetch for this service settles either way. Empty
+  // panels say "Loading…" during it — flashing "No data available" for the
+  // second before data lands claims a gap that doesn't exist.
+  const [loading, setLoading] = useState(true)
 
   // Tab switches drop the previous service's data during render, so a
   // slow fetch can't flash stale numbers under the new title.
@@ -118,6 +141,7 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
     setScalar(null)
     setTimeseries(null)
     setContainer(null)
+    setLoading(true)
   }
 
   useEffect(() => {
@@ -139,6 +163,7 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
         fetchJson<ContainerDetail>(`${METRICS_API_URL}/container/${service}`),
       ])
       if (!active) return
+      setLoading(false)
 
       if (scalarData) setScalar(scalarData)
       if (seriesData) setTimeseries(seriesData)
@@ -166,6 +191,8 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
   const findSeries = (name: string) => timeseries?.series?.find((s) => s.metric_name === name)
   const customSeries = (timeseries?.series ?? []).filter((s) => !STANDARD_SERIES.has(s.metric_name))
   const standard = scalar?.standard
+  const frame = seriesWindow(timeseries)
+  const emptyMessage = loading ? 'Loading…' : undefined
 
   const COLORS = {
     primary: '#66b6ff',
@@ -201,46 +228,49 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
         {/* Above the serving block, and deliberately not behind `standard`:
             the case this exists for is a container that never got far enough
             to emit a single metric, which is exactly when `standard` is null
-            and everything below renders empty. */}
-        <ContainerHealthStrip container={container} />
+            and everything below renders empty. A one-line strip rather than a
+            card cluster — it's context for the page, not the page. */}
+        <ContainerHealthStrip container={container} loading={loading} />
 
-        {/* The standard serving block, identical for every service. */}
-        {standard && (
-          <div className={styles.overviewCards}>
-            <div className={styles.miniCard}>
-              <div className={styles.miniLabel}>Req/s</div>
-              <div className={styles.miniValue}>{(standard.rate_per_sec || 0).toFixed(2)}</div>
-            </div>
-            <div className={styles.miniCard}>
-              <div className={styles.miniLabel}>Error %</div>
-              <div className={styles.miniValue}>{(standard.error_rate_percent || 0).toFixed(1)}</div>
-            </div>
-            <div className={styles.miniCard}>
-              <div className={styles.miniLabel}>Avg ms</div>
-              <div className={styles.miniValue}>{((standard.avg_duration_microseconds || 0) / 1000).toFixed(1)}</div>
-            </div>
-            <div className={styles.miniCard}>
-              <div className={styles.miniLabel}>P95 ms</div>
-              <div className={styles.miniValue}>{((standard.p95_duration_microseconds || 0) / 1000).toFixed(1)}</div>
-            </div>
-            <div className={styles.miniCard}>
-              <div className={styles.miniLabel}>Active</div>
-              <div className={styles.miniValue}>{(standard.active_requests || 0).toFixed(0)}</div>
-            </div>
-            <div className={styles.miniCard}>
-              <div className={styles.miniLabel}>Total</div>
-              <div className={styles.miniValue}>{formatValue(standard.requests_total || 0)}</div>
-            </div>
-          </div>
-        )}
-
+        {/* The standard serving block, identical for every service. The
+            point-in-time tiles live inside the section, under its title, so
+            the first thing on the page is a labeled unit rather than a
+            free-floating cluster of numbers. */}
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Serving</h2>
+          {standard && (
+            <div className={styles.overviewCards}>
+              <div className={styles.miniCard}>
+                <div className={styles.miniLabel}>Req/s</div>
+                <div className={styles.miniValue}>{(standard.rate_per_sec || 0).toFixed(2)}</div>
+              </div>
+              <div className={styles.miniCard}>
+                <div className={styles.miniLabel}>Error %</div>
+                <div className={styles.miniValue}>{(standard.error_rate_percent || 0).toFixed(1)}</div>
+              </div>
+              <div className={styles.miniCard}>
+                <div className={styles.miniLabel}>Avg ms</div>
+                <div className={styles.miniValue}>{((standard.avg_duration_microseconds || 0) / 1000).toFixed(1)}</div>
+              </div>
+              <div className={styles.miniCard}>
+                <div className={styles.miniLabel}>P95 ms</div>
+                <div className={styles.miniValue}>{((standard.p95_duration_microseconds || 0) / 1000).toFixed(1)}</div>
+              </div>
+              <div className={styles.miniCard}>
+                <div className={styles.miniLabel}>Active</div>
+                <div className={styles.miniValue}>{(standard.active_requests || 0).toFixed(0)}</div>
+              </div>
+              <div className={styles.miniCard}>
+                <div className={styles.miniLabel}>Total</div>
+                <div className={styles.miniValue}>{formatValue(standard.requests_total || 0)}</div>
+              </div>
+            </div>
+          )}
           <div className={styles.sectionGrid}>
-            <SeriesChart title="Request Rate" series={findSeries('request_rate')} color={COLORS.primary} unit="req/s" />
-            <SeriesChart title="Error Rate" series={findSeries('error_rate_percent')} color={COLORS.danger} unit="%" />
-            <SeriesChart title="P95 Latency" series={findSeries('p95_duration_us')} color={COLORS.warning} unit="ms" scale={(v) => v / 1000} area />
-            <SeriesChart title="Active Requests" series={findSeries('active_requests')} color={COLORS.success} unit="" area />
+            <SeriesChart title="Request Rate" series={findSeries('request_rate')} frame={frame} color={COLORS.primary} unit="req/s" emptyMessage={emptyMessage} />
+            <SeriesChart title="Error Rate" series={findSeries('error_rate_percent')} frame={frame} color={COLORS.danger} unit="%" emptyMessage={emptyMessage} />
+            <SeriesChart title="P95 Latency" series={findSeries('p95_duration_us')} frame={frame} color={COLORS.warning} unit="ms" scale={(v) => v / 1000} area emptyMessage={emptyMessage} />
+            <SeriesChart title="Active Requests" series={findSeries('active_requests')} frame={frame} color={COLORS.success} unit="" area emptyMessage={emptyMessage} />
           </div>
         </div>
 
@@ -272,8 +302,10 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
                   key={series.metric_name}
                   title={prettyLabel(series.metric_name)}
                   series={series}
+                  frame={frame}
                   color={[COLORS.primary, COLORS.info, COLORS.success, COLORS.warning][index % 4]}
                   unit=""
+                  emptyMessage={emptyMessage}
                 />
               ))}
             </div>

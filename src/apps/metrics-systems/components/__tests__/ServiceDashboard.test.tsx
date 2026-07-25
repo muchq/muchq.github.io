@@ -2,10 +2,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, act, screen, fireEvent, within } from '@testing-library/react'
 import ServiceDashboard from '../ServiceDashboard'
 
+// `data` length is forwarded onto the chart stubs: whether a chart spans the
+// full selected window or only the samples it happened to get is precisely a
+// question about how many rows it was given.
 vi.mock('recharts', () => ({
-  LineChart: ({ children }: { children: React.ReactNode }) => <div data-testid="line-chart">{children}</div>,
+  LineChart: ({ children, data }: { children: React.ReactNode; data?: unknown[] }) => (
+    <div data-testid="line-chart" data-row-count={data?.length ?? 0}>{children}</div>
+  ),
   Line: () => <div data-testid="line" />,
-  AreaChart: ({ children }: { children: React.ReactNode }) => <div data-testid="area-chart">{children}</div>,
+  AreaChart: ({ children, data }: { children: React.ReactNode; data?: unknown[] }) => (
+    <div data-testid="area-chart" data-row-count={data?.length ?? 0}>{children}</div>
+  ),
   Area: () => <div data-testid="area" />,
   XAxis: () => <div data-testid="x-axis" />,
   YAxis: () => <div data-testid="y-axis" />,
@@ -170,6 +177,34 @@ describe('ServiceDashboard', () => {
     expect(screen.queryByText('Sessions')).toBeNull()
     const urls = mockFetch.mock.calls.map((call) => String(call[0]))
     expect(urls.some((url) => url.endsWith('/service/portrait'))).toBe(true)
+  })
+
+  it('charts the full selected window, not just the buckets with samples', async () => {
+    // The fixture's window is 1 day at a 30s step with a single sample. A
+    // chart that plots only its samples gets one row; the filled grid gets
+    // one per bucket — 86400/30 + 1 — so the x-axis spans the selected range
+    // even when the service was only up for a fraction of it.
+    render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    const counts = screen
+      .getAllByTestId('line-chart')
+      .map((chart) => Number(chart.getAttribute('data-row-count')))
+    expect(Math.max(...counts)).toBe(2881)
+  })
+
+  it('says loading, not "no data", before the first fetch resolves', () => {
+    mockFetch.mockImplementation(() => new Promise(() => {}))
+    render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+
+    // A pending fetch is a promise of an answer, not an answer. "No data
+    // available" flashing before every load claims a gap that doesn't exist.
+    expect(screen.getAllByText('Loading…').length).toBeGreaterThan(0)
+    expect(screen.queryByText('No data available')).toBeNull()
+    expect(screen.getByTestId('container-state').textContent).toBe('loading')
   })
 
   it('refetches with the selected range', async () => {

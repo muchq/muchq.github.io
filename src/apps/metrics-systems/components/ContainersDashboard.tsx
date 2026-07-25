@@ -59,8 +59,11 @@ const ContainersDashboard = ({ onConnectionStateChange }: ContainersDashboardPro
   const sorted = useMemo(() => [...(containers ?? [])].sort(byHealthThenName), [containers])
   const stack = useMemo(() => stackVersion(containers ?? []), [containers])
 
+  // No .dashboard wrapper here: MetricsPage already provides it, and nesting a
+  // second one doubled the 80px nav padding on this tab alone. The grid wrapper
+  // caps the table at the same width as the other tabs' content.
   return (
-    <div className={styles.dashboard}>
+    <div>
       <div className={styles.header}>
         <h1 className={styles.title}>Containers</h1>
         <div className={styles.controls}>
@@ -68,35 +71,37 @@ const ContainersDashboard = ({ onConnectionStateChange }: ContainersDashboardPro
         </div>
       </div>
 
-      {containers === null ? (
-        <div className={styles.noData}>Loading containers…</div>
-      ) : sorted.length === 0 ? (
-        <div className={styles.noData}>No containers reported</div>
-      ) : (
-        <div className={styles.section}>
-          <div className={styles.tableScroll}>
-            <table className={styles.containerTable} data-testid="containers-table">
-              <thead>
-                <tr>
-                  <th>Container</th>
-                  <th>State</th>
-                  <th>Uptime</th>
-                  <th>Restarts</th>
-                  <th>Last seen</th>
-                  <th>CPU</th>
-                  <th>Memory</th>
-                  <th>Version</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((container) => (
-                  <ContainerRow key={container.name} container={container} stack={stack} />
-                ))}
-              </tbody>
-            </table>
+      <div className={styles.metricsGrid}>
+        {containers === null ? (
+          <div className={styles.noData}>Loading containers…</div>
+        ) : sorted.length === 0 ? (
+          <div className={styles.noData}>No containers reported</div>
+        ) : (
+          <div className={styles.section}>
+            <div className={styles.tableScroll}>
+              <table className={styles.containerTable} data-testid="containers-table">
+                <thead>
+                  <tr>
+                    <th>Container</th>
+                    <th>State</th>
+                    <th>Uptime</th>
+                    <th>Restarts</th>
+                    <th>Last seen</th>
+                    <th>CPU</th>
+                    <th>Memory</th>
+                    <th>Version</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sorted.map((container) => (
+                    <ContainerRow key={container.name} container={container} stack={stack} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

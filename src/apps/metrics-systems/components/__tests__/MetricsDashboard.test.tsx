@@ -141,6 +141,16 @@ describe('MetricsDashboard (host view)', () => {
     expect(urls.some((url) => url.endsWith('/host/timeseries/7d'))).toBe(true)
   })
 
+  it('says loading, not "no data", before the first fetch resolves', () => {
+    // A pending fetch is a promise of an answer, not an answer. Every chart
+    // used to flash "No data available" for the second before data landed.
+    mockFetch.mockImplementation(() => new Promise(() => {}))
+    render(<MetricsDashboard onConnectionStateChange={vi.fn()} />)
+
+    expect(screen.getAllByText('Loading…').length).toBeGreaterThan(0)
+    expect(screen.queryByText('No data available')).toBeNull()
+  })
+
   it('stays up with empty sections when the API is down', async () => {
     mockFetch.mockImplementation(() => Promise.resolve({ ok: false, text: () => Promise.resolve('') }))
     const onConnectionStateChange = vi.fn()
