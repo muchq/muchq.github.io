@@ -137,6 +137,11 @@
   font-weight: 300;
   color: #66b6ff;
   letter-spacing: -0.3px;
+  /* These cards hold values from the metrics backend, not fixed copy, so a long
+     one must wrap inside its card rather than paint across the page. `anywhere`
+     rather than `break-word` because the values that overflow are unbroken
+     identifiers — image tags, container names — with no break opportunity. */
+  overflow-wrap: anywhere;
 }
 
 .miniUnit {

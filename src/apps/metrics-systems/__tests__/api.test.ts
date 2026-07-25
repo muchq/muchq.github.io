@@ -6,6 +6,7 @@ import {
   fetchJson,
   formatUptime,
   serviceDisplayName,
+  shortVersion,
   splitHostTimeseries,
   type ContainerStats,
   type TimeSeriesResponse,
@@ -152,5 +153,26 @@ describe('formatUptime', () => {
     // reads like a fact about a running container.
     expect(formatUptime(0)).toBe('—')
     expect(formatUptime(NaN)).toBe('—')
+  })
+})
+
+describe('shortVersion', () => {
+  it('cuts a full commit SHA to git short form', () => {
+    // What deploys actually pin. 40 unbroken hex characters have no break
+    // opportunity, so rendering them raw overflows the card they sit in.
+    expect(shortVersion('c0bcc5049c30e654c319ae39627a4a8f7800d077')).toBe('c0bcc50')
+  })
+
+  it('leaves anything that is not hex alone', () => {
+    // Cutting these would lose information rather than abbreviate it.
+    expect(shortVersion('v2.1.0-rc.3')).toBe('v2.1.0-rc.3')
+    expect(shortVersion('latest')).toBe('latest')
+    expect(shortVersion('')).toBe('')
+  })
+
+  it('leaves an already-short SHA alone', () => {
+    // Nothing to gain, and re-cutting a 7-char SHA to 7 chars would make the
+    // threshold invisible if it ever changed.
+    expect(shortVersion('abc1234')).toBe('abc1234')
   })
 })

@@ -102,6 +102,18 @@ export function byHealthThenName(a: ContainerStats, b: ContainerStats): number {
   return containerLabel(a).localeCompare(containerLabel(b))
 }
 
+// Deploys pin images by full commit SHA (MoonBase#1210), so `version` arrives as
+// 40 hex characters — an unbroken string with nowhere to wrap, which paints
+// straight out of its card. Show git's short form instead.
+//
+// Only strings that are actually hex are cut. A semver tag or `latest` is left
+// alone: truncating those would lose information rather than abbreviate it.
+const LONG_SHA = /^[0-9a-f]{12,}$/i
+
+export function shortVersion(version: string): string {
+  return LONG_SHA.test(version) ? version.slice(0, 7) : version
+}
+
 export function formatUptime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) return '—'
   if (seconds < 60) return `${Math.floor(seconds)}s`
