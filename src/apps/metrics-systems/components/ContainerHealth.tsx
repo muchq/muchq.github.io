@@ -6,7 +6,9 @@ import { containerLabel, formatUptime, type ContainerStats } from '../api'
 // before it binds a port emits none of them — which looks exactly like an idle
 // but healthy service: flat lines, no errors, no gap.
 //
-//   null            the endpoint 404'd or the fetch failed — no container
+//   null            the endpoint 404'd or the fetch failed. These are not the
+//                   same thing, and fetchJson can't tell them apart, so this
+//                   renders "unknown" rather than claiming the container is gone
 //   reporting=false cAdvisor knows the container but returned no samples
 //   otherwise       real numbers, so up/restarting/crash-looping is decidable
 //
@@ -21,7 +23,7 @@ export function ContainerHealthStrip({ container }: { container: ContainerStats 
           <div className={styles.miniValue} data-testid="container-state">
             unknown
           </div>
-          <div className={styles.miniUnit}>no container found</div>
+          <div className={styles.miniUnit}>no data</div>
         </div>
       </div>
     )
