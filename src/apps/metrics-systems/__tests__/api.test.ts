@@ -5,7 +5,13 @@ import {
   containerLabel,
   fetchJson,
   formatUptime,
+  buildUrl,
+  commitUrl,
+  containerState,
+  formatBytes,
+  hasDrifted,
   serviceDisplayName,
+  stackVersion,
   shortVersion,
   splitHostTimeseries,
   type ContainerStats,
@@ -174,5 +180,86 @@ describe('shortVersion', () => {
     // Nothing to gain, and re-cutting a 7-char SHA to 7 chars would make the
     // threshold invisible if it ever changed.
     expect(shortVersion('abc1234')).toBe('abc1234')
+  })
+})
+
+describe('containerState', () => {
+  it('separates a container it cannot see from a healthy one', () => {
+    // A failed cAdvisor query leaves 0 restarts and 0 uptime, which is
+    // byte-identical to a healthy container. Only `reporting` tells them apart.
+    expect(containerState(stats({ name: 'a', reporting: false }))).toBe('not reporting')
+    expect(containerState(stats({ name: 'a', reporting: true }))).toBe('up')
+  })
+
+  it('reads a missing reporting field as reporting', () => {
+    // A prom_proxy older than MoonBase#1218 sends no such field; defaulting it
+    // to false would show the whole stack as blind after a UI-only deploy.
+    const legacy = stats({ name: 'a' }) as unknown as Record<string, unknown>
+    delete legacy.reporting
+    expect(containerState(legacy as unknown as ContainerStats)).toBe('up')
+  })
+
+  it('ranks a crash loop above ordinary restart churn', () => {
+    expect(containerState(stats({ name: 'a', crash_looping: true, restarts_last_hour: 5 }))).toBe('crash looping')
+    expect(containerState(stats({ name: 'a', restarts_last_hour: 2 }))).toBe('restarting')
+  })
+})
+
+describe('stackVersion and hasDrifted', () => {
+  const at = (service: string, version: string) => stats({ name: service, service, version })
+
+  it('takes the revision most of the stack is running', () => {
+    const containers = [at('a', 'aaaaaaaaaaaa1'), at('b', 'aaaaaaaaaaaa1'), at('c', 'bbbbbbbbbbbb2')]
+    expect(stackVersion(containers)).toBe('aaaaaaaaaaaa1')
+  })
+
+  it('flags only the container that disagrees', () => {
+    const containers = [at('a', 'aaaaaaaaaaaa1'), at('b', 'aaaaaaaaaaaa1'), at('c', 'bbbbbbbbbbbb2')]
+    const stack = stackVersion(containers)
+    expect(hasDrifted(containers[0], stack)).toBe(false)
+    expect(hasDrifted(containers[2], stack)).toBe(true)
+  })
+
+  it('flags nothing when the stack agrees', () => {
+    const containers = [at('a', 'aaaaaaaaaaaa1'), at('b', 'aaaaaaaaaaaa1')]
+    const stack = stackVersion(containers)
+    expect(containers.every((c) => !hasDrifted(c, stack))).toBe(true)
+  })
+
+  it('ignores upstream tags entirely', () => {
+    // caddy:2-alpine is not pinned per commit, so counting it toward the stack
+    // revision or flagging it against one would misfire on every deploy.
+    const containers = [at('golf_hub', 'aaaaaaaaaaaa1'), at('caddy', '2-alpine'), at('pg', '16')]
+    expect(stackVersion(containers)).toBe('aaaaaaaaaaaa1')
+    expect(hasDrifted(containers[1], 'aaaaaaaaaaaa1')).toBe(false)
+    expect(hasDrifted(containers[2], 'aaaaaaaaaaaa1')).toBe(false)
+  })
+
+  it('has no opinion when nothing is pinned to a commit', () => {
+    expect(stackVersion([at('caddy', '2-alpine'), at('pg', '16')])).toBeNull()
+    expect(hasDrifted(at('caddy', '2-alpine'), null)).toBe(false)
+  })
+})
+
+describe('commit and build links', () => {
+  it('links the full SHA even though the short one is displayed', () => {
+    const sha = 'c0bcc5049c30e654c319ae39627a4a8f7800d077'
+    expect(commitUrl(sha)).toBe(`https://github.com/muchq/MoonBase/commit/${sha}`)
+    expect(buildUrl(sha)).toBe(`https://github.com/muchq/MoonBase/commit/${sha}/checks`)
+    expect(shortVersion(sha)).toBe('c0bcc50')
+  })
+})
+
+describe('formatBytes', () => {
+  it('picks the largest whole unit', () => {
+    expect(formatBytes(512)).toBe('512 B')
+    expect(formatBytes(1048576)).toBe('1 MB')
+    expect(formatBytes(1610612736)).toBe('1.5 GB')
+  })
+
+  it('does not run off the end of the unit list', () => {
+    // Memory limits arrive unset as enormous sentinels on some containers.
+    expect(formatBytes(Number.MAX_SAFE_INTEGER)).toContain('TB')
+    expect(formatBytes(0)).toBe('0 B')
   })
 })

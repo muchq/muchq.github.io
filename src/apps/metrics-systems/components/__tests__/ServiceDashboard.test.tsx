@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, act, screen, fireEvent } from '@testing-library/react'
+import { render, act, screen, fireEvent, within } from '@testing-library/react'
 import ServiceDashboard from '../ServiceDashboard'
 
 vi.mock('recharts', () => ({
@@ -223,7 +223,7 @@ describe('ServiceDashboard', () => {
       expect(screen.getByTestId('container-state').textContent).toBe('up')
       expect(screen.getByTestId('container-uptime').textContent).toBe('2h')
       expect(screen.getByTestId('container-restarts').textContent).toBe('0')
-      expect(screen.getByTestId('container-version').textContent).toBe('c0bcc50')
+      expect(within(screen.getByTestId('container-version')).getByText('c0bcc50')).toBeTruthy()
     })
 
     it('shortens the pinned commit SHA but keeps the full one on hover', async () => {
@@ -232,10 +232,39 @@ describe('ServiceDashboard', () => {
       // shoving the strip across the page — which is what shipped in #243.
       await renderAndSettle()
 
-      const version = screen.getByTestId('container-version')
-      expect(version.textContent).toBe('c0bcc50')
+      const commit = within(screen.getByTestId('container-version')).getByText('c0bcc50')
       // Abbreviating is only acceptable because the full value stays reachable.
-      expect(version.getAttribute('title')).toBe('c0bcc5049c30e654c319ae39627a4a8f7800d077')
+      expect(commit.getAttribute('title')).toBe('c0bcc5049c30e654c319ae39627a4a8f7800d077')
+    })
+
+    it('links the running revision to its commit and its build', async () => {
+      // Seeing which revision is live is half the job; the other half is
+      // getting from it to the code and the CI run without hand-assembling a
+      // GitHub URL from a SHA (MoonBase#1208 §4).
+      await renderAndSettle()
+
+      const version = within(screen.getByTestId('container-version'))
+      const sha = 'c0bcc5049c30e654c319ae39627a4a8f7800d077'
+      // The full SHA is what's linked, even though the short one is displayed.
+      expect(version.getByText('c0bcc50').getAttribute('href')).toBe(`https://github.com/muchq/MoonBase/commit/${sha}`)
+      expect(version.getByText('build').getAttribute('href')).toBe(
+        `https://github.com/muchq/MoonBase/commit/${sha}/checks`,
+      )
+    })
+
+    it('does not link an upstream image tag', async () => {
+      // caddy:2-alpine has no MoonBase commit behind it, so /commit/2-alpine
+      // would be a 404 dressed up as a useful link.
+      mockFetch.mockImplementation((url: string) => {
+        if (url.endsWith('/container/golf_hub')) return ok(containerDetail({ version: '2-alpine' }))
+        if (url.endsWith('/service/golf_hub')) return ok(scalarResponse)
+        return ok(timeseriesResponse)
+      })
+      await renderAndSettle()
+
+      const version = screen.getByTestId('container-version')
+      expect(version.textContent).toContain('2-alpine')
+      expect(version.querySelector('a')).toBeNull()
     })
 
     it('leaves a version that is not a SHA alone', async () => {

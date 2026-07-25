@@ -28,6 +28,29 @@ const catalogResponse = {
   ],
 }
 
+const containersResponse = {
+  timestamp: new Date().toISOString(),
+  containers: [
+    {
+      name: 'ubuntu-caddy-1',
+      service: 'caddy',
+      cpu_usage_percent: 1.0,
+      cpu_throttled_seconds: 0,
+      memory_usage_bytes: 1048576,
+      memory_limit_bytes: 268435456,
+      memory_usage_percent: 0.4,
+      network_rx_bytes_per_sec: 0,
+      network_tx_bytes_per_sec: 0,
+      restarts_last_hour: 0,
+      uptime_seconds: 7200,
+      crash_looping: false,
+      image: 'caddy:2-alpine',
+      version: '2-alpine',
+      reporting: true,
+    },
+  ],
+}
+
 const LocationSpy = () => {
   const location = useLocation()
   return <span data-testid="location">{location.pathname}</span>
@@ -48,6 +71,9 @@ describe('MetricsPage', () => {
       if (url.endsWith('/services')) {
         return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify(catalogResponse)) })
       }
+      if (url.endsWith('/containers')) {
+        return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify(containersResponse)) })
+      }
       return Promise.resolve({ ok: false, text: () => Promise.resolve('') })
     }) as unknown as typeof fetch
   })
@@ -59,9 +85,26 @@ describe('MetricsPage', () => {
       await new Promise((resolve) => setTimeout(resolve, 100))
     })
 
+    // Host and Containers are the two tabs that aren't services: the catalog
+    // never lists them, so they're prepended rather than derived from it.
     const tabs = screen.getAllByRole('button').map((button) => button.textContent)
-    expect(tabs.slice(0, 4)).toEqual(['Host', 'Golf Hub', 'MicroGPT', 'Portrait'])
+    expect(tabs.slice(0, 5)).toEqual(['Host', 'Containers', 'Golf Hub', 'MicroGPT', 'Portrait'])
     expect(screen.getByText('Host Metrics')).toBeTruthy()
+  })
+
+  it('resolves the containers tab instead of bouncing it to host', async () => {
+    // `containers` was a legacy redirect to `host` while the overhaul had no
+    // container view. It has one again, so the route resolves rather than
+    // redirecting — and the catalog can't vouch for it, so the unknown-tab
+    // redirect has to know it's built in.
+    renderAt('/metrics/containers')
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    expect(screen.getByTestId('location').textContent).toBe('/metrics/containers')
+    expect(screen.getByTestId('containers-table')).toBeTruthy()
   })
 
   it('redirects legacy tabs to their new homes', async () => {

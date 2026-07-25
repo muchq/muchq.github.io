@@ -2,10 +2,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, act, screen, fireEvent, within } from '@testing-library/react'
 import MetricsDashboard from '../MetricsDashboard'
 
-// Mock the recharts library to avoid canvas issues in tests
+// Mock the recharts library to avoid canvas issues in tests.
+//
+// The naming props are forwarded onto the stubs rather than dropped. `dataKey`
+// is what binds a <Line> to a key in its chart's data, so a mock that discards
+// it cannot tell a correctly-named series from a wrong one — every container
+// name in a chart was unasserted while it did.
+type ChartRow = Record<string, unknown>
+const rowKeys = (data?: ChartRow[]) => JSON.stringify(Object.keys(data?.[0] ?? {}))
+const rowNames = (data?: ChartRow[]) => JSON.stringify((data ?? []).map((d) => d.name))
+
 vi.mock('recharts', () => ({
-  LineChart: ({ children }: { children: React.ReactNode }) => <div data-testid="line-chart">{children}</div>,
-  Line: () => <div data-testid="line" />,
+  LineChart: ({ children, data }: { children: React.ReactNode; data?: ChartRow[] }) => (
+    <div data-testid="line-chart" data-row-keys={rowKeys(data)}>{children}</div>
+  ),
+  Line: ({ dataKey }: { dataKey?: string }) => <div data-testid="line" data-key={dataKey} />,
   AreaChart: ({ children }: { children: React.ReactNode }) => <div data-testid="area-chart">{children}</div>,
   Area: () => <div data-testid="area" />,
   XAxis: () => <div data-testid="x-axis" />,
@@ -13,8 +24,10 @@ vi.mock('recharts', () => ({
   CartesianGrid: () => <div data-testid="cartesian-grid" />,
   Tooltip: () => <div data-testid="tooltip" />,
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="responsive-container">{children}</div>,
-  BarChart: ({ children }: { children: React.ReactNode }) => <div data-testid="bar-chart">{children}</div>,
-  Bar: () => <div data-testid="bar" />,
+  BarChart: ({ children, data }: { children: React.ReactNode; data?: ChartRow[] }) => (
+    <div data-testid="bar-chart" data-row-names={rowNames(data)}>{children}</div>
+  ),
+  Bar: ({ dataKey }: { dataKey?: string }) => <div data-testid="bar" data-key={dataKey} />,
   PieChart: ({ children }: { children: React.ReactNode }) => <div data-testid="pie-chart">{children}</div>,
   Pie: () => <div data-testid="pie" />,
   Cell: () => <div data-testid="cell" />
@@ -251,6 +264,96 @@ describe('MetricsDashboard (host view)', () => {
       expect(within(cards).getByText('caddy')).toBeTruthy()
       expect(within(cards).queryByText('moonbase-caddy')).toBeNull()
       expect(within(cards).queryByText('caddy0')).toBeNull()
+    })
+
+    it('names chart series by the compose service too, not just the cards', async () => {
+      // The cards and the charts take different routes to a name: cards read
+      // the container object, charts read a timeseries label that carries only
+      // the raw name. They disagreed — cards on the label, charts on the parse
+      // — so on any host whose compose project isn't `ubuntu-` the CPU chart's
+      // legend named containers differently from the cards directly above it.
+      mockFetch.mockImplementation((url: string) => {
+        if (url.includes('/host/timeseries/')) {
+          return Promise.resolve({
+            ok: true,
+            text: () =>
+              Promise.resolve(
+                JSON.stringify({
+                  ...hostTimeseriesResponse,
+                  series: [
+                    {
+                      metric_name: 'container_cpu_usage',
+                      labels: { name: 'moonbase-caddy-10' },
+                      values: [{ timestamp: new Date().toISOString(), value: 5.0 }],
+                    },
+                  ],
+                }),
+              ),
+          })
+        }
+        if (url.endsWith('/host')) {
+          return Promise.resolve({
+            ok: true,
+            text: () =>
+              Promise.resolve(
+                JSON.stringify({
+                  ...hostResponse,
+                  containers: [{ ...makeContainer('caddy'), name: 'moonbase-caddy-10' }],
+                }),
+              ),
+          })
+        }
+        return Promise.resolve({ ok: false })
+      })
+
+      await settle()
+
+      // dataKey is what binds a <Line> to a column in the chart's data, so it
+      // is the name the legend and tooltip actually show.
+      const keys = screen.getAllByTestId('line').map((el) => el.getAttribute('data-key'))
+      expect(keys).toContain('caddy')
+      expect(keys).not.toContain('moonbase-caddy')
+    })
+
+    it('charts restarts, so a loop that resolved overnight is still visible', async () => {
+      // The cards describe the current run, so a container that flapped at 3am
+      // and recovered shows nothing on them. #1215 ships this series on the
+      // host payload and, until now, nothing rendered it.
+      mockFetch.mockImplementation((url: string) => {
+        if (url.includes('/host/timeseries/')) {
+          return Promise.resolve({
+            ok: true,
+            text: () =>
+              Promise.resolve(
+                JSON.stringify({
+                  ...hostTimeseriesResponse,
+                  series: [
+                    {
+                      metric_name: 'container_restarts',
+                      labels: { name: 'ubuntu-golf_hub-1' },
+                      values: [{ timestamp: new Date().toISOString(), value: 3 }],
+                    },
+                  ],
+                }),
+              ),
+          })
+        }
+        if (url.endsWith('/host')) {
+          return Promise.resolve({
+            ok: true,
+            text: () => Promise.resolve(JSON.stringify({ ...hostResponse, containers: [makeContainer('golf_hub')] })),
+          })
+        }
+        return Promise.resolve({ ok: false })
+      })
+
+      await settle()
+
+      expect(screen.getByText('Container Restarts')).toBeTruthy()
+      // The only series in this fixture is restarts, so any <Line> at all comes
+      // from the new chart rather than from CPU or memory.
+      const keys = screen.getAllByTestId('line').map((el) => el.getAttribute('data-key'))
+      expect(keys).toContain('golf_hub')
     })
 
     it('falls back to the container name when the service label is absent', async () => {
