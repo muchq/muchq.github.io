@@ -1,0 +1,287 @@
+/* Room chat (MoonBase#1226), in the golf green/glass language. Drawer
+ * mode is the default — a floating toggle opening a bottom sheet, so
+ * nothing chat-shaped can cover cards or turn controls while closed —
+ * and viewports wide enough to have margin beside the 1200px content
+ * column dock the panel there as a stable sidebar instead. */
+
+.chatRoot {
+  display: contents;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 1rem;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.title {
+  font-weight: 600;
+  color: #fff;
+}
+
+.connection {
+  flex: 1;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: right;
+}
+
+.closeButton {
+  display: none;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.25rem;
+}
+
+.messageList {
+  flex: 1;
+  min-height: 8rem;
+  max-height: 24rem;
+  overflow-y: auto;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.emptyState {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.875rem;
+  text-align: center;
+  margin: auto 0;
+}
+
+.message {
+  max-width: 90%;
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.5rem;
+  padding: 0.375rem 0.625rem;
+}
+
+.ownMessage {
+  align-self: flex-end;
+  background: rgba(144, 238, 144, 0.15);
+  border-color: rgba(144, 238, 144, 0.3);
+}
+
+.messageMeta {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin-bottom: 0.125rem;
+}
+
+.sender {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #90ee90;
+}
+
+.timestamp {
+  font-size: 0.6875rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.messageText {
+  color: #fff;
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.newMessages {
+  margin: 0 auto 0.25rem;
+  background: rgba(144, 238, 144, 0.2);
+  border: 1px solid rgba(144, 238, 144, 0.4);
+  border-radius: 1rem;
+  color: #fff;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+}
+
+.composer {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  align-items: flex-end;
+}
+
+.input {
+  flex: 1;
+  resize: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0.5rem;
+  color: #fff;
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 0.5rem;
+}
+
+.input:disabled {
+  opacity: 0.5;
+}
+
+.composerSide {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.byteCount {
+  font-size: 0.6875rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.overLimit {
+  color: #ff8080;
+  font-weight: 600;
+}
+
+.sendButton {
+  background: #90ee90;
+  border: none;
+  border-radius: 0.5rem;
+  color: #0a3d0a;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.sendButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.drawerToggle {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 40;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(20, 60, 20, 0.9);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.unreadBadge {
+  position: absolute;
+  top: -0.375rem;
+  right: -0.375rem;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 0.625rem;
+  background: #ff6666;
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.25rem;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Drawer mode is the default: the golf content is centered at
+ * max-width 1200px, so only genuinely wide viewports have margin a
+ * docked panel can occupy without covering cards or controls. */
+.drawerToggle {
+  display: block;
+}
+
+.panel {
+  display: none;
+}
+
+.drawerOpen .panel {
+  display: flex;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 30%;
+  z-index: 50;
+  border-radius: 1rem 1rem 0 0;
+  background: rgba(10, 40, 10, 0.97);
+}
+
+.drawerOpen .drawerToggle {
+  display: none;
+}
+
+.drawerOpen .closeButton {
+  display: block;
+}
+
+.drawerOpen .messageList {
+  max-height: none;
+}
+
+@media (min-width: 1560px) {
+  /* Enough viewport margin beside the 1200px content column: dock the
+   * panel there permanently and retire the drawer chrome. */
+  .drawerToggle,
+  .drawerOpen .drawerToggle {
+    display: none;
+  }
+
+  .panel,
+  .drawerOpen .panel {
+    display: flex;
+    position: fixed;
+    right: 1rem;
+    top: 6rem;
+    bottom: 1.5rem;
+    left: auto;
+    width: 20rem;
+    z-index: 30;
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .closeButton,
+  .drawerOpen .closeButton {
+    display: none;
+  }
+
+  .messageList,
+  .drawerOpen .messageList {
+    max-height: none;
+  }
+}

@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { GameState, Player, Room } from '@/types/golf'
+import type { ChatMessage } from '@/types/golfChat'
+import { mergeChatMessages } from '@/types/golfChat'
 import { GolfNetworkAdapter } from '@/utils/networkAdapter'
 import { GolfV2NetworkAdapter } from '@/utils/golfV2Adapter'
 import { isGolfV2Enabled } from '@/utils/golfV2'
@@ -31,6 +33,15 @@ interface UseGolfGameReturn {
   winner: string | null
   winners: string[] | null
   finalScores: Array<{ playerName: string; score: number }> | null
+
+  // Room chat (MoonBase#1226): the room's merged history+live view,
+  // capped at 100 by the shared merge. Available only when the active
+  // adapter's wire carries chat (v2); v1 renders no chat UI.
+  chatMessages: ChatMessage[]
+  chatUnreadCount: number
+  chatAvailable: boolean
+  sendChat: (text: string) => void
+  markChatSeen: () => void
   
   // New game notifications
   newGameNotifications: Array<{
@@ -111,6 +122,12 @@ export const useGolfGame = ({
     error: null as string | null,
     gameJoinAttempted: false
   })
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatLastSeenId, setChatLastSeenId] = useState(0)
+  const [chatAvailable, setChatAvailable] = useState(false)
+  // The room the chat state belongs to: entering a different room drops
+  // the old room's messages before its history lands.
+  const chatRoomRef = useRef<string | null>(null)
   const [isReconnecting, setIsReconnecting] = useState(false)
   const [isManualNavigation, setIsManualNavigation] = useState(false)
   const [, setIsCreatingNewGame] = useState(false)
@@ -306,6 +323,10 @@ export const useGolfGame = ({
     if (roomState?.id) {
       networkAdapterRef.current?.leaveRoom(roomState.id)
     }
+    // Chat belongs to the room: leaving clears messages and unread state.
+    chatRoomRef.current = null
+    setChatMessages([])
+    setChatLastSeenId(0)
     setRoomState(null)
     setGameState(null)
     setIsInRoom(false)
@@ -426,7 +447,22 @@ export const useGolfGame = ({
     joinGame(gameId)
   }, [roomState?.id, dismissNewGameNotification, joinGame, showNotification])
 
+  const sendChat = useCallback((text: string) => {
+    const adapter = networkAdapterRef.current
+    // Trim here so what the byte counter measured is what ships; the
+    // server validates again and rejects what a stale client sends.
+    const trimmed = text.trim()
+    if (!adapter?.sendChat || !trimmed) return
+    adapter.sendChat(trimmed)
+  }, [])
+
+  const markChatSeen = useCallback(() => {
+    const latest = chatMessages.length > 0 ? chatMessages[chatMessages.length - 1].messageId : 0
+    setChatLastSeenId(prev => Math.max(prev, latest))
+  }, [chatMessages])
+
   // Computed values
+  const chatUnreadCount = chatMessages.filter(m => m.messageId > chatLastSeenId).length
   const currentPlayer = gameState?.players.find(p => p.id === playerId)
   const isMyTurn = gameState?.players[gameState.currentPlayerIndex]?.id === playerId
 
@@ -444,6 +480,14 @@ export const useGolfGame = ({
         }, 2000)
       },
       onRoomJoined: (newPlayerId, newRoomState) => {
+        // A different room means different chat: drop the old room's
+        // messages before the new room's history event lands. A resume
+        // into the same room keeps them — its replay merges by id.
+        if (chatRoomRef.current !== newRoomState.id) {
+          chatRoomRef.current = newRoomState.id
+          setChatMessages([])
+          setChatLastSeenId(0)
+        }
         setIsReconnecting(false)
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current)
@@ -531,6 +575,12 @@ export const useGolfGame = ({
           }
         }
       },
+      onChatMessage: (message) => {
+        setChatMessages(prev => mergeChatMessages(prev, [message]))
+      },
+      onChatHistory: (messages) => {
+        setChatMessages(prev => mergeChatMessages(prev, messages))
+      },
       onGameError: (errorMessage) => {
         if (permalinkJoinAttempt.isAttempting &&
             (errorMessage.includes('not found') || errorMessage.includes('does not exist'))) {
@@ -587,6 +637,9 @@ export const useGolfGame = ({
     })
 
     networkAdapterRef.current = adapter
+    // Through the shared interface: the v1 class doesn't declare the
+    // optional capability at all.
+    setChatAvailable(typeof networkAdapterRef.current.sendChat === 'function')
 
     // Connect to server (the v2 adapter resolves its own endpoints)
     const websocketUrl = import.meta.env.VITE_GOLF_WEBSOCKET_URL || 'wss://api.muchq.com/games/v1/golf-ws'
@@ -826,7 +879,14 @@ export const useGolfGame = ({
     winner,
     winners,
     finalScores,
-  
+
+    // Room chat
+    chatMessages,
+    chatUnreadCount,
+    chatAvailable,
+    sendChat,
+    markChatSeen,
+
     // New game notifications
     newGameNotifications,
     

@@ -99,7 +99,9 @@ describe('GolfV2NetworkAdapter', () => {
       onGameEnded: vi.fn(),
       onNewGameStarted: vi.fn(),
       onReconnecting: vi.fn(),
-      onGameError: vi.fn()
+      onGameError: vi.fn(),
+      onChatMessage: vi.fn(),
+      onChatHistory: vi.fn()
     }
   })
 
@@ -164,6 +166,35 @@ describe('GolfV2NetworkAdapter', () => {
     ws.receive('roomLeft', { roomId: 'ROOM01' })
     ws.receive('roomState', room)
     expect(callbacks.onRoomJoined).toHaveBeenCalledTimes(2)
+  })
+
+  it('delivers chat as typed state, never as a toast', async () => {
+    const [, ws] = await connect()
+    const message = { messageId: 7, playerId: 'bob', text: 'nice draw', sentAtUnixMillis: 1700000000000 }
+
+    ws.receive('roomChat', message)
+    expect(callbacks.onChatMessage).toHaveBeenCalledWith(message)
+    // The old path reduced chat to a transient notification; a durable
+    // message must never ride that channel again.
+    expect(callbacks.onNotification).not.toHaveBeenCalled()
+  })
+
+  it('delivers the history replay as one ordered batch', async () => {
+    const [, ws] = await connect()
+    const messages = [
+      { messageId: 1, playerId: 'alice', text: 'first', sentAtUnixMillis: 1 },
+      { messageId: 2, playerId: 'bob', text: 'second', sentAtUnixMillis: 2 }
+    ]
+
+    ws.receive('roomChatHistory', { messages })
+    expect(callbacks.onChatHistory).toHaveBeenCalledWith(messages)
+    expect(callbacks.onChatMessage).not.toHaveBeenCalled()
+  })
+
+  it('sends chat as the exact wire command', async () => {
+    const [adapter, ws] = await connect()
+    adapter.sendChat('hello room')
+    expect(ws.lastSent()).toEqual({ event: 'chat', payload: { text: 'hello room' } })
   })
 
   it('translates game views into the v1 shape', async () => {

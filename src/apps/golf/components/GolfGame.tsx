@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import styles from './GolfGame.module.css'
 import { useGolfGame } from '@/hooks/useGolfGame'
 import PermalinkDisplay from './PermalinkDisplay'
+import RoomChat from './RoomChat'
 import NewGameNotification from './NewGameNotification'
 import type { ParsedPermalinkParams } from '../../../utils/golfPermalinks'
 import { isGolfV2Enabled, setGolfV2Enabled } from '../../../utils/golfV2'
@@ -80,7 +81,13 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     leaveRoom,
     dismissNewGameNotification,
     joinNewGame,
-    permalinkJoinAttempt
+    permalinkJoinAttempt,
+    chatMessages,
+    chatUnreadCount,
+    chatAvailable,
+    sendChat,
+    markChatSeen,
+    isConnected
   } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams })
 
   const isGameWinner = (player: Player | null | undefined) => {
@@ -381,6 +388,17 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
           </button>
         </div>
 
+        {chatAvailable && (
+          <RoomChat
+            messages={chatMessages}
+            playerId={playerId}
+            unreadCount={chatUnreadCount}
+            connected={isConnected}
+            onSend={sendChat}
+            onSeen={markChatSeen}
+          />
+        )}
+
         {notification && (
           <div className={styles.notification}>
             {notification}
@@ -671,6 +689,17 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
           <div className={styles.countdownNumber}>{peekCountdown}</div>
           <div className={styles.countdownText}>All players have peeked!</div>
         </div>
+      )}
+
+      {chatAvailable && (
+        <RoomChat
+          messages={chatMessages}
+          playerId={playerId}
+          unreadCount={chatUnreadCount}
+          connected={isConnected}
+          onSend={sendChat}
+          onSeen={markChatSeen}
+        />
       )}
     </div>
   )
