@@ -180,6 +180,26 @@ describe('useGolfGame - room chat', () => {
     expect(result.current.chatMessages[0].messageId).toBe(11)
   })
 
+  it('tracks the replay watermark from history only, and scopes it to the room', () => {
+    const { result } = renderHook(() => useGolfGame(), { wrapper })
+    act(() => {
+      mockNetworkAdapter._callbacks?.onRoomJoined?.('alice', makeRoom('ROOM01'))
+      mockNetworkAdapter._callbacks?.onChatHistory?.([msg(1), msg(2)])
+    })
+    expect(result.current.chatReplayUpTo).toBe(2)
+
+    // Live messages never raise it — they are the ones to announce.
+    act(() => {
+      mockNetworkAdapter._callbacks?.onChatMessage?.(msg(3))
+    })
+    expect(result.current.chatReplayUpTo).toBe(2)
+
+    act(() => {
+      mockNetworkAdapter._callbacks?.onRoomJoined?.('alice', makeRoom('ROOM02'))
+    })
+    expect(result.current.chatReplayUpTo).toBe(0)
+  })
+
   it('trims before sending and refuses whitespace-only drafts', () => {
     const { result } = renderHook(() => useGolfGame(), { wrapper })
     act(() => result.current.sendChat('  good luck  '))

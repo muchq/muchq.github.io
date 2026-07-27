@@ -19,6 +19,7 @@ const baseProps = {
   playerId: 'alice',
   unreadCount: 0,
   connected: true,
+  replayUpTo: 0,
   onSend: vi.fn(),
   onSeen: vi.fn()
 }
@@ -133,5 +134,72 @@ describe('RoomChat', () => {
     )
     expect(live?.textContent).toBe('bob: fresh message')
     expect(live?.textContent).not.toContain('replayed history')
+  })
+
+  it('keeps a history replay that lands after mount silent, in the real join order', () => {
+    // The integrated order: the component mounts with no messages, then
+    // the roomChatHistory frame arrives alongside its watermark.
+    const { container, rerender } = render(<RoomChat {...baseProps} messages={[]} />)
+    const live = container.querySelector('[aria-live="polite"]')
+
+    rerender(
+      <RoomChat
+        {...baseProps}
+        messages={[msg(1, 'bob', 'old one'), msg(2, 'bob', 'old two')]}
+        replayUpTo={2}
+      />
+    )
+    expect(live?.textContent).toBe('')
+
+    rerender(
+      <RoomChat
+        {...baseProps}
+        messages={[msg(1, 'bob', 'old one'), msg(2, 'bob', 'old two'), msg(3, 'bob', 'live now')]}
+        replayUpTo={2}
+      />
+    )
+    expect(live?.textContent).toBe('bob: live now')
+  })
+
+  it('re-announces a repeat of identical text as a fresh DOM node', () => {
+    // aria-live only fires on mutation: two "gg" in a row must not
+    // collapse into one silent render.
+    const { container, rerender } = render(<RoomChat {...baseProps} messages={[]} />)
+    rerender(<RoomChat {...baseProps} messages={[msg(1, 'bob', 'gg')]} />)
+    const first = container.querySelector('[aria-live="polite"] span')
+    expect(first?.getAttribute('data-message-id')).toBe('1')
+
+    rerender(<RoomChat {...baseProps} messages={[msg(1, 'bob', 'gg'), msg(2, 'bob', 'gg')]} />)
+    const second = container.querySelector('[aria-live="polite"] span')
+    expect(second?.getAttribute('data-message-id')).toBe('2')
+    expect(second?.textContent).toBe('bob: gg')
+  })
+
+  it('lets unread accumulate while the drawer is closed, marking seen only once visible', () => {
+    const { rerender } = render(<RoomChat {...baseProps} messages={[msg(1, 'bob', 'one')]} />)
+    rerender(<RoomChat {...baseProps} messages={[msg(1, 'bob', 'one'), msg(2, 'bob', 'two')]} />)
+    // Hidden panel: arrivals must not be marked seen, or the toggle
+    // badge could never show.
+    expect(baseProps.onSeen).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open chat' }))
+    expect(baseProps.onSeen).toHaveBeenCalled()
+
+    const seenWhileOpen = baseProps.onSeen.mock.calls.length
+    rerender(
+      <RoomChat {...baseProps} messages={[msg(1, 'bob', 'one'), msg(2, 'bob', 'two'), msg(3, 'bob', 'three')]} />
+    )
+    // Visible and following: the new arrival is seen immediately.
+    expect(baseProps.onSeen.mock.calls.length).toBeGreaterThan(seenWhileOpen)
+  })
+
+  it('moves focus into the composer on open and back to the toggle on Escape', () => {
+    render(<RoomChat {...baseProps} messages={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open chat' }))
+    const input = screen.getByLabelText('Chat message')
+    expect(document.activeElement).toBe(input)
+
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Open chat' }))
   })
 })

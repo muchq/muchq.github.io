@@ -191,6 +191,25 @@ describe('GolfV2NetworkAdapter', () => {
     expect(callbacks.onChatMessage).not.toHaveBeenCalled()
   })
 
+  it('gives a legacy id-less roomChat frame the old toast instead of corrupting chat state', async () => {
+    const [, ws] = await connect()
+
+    // A server that predates chat ids sends {playerId, text}: without
+    // a messageId the merge has no identity, so the adapter falls back
+    // to the notification path rather than delivering an unmergeable row.
+    ws.receive('roomChat', { playerId: 'bob', text: 'from an old server' })
+    expect(callbacks.onChatMessage).not.toHaveBeenCalled()
+    expect(callbacks.onNotification).toHaveBeenCalledWith('bob: from an old server')
+  })
+
+  it('drops id-less rows from the history replay', async () => {
+    const [, ws] = await connect()
+    const good = { messageId: 2, playerId: 'alice', text: 'kept', sentAtUnixMillis: 2 }
+
+    ws.receive('roomChatHistory', { messages: [{ playerId: 'bob', text: 'legacy row' }, good] })
+    expect(callbacks.onChatHistory).toHaveBeenCalledWith([good])
+  })
+
   it('sends chat as the exact wire command', async () => {
     const [adapter, ws] = await connect()
     adapter.sendChat('hello room')

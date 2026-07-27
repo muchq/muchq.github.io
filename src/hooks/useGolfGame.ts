@@ -40,6 +40,9 @@ interface UseGolfGameReturn {
   chatMessages: ChatMessage[]
   chatUnreadCount: number
   chatAvailable: boolean
+  // Highest messageId ever delivered via a history replay: consumers
+  // that announce live messages use it to keep replays silent.
+  chatReplayUpTo: number
   sendChat: (text: string) => void
   markChatSeen: () => void
   
@@ -124,6 +127,7 @@ export const useGolfGame = ({
   })
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatLastSeenId, setChatLastSeenId] = useState(0)
+  const [chatReplayUpTo, setChatReplayUpTo] = useState(0)
   const [chatAvailable, setChatAvailable] = useState(false)
   // The room the chat state belongs to: entering a different room drops
   // the old room's messages before its history lands.
@@ -327,6 +331,7 @@ export const useGolfGame = ({
     chatRoomRef.current = null
     setChatMessages([])
     setChatLastSeenId(0)
+    setChatReplayUpTo(0)
     setRoomState(null)
     setGameState(null)
     setIsInRoom(false)
@@ -487,6 +492,7 @@ export const useGolfGame = ({
           chatRoomRef.current = newRoomState.id
           setChatMessages([])
           setChatLastSeenId(0)
+          setChatReplayUpTo(0)
         }
         setIsReconnecting(false)
         if (reconnectTimeoutRef.current) {
@@ -580,6 +586,9 @@ export const useGolfGame = ({
       },
       onChatHistory: (messages) => {
         setChatMessages(prev => mergeChatMessages(prev, messages))
+        // Same commit as the merge, so consumers never see replayed
+        // messages without the watermark that keeps them unannounced.
+        setChatReplayUpTo(prev => messages.reduce((max, m) => Math.max(max, m.messageId), prev))
       },
       onGameError: (errorMessage) => {
         if (permalinkJoinAttempt.isAttempting &&
@@ -884,6 +893,7 @@ export const useGolfGame = ({
     chatMessages,
     chatUnreadCount,
     chatAvailable,
+    chatReplayUpTo,
     sendChat,
     markChatSeen,
 

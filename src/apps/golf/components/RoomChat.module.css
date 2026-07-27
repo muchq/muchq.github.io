@@ -253,9 +253,11 @@
   max-height: none;
 }
 
-@media (min-width: 1560px) {
-  /* Enough viewport margin beside the 1200px content column: dock the
-   * panel there permanently and retire the drawer chrome. */
+@media (min-width: 1880px) {
+  /* Enough viewport margin beside the 1200px content column to hold the
+   * 21rem panel footprint on both sides (1200 + 2 × 336 = 1872): dock
+   * the panel there permanently and retire the drawer chrome. Keep in
+   * sync with DOCKED_QUERY in RoomChat.tsx. */
   .drawerToggle,
   .drawerOpen .drawerToggle {
     display: none;

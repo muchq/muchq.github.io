@@ -85,6 +85,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     chatMessages,
     chatUnreadCount,
     chatAvailable,
+    chatReplayUpTo,
     sendChat,
     markChatSeen,
     isConnected
@@ -394,6 +395,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
             playerId={playerId}
             unreadCount={chatUnreadCount}
             connected={isConnected}
+            replayUpTo={chatReplayUpTo}
             onSend={sendChat}
             onSeen={markChatSeen}
           />
@@ -697,6 +699,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
           playerId={playerId}
           unreadCount={chatUnreadCount}
           connected={isConnected}
+          replayUpTo={chatReplayUpTo}
           onSend={sendChat}
           onSeen={markChatSeen}
         />

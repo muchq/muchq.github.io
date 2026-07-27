@@ -396,11 +396,20 @@ export class GolfV2NetworkAdapter implements GolfGameAdapter {
       case 'roomChat':
         // Typed chat state, not a toast (MoonBase#1226): the UI owns
         // presentation, and a transient notification would drop the
-        // message the server just committed durably.
-        this.callbacks.onChatMessage?.(frame.payload)
+        // message the server just committed durably. A server that
+        // predates chat ids (the old {playerId, text} shape) can't be
+        // merged by messageId — give those the legacy toast instead of
+        // corrupting chat state with undefined ids.
+        if (typeof frame.payload.messageId === 'number') {
+          this.callbacks.onChatMessage?.(frame.payload)
+        } else {
+          this.callbacks.onNotification?.(`${frame.payload.playerId}: ${frame.payload.text}`)
+        }
         return
       case 'roomChatHistory':
-        this.callbacks.onChatHistory?.(frame.payload.messages)
+        this.callbacks.onChatHistory?.(
+          frame.payload.messages.filter(m => typeof m.messageId === 'number')
+        )
         return
       case 'commandRejected':
         this.callbacks.onGameError?.(frame.payload.reason)
