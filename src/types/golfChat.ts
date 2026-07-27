@@ -23,13 +23,6 @@ const encoder = new TextEncoder()
 
 export const chatTextBytes = (text: string): number => encoder.encode(text).length
 
-// The wire predicate for a mergeable chat row: without a numeric
-// messageId there is no identity to merge or order on. Adapters use it
-// to keep pre-chat-id server frames out of typed chat state.
-export const isChatMessage = (
-  message: { playerId: string; text: string; messageId?: number }
-): message is ChatMessage => typeof message.messageId === 'number'
-
 // One sorted, deduplicated view of everything seen so far, capped to the
 // newest CHAT_HISTORY_LIMIT. messageId is the only ordering key — the
 // timestamp is wall-clock and display-only. Handles every arrival shape

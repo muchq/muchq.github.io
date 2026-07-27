@@ -24,11 +24,6 @@
 import type { Card, GameState as GolfGameState, Player, Room, FinalScore } from '@/types/golf'
 import type { GolfAdapterCallbacks, GolfGameAdapter } from '@/types/golfAdapter'
 import type { ChatMessage } from '@/types/golfChat'
-import { isChatMessage } from '@/types/golfChat'
-
-// A server that predates chat ids (MoonBase#1226) sends {playerId, text}
-// only; isChatMessage is the runtime discrimination between the shapes.
-type V2ChatPayload = ChatMessage | { playerId: string; text: string; messageId?: undefined }
 import {
   JOINED_ROOM,
   JOINED_GAME,
@@ -128,8 +123,8 @@ type V2Frame =
   | { event: 'sessionReady'; payload: V2SessionReady }
   | { event: 'roomState'; payload: V2RoomState }
   | { event: 'roomLeft'; payload: { roomId: string } }
-  | { event: 'roomChat'; payload: V2ChatPayload }
-  | { event: 'roomChatHistory'; payload: { messages: V2ChatPayload[] } }
+  | { event: 'roomChat'; payload: ChatMessage }
+  | { event: 'roomChatHistory'; payload: { messages: ChatMessage[] } }
   | { event: 'commandRejected'; payload: { reason: string } }
   | { event: 'golf'; payload: { update: V2GolfUpdate } }
 
@@ -401,17 +396,11 @@ export class GolfV2NetworkAdapter implements GolfGameAdapter {
       case 'roomChat':
         // Typed chat state, not a toast (MoonBase#1226): the UI owns
         // presentation, and a transient notification would drop the
-        // message the server just committed durably. An id-less legacy
-        // frame can't be merged — it gets the old toast instead of
-        // corrupting chat state.
-        if (isChatMessage(frame.payload)) {
-          this.callbacks.onChatMessage?.(frame.payload)
-        } else {
-          this.callbacks.onNotification?.(`${frame.payload.playerId}: ${frame.payload.text}`)
-        }
+        // message the server just committed durably.
+        this.callbacks.onChatMessage?.(frame.payload)
         return
       case 'roomChatHistory':
-        this.callbacks.onChatHistory?.(frame.payload.messages.filter(isChatMessage))
+        this.callbacks.onChatHistory?.(frame.payload.messages)
         return
       case 'commandRejected':
         this.callbacks.onGameError?.(frame.payload.reason)

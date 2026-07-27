@@ -3,7 +3,6 @@ import {
   CHAT_HISTORY_LIMIT,
   CHAT_TEXT_BYTE_LIMIT,
   chatTextBytes,
-  isChatMessage,
   mergeChatMessages,
   type ChatMessage
 } from '../golfChat'
@@ -66,14 +65,6 @@ describe('mergeChatMessages', () => {
     // nothing downstream re-renders for a pure duplicate replay.
     const messages = [msg(1), msg(2)]
     expect(mergeChatMessages(messages, [msg(1), msg(2)])).toBe(messages)
-  })
-})
-
-describe('isChatMessage', () => {
-  it('accepts only rows with a numeric messageId', () => {
-    expect(isChatMessage(msg(1))).toBe(true)
-    const legacy = { playerId: 'bob', text: 'from an old server' }
-    expect(isChatMessage(legacy)).toBe(false)
   })
 })
 
