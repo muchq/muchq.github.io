@@ -20,7 +20,11 @@ body {
 }
 
 #root {
+  /* dvh tracks the visible viewport on mobile, where 100vh is the
+     largest viewport (browser chrome collapsed) and can leave a blank
+     band at the bottom. vh first as fallback for older browsers. */
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   position: relative;
 }
