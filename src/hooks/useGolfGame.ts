@@ -35,11 +35,15 @@ interface UseGolfGameReturn {
   finalScores: Array<{ playerName: string; score: number }> | null
 
   // Room chat (MoonBase#1226): the room's merged history+live view,
-  // capped at 100 by the shared merge. Available only when the active
-  // adapter's wire carries chat (v2); v1 renders no chat UI. Seen and
-  // unread are presentation state and live in the chat UI — this hook
-  // only owns what the wire knows.
+  // capped at 100 by the shared merge. Seen and unread are presentation
+  // state and live in the chat UI — this hook only owns what the wire
+  // knows.
   chatMessages: ChatMessage[]
+  // True once the current room's wire has actually delivered chat — the
+  // join replay (empty counts) or a live message. The adapter class
+  // declaring sendChat is not proof the server has chat: a UI deployed
+  // ahead of the server (or after a rollback) must render no chat at
+  // all rather than a composer whose sends silently vanish.
   chatAvailable: boolean
   // Highest messageId ever delivered via a history replay: consumers
   // that announce live messages use it to keep replays silent.
@@ -135,6 +139,9 @@ export const useGolfGame = ({
     chatRoomRef.current = roomId
     setChatMessages([])
     setChatReplayUpTo(0)
+    // Capability is re-proven per room: the next replay or live message
+    // flips it back.
+    setChatAvailable(false)
   }, [])
   const [isReconnecting, setIsReconnecting] = useState(false)
   const [isManualNavigation, setIsManualNavigation] = useState(false)
@@ -574,9 +581,13 @@ export const useGolfGame = ({
         }
       },
       onChatMessage: (message) => {
+        setChatAvailable(true)
         setChatMessages(prev => mergeChatMessages(prev, [message]))
       },
       onChatHistory: (messages) => {
+        // The replay is the wire's proof that chat exists — an empty
+        // room sends an empty one, so availability flips regardless.
+        setChatAvailable(true)
         setChatMessages(prev => mergeChatMessages(prev, messages))
         // Same commit as the merge, so consumers never see replayed
         // messages without the watermark that keeps them unannounced.
@@ -638,9 +649,6 @@ export const useGolfGame = ({
     })
 
     networkAdapterRef.current = adapter
-    // Through the shared interface: the v1 class doesn't declare the
-    // optional capability at all.
-    setChatAvailable(typeof networkAdapterRef.current.sendChat === 'function')
 
     // Connect to server (the v2 adapter resolves its own endpoints)
     const websocketUrl = import.meta.env.VITE_GOLF_WEBSOCKET_URL || 'wss://api.muchq.com/games/v1/golf-ws'

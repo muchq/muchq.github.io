@@ -30,8 +30,8 @@ const mockNetworkAdapter = {
   hideCards: vi.fn(),
   isMyTurn: vi.fn(),
   getCurrentPlayer: vi.fn(),
-  // The chat capability: present on this mock the way the v2 adapter
-  // provides it, so chatAvailable resolves true.
+  // Declared the way the v2 adapter does; the send path forwards here.
+  // Availability is proven by wire events, not by this declaration.
   sendChat: vi.fn(),
   roomState: null,
   _callbacks: null as {
@@ -88,10 +88,34 @@ describe('useGolfGame - room chat', () => {
     mockNetworkAdapter._callbacks = null
   })
 
-  it('starts empty with the capability reported from the adapter', () => {
+  it('reveals chat only once the wire delivers it', () => {
     const { result } = renderHook(() => useGolfGame(), { wrapper })
+    // The adapter class declaring sendChat is not proof the server has
+    // chat: a UI deployed ahead of the server must render no chat UI.
+    expect(result.current.chatAvailable).toBe(false)
     expect(result.current.chatMessages).toEqual([])
+
+    act(() => {
+      mockNetworkAdapter._callbacks?.onRoomJoined?.('alice', makeRoom('ROOM01'))
+      // An empty replay is still proof: quiet rooms have chat too.
+      mockNetworkAdapter._callbacks?.onChatHistory?.([])
+    })
     expect(result.current.chatAvailable).toBe(true)
+  })
+
+  it('re-proves the capability per room', () => {
+    const { result } = renderHook(() => useGolfGame(), { wrapper })
+    act(() => {
+      mockNetworkAdapter._callbacks?.onRoomJoined?.('alice', makeRoom('ROOM01'))
+      // A live message committing during the join is proof too.
+      mockNetworkAdapter._callbacks?.onChatMessage?.(msg(1))
+    })
+    expect(result.current.chatAvailable).toBe(true)
+
+    act(() => {
+      mockNetworkAdapter._callbacks?.onRoomJoined?.('alice', makeRoom('ROOM02'))
+    })
+    expect(result.current.chatAvailable).toBe(false)
   })
 
   it('merges history and live by id, in id order', () => {

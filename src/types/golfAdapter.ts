@@ -7,8 +7,10 @@ import type { ChatMessage } from './golfChat'
 // fact rather than two surfaces trusted to stay identical.
 //
 // Room chat (MoonBase#1226) is a v2-only capability: the v1 wire never
-// carried it, so sendChat and the chat callbacks are optional and the
-// UI renders chat only when the active adapter provides sendChat.
+// carried it, so sendChat and the chat callbacks are optional. The UI
+// reveals chat only after the wire actually delivers it (the join
+// replay or a live message) — an adapter declaring sendChat is not
+// proof the connected server has chat.
 
 export interface GolfAdapterCallbacks {
   onRoomJoined?: (playerId: string, roomState: Room) => void
