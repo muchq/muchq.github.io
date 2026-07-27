@@ -36,15 +36,15 @@ interface UseGolfGameReturn {
 
   // Room chat (MoonBase#1226): the room's merged history+live view,
   // capped at 100 by the shared merge. Available only when the active
-  // adapter's wire carries chat (v2); v1 renders no chat UI.
+  // adapter's wire carries chat (v2); v1 renders no chat UI. Seen and
+  // unread are presentation state and live in the chat UI — this hook
+  // only owns what the wire knows.
   chatMessages: ChatMessage[]
-  chatUnreadCount: number
   chatAvailable: boolean
   // Highest messageId ever delivered via a history replay: consumers
   // that announce live messages use it to keep replays silent.
   chatReplayUpTo: number
   sendChat: (text: string) => void
-  markChatSeen: () => void
   
   // New game notifications
   newGameNotifications: Array<{
@@ -126,12 +126,16 @@ export const useGolfGame = ({
     gameJoinAttempted: false
   })
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
-  const [chatLastSeenId, setChatLastSeenId] = useState(0)
   const [chatReplayUpTo, setChatReplayUpTo] = useState(0)
   const [chatAvailable, setChatAvailable] = useState(false)
   // The room the chat state belongs to: entering a different room drops
   // the old room's messages before its history lands.
   const chatRoomRef = useRef<string | null>(null)
+  const resetChat = useCallback((roomId: string | null) => {
+    chatRoomRef.current = roomId
+    setChatMessages([])
+    setChatReplayUpTo(0)
+  }, [])
   const [isReconnecting, setIsReconnecting] = useState(false)
   const [isManualNavigation, setIsManualNavigation] = useState(false)
   const [, setIsCreatingNewGame] = useState(false)
@@ -327,11 +331,8 @@ export const useGolfGame = ({
     if (roomState?.id) {
       networkAdapterRef.current?.leaveRoom(roomState.id)
     }
-    // Chat belongs to the room: leaving clears messages and unread state.
-    chatRoomRef.current = null
-    setChatMessages([])
-    setChatLastSeenId(0)
-    setChatReplayUpTo(0)
+    // Chat belongs to the room: leaving clears it.
+    resetChat(null)
     setRoomState(null)
     setGameState(null)
     setIsInRoom(false)
@@ -342,7 +343,7 @@ export const useGolfGame = ({
     setSelectedCardIndex(null)
     setNewGameNotifications([])
     navigate('/golf', { replace: true })
-  }, [roomState?.id, navigate])
+  }, [roomState?.id, navigate, resetChat])
 
   // Navigation helper functions
   const navigateToRoom = useCallback((roomId: string) => {
@@ -461,13 +462,7 @@ export const useGolfGame = ({
     adapter.sendChat(trimmed)
   }, [])
 
-  const markChatSeen = useCallback(() => {
-    const latest = chatMessages.length > 0 ? chatMessages[chatMessages.length - 1].messageId : 0
-    setChatLastSeenId(prev => Math.max(prev, latest))
-  }, [chatMessages])
-
   // Computed values
-  const chatUnreadCount = chatMessages.filter(m => m.messageId > chatLastSeenId).length
   const currentPlayer = gameState?.players.find(p => p.id === playerId)
   const isMyTurn = gameState?.players[gameState.currentPlayerIndex]?.id === playerId
 
@@ -489,10 +484,7 @@ export const useGolfGame = ({
         // messages before the new room's history event lands. A resume
         // into the same room keeps them — its replay merges by id.
         if (chatRoomRef.current !== newRoomState.id) {
-          chatRoomRef.current = newRoomState.id
-          setChatMessages([])
-          setChatLastSeenId(0)
-          setChatReplayUpTo(0)
+          resetChat(newRoomState.id)
         }
         setIsReconnecting(false)
         if (reconnectTimeoutRef.current) {
@@ -891,11 +883,9 @@ export const useGolfGame = ({
 
     // Room chat
     chatMessages,
-    chatUnreadCount,
     chatAvailable,
     chatReplayUpTo,
     sendChat,
-    markChatSeen,
 
     // New game notifications
     newGameNotifications,

@@ -1,13 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import styles from './RoomChat.module.css'
 import type { ChatMessage } from '@/types/golfChat'
 import { CHAT_TEXT_BYTE_LIMIT, chatTextBytes } from '@/types/golfChat'
 
-// Room chat (MoonBase#1226): one component for both the room lobby and
-// in-game views. Wide viewports render it as a stable side panel; narrow
-// screens collapse it to a floating button with an unread badge that
-// opens a bottom sheet (the CSS module owns which of the two shows, and
-// DOCKED_QUERY mirrors that decision for the logic that needs it).
+// Room chat (MoonBase#1226): one stable instance for both the room
+// lobby and in-game views. Wide viewports dock it as a side panel;
+// narrow screens collapse it to a floating button with an unread badge
+// that opens a bottom sheet. The component owns which mode is live
+// (DOCKED_QUERY) and stamps the class the CSS module styles against,
+// so presentation and the scroll/seen/focus logic can never disagree.
+//
+// Seen/unread is presentation state and lives here: only this component
+// knows whether the panel is visible and where the reader is scrolled.
 //
 // Text renders exclusively as React text nodes — no
 // dangerouslySetInnerHTML, no linkification, no markdown — so a message
@@ -16,14 +20,13 @@ import { CHAT_TEXT_BYTE_LIMIT, chatTextBytes } from '@/types/golfChat'
 interface RoomChatProps {
   messages: ChatMessage[]
   playerId: string
-  unreadCount: number
   connected: boolean
-  // Highest messageId ever delivered by a history replay. Replayed
-  // messages are never announced to screen readers — only ids above
-  // both this and the mount watermark are genuinely live.
+  // Highest messageId ever delivered by a history replay (wire-derived,
+  // so the hook owns it). Replayed messages are never announced to
+  // screen readers — only ids above both this and the mount watermark
+  // are genuinely live.
   replayUpTo: number
   onSend: (text: string) => void
-  onSeen: () => void
 }
 
 // How close to the bottom (px) still counts as "following": auto-scroll
@@ -31,35 +34,53 @@ interface RoomChatProps {
 // is never yanked away.
 const FOLLOW_THRESHOLD_PX = 48
 
-// Paired with the @media block in RoomChat.module.css: the panel docks
-// only once the viewport leaves real margin beside the 1200px content
-// column (1200 + 2 × (1rem gap + 20rem panel) = 1872, rounded up).
+// The panel docks only once the viewport leaves real margin beside the
+// 1200px content column (1200 + 2 × (1rem gap + 20rem panel) = 1872,
+// rounded up). The CSS module has no media query — it styles the
+// .docked class this component stamps from this one query.
 const DOCKED_QUERY = '(min-width: 1880px)'
 
-const formatTime = (unixMillis: number) =>
-  new Date(unixMillis).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+const timeFormat = new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' })
 
-const RoomChat = ({ messages, playerId, unreadCount, connected, replayUpTo, onSend, onSeen }: RoomChatProps) => {
+const RoomChat = ({ messages, playerId, connected, replayUpTo, onSend }: RoomChatProps) => {
   const [draft, setDraft] = useState('')
   // Drawer-mode only: whether the bottom sheet is open. The docked
-  // panel ignores it — CSS keeps the panel visible regardless.
+  // panel ignores it — the .docked rules keep the panel visible.
   const [drawerOpen, setDrawerOpen] = useState(false)
-  // Mirrors the CSS breakpoint so scroll/seen/focus logic knows whether
-  // the panel is actually on screen. Environments without matchMedia
-  // (jsdom) are treated as drawer mode.
-  const [docked, setDocked] = useState(false)
+  // Environments without matchMedia (jsdom) are drawer mode.
+  const [docked, setDocked] = useState(
+    () => typeof window.matchMedia === 'function' && window.matchMedia(DOCKED_QUERY).matches
+  )
+  const [lastSeenId, setLastSeenId] = useState(0)
   const listRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const toggleRef = useRef<HTMLButtonElement | null>(null)
   const wasDrawerOpenRef = useRef(false)
   const followingRef = useRef(true)
-  // Ids at or below this had already rendered when the component first
-  // painted; only messages above it (and above replayUpTo) are announced
-  // to screen readers — a 100-message replay must not be read aloud.
-  const announceAfterIdRef = useRef<number | null>(null)
-  const [announcement, setAnnouncement] = useState<{ id: number; text: string } | null>(null)
 
   const latestId = messages.length > 0 ? messages[messages.length - 1].messageId : 0
+
+  // Screen-reader announcements, derived in render (React's "adjusting
+  // state when a prop changes" pattern). Ids at or below `upTo` had
+  // already rendered when the previous render committed; only a tail
+  // above both it and replayUpTo is a genuinely live arrival — a
+  // 100-message replay must never be read aloud. The initializer covers
+  // mounting onto existing messages, and a smaller latestId means the
+  // room's chat state was reset.
+  const [announced, setAnnounced] = useState<{
+    upTo: number
+    entry: { id: number; text: string } | null
+  }>({ upTo: latestId, entry: null })
+  if (latestId !== announced.upTo) {
+    const last = messages[messages.length - 1]
+    const entry =
+      latestId > announced.upTo && last && last.messageId > replayUpTo
+        ? { id: last.messageId, text: `${last.playerId}: ${last.text}` }
+        : latestId < announced.upTo
+          ? null
+          : announced.entry
+    setAnnounced({ upTo: latestId, entry })
+  }
 
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return
@@ -72,13 +93,27 @@ const RoomChat = ({ messages, playerId, unreadCount, connected, replayUpTo, onSe
 
   const panelVisible = docked || drawerOpen
 
+  const markSeen = useCallback(() => {
+    setLastSeenId(latestId)
+  }, [latestId])
+
+  // lastSeenId can never legitimately exceed latestId (markSeen assigns
+  // it), so a smaller latestId means the room's chat state was reset —
+  // everything is unseen again, derived rather than synchronized.
+  const effectiveLastSeenId = lastSeenId > latestId ? 0 : lastSeenId
+
+  const unreadCount = useMemo(
+    () => messages.reduce((count, m) => (m.messageId > effectiveLastSeenId ? count + 1 : count), 0),
+    [messages, effectiveLastSeenId]
+  )
+
   const handleScroll = useCallback(() => {
     const list = listRef.current
     if (!list) return
     const fromBottom = list.scrollHeight - list.scrollTop - list.clientHeight
     followingRef.current = fromBottom <= FOLLOW_THRESHOLD_PX
-    if (followingRef.current) onSeen()
-  }, [onSeen])
+    if (followingRef.current) markSeen()
+  }, [markSeen])
 
   // Follow the newest message — but only while the panel is actually on
   // screen. A hidden panel has no reader: marking arrivals seen there
@@ -90,37 +125,21 @@ const RoomChat = ({ messages, playerId, unreadCount, connected, replayUpTo, onSe
     const list = listRef.current
     if (panelVisible && list && followingRef.current) {
       list.scrollTop = list.scrollHeight
-      onSeen()
+      markSeen()
     }
-  }, [latestId, panelVisible, onSeen])
+  }, [latestId, panelVisible, markSeen])
 
-  // Announcements are independent of panel visibility — the live region
-  // sits outside the panel, so closed-drawer arrivals still reach
-  // screen readers.
-  useEffect(() => {
-    const watermark = announceAfterIdRef.current
-    if (watermark === null || latestId < watermark) {
-      // First paint, or the room's chat state was reset: move the
-      // watermark silently.
-      announceAfterIdRef.current = latestId
-      return
-    }
-    if (latestId > watermark) {
-      const fresh = messages.filter(m => m.messageId > watermark && m.messageId > replayUpTo)
-      const last = fresh[fresh.length - 1]
-      if (last) setAnnouncement({ id: last.messageId, text: `${last.playerId}: ${last.text}` })
-      announceAfterIdRef.current = latestId
-    }
-  }, [latestId, messages, replayUpTo])
+  const trimmedDraft = draft.trim()
+  const draftBytes = chatTextBytes(trimmedDraft)
+  const overLimit = draftBytes > CHAT_TEXT_BYTE_LIMIT
+  const nearLimit = draftBytes > CHAT_TEXT_BYTE_LIMIT - 100
 
   const send = useCallback(() => {
-    const trimmed = draft.trim()
-    if (!trimmed || !connected) return
-    if (chatTextBytes(trimmed) > CHAT_TEXT_BYTE_LIMIT) return
-    onSend(trimmed)
+    if (!trimmedDraft || !connected || overLimit) return
+    onSend(trimmedDraft)
     setDraft('')
     followingRef.current = true
-  }, [draft, connected, onSend])
+  }, [trimmedDraft, connected, overLimit, onSend])
 
   const onComposerKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -132,14 +151,10 @@ const RoomChat = ({ messages, playerId, unreadCount, connected, replayUpTo, onSe
     [send]
   )
 
-  const draftBytes = chatTextBytes(draft.trim())
-  const overLimit = draftBytes > CHAT_TEXT_BYTE_LIMIT
-  const nearLimit = draftBytes > CHAT_TEXT_BYTE_LIMIT - 100
-
   const openDrawer = useCallback(() => {
     setDrawerOpen(true)
-    onSeen()
-  }, [onSeen])
+    markSeen()
+  }, [markSeen])
 
   const closeDrawer = useCallback(() => {
     setDrawerOpen(false)
@@ -163,94 +178,108 @@ const RoomChat = ({ messages, playerId, unreadCount, connected, replayUpTo, onSe
     [docked, drawerOpen, closeDrawer]
   )
 
-  const panel = (
-    <div
-      className={styles.panel}
-      data-testid="room-chat-panel"
-      role={!docked && drawerOpen ? 'dialog' : undefined}
-      aria-label="Room chat"
-      onKeyDown={onPanelKeyDown}
-    >
-      <div className={styles.header}>
-        <span className={styles.title}>Room chat</span>
-        <span className={styles.connection}>
-          {connected ? '' : 'reconnecting…'}
-        </span>
-        <button
-          type="button"
-          className={styles.closeButton}
-          onClick={closeDrawer}
-          aria-label="Close chat"
+  // Message rows depend only on messages and whose they are — not on
+  // the draft, so typing doesn't rebuild up to 100 rows per keystroke.
+  const messageItems = useMemo(
+    () =>
+      messages.map(message => (
+        <div
+          key={message.messageId}
+          className={`${styles.message} ${message.playerId === playerId ? styles.ownMessage : ''}`}
         >
-          ×
-        </button>
-      </div>
-      <div className={styles.messageList} ref={listRef} onScroll={handleScroll} data-testid="chat-messages">
-        {messages.length === 0 ? (
-          <div className={styles.emptyState}>No messages yet — say hello.</div>
-        ) : (
-          messages.map(message => (
-            <div
-              key={message.messageId}
-              className={`${styles.message} ${message.playerId === playerId ? styles.ownMessage : ''}`}
-            >
-              <div className={styles.messageMeta}>
-                <span className={styles.sender}>{message.playerId}</span>
-                <span className={styles.timestamp}>{formatTime(message.sentAtUnixMillis)}</span>
-              </div>
-              <div className={styles.messageText}>{message.text}</div>
-            </div>
-          ))
-        )}
-      </div>
-      {unreadCount > 0 && (
-        <button
-          type="button"
-          className={styles.newMessages}
-          onClick={() => {
-            const list = listRef.current
-            if (list) list.scrollTop = list.scrollHeight
-            followingRef.current = true
-            onSeen()
-          }}
-        >
-          {unreadCount} new message{unreadCount === 1 ? '' : 's'}
-        </button>
-      )}
-      <div className={styles.composer}>
-        <textarea
-          ref={inputRef}
-          className={styles.input}
-          value={draft}
-          onChange={event => setDraft(event.target.value)}
-          onKeyDown={onComposerKeyDown}
-          placeholder={connected ? 'Message the room' : 'Reconnecting…'}
-          disabled={!connected}
-          rows={2}
-          aria-label="Chat message"
-        />
-        <div className={styles.composerSide}>
-          {(nearLimit || overLimit) && (
-            <span className={`${styles.byteCount} ${overLimit ? styles.overLimit : ''}`}>
-              {draftBytes}/{CHAT_TEXT_BYTE_LIMIT}
-            </span>
-          )}
-          <button
-            type="button"
-            className={styles.sendButton}
-            onClick={send}
-            disabled={!connected || draft.trim().length === 0 || overLimit}
-          >
-            Send
-          </button>
+          <div className={styles.messageMeta}>
+            <span className={styles.sender}>{message.playerId}</span>
+            <span className={styles.timestamp}>{timeFormat.format(message.sentAtUnixMillis)}</span>
+          </div>
+          <div className={styles.messageText}>{message.text}</div>
         </div>
-      </div>
-    </div>
+      )),
+    [messages, playerId]
   )
 
+  const rootClass = [
+    styles.chatRoot,
+    drawerOpen ? styles.drawerOpen : '',
+    docked ? styles.docked : ''
+  ].join(' ')
+
   return (
-    <div className={`${styles.chatRoot} ${drawerOpen ? styles.drawerOpen : ''}`}>
-      {panel}
+    <div className={rootClass}>
+      {drawerOpen && !docked && (
+        // Pointer-only affordance: keyboard and screen-reader users
+        // close via Escape or the labeled close button.
+        <div className={styles.backdrop} onClick={closeDrawer} aria-hidden="true" />
+      )}
+      <div
+        className={styles.panel}
+        role={!docked && drawerOpen ? 'dialog' : undefined}
+        aria-label="Room chat"
+        onKeyDown={onPanelKeyDown}
+      >
+        <div className={styles.header}>
+          <span className={styles.title}>Room chat</span>
+          <span className={styles.connection}>
+            {connected ? '' : 'reconnecting…'}
+          </span>
+          <button
+            type="button"
+            className={styles.closeButton}
+            onClick={closeDrawer}
+            aria-label="Close chat"
+          >
+            ×
+          </button>
+        </div>
+        <div className={styles.messageList} ref={listRef} onScroll={handleScroll} data-testid="chat-messages">
+          {messages.length === 0 ? (
+            <div className={styles.emptyState}>No messages yet — say hello.</div>
+          ) : (
+            messageItems
+          )}
+        </div>
+        {unreadCount > 0 && (
+          <button
+            type="button"
+            className={styles.newMessages}
+            onClick={() => {
+              const list = listRef.current
+              if (list) list.scrollTop = list.scrollHeight
+              followingRef.current = true
+              markSeen()
+            }}
+          >
+            {unreadCount} new message{unreadCount === 1 ? '' : 's'}
+          </button>
+        )}
+        <div className={styles.composer}>
+          <textarea
+            ref={inputRef}
+            className={styles.input}
+            value={draft}
+            onChange={event => setDraft(event.target.value)}
+            onKeyDown={onComposerKeyDown}
+            placeholder={connected ? 'Message the room' : 'Reconnecting…'}
+            disabled={!connected}
+            rows={2}
+            aria-label="Chat message"
+          />
+          <div className={styles.composerSide}>
+            {(nearLimit || overLimit) && (
+              <span className={`${styles.byteCount} ${overLimit ? styles.overLimit : ''}`}>
+                {draftBytes}/{CHAT_TEXT_BYTE_LIMIT}
+              </span>
+            )}
+            <button
+              type="button"
+              className={styles.sendButton}
+              onClick={send}
+              disabled={!connected || trimmedDraft.length === 0 || overLimit}
+            >
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
       <button
         ref={toggleRef}
         type="button"
@@ -265,9 +294,9 @@ const RoomChat = ({ messages, playerId, unreadCount, connected, replayUpTo, onSe
         * panel so a closed drawer still announces; keyed by id so a
         * repeat of identical text is still a DOM mutation. */}
       <div className={styles.srOnly} aria-live="polite">
-        {announcement && (
-          <span key={announcement.id} data-message-id={announcement.id}>
-            {announcement.text}
+        {announced.entry && (
+          <span key={announced.entry.id} data-message-id={announced.entry.id}>
+            {announced.entry.text}
           </span>
         )}
       </div>

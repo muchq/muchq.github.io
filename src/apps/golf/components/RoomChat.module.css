@@ -55,6 +55,9 @@
   min-height: 8rem;
   max-height: 24rem;
   overflow-y: auto;
+  /* Reaching the top of scrollback must not start scrolling the game
+   * behind the sheet. */
+  overscroll-behavior: contain;
   padding: 0.75rem 1rem;
   display: flex;
   flex-direction: column;
@@ -220,13 +223,24 @@
 
 /* Drawer mode is the default: the golf content is centered at
  * max-width 1200px, so only genuinely wide viewports have margin a
- * docked panel can occupy without covering cards or controls. */
+ * docked panel can occupy without covering cards or controls. There is
+ * no media query here — RoomChat.tsx owns the breakpoint (DOCKED_QUERY)
+ * and stamps .docked, so styling and behavior can't disagree. */
 .drawerToggle {
   display: block;
+  /* Clear the iOS home indicator. */
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
 }
 
 .panel {
   display: none;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .drawerOpen .panel {
@@ -235,10 +249,17 @@
   left: 0;
   right: 0;
   bottom: 0;
-  top: 30%;
+  /* dvh tracks the visual viewport, so the composer stays reachable
+   * when the mobile keyboard or browser chrome resizes the screen. */
+  height: 70vh;
+  height: 70dvh;
   z-index: 50;
   border-radius: 1rem 1rem 0 0;
   background: rgba(10, 40, 10, 0.97);
+}
+
+.drawerOpen .composer {
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
 }
 
 .drawerOpen .drawerToggle {
@@ -253,37 +274,63 @@
   max-height: none;
 }
 
-@media (min-width: 1880px) {
-  /* Enough viewport margin beside the 1200px content column to hold the
-   * 21rem panel footprint on both sides (1200 + 2 × 336 = 1872): dock
-   * the panel there permanently and retire the drawer chrome. Keep in
-   * sync with DOCKED_QUERY in RoomChat.tsx. */
-  .drawerToggle,
-  .drawerOpen .drawerToggle {
-    display: none;
+@media (prefers-reduced-motion: no-preference) {
+  .drawerOpen:not(.docked) .panel {
+    animation: chatSlideUp 0.25s ease;
   }
 
-  .panel,
-  .drawerOpen .panel {
-    display: flex;
-    position: fixed;
-    right: 1rem;
-    top: 6rem;
-    bottom: 1.5rem;
-    left: auto;
-    width: 20rem;
-    z-index: 30;
-    border-radius: 1rem;
-    background: rgba(255, 255, 255, 0.1);
+  .backdrop {
+    animation: chatFadeIn 0.2s ease;
   }
+}
 
-  .closeButton,
-  .drawerOpen .closeButton {
-    display: none;
+@keyframes chatSlideUp {
+  from {
+    transform: translateY(100%);
   }
+  to {
+    transform: translateY(0);
+  }
+}
 
-  .messageList,
-  .drawerOpen .messageList {
-    max-height: none;
+@keyframes chatFadeIn {
+  from {
+    opacity: 0;
   }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Docked mode, stamped by RoomChat.tsx once the viewport has margin for
+ * the 21rem panel footprint beside the 1200px content column on both
+ * sides (1200 + 2 × 336 = 1872). Last so it wins over the drawer rules
+ * whatever the drawer state is. */
+.docked .panel {
+  display: flex;
+  position: fixed;
+  left: auto;
+  right: 1rem;
+  top: 6rem;
+  bottom: 1.5rem;
+  height: auto;
+  width: 20rem;
+  z-index: 30;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  animation: none;
+}
+
+.docked .drawerToggle,
+.docked .closeButton,
+.docked .backdrop {
+  display: none;
+}
+
+.docked .composer {
+  padding-bottom: 0.75rem;
+}
+
+.docked .messageList {
+  max-height: none;
 }

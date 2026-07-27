@@ -83,11 +83,9 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     joinNewGame,
     permalinkJoinAttempt,
     chatMessages,
-    chatUnreadCount,
     chatAvailable,
     chatReplayUpTo,
     sendChat,
-    markChatSeen,
     isConnected
   } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams })
 
@@ -147,6 +145,21 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
       </div>
     )
   }
+
+  // One element, rendered at the same tree position (first child of the
+  // returned fragment) by both in-room branches, so a lobby↔game
+  // transition keeps the panel instance — composer draft, drawer state,
+  // scroll — instead of remounting it. The panel is position:fixed, so
+  // its place in document flow doesn't matter.
+  const roomChat = chatAvailable ? (
+    <RoomChat
+      messages={chatMessages}
+      playerId={playerId}
+      connected={isConnected}
+      replayUpTo={chatReplayUpTo}
+      onSend={sendChat}
+    />
+  ) : null
 
   if (isInLobby) {
     return (
@@ -270,6 +283,8 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
   // Room lobby state - user is in room but not in a specific game
   if (isInRoom && !gameState && roomState) {
     return (
+      <>
+      {roomChat}
       <div className={styles.roomLobby}>
         <div className={styles.roomHeader}>
           <div className={styles.roomHeaderTop}>
@@ -389,24 +404,13 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
           </button>
         </div>
 
-        {chatAvailable && (
-          <RoomChat
-            messages={chatMessages}
-            playerId={playerId}
-            unreadCount={chatUnreadCount}
-            connected={isConnected}
-            replayUpTo={chatReplayUpTo}
-            onSend={sendChat}
-            onSeen={markChatSeen}
-          />
-        )}
-
         {notification && (
           <div className={styles.notification}>
             {notification}
           </div>
         )}
       </div>
+      </>
     )
   }
 
@@ -430,6 +434,8 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
   }
 
   return (
+    <>
+    {roomChat}
     <div className={styles.gameContainer}>
       <div className={styles.gameHeader}>
         <div className={styles.gameHeaderTop}>
@@ -693,18 +699,8 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
         </div>
       )}
 
-      {chatAvailable && (
-        <RoomChat
-          messages={chatMessages}
-          playerId={playerId}
-          unreadCount={chatUnreadCount}
-          connected={isConnected}
-          replayUpTo={chatReplayUpTo}
-          onSend={sendChat}
-          onSeen={markChatSeen}
-        />
-      )}
     </div>
+    </>
   )
 }
 

@@ -17,11 +17,9 @@ const msg = (messageId: number, playerId: string, text: string): ChatMessage => 
 
 const baseProps = {
   playerId: 'alice',
-  unreadCount: 0,
   connected: true,
   replayUpTo: 0,
-  onSend: vi.fn(),
-  onSeen: vi.fn()
+  onSend: vi.fn()
 }
 
 describe('RoomChat', () => {
@@ -103,20 +101,36 @@ describe('RoomChat', () => {
     expect(screen.getByText('reconnecting…')).toBeInTheDocument()
   })
 
-  it('shows the unread badge on the drawer toggle and clears via onSeen when opened', () => {
-    render(<RoomChat {...baseProps} messages={[msg(1, 'bob', 'hi')]} unreadCount={3} />)
-    const toggle = screen.getByRole('button', { name: 'Open chat, 3 unread' })
-    expect(toggle.textContent).toContain('3')
+  it('accumulates unread on the toggle while the drawer is closed and clears on open', () => {
+    const { rerender } = render(<RoomChat {...baseProps} messages={[]} />)
+    rerender(
+      <RoomChat {...baseProps} messages={[msg(1, 'bob', 'one'), msg(2, 'bob', 'two')]} />
+    )
+    // Hidden panel: arrivals stay unread, or the badge could never show.
+    const toggle = screen.getByRole('button', { name: 'Open chat, 2 unread' })
+    expect(toggle.textContent).toContain('2')
 
     fireEvent.click(toggle)
-    expect(baseProps.onSeen).toHaveBeenCalled()
+    // Open and following: everything is seen, the badge is gone.
+    expect(screen.getByRole('button', { name: 'Open chat' })).toBeInTheDocument()
   })
 
   it('offers a new-messages jump instead of yanking scrolled-back readers', () => {
-    render(<RoomChat {...baseProps} messages={[msg(1, 'bob', 'hi')]} unreadCount={2} />)
-    const jump = screen.getByRole('button', { name: '2 new messages' })
+    const { rerender } = render(<RoomChat {...baseProps} messages={[msg(1, 'bob', 'one')]} />)
+    fireEvent.click(screen.getByRole('button', { name: /Open chat/ }))
+
+    // Scroll well away from the bottom, so the reader is not following.
+    const list = screen.getByTestId('chat-messages')
+    Object.defineProperty(list, 'scrollHeight', { value: 1000, configurable: true })
+    Object.defineProperty(list, 'clientHeight', { value: 200, configurable: true })
+    list.scrollTop = 0
+    fireEvent.scroll(list)
+
+    rerender(<RoomChat {...baseProps} messages={[msg(1, 'bob', 'one'), msg(2, 'bob', 'two')]} />)
+    const jump = screen.getByRole('button', { name: '1 new message' })
+
     fireEvent.click(jump)
-    expect(baseProps.onSeen).toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: '1 new message' })).toBeNull()
   })
 
   it('announces live messages politely but never the history replay', () => {
@@ -175,22 +189,17 @@ describe('RoomChat', () => {
     expect(second?.textContent).toBe('bob: gg')
   })
 
-  it('lets unread accumulate while the drawer is closed, marking seen only once visible', () => {
+  it('keeps arrivals seen while the drawer is open and following', () => {
     const { rerender } = render(<RoomChat {...baseProps} messages={[msg(1, 'bob', 'one')]} />)
-    rerender(<RoomChat {...baseProps} messages={[msg(1, 'bob', 'one'), msg(2, 'bob', 'two')]} />)
-    // Hidden panel: arrivals must not be marked seen, or the toggle
-    // badge could never show.
-    expect(baseProps.onSeen).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: /Open chat/ }))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open chat' }))
-    expect(baseProps.onSeen).toHaveBeenCalled()
-
-    const seenWhileOpen = baseProps.onSeen.mock.calls.length
     rerender(
-      <RoomChat {...baseProps} messages={[msg(1, 'bob', 'one'), msg(2, 'bob', 'two'), msg(3, 'bob', 'three')]} />
+      <RoomChat {...baseProps} messages={[msg(1, 'bob', 'one'), msg(2, 'bob', 'two')]} />
     )
-    // Visible and following: the new arrival is seen immediately.
-    expect(baseProps.onSeen.mock.calls.length).toBeGreaterThan(seenWhileOpen)
+    // Visible and following: the new arrival is seen immediately — no
+    // badge when the drawer closes again.
+    fireEvent.keyDown(screen.getByLabelText('Chat message'), { key: 'Escape' })
+    expect(screen.getByRole('button', { name: 'Open chat' })).toBeInTheDocument()
   })
 
   it('moves focus into the composer on open and back to the toggle on Escape', () => {

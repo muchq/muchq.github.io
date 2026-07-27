@@ -7,7 +7,8 @@ import type { ChatMessage } from '@/types/golfChat'
 import { CHAT_HISTORY_LIMIT } from '@/types/golfChat'
 
 // Room chat state in the hook (MoonBase#1226): merge by messageId across
-// history and live, unread transitions, room scoping, and the send path.
+// history and live, the replay watermark, room scoping, and the send
+// path. Seen/unread is presentation state and is tested on RoomChat.
 
 const mockNetworkAdapter = {
   connect: vi.fn(),
@@ -90,7 +91,6 @@ describe('useGolfGame - room chat', () => {
   it('starts empty with the capability reported from the adapter', () => {
     const { result } = renderHook(() => useGolfGame(), { wrapper })
     expect(result.current.chatMessages).toEqual([])
-    expect(result.current.chatUnreadCount).toBe(0)
     expect(result.current.chatAvailable).toBe(true)
   })
 
@@ -106,44 +106,18 @@ describe('useGolfGame - room chat', () => {
     expect(result.current.chatMessages.map(m => m.messageId)).toEqual([1, 2, 3, 4])
   })
 
-  it('counts unread until marked seen, then counts only newer arrivals', () => {
-    const { result } = renderHook(() => useGolfGame(), { wrapper })
-    act(() => {
-      mockNetworkAdapter._callbacks?.onChatHistory?.([msg(1), msg(2)])
-    })
-    expect(result.current.chatUnreadCount).toBe(2)
-
-    act(() => result.current.markChatSeen())
-    expect(result.current.chatUnreadCount).toBe(0)
-
-    act(() => {
-      mockNetworkAdapter._callbacks?.onChatMessage?.(msg(3))
-    })
-    expect(result.current.chatUnreadCount).toBe(1)
-
-    // A duplicate delivery of an already-seen id changes nothing.
-    act(() => {
-      mockNetworkAdapter._callbacks?.onChatMessage?.(msg(2))
-    })
-    expect(result.current.chatUnreadCount).toBe(1)
-  })
-
   it('keeps chat across a resume into the same room, deduplicating the replay', () => {
     const { result } = renderHook(() => useGolfGame(), { wrapper })
     act(() => {
       mockNetworkAdapter._callbacks?.onRoomJoined?.('alice', makeRoom('ROOM01'))
       mockNetworkAdapter._callbacks?.onChatHistory?.([msg(1), msg(2)])
     })
-    // Separate act: markChatSeen reads the rendered message list, the
-    // way the component invokes it after paint.
-    act(() => result.current.markChatSeen())
     act(() => {
       // Reconnect: the same room announces again and replays history.
       mockNetworkAdapter._callbacks?.onRoomJoined?.('alice', makeRoom('ROOM01'))
       mockNetworkAdapter._callbacks?.onChatHistory?.([msg(1), msg(2), msg(3)])
     })
     expect(result.current.chatMessages.map(m => m.messageId)).toEqual([1, 2, 3])
-    expect(result.current.chatUnreadCount).toBe(1)
   })
 
   it('drops the previous room chat when a different room is joined', () => {
@@ -156,10 +130,9 @@ describe('useGolfGame - room chat', () => {
       mockNetworkAdapter._callbacks?.onRoomJoined?.('alice', makeRoom('ROOM02'))
     })
     expect(result.current.chatMessages).toEqual([])
-    expect(result.current.chatUnreadCount).toBe(0)
   })
 
-  it('clears chat and unread on leaveRoom', () => {
+  it('clears chat on leaveRoom', () => {
     const { result } = renderHook(() => useGolfGame(), { wrapper })
     act(() => {
       mockNetworkAdapter._callbacks?.onRoomJoined?.('alice', makeRoom('ROOM01'))
@@ -167,7 +140,6 @@ describe('useGolfGame - room chat', () => {
     })
     act(() => result.current.leaveRoom())
     expect(result.current.chatMessages).toEqual([])
-    expect(result.current.chatUnreadCount).toBe(0)
   })
 
   it('caps the retained view at the server limit', () => {
