@@ -111,7 +111,10 @@ const fragmentShaderSource = `#version 300 es
       float brightness = 0.75 + t * 0.2;
 
       vec3 color = hsv2rgb(vec3(hue, saturation, brightness));
-      fragColor = vec4(color, 0.8);
+      // Previously vec4(color, 0.8) over a white page background, which the
+      // browser composites premultiplied: color + 0.2 * white. Bake that in
+      // and render opaque so the page background can be non-white.
+      fragColor = vec4(color + 0.2, 1.0);
     }
   }
 `
@@ -210,15 +213,35 @@ export const useWebGL = () => {
 
     document.addEventListener('mousemove', handleMouseMove)
 
-    // Resize canvas
+    // Size the drawing buffer to the element's on-screen size. The element is
+    // viewport-sized via CSS, and mobile viewports resize as browser chrome
+    // collapses/expands, so track the element rather than window.inner*.
     const resizeCanvas = () => {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
-      gl.viewport(0, 0, canvas.width, canvas.height)
+      const width = canvas.clientWidth || window.innerWidth
+      const height = canvas.clientHeight || window.innerHeight
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width
+        canvas.height = height
+        gl.viewport(0, 0, width, height)
+      }
     }
 
     window.addEventListener('resize', resizeCanvas)
+    const resizeObserver = new ResizeObserver(resizeCanvas)
+    resizeObserver.observe(canvas)
     resizeCanvas()
+
+    // Keep the page background in sync with the canvas's bottom-edge color,
+    // so any viewport area the canvas doesn't cover (mobile browser chrome
+    // collapsing/expanding, overscroll) blends in instead of flashing white.
+    let lastBackgroundSync = -Infinity
+    const syncBackground = (time: number) => {
+      if (time - lastBackgroundSync < 1000) return
+      lastBackgroundSync = time
+      const pixel = new Uint8Array(4)
+      gl.readPixels(Math.floor(canvas.width / 2), 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel)
+      document.documentElement.style.backgroundColor = `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`
+    }
 
     // Animation loop
     let animationId: number
@@ -231,6 +254,7 @@ export const useWebGL = () => {
       gl.uniform1f(timeLocation, time * 0.001)
 
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+      syncBackground(time)
 
       animationId = requestAnimationFrame(render)
     }
@@ -241,6 +265,8 @@ export const useWebGL = () => {
     return () => {
       document.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('resize', resizeCanvas)
+      resizeObserver.disconnect()
+      document.documentElement.style.removeProperty('background-color')
       if (animationId) {
         cancelAnimationFrame(animationId)
       }

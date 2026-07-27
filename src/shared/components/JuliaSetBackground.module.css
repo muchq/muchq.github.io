@@ -1,9 +1,20 @@
+/* On pages showing the Julia canvas, paint the document background in the
+   fractal's base tone. iOS Safari can expose area beyond the canvas
+   (collapsing browser chrome, overscroll, viewport offsets after gestures),
+   and the default white background read as a big blank band. */
+:global(html:has(#julia-canvas)) {
+  background-color: #e39583;
+}
+
 .juliaCanvas {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
+  /* Percentages resolve against the viewport (the fixed-position containing
+     block), which tracks the visible area on iOS while the browser chrome
+     collapses/expands — unlike 100vh, which can fall short and leave a
+     blank band at the bottom. */
+  width: 100%;
+  height: 100%;
   z-index: -1;
   pointer-events: none;
 }
