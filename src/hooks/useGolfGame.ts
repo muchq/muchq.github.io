@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { GameState, Player, Room } from '@/types/golf'
+import type { ChatMessage } from '@/types/golfChat'
+import { mergeChatMessages } from '@/types/golfChat'
 import { GolfNetworkAdapter } from '@/utils/networkAdapter'
 import { GolfV2NetworkAdapter } from '@/utils/golfV2Adapter'
 import { isGolfV2Enabled } from '@/utils/golfV2'
@@ -31,6 +33,22 @@ interface UseGolfGameReturn {
   winner: string | null
   winners: string[] | null
   finalScores: Array<{ playerName: string; score: number }> | null
+
+  // Room chat (MoonBase#1226): the room's merged history+live view,
+  // capped at 100 by the shared merge. Seen and unread are presentation
+  // state and live in the chat UI — this hook only owns what the wire
+  // knows.
+  chatMessages: ChatMessage[]
+  // True once the current room's wire has actually delivered chat — the
+  // join replay (empty counts) or a live message. The adapter class
+  // declaring sendChat is not proof the server has chat: a UI deployed
+  // ahead of the server (or after a rollback) must render no chat at
+  // all rather than a composer whose sends silently vanish.
+  chatAvailable: boolean
+  // Highest messageId ever delivered via a history replay: consumers
+  // that announce live messages use it to keep replays silent.
+  chatReplayUpTo: number
+  sendChat: (text: string) => void
   
   // New game notifications
   newGameNotifications: Array<{
@@ -111,6 +129,20 @@ export const useGolfGame = ({
     error: null as string | null,
     gameJoinAttempted: false
   })
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatReplayUpTo, setChatReplayUpTo] = useState(0)
+  const [chatAvailable, setChatAvailable] = useState(false)
+  // The room the chat state belongs to: entering a different room drops
+  // the old room's messages before its history lands.
+  const chatRoomRef = useRef<string | null>(null)
+  const resetChat = useCallback((roomId: string | null) => {
+    chatRoomRef.current = roomId
+    setChatMessages([])
+    setChatReplayUpTo(0)
+    // Capability is re-proven per room: the next replay or live message
+    // flips it back.
+    setChatAvailable(false)
+  }, [])
   const [isReconnecting, setIsReconnecting] = useState(false)
   const [isManualNavigation, setIsManualNavigation] = useState(false)
   const [, setIsCreatingNewGame] = useState(false)
@@ -306,6 +338,8 @@ export const useGolfGame = ({
     if (roomState?.id) {
       networkAdapterRef.current?.leaveRoom(roomState.id)
     }
+    // Chat belongs to the room: leaving clears it.
+    resetChat(null)
     setRoomState(null)
     setGameState(null)
     setIsInRoom(false)
@@ -316,7 +350,7 @@ export const useGolfGame = ({
     setSelectedCardIndex(null)
     setNewGameNotifications([])
     navigate('/golf', { replace: true })
-  }, [roomState?.id, navigate])
+  }, [roomState?.id, navigate, resetChat])
 
   // Navigation helper functions
   const navigateToRoom = useCallback((roomId: string) => {
@@ -426,6 +460,15 @@ export const useGolfGame = ({
     joinGame(gameId)
   }, [roomState?.id, dismissNewGameNotification, joinGame, showNotification])
 
+  const sendChat = useCallback((text: string) => {
+    const adapter = networkAdapterRef.current
+    // Trim here so what the byte counter measured is what ships; the
+    // server validates again and rejects what a stale client sends.
+    const trimmed = text.trim()
+    if (!adapter?.sendChat || !trimmed) return
+    adapter.sendChat(trimmed)
+  }, [])
+
   // Computed values
   const currentPlayer = gameState?.players.find(p => p.id === playerId)
   const isMyTurn = gameState?.players[gameState.currentPlayerIndex]?.id === playerId
@@ -444,6 +487,12 @@ export const useGolfGame = ({
         }, 2000)
       },
       onRoomJoined: (newPlayerId, newRoomState) => {
+        // A different room means different chat: drop the old room's
+        // messages before the new room's history event lands. A resume
+        // into the same room keeps them — its replay merges by id.
+        if (chatRoomRef.current !== newRoomState.id) {
+          resetChat(newRoomState.id)
+        }
         setIsReconnecting(false)
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current)
@@ -530,6 +579,19 @@ export const useGolfGame = ({
             setWinner(winnerMatch[1])
           }
         }
+      },
+      onChatMessage: (message) => {
+        setChatAvailable(true)
+        setChatMessages(prev => mergeChatMessages(prev, [message]))
+      },
+      onChatHistory: (messages) => {
+        // The replay is the wire's proof that chat exists — an empty
+        // room sends an empty one, so availability flips regardless.
+        setChatAvailable(true)
+        setChatMessages(prev => mergeChatMessages(prev, messages))
+        // Same commit as the merge, so consumers never see replayed
+        // messages without the watermark that keeps them unannounced.
+        setChatReplayUpTo(prev => messages.reduce((max, m) => Math.max(max, m.messageId), prev))
       },
       onGameError: (errorMessage) => {
         if (permalinkJoinAttempt.isAttempting &&
@@ -826,7 +888,13 @@ export const useGolfGame = ({
     winner,
     winners,
     finalScores,
-  
+
+    // Room chat
+    chatMessages,
+    chatAvailable,
+    chatReplayUpTo,
+    sendChat,
+
     // New game notifications
     newGameNotifications,
     
