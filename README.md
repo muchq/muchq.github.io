@@ -1,93 +1,82 @@
 # MuchQ
 
-Just some doodles and a pretty chill game.
+Just some doodles and a few pretty chill games. Lives at [muchq.com](https://muchq.com).
 
 ## 🚀 Quick Start
-
-### Development
 
 ```bash
 # Install dependencies
 npm install
 
-# Start development server
+# Start the dev server (http://localhost:3000)
 npm run dev
 
-# Open http://localhost:3000
+# Point game/API traffic at a local backend on :2015 instead of prod
+npm run local-server
 ```
 
-### Building
+## ✅ Checks
 
 ```bash
 # Type check
 npm run typecheck
 
-# Lint code
+# Lint (zero-warning budget)
 npm run lint
 
-# Run tests
+# Tests: watch mode, one-shot, or with the vitest UI
 npm run test
+npm run test:run
+npm run test:ui
 
-# Build for production
+# Production build / preview
 npm run build
-
-# Preview production build
 npm run preview
+
+# Deploy (Cloudflare Workers via wrangler)
+npm run deploy
 ```
+
+## 🕹️ What's Here
+
+| Route | App |
+|---|---|
+| `/golf` | Multiplayer 4-card golf — rooms, permalinks, and (on the v2 wire) room chat |
+| `/thoughts` | 3D multiplayer thoughts game |
+| `/party` | Rescue Party |
+| `/quest` | Quest — score-chasing arcade game |
+| `/tracy` | Ray tracer portraits |
+| `/posterize` | Image posterizer |
+| `/wordchains` | Word chain puzzles |
+| `/metrics` | Live service/host dashboards for the backend fleet |
+| `/resilience` | Distributed-systems game |
+| `/groups`, `/sets`, `/top` | Math learning modules (permutation groups, sets, Topology Quest) |
+
+### Golf v1/v2
+
+Golf speaks two wires. The default v1 protocol is documented in [GOLF.md](GOLF.md); the v2
+event-stream hub is a per-browser beta — opt in with `?golf=v2` (sticky via localStorage),
+back out with `?golf=v1`, or default a build in with `VITE_GOLF_V2_DEFAULT=true`. Room chat
+is v2-only, and the UI reveals it only once the server actually delivers chat on the wire.
 
 ## 🏗️ Project Structure
 
 ```
 src/
-├── components/          # React components
-│   ├── Navigation.tsx   # Main navigation
-│   ├── JuliaSetBackground.tsx # WebGL Julia set renderer
-│   ├── MathAnimations.tsx     # Floating math equations
-│   ├── ThoughtsGame.tsx       # 3D thoughts game
-│   ├── ThoughtsNavigation.tsx # Thoughts page navigation
-│   ├── GolfGame.tsx     # Golf game component
-│   ├── GolfNavigation.tsx     # Golf page navigation
-│   ├── GroupsNavigation.tsx   # Groups page navigation
-│   ├── PermutationVisualizer.tsx # Interactive permutation tool
-│   ├── CycleDecomposer.tsx    # Cycle decomposition calculator
-│   ├── PermutationQuiz.tsx    # Interactive quiz component
-│   ├── SignCalculator.tsx     # Permutation sign calculator
-│   └── __tests__/       # Component tests
-├── hooks/               # Custom React hooks
-│   ├── useWebGL.ts      # WebGL Julia set logic
-│   ├── useThoughtsGame.ts # Thoughts game engine logic
-│   └── useGolfGame.ts   # Golf game engine logic
-├── pages/               # Page components
-│   ├── HomePage.tsx     # Landing page
-│   ├── ThoughtsPage.tsx # Thoughts game page
-│   ├── GolfPage.tsx     # Golf game page
-│   └── GroupsPage.tsx   # Permutation groups learning module
-├── types/               # TypeScript type definitions
-│   ├── game.ts          # Game-related types
-│   └── vite-env.d.ts    # Vite environment types
-├── utils/               # Utility functions
-│   └── gameUtils.ts     # Game helper functions
-└── test/                # Test configuration
-    └── setup.ts         # Test setup
+├── apps/       # One directory per app (golf, thoughts, metrics-systems, …):
+│               # components, styles, and tests live with their app
+├── core/       # Page shells and routing targets
+├── shared/     # Components shared across apps (navigation, backgrounds, …)
+├── hooks/      # Cross-app React hooks (useGolfGame, useThoughtsGame, …)
+├── plugins/    # Network plugins for the multiplayer games
+├── types/      # Shared TypeScript contracts (adapter interfaces, wire shapes)
+├── utils/      # Adapters, permalinks, feature flags, helpers
+└── test/       # Vitest setup
 ```
 
-## 🧪 Testing
+Routes are declared in `src/App.tsx`.
 
-```bash
-# Run tests in watch mode
-npm run test
+## 📄 Documentation
 
-# Run tests with UI
-npm run test:ui
-
-# Run tests once
-npm run test -- --run
-```
-
-## 📝 Original Migration
-
-Old time-y implementation is preserved in the `backup/` directory.
-
-## Documentation
-
-- [Thoughts Multiplayer API](THOUGHTS.md) - WebSocket API specification for the multiplayer game environment
+- [GOLF.md](GOLF.md) — Golf multiplayer WebSocket API (v1)
+- [THOUGHTS.md](THOUGHTS.md) — Thoughts multiplayer WebSocket API

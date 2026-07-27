@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import styles from './GolfGame.module.css'
 import { useGolfGame } from '@/hooks/useGolfGame'
 import PermalinkDisplay from './PermalinkDisplay'
+import RoomChat from './RoomChat'
 import NewGameNotification from './NewGameNotification'
 import type { ParsedPermalinkParams } from '../../../utils/golfPermalinks'
 import { isGolfV2Enabled, setGolfV2Enabled } from '../../../utils/golfV2'
@@ -80,7 +81,12 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     leaveRoom,
     dismissNewGameNotification,
     joinNewGame,
-    permalinkJoinAttempt
+    permalinkJoinAttempt,
+    chatMessages,
+    chatAvailable,
+    chatReplayUpTo,
+    sendChat,
+    isConnected
   } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams })
 
   const isGameWinner = (player: Player | null | undefined) => {
@@ -139,6 +145,21 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
       </div>
     )
   }
+
+  // One element, rendered at the same tree position (first child of the
+  // returned fragment) by both in-room branches, so a lobby↔game
+  // transition keeps the panel instance — composer draft, drawer state,
+  // scroll — instead of remounting it. The panel is position:fixed, so
+  // its place in document flow doesn't matter.
+  const roomChat = chatAvailable ? (
+    <RoomChat
+      messages={chatMessages}
+      playerId={playerId}
+      connected={isConnected}
+      replayUpTo={chatReplayUpTo}
+      onSend={sendChat}
+    />
+  ) : null
 
   if (isInLobby) {
     return (
@@ -262,6 +283,8 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
   // Room lobby state - user is in room but not in a specific game
   if (isInRoom && !gameState && roomState) {
     return (
+      <>
+      {roomChat}
       <div className={styles.roomLobby}>
         <div className={styles.roomHeader}>
           <div className={styles.roomHeaderTop}>
@@ -387,6 +410,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
           </div>
         )}
       </div>
+      </>
     )
   }
 
@@ -410,6 +434,8 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
   }
 
   return (
+    <>
+    {roomChat}
     <div className={styles.gameContainer}>
       <div className={styles.gameHeader}>
         <div className={styles.gameHeaderTop}>
@@ -672,7 +698,9 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
           <div className={styles.countdownText}>All players have peeked!</div>
         </div>
       )}
+
     </div>
+    </>
   )
 }
 
