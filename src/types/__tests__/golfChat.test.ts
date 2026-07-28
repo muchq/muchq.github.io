@@ -1,9 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import {
+  CHAT_BURST,
   CHAT_HISTORY_LIMIT,
   CHAT_TEXT_BYTE_LIMIT,
+  chatCooldownMs,
   chatTextBytes,
+  drainChatBudget,
   mergeChatMessages,
+  newChatSendBudget,
+  spendChatToken,
   type ChatMessage
 } from '../golfChat'
 
@@ -75,5 +80,54 @@ describe('chatTextBytes', () => {
     expect(chatTextBytes('é')).toBe(2)
     expect(chatTextBytes('🎉')).toBe(4)
     expect(CHAT_TEXT_BYTE_LIMIT).toBe(500)
+  })
+})
+
+// The pacing mirror of the server's chat budget (MoonBase#1240/#1241):
+// pure functions of (state, clock), so tests fabricate time the same
+// way the server's rate_limiter_test does.
+describe('chat send budget', () => {
+  const t0 = 1_700_000_000_000
+
+  it('allows the full burst immediately, then refuses', () => {
+    let budget = newChatSendBudget(t0)
+    for (let i = 0; i < CHAT_BURST; i++) {
+      const spent = spendChatToken(budget, t0)
+      expect(spent.ok).toBe(true)
+      budget = spent.budget
+    }
+    expect(spendChatToken(budget, t0).ok).toBe(false)
+  })
+
+  it('refills one token per second and caps at the burst', () => {
+    let budget = newChatSendBudget(t0)
+    for (let i = 0; i < CHAT_BURST; i++) budget = spendChatToken(budget, t0).budget
+
+    // 999ms is not a whole token yet.
+    const early = spendChatToken(budget, t0 + 999)
+    expect(early.ok).toBe(false)
+
+    // The refill accrued during the refused spend: 1ms later the whole
+    // token exists — and exactly one of it.
+    const one = spendChatToken(early.budget, t0 + 1000)
+    expect(one.ok).toBe(true)
+    expect(spendChatToken(one.budget, t0 + 1000).ok).toBe(false)
+
+    // A long idle stretch refills to the cap, never beyond it.
+    let idle = one.budget
+    for (let i = 0; i < CHAT_BURST; i++) {
+      const spent = spendChatToken(idle, t0 + 60_000)
+      expect(spent.ok).toBe(true)
+      idle = spent.budget
+    }
+    expect(spendChatToken(idle, t0 + 60_000).ok).toBe(false)
+  })
+
+  it('reports the wait until the next whole token', () => {
+    const drained = drainChatBudget(t0)
+    expect(chatCooldownMs(drained, t0)).toBe(1000)
+    expect(chatCooldownMs(drained, t0 + 400)).toBe(600)
+    expect(chatCooldownMs(drained, t0 + 1000)).toBe(0)
+    expect(chatCooldownMs(newChatSendBudget(t0), t0)).toBe(0)
   })
 })

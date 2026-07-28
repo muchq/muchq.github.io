@@ -48,6 +48,11 @@ interface UseGolfGameReturn {
   // Highest messageId ever delivered via a history replay: consumers
   // that announce live messages use it to keep replays silent.
   chatReplayUpTo: number
+  // The newest command rejection off the wire, sequence-numbered so a
+  // consumer reacts exactly once per refusal even when reasons repeat.
+  // Reasons are uninterpreted here — the chat composer picks out the
+  // server's "slow down" (MoonBase#1241) for its draft restore.
+  chatRejection: { seq: number; reason: string } | null
   sendChat: (text: string) => void
   
   // New game notifications
@@ -132,6 +137,7 @@ export const useGolfGame = ({
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatReplayUpTo, setChatReplayUpTo] = useState(0)
   const [chatAvailable, setChatAvailable] = useState(false)
+  const [chatRejection, setChatRejection] = useState<{ seq: number; reason: string } | null>(null)
   // The room the chat state belongs to: entering a different room drops
   // the old room's messages before its history lands.
   const chatRoomRef = useRef<string | null>(null)
@@ -139,6 +145,7 @@ export const useGolfGame = ({
     chatRoomRef.current = roomId
     setChatMessages([])
     setChatReplayUpTo(0)
+    setChatRejection(null)
     // Capability is re-proven per room: the next replay or live message
     // flips it back.
     setChatAvailable(false)
@@ -594,6 +601,9 @@ export const useGolfGame = ({
         setChatReplayUpTo(prev => messages.reduce((max, m) => Math.max(max, m.messageId), prev))
       },
       onGameError: (errorMessage) => {
+        // Every rejection also flows to chat state — the composer
+        // reacts once per seq, and only to reasons it recognizes.
+        setChatRejection(prev => ({ seq: (prev?.seq ?? 0) + 1, reason: errorMessage }))
         if (permalinkJoinAttempt.isAttempting &&
             (errorMessage.includes('not found') || errorMessage.includes('does not exist'))) {
           if (permalinkTimeoutRef.current) {
@@ -893,6 +903,7 @@ export const useGolfGame = ({
     chatMessages,
     chatAvailable,
     chatReplayUpTo,
+    chatRejection,
     sendChat,
 
     // New game notifications
