@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import RoomChat from '../RoomChat'
 import type { ChatMessage } from '@/types/golfChat'
@@ -19,6 +19,7 @@ const baseProps = {
   playerId: 'alice',
   connected: true,
   replayUpTo: 0,
+  rejection: null,
   onSend: vi.fn()
 }
 
@@ -210,5 +211,83 @@ describe('RoomChat', () => {
 
     fireEvent.keyDown(input, { key: 'Escape' })
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Open chat' }))
+  })
+
+  it('paces bursts to the server budget and re-enables as tokens refill', () => {
+    vi.useFakeTimers()
+    try {
+      render(<RoomChat {...baseProps} messages={[]} />)
+      const input = screen.getByLabelText('Chat message')
+
+      for (let i = 1; i <= 3; i++) {
+        fireEvent.change(input, { target: { value: `m${i}` } })
+        fireEvent.keyDown(input, { key: 'Enter' })
+      }
+      expect(baseProps.onSend).toHaveBeenCalledTimes(3)
+
+      // Bucket empty: the fourth stays in the composer, Send disables,
+      // and the polite status region explains why.
+      fireEvent.change(input, { target: { value: 'm4' } })
+      fireEvent.keyDown(input, { key: 'Enter' })
+      expect(baseProps.onSend).toHaveBeenCalledTimes(3)
+      expect((input as HTMLTextAreaElement).value).toBe('m4')
+      expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+      expect(screen.getByRole('status').textContent).toContain('hold on')
+
+      // One refill later the composer works again.
+      act(() => {
+        vi.advanceTimersByTime(1000)
+      })
+      expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled()
+      fireEvent.keyDown(input, { key: 'Enter' })
+      expect(baseProps.onSend).toHaveBeenCalledTimes(4)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('restores the draft when the server refuses a recent send with slow down', () => {
+    const { rerender } = render(<RoomChat {...baseProps} messages={[]} />)
+    const input = screen.getByLabelText('Chat message')
+    fireEvent.change(input, { target: { value: 'good luck' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(baseProps.onSend).toHaveBeenCalledWith('good luck')
+    expect((input as HTMLTextAreaElement).value).toBe('')
+
+    rerender(
+      <RoomChat {...baseProps} messages={[]} rejection={{ seq: 1, reason: 'slow down' }} />
+    )
+    expect((input as HTMLTextAreaElement).value).toBe('good luck')
+    expect(screen.getByRole('status').textContent).toContain('not sent')
+    // The server said the budget is empty — the mirror resyncs, so Send
+    // waits for the refill instead of earning another refusal.
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+  })
+
+  it('does not clobber a retyped draft when the refusal lands', () => {
+    const { rerender } = render(<RoomChat {...baseProps} messages={[]} />)
+    const input = screen.getByLabelText('Chat message')
+    fireEvent.change(input, { target: { value: 'first' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    fireEvent.change(input, { target: { value: 'second draft' } })
+
+    rerender(
+      <RoomChat {...baseProps} messages={[]} rejection={{ seq: 1, reason: 'slow down' }} />
+    )
+    expect((input as HTMLTextAreaElement).value).toBe('second draft')
+    expect(screen.getByRole('status')).toBeInTheDocument()
+  })
+
+  it('restores nothing for unrelated rejections', () => {
+    const { rerender } = render(<RoomChat {...baseProps} messages={[]} />)
+    const input = screen.getByLabelText('Chat message')
+    fireEvent.change(input, { target: { value: 'hello' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    rerender(
+      <RoomChat {...baseProps} messages={[]} rejection={{ seq: 1, reason: 'not in a room' }} />
+    )
+    expect((input as HTMLTextAreaElement).value).toBe('')
+    expect(screen.queryByRole('status')).toBeNull()
   })
 })

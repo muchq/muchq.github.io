@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import styles from './RoomChat.module.css'
-import type { ChatMessage } from '@/types/golfChat'
-import { CHAT_TEXT_BYTE_LIMIT, chatTextBytes } from '@/types/golfChat'
+import type { ChatMessage, ChatSendBudget } from '@/types/golfChat'
+import {
+  CHAT_SLOW_DOWN_REASON,
+  CHAT_TEXT_BYTE_LIMIT,
+  chatCooldownMs,
+  chatTextBytes,
+  drainChatBudget,
+  newChatSendBudget,
+  spendChatToken
+} from '@/types/golfChat'
 
 // Room chat (MoonBase#1226): one stable instance for both the room
 // lobby and in-game views. Wide viewports dock it as a side panel;
@@ -26,6 +34,9 @@ interface RoomChatProps {
   // screen readers — only ids above both this and the mount watermark
   // are genuinely live.
   replayUpTo: number
+  // The newest command rejection, sequence-numbered by the hook. The
+  // composer reacts once per seq and only to the server's "slow down".
+  rejection: { seq: number; reason: string } | null
   onSend: (text: string) => void
 }
 
@@ -40,9 +51,15 @@ const FOLLOW_THRESHOLD_PX = 48
 // .docked class this component stamps from this one query.
 const DOCKED_QUERY = '(min-width: 1880px)'
 
+// The wire doesn't correlate rejections to commands (MoonBase#1240), so
+// restoring a refused draft is a heuristic: a "slow down" this soon
+// after our own send, with the composer still empty, is that send being
+// refused. The pacing mirror makes this a rare path.
+const REJECTION_RESTORE_WINDOW_MS = 5000
+
 const timeFormat = new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' })
 
-const RoomChat = ({ messages, playerId, connected, replayUpTo, onSend }: RoomChatProps) => {
+const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend }: RoomChatProps) => {
   const [draft, setDraft] = useState('')
   // Drawer-mode only: whether the bottom sheet is open. The docked
   // panel ignores it — the .docked rules keep the panel visible.
@@ -52,6 +69,13 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, onSend }: RoomCha
     () => typeof window.matchMedia === 'function' && window.matchMedia(DOCKED_QUERY).matches
   )
   const [lastSeenId, setLastSeenId] = useState(0)
+  // The client-side mirror of the server's chat budget (burst 3, refill
+  // 1/s): pacing UX so honest users rarely earn a real refusal. The
+  // server stays authoritative.
+  const [budget, setBudget] = useState<ChatSendBudget>(() => newChatSendBudget(Date.now()))
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null)
+  const [lastSent, setLastSent] = useState<{ text: string; atMs: number } | null>(null)
+  const [refused, setRefused] = useState(false)
   const listRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const toggleRef = useRef<HTMLButtonElement | null>(null)
@@ -80,6 +104,26 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, onSend }: RoomCha
           ? null
           : announced.entry
     setAnnounced({ upTo: latestId, entry })
+  }
+
+  // Server refusals, adjusted in render the same way. A "slow down"
+  // inside the restore window is our send being refused: put the text
+  // back in the composer instead of losing it, drain the mirror (the
+  // server knows the real budget — ours drifted), and say so in-panel.
+  // Unrelated rejection reasons restore nothing.
+  const [handledRejectionSeq, setHandledRejectionSeq] = useState(rejection?.seq ?? 0)
+  if (rejection && rejection.seq !== handledRejectionSeq) {
+    setHandledRejectionSeq(rejection.seq)
+    if (rejection.reason === CHAT_SLOW_DOWN_REASON) {
+      const now = Date.now()
+      if (lastSent && now - lastSent.atMs <= REJECTION_RESTORE_WINDOW_MS) {
+        if (draft === '') setDraft(lastSent.text)
+        setRefused(true)
+        const drained = drainChatBudget(now)
+        setBudget(drained)
+        setCooldownUntil(now + chatCooldownMs(drained, now))
+      }
+    }
   }
 
   useEffect(() => {
@@ -133,13 +177,39 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, onSend }: RoomCha
   const draftBytes = chatTextBytes(trimmedDraft)
   const overLimit = draftBytes > CHAT_TEXT_BYTE_LIMIT
   const nearLimit = draftBytes > CHAT_TEXT_BYTE_LIMIT - 100
+  const coolingDown = cooldownUntil !== null
 
   const send = useCallback(() => {
     if (!trimmedDraft || !connected || overLimit) return
+    const now = Date.now()
+    // Spend from the mirror before shipping; an empty bucket keeps the
+    // draft in place and starts the cooldown instead of earning a
+    // server refusal. Refill accrues either way.
+    const spent = spendChatToken(budget, now)
+    setBudget(spent.budget)
+    const wait = chatCooldownMs(spent.budget, now)
+    if (!spent.ok) {
+      setCooldownUntil(now + wait)
+      return
+    }
     onSend(trimmedDraft)
+    setLastSent({ text: trimmedDraft, atMs: now })
     setDraft('')
+    setRefused(false)
     followingRef.current = true
-  }, [trimmedDraft, connected, overLimit, onSend])
+    if (wait > 0) setCooldownUntil(now + wait)
+  }, [trimmedDraft, connected, overLimit, budget, onSend])
+
+  // Re-enable Send as the mirror refills: the timeout is the clock
+  // reporting back in.
+  useEffect(() => {
+    if (cooldownUntil === null) return
+    const timer = setTimeout(() => {
+      setCooldownUntil(null)
+      setRefused(false)
+    }, Math.max(0, cooldownUntil - Date.now()))
+    return () => clearTimeout(timer)
+  }, [cooldownUntil])
 
   const onComposerKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -264,6 +334,14 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, onSend }: RoomCha
             aria-label="Chat message"
           />
           <div className={styles.composerSide}>
+            {/* role="status" is a polite live region, so the cooldown
+              * and refusal reach screen readers without touching the
+              * message announcement region. */}
+            {(refused || coolingDown) && (
+              <span className={styles.cooldownHint} role="status">
+                {refused ? 'not sent — hold on a moment…' : 'hold on a moment…'}
+              </span>
+            )}
             {(nearLimit || overLimit) && (
               <span className={`${styles.byteCount} ${overLimit ? styles.overLimit : ''}`}>
                 {draftBytes}/{CHAT_TEXT_BYTE_LIMIT}
@@ -273,7 +351,8 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, onSend }: RoomCha
               type="button"
               className={styles.sendButton}
               onClick={send}
-              disabled={!connected || trimmedDraft.length === 0 || overLimit}
+              disabled={!connected || trimmedDraft.length === 0 || overLimit || coolingDown}
+              title={coolingDown ? 'Chat is rate limited — waiting a moment' : undefined}
             >
               Send
             </button>

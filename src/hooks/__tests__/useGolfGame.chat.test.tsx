@@ -38,6 +38,7 @@ const mockNetworkAdapter = {
     onRoomJoined?: (playerId: string, roomState: Room) => void
     onChatMessage?: (message: ChatMessage) => void
     onChatHistory?: (messages: ChatMessage[]) => void
+    onGameError?: (message: string) => void
   } | null
 }
 
@@ -194,6 +195,28 @@ describe('useGolfGame - room chat', () => {
       mockNetworkAdapter._callbacks?.onRoomJoined?.('alice', makeRoom('ROOM02'))
     })
     expect(result.current.chatReplayUpTo).toBe(0)
+  })
+
+  it('surfaces command rejections with a sequence, cleared with the room', () => {
+    const { result } = renderHook(() => useGolfGame(), { wrapper })
+    expect(result.current.chatRejection).toBeNull()
+
+    act(() => {
+      mockNetworkAdapter._callbacks?.onGameError?.('slow down')
+    })
+    expect(result.current.chatRejection).toEqual({ seq: 1, reason: 'slow down' })
+
+    // The same reason again is a new refusal: the seq moves so a
+    // consumer reacting per-seq sees it.
+    act(() => {
+      mockNetworkAdapter._callbacks?.onGameError?.('slow down')
+    })
+    expect(result.current.chatRejection).toEqual({ seq: 2, reason: 'slow down' })
+
+    act(() => {
+      mockNetworkAdapter._callbacks?.onRoomJoined?.('alice', makeRoom('ROOM01'))
+    })
+    expect(result.current.chatRejection).toBeNull()
   })
 
   it('trims before sending and refuses whitespace-only drafts', () => {

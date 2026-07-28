@@ -85,6 +85,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     chatMessages,
     chatAvailable,
     chatReplayUpTo,
+    chatRejection,
     sendChat,
     isConnected
   } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams })
@@ -157,6 +158,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
       playerId={playerId}
       connected={isConnected}
       replayUpTo={chatReplayUpTo}
+      rejection={chatRejection}
       onSend={sendChat}
     />
   ) : null

@@ -158,6 +158,12 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
+.cooldownHint {
+  font-size: 0.6875rem;
+  color: #ffd27f;
+  text-align: right;
+}
+
 .overLimit {
   color: #ff8080;
   font-weight: 600;
