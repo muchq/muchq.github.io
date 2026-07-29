@@ -11,7 +11,7 @@ import { containerLabel, containerState, formatUptime, type ContainerStats, type
 //                   same thing, and fetchJson can't tell them apart, so this
 //                   renders "unknown" rather than claiming the container is gone
 //   reporting=false cAdvisor knows the container but returned no samples
-//   otherwise       real numbers, so up/restarting/crash-looping is decidable
+//   otherwise       real numbers, so up/crash-looping is decidable
 //
 // The middle case has to stay distinct from a healthy zero: a failed query
 // leaves 0 restarts and 0 uptime, which would otherwise render as "up".
@@ -22,7 +22,6 @@ import { containerLabel, containerState, formatUptime, type ContainerStats, type
 // that matters, a container that is down while every chart looks idle-healthy.
 const STATE_STYLES: Record<ContainerState, string> = {
   up: 'stateUp',
-  restarting: 'stateWarn',
   'crash looping': 'stateDown',
   'not reporting': 'stateUnknown',
 }

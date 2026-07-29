@@ -532,7 +532,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
             The host runs more than four, and the truncated list was in
             arbitrary Prometheus order, so the one container worth looking
             at was the one most likely to be cut. Sorted so anything
-            crash-looping or restarting sorts to the front. Titled, and the
+            crash-looping or churning sorts to the front. Titled, and the
             value carries its unit — a bare percentage on an unlabeled card
             doesn't say what's being measured. */}
         {containerMetrics && containerMetrics.containers.length > 0 && (
