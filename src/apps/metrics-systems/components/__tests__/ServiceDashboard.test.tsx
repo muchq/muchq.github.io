@@ -335,7 +335,9 @@ describe('ServiceDashboard', () => {
       expect(screen.queryByText('Sessions')).toBeNull()
     })
 
-    it('reports restarts that have not yet met the crash-loop rule', async () => {
+    it('stays up on restarts that have not met the crash-loop rule', async () => {
+      // A container that restarted and then stayed up is up. The count is
+      // still worth showing — it just isn't the verdict.
       mockFetch.mockImplementation((url: string) => {
         if (url.endsWith('/container/golf_hub')) {
           return ok(containerDetail({ crash_looping: false, restarts_last_hour: 2 }))
@@ -345,7 +347,7 @@ describe('ServiceDashboard', () => {
 
       await renderAndSettle()
 
-      expect(screen.getByTestId('container-state').textContent).toBe('restarting')
+      expect(screen.getByTestId('container-state').textContent).toBe('up')
       expect(screen.getByTestId('container-restarts').textContent).toBe('2')
     })
 

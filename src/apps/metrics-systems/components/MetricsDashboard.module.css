@@ -205,12 +205,6 @@
   border: 1px solid rgba(102, 255, 136, 0.35);
 }
 
-.stateWarn {
-  color: #ffcc66;
-  background: rgba(255, 204, 102, 0.1);
-  border: 1px solid rgba(255, 204, 102, 0.35);
-}
-
 .stateDown {
   color: #ff6b6b;
   background: rgba(255, 107, 107, 0.12);

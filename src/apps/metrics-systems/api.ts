@@ -116,8 +116,10 @@ export function containerLabelLookup(containers: ContainerStats[]): (name: strin
   return (name: string) => byName.get(name) ?? containerDisplayName(name)
 }
 
-// Crash-looping first, then whatever else is restarting, so a failing container
-// can't sit below the fold of a long list.
+// Crash-looping first, then whatever has churned most, so a failing container
+// can't sit below the fold of a long list. Restart count orders the tail even
+// though it is no longer a state of its own: a container that restarted twice
+// is still the more interesting one to look at first.
 export function byHealthThenName(a: ContainerStats, b: ContainerStats): number {
   if (!!a.crash_looping !== !!b.crash_looping) return a.crash_looping ? -1 : 1
   const restarts = (b.restarts_last_hour ?? 0) - (a.restarts_last_hour ?? 0)
@@ -190,10 +192,18 @@ export function hasDrifted(container: ContainerStats, stack: string | null): boo
   return container.version !== stack
 }
 
-export type ContainerState = 'up' | 'restarting' | 'crash looping' | 'not reporting'
+export type ContainerState = 'up' | 'crash looping' | 'not reporting'
 
 // The health verdict, in one place so the service strip and the Containers tab
 // can't drift apart about what "up" means.
+//
+// State is liveness, never history. `restarts_last_hour` is a count over a
+// trailing window — prom_proxy derives it from changes(container_start_time_
+// seconds[1h]) — so a host reboot puts every container at 1 for the next hour.
+// Reading that as its own state painted a fully healthy stack red until the
+// window rolled off. The RESTARTS column already carries the churn; the only
+// thing that turns a restart count into a condition is pairing it with uptime,
+// and `crash_looping` is where that pairing lives.
 //
 // `not reporting` cannot collapse into `up`: a failed cAdvisor query leaves
 // zero restarts and zero uptime, which is byte-identical to a healthy
@@ -202,7 +212,7 @@ export type ContainerState = 'up' | 'restarting' | 'crash looping' | 'not report
 export function containerState(container: ContainerStats): ContainerState {
   if (container.reporting === false) return 'not reporting'
   if (container.crash_looping) return 'crash looping'
-  return (container.restarts_last_hour ?? 0) > 0 ? 'restarting' : 'up'
+  return 'up'
 }
 
 export function formatBytes(bytes: number): string {
