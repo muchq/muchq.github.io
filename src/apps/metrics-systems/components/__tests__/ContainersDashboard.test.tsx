@@ -78,18 +78,26 @@ describe('ContainersDashboard', () => {
     withContainers([
       makeContainer('aaa_healthy'),
       makeContainer('zzz_looping', { crash_looping: true, restarts_last_hour: 5, uptime_seconds: 30 }),
-      makeContainer('mmm_restarting', { restarts_last_hour: 2 }),
+      makeContainer('mmm_churn', { restarts_last_hour: 2 }),
     ])
 
     await settle()
 
     const rows = within(screen.getByTestId('containers-table')).getAllByRole('row').slice(1)
     const labels = rows.map((row) => row.getAttribute('data-testid'))
-    expect(labels).toEqual([
-      'container-row-zzz_looping',
-      'container-row-mmm_restarting',
-      'container-row-aaa_healthy',
-    ])
+    expect(labels).toEqual(['container-row-zzz_looping', 'container-row-mmm_churn', 'container-row-aaa_healthy'])
+  })
+
+  it('does not flag a container that restarted and then stayed up', async () => {
+    // Every container restarts once when the host reboots, and the count sits
+    // at 1 for the following hour. Treating that as a state marked the entire
+    // stack unhealthy while every service was answering requests.
+    withContainers([makeContainer('golf_hub', { restarts_last_hour: 1, uptime_seconds: 720 })])
+
+    await settle()
+
+    expect(screen.getByTestId('container-row-state-golf_hub').textContent).toBe('up')
+    expect(screen.getByTestId('container-row-golf_hub').className).toBe('')
   })
 
   it('shows how stale each container is, which uptime cannot answer', async () => {

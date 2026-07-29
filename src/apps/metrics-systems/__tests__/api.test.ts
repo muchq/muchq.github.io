@@ -204,9 +204,13 @@ describe('containerState', () => {
     expect(containerState(legacy as unknown as ContainerStats)).toBe('up')
   })
 
-  it('ranks a crash loop above ordinary restart churn', () => {
+  it('does not read restart churn as a state', () => {
+    // `restarts_last_hour` is a count over a trailing hour, not a current
+    // condition: a host reboot leaves every container at 1 for the next hour,
+    // which painted the whole stack red while it was up and serving. Only the
+    // crash-loop rule pairs that count with uptime, so only it is a state.
+    expect(containerState(stats({ name: 'a', restarts_last_hour: 2 }))).toBe('up')
     expect(containerState(stats({ name: 'a', crash_looping: true, restarts_last_hour: 5 }))).toBe('crash looping')
-    expect(containerState(stats({ name: 'a', restarts_last_hour: 2 }))).toBe('restarting')
   })
 })
 
