@@ -25,10 +25,20 @@ export interface StandardMetrics {
   active_requests: number
 }
 
+// Which form counter-derived tiles are in (MoonBase#1287). The proxy takes
+// this as ?view= and echoes it back; anything else is a 400, so these two are
+// the whole vocabulary.
+export type MetricView = 'count' | 'rate'
+
 export interface CustomMetricValue {
   label: string
   value: number
   unit: string
+  // True when the tile is counter-derived and so has both a count and a rate
+  // form. Optional for the usual reason: a Pages build can land while the host
+  // still runs a prom_proxy from before MoonBase#1287. Absent means "one form",
+  // which is how every tile behaved before the flag existed.
+  toggleable?: boolean
 }
 
 export interface CustomMetricGroup {
@@ -40,7 +50,36 @@ export interface ServiceMetricsResponse {
   timestamp: string
   service: string
   standard: StandardMetrics
+  // The form the toggleable tiles came back in. Absent from a pre-MoonBase#1287
+  // proxy, which is also the signal that `requests_total` is still a lifetime
+  // total rather than a windowed count — see requestsTotalLabel.
+  view?: MetricView
   custom: CustomMetricGroup[]
+}
+
+// Whether this payload has any tile worth offering a toggle for.
+//
+// Asked of the payload rather than assumed from the service, because it is a
+// property of what the proxy sent: a host running an older prom_proxy sends no
+// `toggleable` flags at all, and a switch that changes nothing on screen is
+// worse than no switch.
+export function hasToggleableMetrics(response: ServiceMetricsResponse | null): boolean {
+  return !!response?.custom?.some((group) => group.metrics?.some((metric) => metric.toggleable))
+}
+
+// What to call the standard block's `requests_total` tile.
+//
+// MoonBase#1287 changed that field from sum(x) — cumulative since process
+// start, and so reset by every deploy — to a 5-minute increase(). The JSON key
+// could not change without breaking this UI, so the name still says "total"
+// while the number no longer is one; calling the tile "Total" would repeat the
+// same wrong label the API is stuck with.
+//
+// `view` is the tell: it is present exactly when the proxy carries that change,
+// because both landed in the same commit. An older host therefore keeps the
+// old label, which is still honest about the number it is actually sending.
+export function requestsTotalLabel(response: ServiceMetricsResponse | null): string {
+  return response?.view ? 'Req (5m)' : 'Total'
 }
 
 // Per-container stats. A service that dies during startup never serves a

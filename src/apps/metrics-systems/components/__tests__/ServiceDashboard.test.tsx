@@ -24,6 +24,7 @@ vi.mock('recharts', () => ({
 const scalarResponse = {
   timestamp: new Date().toISOString(),
   service: 'golf_hub',
+  view: 'count',
   standard: {
     requests_total: 1234,
     rate_per_sec: 1.25,
@@ -36,7 +37,28 @@ const scalarResponse = {
   },
   custom: [
     { title: 'Sessions', metrics: [{ label: 'active', value: 3, unit: 'sessions' }] },
-    { title: 'Activity', metrics: [{ label: 'commands_per_sec', value: 0.5, unit: '/s' }] },
+    { title: 'Activity', metrics: [{ label: 'commands', value: 12, unit: '', toggleable: true }] },
+  ],
+}
+
+// The same payload as the proxy answers it for ?view=rate: same tiles, same
+// labels, different numbers and units. The label carries no form suffix
+// precisely because it has to read correctly under both.
+const rateScalarResponse = {
+  ...scalarResponse,
+  view: 'rate',
+  custom: [
+    { title: 'Sessions', metrics: [{ label: 'active', value: 3, unit: 'sessions' }] },
+    { title: 'Activity', metrics: [{ label: 'commands', value: 0.04, unit: '/s', toggleable: true }] },
+  ],
+}
+
+// A host still running a pre-MoonBase#1287 proxy: no `view`, no `toggleable`.
+const legacyScalarResponse = {
+  ...scalarResponse,
+  view: undefined,
+  custom: [
+    { title: 'Sessions', metrics: [{ label: 'active', value: 3, unit: 'sessions' }] },
   ],
 }
 
@@ -78,6 +100,11 @@ const containerDetail = (overrides: Record<string, unknown> = {}) => ({
   },
 })
 
+// The scalar endpoint is fetched with ?view=, so endsWith on the whole URL no
+// longer matches it. Compare the path and read the view separately.
+const pathOf = (url: string) => url.split('?')[0]
+const viewOf = (url: string) => new URLSearchParams(url.split('?')[1] ?? '').get('view') ?? 'count'
+
 const ok = (body: unknown) => Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify(body)) })
 const notFound = () => Promise.resolve({ ok: false, text: () => Promise.resolve('') })
 
@@ -87,7 +114,8 @@ describe('ServiceDashboard', () => {
   beforeEach(() => {
     mockFetch = vi.fn().mockImplementation((url: string) => {
       if (url.includes('/service/golf_hub/timeseries/')) return ok(timeseriesResponse)
-      if (url.endsWith('/service/golf_hub')) return ok(scalarResponse)
+      if (pathOf(url).endsWith('/service/golf_hub'))
+        return ok(viewOf(url) === 'rate' ? rateScalarResponse : scalarResponse)
       // Keyed on the exact name so a request for the wrong container 404s
       // rather than being answered with golf_hub's stats.
       if (url.endsWith('/container/golf_hub')) return ok(containerDetail())
@@ -123,7 +151,7 @@ describe('ServiceDashboard', () => {
 
     expect(screen.getByText('Sessions')).toBeTruthy()
     expect(screen.getByText('Activity')).toBeTruthy()
-    expect(screen.getByText('Commands Per Sec')).toBeTruthy()
+    expect(screen.getByText('Commands')).toBeTruthy()
     expect(screen.getByText('sessions')).toBeTruthy()
     // The custom series charts under Trends; the standard series does not.
     expect(screen.getByText('Trends')).toBeTruthy()
@@ -138,7 +166,7 @@ describe('ServiceDashboard', () => {
           text: () => Promise.resolve(JSON.stringify({ ...timeseriesResponse, series: [timeseriesResponse.series[0]] })),
         })
       }
-      if (url.endsWith('/service/golf_hub')) {
+      if (pathOf(url).endsWith('/service/golf_hub')) {
         return Promise.resolve({
           ok: true,
           text: () => Promise.resolve(JSON.stringify({ ...scalarResponse, custom: [] })),
@@ -176,7 +204,7 @@ describe('ServiceDashboard', () => {
     })
     expect(screen.queryByText('Sessions')).toBeNull()
     const urls = mockFetch.mock.calls.map((call) => String(call[0]))
-    expect(urls.some((url) => url.endsWith('/service/portrait'))).toBe(true)
+    expect(urls.some((url) => pathOf(url).endsWith('/service/portrait'))).toBe(true)
   })
 
   it('charts the full selected window, not just the buckets with samples', async () => {
@@ -292,7 +320,7 @@ describe('ServiceDashboard', () => {
       // would be a 404 dressed up as a useful link.
       mockFetch.mockImplementation((url: string) => {
         if (url.endsWith('/container/golf_hub')) return ok(containerDetail({ version: '2-alpine' }))
-        if (url.endsWith('/service/golf_hub')) return ok(scalarResponse)
+        if (pathOf(url).endsWith('/service/golf_hub')) return ok(scalarResponse)
         return ok(timeseriesResponse)
       })
       await renderAndSettle()
@@ -307,7 +335,7 @@ describe('ServiceDashboard', () => {
       // luck; truncating a longer tag would not. Only hex gets cut.
       mockFetch.mockImplementation((url: string) => {
         if (url.endsWith('/container/golf_hub')) return ok(containerDetail({ version: 'v2.1.0-rc.3' }))
-        if (url.endsWith('/service/golf_hub')) return ok(scalarResponse)
+        if (pathOf(url).endsWith('/service/golf_hub')) return ok(scalarResponse)
         return ok(timeseriesResponse)
       })
       await renderAndSettle()
@@ -410,7 +438,7 @@ describe('ServiceDashboard', () => {
 
         mockFetch.mockImplementation((url: string) => {
           if (url.includes('/service/golf_hub/timeseries/')) return ok(timeseriesResponse)
-          if (url.endsWith('/service/golf_hub')) return ok(scalarResponse)
+          if (pathOf(url).endsWith('/service/golf_hub')) return ok(scalarResponse)
           return notFound()
         })
         await act(async () => {
@@ -433,5 +461,102 @@ describe('ServiceDashboard', () => {
 
       expect(screen.getByTestId('container-version').textContent).toBe('—')
     })
+  })
+
+  // --- The count/rate toggle (MoonBase#1287) --------------------------------
+
+  it('switches counter tiles between count and rate', async () => {
+    render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    // Default view is count, matching the proxy's own default.
+    expect(screen.getByText('12.0')).toBeTruthy()
+
+    const toggle = screen.getByLabelText('Counter view') as HTMLSelectElement
+    expect(toggle.value).toBe('count')
+
+    await act(async () => {
+      fireEvent.change(toggle, { target: { value: 'rate' } })
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    // The refetch asked for the other form, and the tile shows what came back.
+    const urls = mockFetch.mock.calls.map((call) => String(call[0]))
+    expect(urls.some((url) => pathOf(url).endsWith('/service/golf_hub') && viewOf(url) === 'rate')).toBe(true)
+    expect(screen.getByText('0.04')).toBeTruthy()
+    expect(screen.getByText('/s')).toBeTruthy()
+
+    // Same tile, same caption. A label naming one of the two forms would now
+    // be contradicting the number beside it.
+    expect(screen.getByText('Commands')).toBeTruthy()
+  })
+
+  it('leaves fixed-form tiles alone when the view changes', async () => {
+    render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Counter view'), { target: { value: 'rate' } })
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    // `active` is a gauge: it has no rate form, so it reads the same in both
+    // views and keeps its own unit rather than gaining a /s.
+    expect(screen.getByText('3.00')).toBeTruthy()
+    expect(screen.getByText('sessions')).toBeTruthy()
+  })
+
+  it('offers no toggle when the proxy sends no toggleable tiles', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/service/golf_hub/timeseries/')) return ok(timeseriesResponse)
+      if (pathOf(url).endsWith('/service/golf_hub')) return ok(legacyScalarResponse)
+      if (url.endsWith('/container/golf_hub')) return ok(containerDetail())
+      return notFound()
+    })
+
+    render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    // A switch that changes nothing is worse than no switch: this payload is
+    // from a proxy that predates the feature, so there is nothing to toggle.
+    expect(screen.getByText('Sessions')).toBeTruthy()
+    expect(screen.queryByLabelText('Counter view')).toBeNull()
+  })
+
+  it('names the requests tile for what it now holds', async () => {
+    render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    // requests_total stopped being cumulative in MoonBase#1287 but kept its
+    // JSON key, so the tile has to say which of the two it is showing.
+    expect(screen.getByText('Req (5m)')).toBeTruthy()
+    expect(screen.queryByText('Total')).toBeNull()
+  })
+
+  it('keeps the old label for a proxy still sending a lifetime total', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/service/golf_hub/timeseries/')) return ok(timeseriesResponse)
+      if (pathOf(url).endsWith('/service/golf_hub')) return ok(legacyScalarResponse)
+      if (url.endsWith('/container/golf_hub')) return ok(containerDetail())
+      return notFound()
+    })
+
+    render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    // Relabelling unconditionally would put "Req (5m)" over a number that is
+    // still a lifetime total on any host that has not rolled yet.
+    expect(screen.getByText('Total')).toBeTruthy()
+    expect(screen.queryByText('Req (5m)')).toBeNull()
   })
 })
