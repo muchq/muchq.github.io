@@ -8,10 +8,13 @@ import {
   bucketMs,
   fetchJson,
   fillWindow,
+  hasToggleableMetrics,
+  requestsTotalLabel,
   seriesWindow,
   serviceDisplayName,
   type ContainerDetail,
   type ContainerStats,
+  type MetricView,
   type SeriesWindow,
   type ServiceMetricsResponse,
   type TimeSeries,
@@ -127,6 +130,9 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
   const [timeseries, setTimeseries] = useState<TimeSeriesResponse | null>(null)
   const [container, setContainer] = useState<ContainerStats | null>(null)
   const [timeRange, setTimeRange] = useState<'30m' | '1d' | '7d'>('1d')
+  // Which form counter tiles are asked for (MoonBase#1287). Count matches the
+  // proxy's own default, so the first paint is one request rather than two.
+  const [view, setView] = useState<MetricView>('count')
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [lastService, setLastService] = useState(service)
   // True until the first fetch for this service settles either way. Empty
@@ -158,7 +164,11 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
       // service name server-side, so this no longer pulls the whole host
       // payload — every other container's stats — to use one row of it.
       const [scalarData, seriesData, containerData] = await Promise.all([
-        fetchJson<ServiceMetricsResponse>(`${METRICS_API_URL}/service/${service}`),
+        // ?view= is safe against an older proxy: Go's mux ignores query
+        // parameters nothing reads, so the request still succeeds and comes
+        // back in the only form that proxy has. The switch stays hidden in
+        // that case anyway — see hasToggleableMetrics.
+        fetchJson<ServiceMetricsResponse>(`${METRICS_API_URL}/service/${service}?view=${view}`),
         fetchJson<TimeSeriesResponse>(`${METRICS_API_URL}/service/${service}/timeseries/${timeRange}`),
         fetchJson<ContainerDetail>(`${METRICS_API_URL}/container/${service}`),
       ])
@@ -186,7 +196,7 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
       clearTimeout(start)
       clearInterval(interval)
     }
-  }, [service, timeRange, onConnectionStateChange])
+  }, [service, timeRange, view, onConnectionStateChange])
 
   const findSeries = (name: string) => timeseries?.series?.find((s) => s.metric_name === name)
   const customSeries = (timeseries?.series ?? []).filter((s) => !STANDARD_SERIES.has(s.metric_name))
@@ -216,6 +226,21 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
             <option value="1d">1d</option>
             <option value="7d">7d</option>
           </select>
+          {/* Only when the payload actually has counter tiles to switch. A
+              service whose custom block is all gauges and windowed means has
+              nothing this would change, and neither does a host still running
+              a pre-MoonBase#1287 proxy. */}
+          {hasToggleableMetrics(scalar) && (
+            <select
+              value={view}
+              onChange={(e) => setView(e.target.value as MetricView)}
+              className={styles.timeRangeSelect}
+              aria-label="Counter view"
+            >
+              <option value="count">count</option>
+              <option value="rate">rate</option>
+            </select>
+          )}
           {lastUpdate && (
             <span className={styles.lastUpdate}>
               {lastUpdate.toLocaleTimeString()}
@@ -261,7 +286,9 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
                 <div className={styles.miniValue}>{(standard.active_requests || 0).toFixed(0)}</div>
               </div>
               <div className={styles.miniCard}>
-                <div className={styles.miniLabel}>Total</div>
+                {/* Not "Total" once the proxy is new enough: the field still
+                    says total, but MoonBase#1287 made it a 5-minute count. */}
+                <div className={styles.miniLabel}>{requestsTotalLabel(scalar)}</div>
                 <div className={styles.miniValue}>{formatValue(standard.requests_total || 0)}</div>
               </div>
             </div>
