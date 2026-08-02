@@ -247,8 +247,11 @@ describe('ServiceDashboard', () => {
       await new Promise((resolve) => setTimeout(resolve, 100))
     })
 
+    // The timeseries endpoint is fetched with ?view= too now, so endsWith on
+    // the whole URL no longer matches it — same reason pathOf/viewOf exist
+    // for the scalar endpoint above.
     const urls = mockFetch.mock.calls.map((call) => String(call[0]))
-    expect(urls.some((url) => url.endsWith('/service/golf_hub/timeseries/30m'))).toBe(true)
+    expect(urls.some((url) => pathOf(url).endsWith('/service/golf_hub/timeseries/30m'))).toBe(true)
   })
 
   it('reports failure and keeps the page shape when the API is down', async () => {
@@ -508,6 +511,34 @@ describe('ServiceDashboard', () => {
     // views and keeps its own unit rather than gaining a /s.
     expect(screen.getByText('3.00')).toBeTruthy()
     expect(screen.getByText('sessions')).toBeTruthy()
+  })
+
+  it('sends the view to the timeseries endpoint too, and relabels the Request Rate chart', async () => {
+    render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    // Default view is count: the standard chart built from a counter reads
+    // as a count too, not stuck on rate while the tiles beside it toggle.
+    const urls = mockFetch.mock.calls.map((call) => String(call[0]))
+    expect(
+      urls.some((url) => pathOf(url).includes('/service/golf_hub/timeseries/') && viewOf(url) === 'count'),
+    ).toBe(true)
+    expect(screen.getByText('Requests')).toBeTruthy()
+    expect(screen.queryByText('Request Rate')).toBeNull()
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Counter view'), { target: { value: 'rate' } })
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    const urlsAfterToggle = mockFetch.mock.calls.map((call) => String(call[0]))
+    expect(
+      urlsAfterToggle.some((url) => pathOf(url).includes('/service/golf_hub/timeseries/') && viewOf(url) === 'rate'),
+    ).toBe(true)
+    expect(screen.getByText('Request Rate')).toBeTruthy()
+    expect(screen.queryByText('Requests')).toBeNull()
   })
 
   it('offers no toggle when the proxy sends no toggleable tiles', async () => {

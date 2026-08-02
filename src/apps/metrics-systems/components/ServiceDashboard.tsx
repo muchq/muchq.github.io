@@ -169,7 +169,7 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
         // back in the only form that proxy has. The switch stays hidden in
         // that case anyway — see hasToggleableMetrics.
         fetchJson<ServiceMetricsResponse>(`${METRICS_API_URL}/service/${service}?view=${view}`),
-        fetchJson<TimeSeriesResponse>(`${METRICS_API_URL}/service/${service}/timeseries/${timeRange}`),
+        fetchJson<TimeSeriesResponse>(`${METRICS_API_URL}/service/${service}/timeseries/${timeRange}?view=${view}`),
         fetchJson<ContainerDetail>(`${METRICS_API_URL}/container/${service}`),
       ])
       if (!active) return
@@ -294,7 +294,19 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
             </div>
           )}
           <div className={styles.sectionGrid}>
-            <SeriesChart title="Request Rate" series={findSeries('request_rate')} frame={frame} color={COLORS.primary} unit="req/s" emptyMessage={emptyMessage} />
+            {/* request_rate is the one standard series built from a counter,
+                so it's the one that answers to the view toggle: increase()
+                per bucket in count, rate() per second in rate. The other
+                three charts below have no count form and stay put — see
+                standardRequestRateQuery in prom_proxy's registry.go. */}
+            <SeriesChart
+              title={view === 'count' ? 'Requests' : 'Request Rate'}
+              series={findSeries('request_rate')}
+              frame={frame}
+              color={COLORS.primary}
+              unit={view === 'count' ? 'requests' : 'req/s'}
+              emptyMessage={emptyMessage}
+            />
             <SeriesChart title="Error Rate" series={findSeries('error_rate_percent')} frame={frame} color={COLORS.danger} unit="%" emptyMessage={emptyMessage} />
             <SeriesChart title="P95 Latency" series={findSeries('p95_duration_us')} frame={frame} color={COLORS.warning} unit="ms" scale={(v) => v / 1000} area emptyMessage={emptyMessage} />
             <SeriesChart title="Active Requests" series={findSeries('active_requests')} frame={frame} color={COLORS.success} unit="" area emptyMessage={emptyMessage} />
