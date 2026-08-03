@@ -392,6 +392,7 @@ export class GolfV2NetworkAdapter implements GolfGameAdapter {
       case 'roomLeft':
         this.announcedRoomId = null
         this._roomState = null
+        this.callbacks.onRoomLeft?.(frame.payload.roomId)
         return
       case 'roomChat':
         // Typed chat state, not a toast (MoonBase#1226): the UI owns

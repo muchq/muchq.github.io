@@ -91,6 +91,7 @@ describe('GolfV2NetworkAdapter', () => {
     localStorage.clear()
     callbacks = {
       onRoomJoined: vi.fn(),
+      onRoomLeft: vi.fn(),
       onGameJoined: vi.fn(),
       onGameStateUpdate: vi.fn(),
       onRoomStateUpdate: vi.fn(),
@@ -164,6 +165,9 @@ describe('GolfV2NetworkAdapter', () => {
     expect(callbacks.onRoomStateUpdate).toHaveBeenCalledTimes(1)
 
     ws.receive('roomLeft', { roomId: 'ROOM01' })
+    // The leave ack reaches the hook: the permalink detour chains its
+    // target join on this (muchq.github.io#260).
+    expect(callbacks.onRoomLeft).toHaveBeenCalledWith('ROOM01')
     ws.receive('roomState', room)
     expect(callbacks.onRoomJoined).toHaveBeenCalledTimes(2)
   })

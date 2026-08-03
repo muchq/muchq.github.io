@@ -14,6 +14,11 @@ import type { ChatMessage } from './golfChat'
 
 export interface GolfAdapterCallbacks {
   onRoomJoined?: (playerId: string, roomState: Room) => void
+  // The server confirmed a leaveRoom. Optional and v2-only today: the
+  // v1 wire has no leave acknowledgement. The permalink flow chains on
+  // this to join a share link's room after leaving a resumed one
+  // (muchq.github.io#260) — an adapter without it simply cannot detour.
+  onRoomLeft?: (roomId: string) => void
   onGameJoined?: (playerId: string, gameState: GameState) => void
   onGameStateUpdate?: (gameState: GameState) => void
   onRoomStateUpdate?: (roomState: Room) => void
