@@ -26,21 +26,22 @@ interface ServiceDashboardProps {
   onConnectionStateChange: (status: 'connecting' | 'connected' | 'disconnected' | 'failed') => void
 }
 
-// The six series every service page charts; anything else in the
+// The eight series every service page charts; anything else in the
 // timeseries payload is a custom series and renders generically below.
 // Must match the keys of standardTimeseriesQueries in prom_proxy's
 // registry.go — and custom series names must not collide with these, or
 // they classify as standard and never chart.
 //
-// request_rate and request_count are the same counter in its two forms —
-// always both present, never picked by a query param — so the Request Rate
-// chart below can switch which one it plots locally. See registry.go's
-// standardTimeseriesQueries for why they're separate keys rather than one
-// key whose meaning depends on ?view=.
+// request_rate/request_count and error_rate_percent/error_count are each the
+// same counter in two forms — always both present, never picked by a query
+// param — so the charts below can switch which one they plot locally. See
+// registry.go's standardTimeseriesQueries for why they're separate keys
+// rather than one key whose meaning depends on ?view=.
 const STANDARD_SERIES = new Set([
   'request_rate',
   'request_count',
   'error_rate_percent',
+  'error_count',
   'avg_duration_us',
   'p95_duration_us',
   'active_requests',
@@ -56,6 +57,48 @@ const formatValue = (value: number) => {
 
 const prettyLabel = (label: string) =>
   label.split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+
+interface TrendEntry {
+  key: string
+  title: string
+  series: TimeSeries | undefined
+}
+
+// Collapses a service's custom series into what Trends actually renders. A
+// toggleable chart lands in the payload as two panels — <base>_rate and
+// <base>_count, prom_proxy's customTimeseriesDef.panels — and groups into
+// one chart here that picks between them by view, the same way the Serving
+// section's Request Rate chart does. Everything else — a gauge, a ratio, a
+// windowed mean — has no sibling to pair with and renders standalone under
+// its own name, same as before this existed.
+const groupTrends = (series: TimeSeries[], view: MetricView): TrendEntry[] => {
+  const byName = new Map(series.map((s) => [s.metric_name, s]))
+  const consumed = new Set<string>()
+  const entries: TrendEntry[] = []
+  for (const s of series) {
+    if (consumed.has(s.metric_name)) continue
+    const isRate = s.metric_name.endsWith('_rate')
+    const isCount = s.metric_name.endsWith('_count')
+    if (isRate || isCount) {
+      const base = s.metric_name.slice(0, isRate ? -'_rate'.length : -'_count'.length)
+      const rateKey = `${base}_rate`
+      const countKey = `${base}_count`
+      if (byName.has(rateKey) && byName.has(countKey)) {
+        consumed.add(rateKey)
+        consumed.add(countKey)
+        entries.push({
+          key: base,
+          title: view === 'count' ? prettyLabel(base) : `${prettyLabel(base)} Rate`,
+          series: view === 'count' ? byName.get(countKey) : byName.get(rateKey),
+        })
+        continue
+      }
+    }
+    consumed.add(s.metric_name)
+    entries.push({ key: s.metric_name, title: prettyLabel(s.metric_name), series: s })
+  }
+  return entries
+}
 
 const NoDataMessage = ({ message = 'No data available' }: { message?: string }) => (
   <div className={styles.noData}>{message}</div>
@@ -213,12 +256,15 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
   const standard = scalar?.standard
   const frame = seriesWindow(timeseries)
   const emptyMessage = loading ? 'Loading…' : undefined
-  // request_rate and request_count are always both in the payload (once the
-  // proxy carries MoonBase#1292) — no `view` to trust or distrust, just pick
-  // which one to plot. Against an older proxy that only ever sends
-  // request_rate, findSeries('request_count') comes back undefined and the
-  // chart shows its ordinary "no data" state rather than a mislabeled rate.
+  // request_rate/request_count and error_rate_percent/error_count are always
+  // both in the payload (once the proxy carries MoonBase#1292) — no `view`
+  // to trust or distrust, just pick which one to plot. Against an older
+  // proxy that only ever sends the rate form, findSeries(...'_count') comes
+  // back undefined and the chart shows its ordinary "no data" state rather
+  // than a mislabeled rate.
   const requestSeries = view === 'count' ? findSeries('request_count') : findSeries('request_rate')
+  const errorSeries = view === 'count' ? findSeries('error_count') : findSeries('error_rate_percent')
+  const trendEntries = groupTrends(customSeries, view)
 
   const COLORS = {
     primary: '#66b6ff',
@@ -312,11 +358,12 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
             </div>
           )}
           <div className={styles.sectionGrid}>
-            {/* request_rate/request_count is the one standard pair built from
-                a counter, so it's the one the toggle picks between: increase()
-                per bucket in count, rate() per second in rate. The other three
-                charts below have no count-form sibling and stay put — see
-                standardTimeseriesQueries in prom_proxy's registry.go. */}
+            {/* request_rate/request_count and error_rate_percent/error_count
+                are the two standard pairs built from a counter, so they're
+                what the toggle picks between: increase() per bucket in
+                count, rate()/ratio per second in rate. P95 Latency and
+                Active Requests have no count-form sibling and stay put —
+                see standardTimeseriesQueries in prom_proxy's registry.go. */}
             <SeriesChart
               title={view === 'count' ? 'Requests' : 'Request Rate'}
               series={requestSeries}
@@ -325,7 +372,14 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
               unit={view === 'count' ? 'requests' : 'req/s'}
               emptyMessage={emptyMessage}
             />
-            <SeriesChart title="Error Rate" series={findSeries('error_rate_percent')} frame={frame} color={COLORS.danger} unit="%" emptyMessage={emptyMessage} />
+            <SeriesChart
+              title={view === 'count' ? 'Errors' : 'Error Rate'}
+              series={errorSeries}
+              frame={frame}
+              color={COLORS.danger}
+              unit={view === 'count' ? 'errors' : '%'}
+              emptyMessage={emptyMessage}
+            />
             <SeriesChart title="P95 Latency" series={findSeries('p95_duration_us')} frame={frame} color={COLORS.warning} unit="ms" scale={(v) => v / 1000} area emptyMessage={emptyMessage} />
             <SeriesChart title="Active Requests" series={findSeries('active_requests')} frame={frame} color={COLORS.success} unit="" area emptyMessage={emptyMessage} />
           </div>
@@ -349,16 +403,20 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
           </div>
         ))}
 
-        {/* Every non-standard series charts generically. */}
-        {customSeries.length > 0 && (
+        {/* Every non-standard series charts generically. A toggleable pair
+            (base_rate + base_count) collapses into one chart that follows
+            the count/rate toggle, same as the Serving section — see
+            groupTrends. Anything else — a gauge, a ratio, a windowed mean —
+            has no sibling to pair with and stays put. */}
+        {trendEntries.length > 0 && (
           <div className={styles.section}>
             <h2 className={styles.sectionTitle}>Trends</h2>
             <div className={styles.sectionGrid}>
-              {customSeries.map((series, index) => (
+              {trendEntries.map((entry, index) => (
                 <SeriesChart
-                  key={series.metric_name}
-                  title={prettyLabel(series.metric_name)}
-                  series={series}
+                  key={entry.key}
+                  title={entry.title}
+                  series={entry.series}
                   frame={frame}
                   color={[COLORS.primary, COLORS.info, COLORS.success, COLORS.warning][index % 4]}
                   unit=""

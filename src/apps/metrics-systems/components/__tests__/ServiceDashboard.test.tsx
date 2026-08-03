@@ -547,6 +547,79 @@ describe('ServiceDashboard', () => {
     expect(screen.queryByText('Requests')).toBeNull()
   })
 
+  it('switches the Error Rate chart between error_count and error_rate_percent', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/service/golf_hub/timeseries/')) {
+        return ok({
+          ...timeseriesResponse,
+          series: [
+            ...timeseriesResponse.series,
+            { metric_name: 'error_rate_percent', values: [{ timestamp: new Date().toISOString(), value: 4.8 }] },
+            { metric_name: 'error_count', values: [{ timestamp: new Date().toISOString(), value: 3 }] },
+          ],
+        })
+      }
+      if (pathOf(url).endsWith('/service/golf_hub'))
+        return ok(viewOf(url) === 'rate' ? rateScalarResponse : scalarResponse)
+      if (url.endsWith('/container/golf_hub')) return ok(containerDetail())
+      return notFound()
+    })
+
+    render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    expect(screen.getByText('Errors')).toBeTruthy()
+    expect(screen.queryByText('Error Rate')).toBeNull()
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Counter view'), { target: { value: 'rate' } })
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    expect(screen.getByText('Error Rate')).toBeTruthy()
+    expect(screen.queryByText('Errors')).toBeNull()
+  })
+
+  it('groups a toggleable Trends pair into one chart that follows the toggle', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/service/golf_hub/timeseries/')) {
+        return ok({
+          ...timeseriesResponse,
+          series: [
+            ...timeseriesResponse.series,
+            { metric_name: 'command_rate', values: [{ timestamp: new Date().toISOString(), value: 0.5 }] },
+            { metric_name: 'command_count', values: [{ timestamp: new Date().toISOString(), value: 15 }] },
+          ],
+        })
+      }
+      if (pathOf(url).endsWith('/service/golf_hub'))
+        return ok(viewOf(url) === 'rate' ? rateScalarResponse : scalarResponse)
+      if (url.endsWith('/container/golf_hub')) return ok(containerDetail())
+      return notFound()
+    })
+
+    render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    // One chart, not two — the pair collapses under the toggle rather than
+    // command_rate and command_count rendering as separate Trends entries.
+    expect(screen.getByText('Command')).toBeTruthy()
+    expect(screen.queryByText('Command Rate')).toBeNull()
+    expect(screen.queryByText('Command Count')).toBeNull()
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Counter view'), { target: { value: 'rate' } })
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    expect(screen.getByText('Command Rate')).toBeTruthy()
+    expect(screen.queryByText('Command')).toBeNull()
+  })
+
   it('shows no data for the Serving chart, not a mislabeled rate, against a proxy with no request_count series', async () => {
     // The toggle asks for count (the default) and the scalar side answers it
     // — but the timeseries side is still a pre-MoonBase#1292 proxy that has
