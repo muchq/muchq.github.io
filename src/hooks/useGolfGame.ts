@@ -835,16 +835,26 @@ export const useGolfGame = ({
       if (permalinkJoinAttempt.gameId && networkAdapterRef.current && !permalinkJoinAttempt.gameJoinAttempted) {
         // Check if the game exists in the room
         if (roomState.games[permalinkJoinAttempt.gameId]) {
-          // Mark that we're attempting to join the game to prevent duplicate calls
-          // eslint-disable-next-line react-hooks/set-state-in-effect -- state machine transition before network call
+          // Mark that we're attempting to join the game to prevent
+          // duplicate calls. Spread the ref, not this effect's state
+          // closure: a rejection can land between the commit that
+          // scheduled this effect and its run, and re-spreading the
+          // stale closure here would resurrect the attempt it ended.
           updatePermalinkJoinAttempt({
-            ...permalinkJoinAttempt,
+            ...permalinkJoinAttemptRef.current,
             gameJoinAttempted: true
           })
           networkAdapterRef.current.joinGame(permalinkJoinAttempt.roomId, permalinkJoinAttempt.gameId)
         } else {
-          // Game doesn't exist, clear attempt with error — target kept
-          // so the join effect will not restart this same failed link.
+          // Game doesn't exist, clear attempt and its timeout with an
+          // error — target kept so the join effect will not restart
+          // this same failed link. Without the clear, this stale timer
+          // firing later could overwrite a subsequent different link's
+          // attempt mid-detour.
+          if (permalinkTimeoutRef.current) {
+            clearTimeout(permalinkTimeoutRef.current)
+            permalinkTimeoutRef.current = null
+          }
           updatePermalinkJoinAttempt({
             isAttempting: false,
             roomId: permalinkJoinAttempt.roomId,
