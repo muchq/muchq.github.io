@@ -26,13 +26,20 @@ interface ServiceDashboardProps {
   onConnectionStateChange: (status: 'connecting' | 'connected' | 'disconnected' | 'failed') => void
 }
 
-// The five series every service page charts; anything else in the
+// The six series every service page charts; anything else in the
 // timeseries payload is a custom series and renders generically below.
 // Must match the keys of standardTimeseriesQueries in prom_proxy's
 // registry.go — and custom series names must not collide with these, or
 // they classify as standard and never chart.
+//
+// request_rate and request_count are the same counter in its two forms —
+// always both present, never picked by a query param — so the Request Rate
+// chart below can switch which one it plots locally. See registry.go's
+// standardTimeseriesQueries for why they're separate keys rather than one
+// key whose meaning depends on ?view=.
 const STANDARD_SERIES = new Set([
   'request_rate',
+  'request_count',
   'error_rate_percent',
   'avg_duration_us',
   'p95_duration_us',
@@ -169,7 +176,10 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
         // back in the only form that proxy has. The switch stays hidden in
         // that case anyway — see hasToggleableMetrics.
         fetchJson<ServiceMetricsResponse>(`${METRICS_API_URL}/service/${service}?view=${view}`),
-        fetchJson<TimeSeriesResponse>(`${METRICS_API_URL}/service/${service}/timeseries/${timeRange}?view=${view}`),
+        // No ?view= here: the timeseries endpoint always answers with both
+        // request_rate and request_count, and the chart below picks between
+        // them locally — see STANDARD_SERIES.
+        fetchJson<TimeSeriesResponse>(`${METRICS_API_URL}/service/${service}/timeseries/${timeRange}`),
         fetchJson<ContainerDetail>(`${METRICS_API_URL}/container/${service}`),
       ])
       if (!active) return
@@ -203,6 +213,12 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
   const standard = scalar?.standard
   const frame = seriesWindow(timeseries)
   const emptyMessage = loading ? 'Loading…' : undefined
+  // request_rate and request_count are always both in the payload (once the
+  // proxy carries MoonBase#1292) — no `view` to trust or distrust, just pick
+  // which one to plot. Against an older proxy that only ever sends
+  // request_rate, findSeries('request_count') comes back undefined and the
+  // chart shows its ordinary "no data" state rather than a mislabeled rate.
+  const requestSeries = view === 'count' ? findSeries('request_count') : findSeries('request_rate')
 
   const COLORS = {
     primary: '#66b6ff',
@@ -226,10 +242,12 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
             <option value="1d">1d</option>
             <option value="7d">7d</option>
           </select>
-          {/* Only when the payload actually has counter tiles to switch. A
-              service whose custom block is all gauges and windowed means has
-              nothing this would change, and neither does a host still running
-              a pre-MoonBase#1287 proxy. */}
+          {/* Only when the proxy is new enough to answer a view at all. Every
+              service's Serving chart has a toggleable Request Rate — even one
+              whose custom block is all gauges and windowed means — so the
+              only payload with nothing for this to change is one from a
+              pre-MoonBase#1287 proxy, which sends no `view` in the first
+              place. */}
           {hasToggleableMetrics(scalar) && (
             <select
               value={view}
@@ -294,14 +312,14 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
             </div>
           )}
           <div className={styles.sectionGrid}>
-            {/* request_rate is the one standard series built from a counter,
-                so it's the one that answers to the view toggle: increase()
-                per bucket in count, rate() per second in rate. The other
-                three charts below have no count form and stay put — see
-                standardRequestRateQuery in prom_proxy's registry.go. */}
+            {/* request_rate/request_count is the one standard pair built from
+                a counter, so it's the one the toggle picks between: increase()
+                per bucket in count, rate() per second in rate. The other three
+                charts below have no count-form sibling and stay put — see
+                standardTimeseriesQueries in prom_proxy's registry.go. */}
             <SeriesChart
               title={view === 'count' ? 'Requests' : 'Request Rate'}
-              series={findSeries('request_rate')}
+              series={requestSeries}
               frame={frame}
               color={COLORS.primary}
               unit={view === 'count' ? 'requests' : 'req/s'}

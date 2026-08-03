@@ -285,10 +285,6 @@ export interface TimeSeriesResponse {
   start_time: string
   end_time: string
   step: string
-  // Which form the toggleable series in this payload are in. Present on the
-  // service timeseries endpoint since request_rate gained a count form;
-  // absent on the host/container endpoints, which have no toggleable series.
-  view?: MetricView
   series: TimeSeries[]
 }
 

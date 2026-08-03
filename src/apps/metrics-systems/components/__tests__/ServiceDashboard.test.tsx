@@ -62,6 +62,9 @@ const legacyScalarResponse = {
   ],
 }
 
+// request_rate and request_count are both always present (MoonBase#1292) —
+// no ?view= on this endpoint, no picking one or the other server-side. The
+// component picks locally which one to plot.
 const timeseriesResponse = {
   time_range: '1d',
   start_time: new Date(Date.now() - 86400000).toISOString(),
@@ -69,8 +72,16 @@ const timeseriesResponse = {
   step: '30s',
   series: [
     { metric_name: 'request_rate', values: [{ timestamp: new Date().toISOString(), value: 1.2 }] },
+    { metric_name: 'request_count', values: [{ timestamp: new Date().toISOString(), value: 36 }] },
     { metric_name: 'sessions_active', values: [{ timestamp: new Date().toISOString(), value: 3 }] },
   ],
+}
+
+// A host still running a pre-MoonBase#1292 proxy: request_rate only, no
+// request_count series to switch to at all.
+const legacyTimeseriesResponse = {
+  ...timeseriesResponse,
+  series: timeseriesResponse.series.filter((s) => s.metric_name !== 'request_count'),
 }
 
 // A healthy container, with the fields MoonBase#1218 added. Overrides let each
@@ -513,7 +524,7 @@ describe('ServiceDashboard', () => {
     expect(screen.getByText('sessions')).toBeTruthy()
   })
 
-  it('sends the view to the timeseries endpoint too, and relabels the Request Rate chart', async () => {
+  it('switches the Serving chart between request_count and request_rate', async () => {
     render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 100))
@@ -521,10 +532,9 @@ describe('ServiceDashboard', () => {
 
     // Default view is count: the standard chart built from a counter reads
     // as a count too, not stuck on rate while the tiles beside it toggle.
-    const urls = mockFetch.mock.calls.map((call) => String(call[0]))
-    expect(
-      urls.some((url) => pathOf(url).includes('/service/golf_hub/timeseries/') && viewOf(url) === 'count'),
-    ).toBe(true)
+    // Both series are already in the one timeseries payload — the endpoint
+    // takes no ?view= at all — so this is a pure client-side pick, unlike
+    // the scalar tiles beside it which do refetch for the new view.
     expect(screen.getByText('Requests')).toBeTruthy()
     expect(screen.queryByText('Request Rate')).toBeNull()
 
@@ -533,15 +543,38 @@ describe('ServiceDashboard', () => {
       await new Promise((resolve) => setTimeout(resolve, 100))
     })
 
-    const urlsAfterToggle = mockFetch.mock.calls.map((call) => String(call[0]))
-    expect(
-      urlsAfterToggle.some((url) => pathOf(url).includes('/service/golf_hub/timeseries/') && viewOf(url) === 'rate'),
-    ).toBe(true)
     expect(screen.getByText('Request Rate')).toBeTruthy()
     expect(screen.queryByText('Requests')).toBeNull()
   })
 
-  it('offers no toggle when the proxy sends no toggleable tiles', async () => {
+  it('shows no data for the Serving chart, not a mislabeled rate, against a proxy with no request_count series', async () => {
+    // The toggle asks for count (the default) and the scalar side answers it
+    // — but the timeseries side is still a pre-MoonBase#1292 proxy that has
+    // never heard of request_count. findSeries comes back undefined rather
+    // than the chart falling back to plotting request_rate under a "Requests"
+    // caption.
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/service/golf_hub/timeseries/')) return ok(legacyTimeseriesResponse)
+      if (pathOf(url).endsWith('/service/golf_hub'))
+        return ok(viewOf(url) === 'rate' ? rateScalarResponse : scalarResponse)
+      if (url.endsWith('/container/golf_hub')) return ok(containerDetail())
+      return notFound()
+    })
+
+    render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    // The custom tile did switch to count (12.0, the scalar side's own
+    // answer) — the Serving chart is titled for count too, since that's
+    // still what the toggle asked for, but has nothing to plot.
+    expect(screen.getByText('12.0')).toBeTruthy()
+    expect(screen.getByText('Requests')).toBeTruthy()
+    expect(screen.queryByText('Request Rate')).toBeNull()
+  })
+
+  it('offers no toggle when the proxy sends no view at all', async () => {
     mockFetch.mockImplementation((url: string) => {
       if (url.includes('/service/golf_hub/timeseries/')) return ok(timeseriesResponse)
       if (pathOf(url).endsWith('/service/golf_hub')) return ok(legacyScalarResponse)
