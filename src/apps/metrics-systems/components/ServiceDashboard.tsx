@@ -26,14 +26,22 @@ interface ServiceDashboardProps {
   onConnectionStateChange: (status: 'connecting' | 'connected' | 'disconnected' | 'failed') => void
 }
 
-// The five series every service page charts; anything else in the
+// The seven series every service page charts; anything else in the
 // timeseries payload is a custom series and renders generically below.
 // Must match the keys of standardTimeseriesQueries in prom_proxy's
 // registry.go — and custom series names must not collide with these, or
 // they classify as standard and never chart.
+//
+// request_rate/request_count and error_rate_percent/error_count are each the
+// same counter in two forms — always both present, never picked by a query
+// param — so the charts below can switch which one they plot locally. See
+// registry.go's standardTimeseriesQueries for why they're separate keys
+// rather than one key whose meaning depends on ?view=.
 const STANDARD_SERIES = new Set([
   'request_rate',
+  'request_count',
   'error_rate_percent',
+  'error_count',
   'avg_duration_us',
   'p95_duration_us',
   'active_requests',
@@ -49,6 +57,86 @@ const formatValue = (value: number) => {
 
 const prettyLabel = (label: string) =>
   label.split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+
+interface TrendEntry {
+  key: string
+  title: string
+  series: TimeSeries | undefined
+  unit: string
+}
+
+// Collapses a service's custom series into what Trends actually renders. A
+// toggleable chart lands in the payload as two panels — <base>_rate and
+// <base>_count, prom_proxy's customTimeseriesDef.panels — and groups into
+// one chart here that picks between them by view, the same way the Serving
+// section's Request Rate chart does. Everything else — a gauge, a ratio, a
+// windowed mean — has no sibling to pair with and renders standalone under
+// its own name with no unit, same as before this existed: the payload
+// carries no per-series unit for Trends, so a standalone chart has nothing
+// to show beyond its own values.
+const groupTrends = (series: TimeSeries[], view: MetricView): TrendEntry[] => {
+  const byName = new Map(series.map((s) => [s.metric_name, s]))
+  const consumed = new Set<string>()
+  const entries: TrendEntry[] = []
+  for (const s of series) {
+    if (consumed.has(s.metric_name)) continue
+    const isRate = s.metric_name.endsWith('_rate')
+    const isCount = s.metric_name.endsWith('_count')
+    if (isRate || isCount) {
+      const base = s.metric_name.slice(0, isRate ? -'_rate'.length : -'_count'.length)
+      const rateKey = `${base}_rate`
+      const countKey = `${base}_count`
+      if (byName.has(rateKey) && byName.has(countKey)) {
+        consumed.add(rateKey)
+        consumed.add(countKey)
+        entries.push({
+          key: base,
+          title: view === 'count' ? prettyLabel(base) : `${prettyLabel(base)} Rate`,
+          series: view === 'count' ? byName.get(countKey) : byName.get(rateKey),
+          // Unlike the Serving pairs, a Trends counter's unit is unlabeled
+          // upstream, so there's no bare unit to append "/s" to — just the
+          // form cue itself, the same "/s" a unitless scalar tile gets from
+          // UnitFor in the rate view.
+          unit: view === 'count' ? '' : '/s',
+        })
+        continue
+      }
+    }
+    consumed.add(s.metric_name)
+    entries.push({ key: s.metric_name, title: prettyLabel(s.metric_name), series: s, unit: '' })
+  }
+  return entries
+}
+
+interface SeriesPick {
+  series: TimeSeries | undefined
+  form: MetricView
+}
+
+// Picks which form of a Serving toggle pair (request_rate/request_count,
+// error_rate_percent/error_count) to plot: the requested view's series when
+// it exists, otherwise whichever sibling does. A bare `view === 'count' ?
+// count : rate` pick goes blank by default against a proxy that predates
+// the count form — DefaultView is count, so every service page's Serving
+// charts would render "No data" until someone flipped to rate, real data
+// sitting unused in the same payload the whole time. Falling back to
+// whichever form the payload actually has is the same availability rule
+// groupTrends already gets from only pairing when both siblings exist.
+const pickSeriesForView = (
+  series: TimeSeries[],
+  countName: string,
+  rateName: string,
+  view: MetricView,
+): SeriesPick => {
+  const byName = new Map(series.map((s) => [s.metric_name, s]))
+  const count = byName.get(countName)
+  const rate = byName.get(rateName)
+  if (view === 'count' && count) return { series: count, form: 'count' }
+  if (view === 'rate' && rate) return { series: rate, form: 'rate' }
+  if (rate) return { series: rate, form: 'rate' }
+  if (count) return { series: count, form: 'count' }
+  return { series: undefined, form: view }
+}
 
 const NoDataMessage = ({ message = 'No data available' }: { message?: string }) => (
   <div className={styles.noData}>{message}</div>
@@ -169,6 +257,9 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
         // back in the only form that proxy has. The switch stays hidden in
         // that case anyway — see hasToggleableMetrics.
         fetchJson<ServiceMetricsResponse>(`${METRICS_API_URL}/service/${service}?view=${view}`),
+        // No ?view= here: the timeseries endpoint always answers with both
+        // request_rate and request_count, and the chart below picks between
+        // them locally — see STANDARD_SERIES.
         fetchJson<TimeSeriesResponse>(`${METRICS_API_URL}/service/${service}/timeseries/${timeRange}`),
         fetchJson<ContainerDetail>(`${METRICS_API_URL}/container/${service}`),
       ])
@@ -203,6 +294,9 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
   const standard = scalar?.standard
   const frame = seriesWindow(timeseries)
   const emptyMessage = loading ? 'Loading…' : undefined
+  const requestPick = pickSeriesForView(timeseries?.series ?? [], 'request_count', 'request_rate', view)
+  const errorPick = pickSeriesForView(timeseries?.series ?? [], 'error_count', 'error_rate_percent', view)
+  const trendEntries = groupTrends(customSeries, view)
 
   const COLORS = {
     primary: '#66b6ff',
@@ -226,10 +320,12 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
             <option value="1d">1d</option>
             <option value="7d">7d</option>
           </select>
-          {/* Only when the payload actually has counter tiles to switch. A
-              service whose custom block is all gauges and windowed means has
-              nothing this would change, and neither does a host still running
-              a pre-MoonBase#1287 proxy. */}
+          {/* Only when the proxy is new enough to answer a view at all. Every
+              service's Serving chart has a toggleable Request Rate — even one
+              whose custom block is all gauges and windowed means — so the
+              only payload with nothing for this to change is one from a
+              pre-MoonBase#1287 proxy, which sends no `view` in the first
+              place. */}
           {hasToggleableMetrics(scalar) && (
             <select
               value={view}
@@ -294,8 +390,33 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
             </div>
           )}
           <div className={styles.sectionGrid}>
-            <SeriesChart title="Request Rate" series={findSeries('request_rate')} frame={frame} color={COLORS.primary} unit="req/s" emptyMessage={emptyMessage} />
-            <SeriesChart title="Error Rate" series={findSeries('error_rate_percent')} frame={frame} color={COLORS.danger} unit="%" emptyMessage={emptyMessage} />
+            {/* request_rate/request_count and error_rate_percent/error_count
+                are the two standard pairs built from a counter, so they're
+                what the toggle picks between: increase() per bucket in
+                count, rate()/ratio per second in rate. Title/unit read the
+                pick's own form, not the raw toggle state — pickSeriesForView
+                falls back to whichever sibling the payload actually has, so
+                a proxy that hasn't caught up to the count form yet still
+                gets an honest "Request Rate" label over real data instead of
+                a blank "Requests" chart. P95 Latency and Active Requests
+                have no count-form sibling and stay put — see
+                standardTimeseriesQueries in prom_proxy's registry.go. */}
+            <SeriesChart
+              title={requestPick.form === 'count' ? 'Requests' : 'Request Rate'}
+              series={requestPick.series}
+              frame={frame}
+              color={COLORS.primary}
+              unit={requestPick.form === 'count' ? 'requests' : 'req/s'}
+              emptyMessage={emptyMessage}
+            />
+            <SeriesChart
+              title={errorPick.form === 'count' ? 'Errors' : 'Error Rate'}
+              series={errorPick.series}
+              frame={frame}
+              color={COLORS.danger}
+              unit={errorPick.form === 'count' ? 'errors' : '%'}
+              emptyMessage={emptyMessage}
+            />
             <SeriesChart title="P95 Latency" series={findSeries('p95_duration_us')} frame={frame} color={COLORS.warning} unit="ms" scale={(v) => v / 1000} area emptyMessage={emptyMessage} />
             <SeriesChart title="Active Requests" series={findSeries('active_requests')} frame={frame} color={COLORS.success} unit="" area emptyMessage={emptyMessage} />
           </div>
@@ -319,19 +440,23 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
           </div>
         ))}
 
-        {/* Every non-standard series charts generically. */}
-        {customSeries.length > 0 && (
+        {/* Every non-standard series charts generically. A toggleable pair
+            (base_rate + base_count) collapses into one chart that follows
+            the count/rate toggle, same as the Serving section — see
+            groupTrends. Anything else — a gauge, a ratio, a windowed mean —
+            has no sibling to pair with and stays put. */}
+        {trendEntries.length > 0 && (
           <div className={styles.section}>
             <h2 className={styles.sectionTitle}>Trends</h2>
             <div className={styles.sectionGrid}>
-              {customSeries.map((series, index) => (
+              {trendEntries.map((entry, index) => (
                 <SeriesChart
-                  key={series.metric_name}
-                  title={prettyLabel(series.metric_name)}
-                  series={series}
+                  key={entry.key}
+                  title={entry.title}
+                  series={entry.series}
                   frame={frame}
                   color={[COLORS.primary, COLORS.info, COLORS.success, COLORS.warning][index % 4]}
-                  unit=""
+                  unit={entry.unit}
                   emptyMessage={emptyMessage}
                 />
               ))}

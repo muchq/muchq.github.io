@@ -62,6 +62,9 @@ const legacyScalarResponse = {
   ],
 }
 
+// request_rate and request_count are both always present (MoonBase#1292) —
+// no ?view= on this endpoint, no picking one or the other server-side. The
+// component picks locally which one to plot.
 const timeseriesResponse = {
   time_range: '1d',
   start_time: new Date(Date.now() - 86400000).toISOString(),
@@ -69,8 +72,16 @@ const timeseriesResponse = {
   step: '30s',
   series: [
     { metric_name: 'request_rate', values: [{ timestamp: new Date().toISOString(), value: 1.2 }] },
+    { metric_name: 'request_count', values: [{ timestamp: new Date().toISOString(), value: 36 }] },
     { metric_name: 'sessions_active', values: [{ timestamp: new Date().toISOString(), value: 3 }] },
   ],
+}
+
+// A host still running a pre-MoonBase#1292 proxy: request_rate only, no
+// request_count series to switch to at all.
+const legacyTimeseriesResponse = {
+  ...timeseriesResponse,
+  series: timeseriesResponse.series.filter((s) => s.metric_name !== 'request_count'),
 }
 
 // A healthy container, with the fields MoonBase#1218 added. Overrides let each
@@ -247,6 +258,9 @@ describe('ServiceDashboard', () => {
       await new Promise((resolve) => setTimeout(resolve, 100))
     })
 
+    // The timeseries endpoint takes no ?view= — request_rate/request_count
+    // (and their error_* counterparts) always come back together, and the
+    // toggle picks between them client-side — so plain endsWith matches it.
     const urls = mockFetch.mock.calls.map((call) => String(call[0]))
     expect(urls.some((url) => url.endsWith('/service/golf_hub/timeseries/30m'))).toBe(true)
   })
@@ -510,7 +524,138 @@ describe('ServiceDashboard', () => {
     expect(screen.getByText('sessions')).toBeTruthy()
   })
 
-  it('offers no toggle when the proxy sends no toggleable tiles', async () => {
+  it('switches the Serving chart between request_count and request_rate', async () => {
+    render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    // Default view is count: the standard chart built from a counter reads
+    // as a count too, not stuck on rate while the tiles beside it toggle.
+    // Both series are already in the one timeseries payload — the endpoint
+    // takes no ?view= at all — so this is a pure client-side pick, unlike
+    // the scalar tiles beside it which do refetch for the new view.
+    expect(screen.getByText('Requests')).toBeTruthy()
+    expect(screen.queryByText('Request Rate')).toBeNull()
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Counter view'), { target: { value: 'rate' } })
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    expect(screen.getByText('Request Rate')).toBeTruthy()
+    expect(screen.queryByText('Requests')).toBeNull()
+  })
+
+  it('switches the Error Rate chart between error_count and error_rate_percent', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/service/golf_hub/timeseries/')) {
+        return ok({
+          ...timeseriesResponse,
+          series: [
+            ...timeseriesResponse.series,
+            { metric_name: 'error_rate_percent', values: [{ timestamp: new Date().toISOString(), value: 4.8 }] },
+            { metric_name: 'error_count', values: [{ timestamp: new Date().toISOString(), value: 3 }] },
+          ],
+        })
+      }
+      if (pathOf(url).endsWith('/service/golf_hub'))
+        return ok(viewOf(url) === 'rate' ? rateScalarResponse : scalarResponse)
+      if (url.endsWith('/container/golf_hub')) return ok(containerDetail())
+      return notFound()
+    })
+
+    render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    expect(screen.getByText('Errors')).toBeTruthy()
+    expect(screen.queryByText('Error Rate')).toBeNull()
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Counter view'), { target: { value: 'rate' } })
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    expect(screen.getByText('Error Rate')).toBeTruthy()
+    expect(screen.queryByText('Errors')).toBeNull()
+  })
+
+  it('groups a toggleable Trends pair into one chart that follows the toggle', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/service/golf_hub/timeseries/')) {
+        return ok({
+          ...timeseriesResponse,
+          series: [
+            ...timeseriesResponse.series,
+            { metric_name: 'command_rate', values: [{ timestamp: new Date().toISOString(), value: 0.5 }] },
+            { metric_name: 'command_count', values: [{ timestamp: new Date().toISOString(), value: 15 }] },
+          ],
+        })
+      }
+      if (pathOf(url).endsWith('/service/golf_hub'))
+        return ok(viewOf(url) === 'rate' ? rateScalarResponse : scalarResponse)
+      if (url.endsWith('/container/golf_hub')) return ok(containerDetail())
+      return notFound()
+    })
+
+    render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    // One chart, not two — the pair collapses under the toggle rather than
+    // command_rate and command_count rendering as separate Trends entries.
+    expect(screen.getByText('Command')).toBeTruthy()
+    expect(screen.queryByText('Command Rate')).toBeNull()
+    expect(screen.queryByText('Command Count')).toBeNull()
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Counter view'), { target: { value: 'rate' } })
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    expect(screen.getByText('Command Rate')).toBeTruthy()
+    expect(screen.queryByText('Command')).toBeNull()
+  })
+
+  it('falls back to Request Rate with real data against a proxy with no request_count series', async () => {
+    // The toggle asks for count (the default) and the scalar side answers it
+    // — but the timeseries side is still a pre-MoonBase#1292 proxy that has
+    // never heard of request_count. pickSeriesForView falls back to
+    // request_rate rather than leaving the chart captioned "Requests" over
+    // nothing: DefaultView is count, so a bare view-driven pick would blank
+    // every service page's Serving chart on the default path until someone
+    // manually flipped to rate, real rate data sitting unused the whole time.
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/service/golf_hub/timeseries/')) return ok(legacyTimeseriesResponse)
+      if (pathOf(url).endsWith('/service/golf_hub'))
+        return ok(viewOf(url) === 'rate' ? rateScalarResponse : scalarResponse)
+      if (url.endsWith('/container/golf_hub')) return ok(containerDetail())
+      return notFound()
+    })
+
+    render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    // The custom tile did switch to count (12.0, the scalar side's own
+    // answer) — the scalar and timeseries endpoints are independent, and only
+    // the latter is stuck on the old proxy here.
+    expect(screen.getByText('12.0')).toBeTruthy()
+
+    // The Serving chart falls back to its rate label and plots real data,
+    // rather than an empty "Requests" chart with rate data sitting unused in
+    // the same payload.
+    expect(screen.queryByText('Requests')).toBeNull()
+    const requestChart = screen.getByText('Request Rate').parentElement as HTMLElement
+    expect(within(requestChart).queryByText('No data available')).toBeNull()
+    expect(within(requestChart).getByTestId('line-chart')).toBeTruthy()
+  })
+
+  it('offers no toggle when the proxy sends no view at all', async () => {
     mockFetch.mockImplementation((url: string) => {
       if (url.includes('/service/golf_hub/timeseries/')) return ok(timeseriesResponse)
       if (pathOf(url).endsWith('/service/golf_hub')) return ok(legacyScalarResponse)

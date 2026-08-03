@@ -59,12 +59,14 @@ export interface ServiceMetricsResponse {
 
 // Whether this payload has any tile worth offering a toggle for.
 //
-// Asked of the payload rather than assumed from the service, because it is a
-// property of what the proxy sent: a host running an older prom_proxy sends no
-// `toggleable` flags at all, and a switch that changes nothing on screen is
-// worse than no switch.
+// `view` is the signal, not a scan of `custom` for a `toggleable` flag: the
+// Serving section's Request Rate chart is counter-derived on every service —
+// even one with no custom block at all — so as of the proxy that started
+// echoing `view`, there is always something for the switch to change. A host
+// running an older prom_proxy sends no `view` at all, and a switch that
+// changes nothing on screen is worse than no switch.
 export function hasToggleableMetrics(response: ServiceMetricsResponse | null): boolean {
-  return !!response?.custom?.some((group) => group.metrics?.some((metric) => metric.toggleable))
+  return !!response?.view
 }
 
 // What to call the standard block's `requests_total` tile.
