@@ -26,7 +26,7 @@ interface ServiceDashboardProps {
   onConnectionStateChange: (status: 'connecting' | 'connected' | 'disconnected' | 'failed') => void
 }
 
-// The eight series every service page charts; anything else in the
+// The seven series every service page charts; anything else in the
 // timeseries payload is a custom series and renders generically below.
 // Must match the keys of standardTimeseriesQueries in prom_proxy's
 // registry.go — and custom series names must not collide with these, or
@@ -62,6 +62,7 @@ interface TrendEntry {
   key: string
   title: string
   series: TimeSeries | undefined
+  unit: string
 }
 
 // Collapses a service's custom series into what Trends actually renders. A
@@ -70,7 +71,9 @@ interface TrendEntry {
 // one chart here that picks between them by view, the same way the Serving
 // section's Request Rate chart does. Everything else — a gauge, a ratio, a
 // windowed mean — has no sibling to pair with and renders standalone under
-// its own name, same as before this existed.
+// its own name with no unit, same as before this existed: the payload
+// carries no per-series unit for Trends, so a standalone chart has nothing
+// to show beyond its own values.
 const groupTrends = (series: TimeSeries[], view: MetricView): TrendEntry[] => {
   const byName = new Map(series.map((s) => [s.metric_name, s]))
   const consumed = new Set<string>()
@@ -90,14 +93,49 @@ const groupTrends = (series: TimeSeries[], view: MetricView): TrendEntry[] => {
           key: base,
           title: view === 'count' ? prettyLabel(base) : `${prettyLabel(base)} Rate`,
           series: view === 'count' ? byName.get(countKey) : byName.get(rateKey),
+          // Unlike the Serving pairs, a Trends counter's unit is unlabeled
+          // upstream, so there's no bare unit to append "/s" to — just the
+          // form cue itself, the same "/s" a unitless scalar tile gets from
+          // UnitFor in the rate view.
+          unit: view === 'count' ? '' : '/s',
         })
         continue
       }
     }
     consumed.add(s.metric_name)
-    entries.push({ key: s.metric_name, title: prettyLabel(s.metric_name), series: s })
+    entries.push({ key: s.metric_name, title: prettyLabel(s.metric_name), series: s, unit: '' })
   }
   return entries
+}
+
+interface SeriesPick {
+  series: TimeSeries | undefined
+  form: MetricView
+}
+
+// Picks which form of a Serving toggle pair (request_rate/request_count,
+// error_rate_percent/error_count) to plot: the requested view's series when
+// it exists, otherwise whichever sibling does. A bare `view === 'count' ?
+// count : rate` pick goes blank by default against a proxy that predates
+// the count form — DefaultView is count, so every service page's Serving
+// charts would render "No data" until someone flipped to rate, real data
+// sitting unused in the same payload the whole time. Falling back to
+// whichever form the payload actually has is the same availability rule
+// groupTrends already gets from only pairing when both siblings exist.
+const pickSeriesForView = (
+  series: TimeSeries[],
+  countName: string,
+  rateName: string,
+  view: MetricView,
+): SeriesPick => {
+  const byName = new Map(series.map((s) => [s.metric_name, s]))
+  const count = byName.get(countName)
+  const rate = byName.get(rateName)
+  if (view === 'count' && count) return { series: count, form: 'count' }
+  if (view === 'rate' && rate) return { series: rate, form: 'rate' }
+  if (rate) return { series: rate, form: 'rate' }
+  if (count) return { series: count, form: 'count' }
+  return { series: undefined, form: view }
 }
 
 const NoDataMessage = ({ message = 'No data available' }: { message?: string }) => (
@@ -256,14 +294,8 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
   const standard = scalar?.standard
   const frame = seriesWindow(timeseries)
   const emptyMessage = loading ? 'Loading…' : undefined
-  // request_rate/request_count and error_rate_percent/error_count are always
-  // both in the payload (once the proxy carries MoonBase#1292) — no `view`
-  // to trust or distrust, just pick which one to plot. Against an older
-  // proxy that only ever sends the rate form, findSeries(...'_count') comes
-  // back undefined and the chart shows its ordinary "no data" state rather
-  // than a mislabeled rate.
-  const requestSeries = view === 'count' ? findSeries('request_count') : findSeries('request_rate')
-  const errorSeries = view === 'count' ? findSeries('error_count') : findSeries('error_rate_percent')
+  const requestPick = pickSeriesForView(timeseries?.series ?? [], 'request_count', 'request_rate', view)
+  const errorPick = pickSeriesForView(timeseries?.series ?? [], 'error_count', 'error_rate_percent', view)
   const trendEntries = groupTrends(customSeries, view)
 
   const COLORS = {
@@ -361,23 +393,28 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
             {/* request_rate/request_count and error_rate_percent/error_count
                 are the two standard pairs built from a counter, so they're
                 what the toggle picks between: increase() per bucket in
-                count, rate()/ratio per second in rate. P95 Latency and
-                Active Requests have no count-form sibling and stay put —
-                see standardTimeseriesQueries in prom_proxy's registry.go. */}
+                count, rate()/ratio per second in rate. Title/unit read the
+                pick's own form, not the raw toggle state — pickSeriesForView
+                falls back to whichever sibling the payload actually has, so
+                a proxy that hasn't caught up to the count form yet still
+                gets an honest "Request Rate" label over real data instead of
+                a blank "Requests" chart. P95 Latency and Active Requests
+                have no count-form sibling and stay put — see
+                standardTimeseriesQueries in prom_proxy's registry.go. */}
             <SeriesChart
-              title={view === 'count' ? 'Requests' : 'Request Rate'}
-              series={requestSeries}
+              title={requestPick.form === 'count' ? 'Requests' : 'Request Rate'}
+              series={requestPick.series}
               frame={frame}
               color={COLORS.primary}
-              unit={view === 'count' ? 'requests' : 'req/s'}
+              unit={requestPick.form === 'count' ? 'requests' : 'req/s'}
               emptyMessage={emptyMessage}
             />
             <SeriesChart
-              title={view === 'count' ? 'Errors' : 'Error Rate'}
-              series={errorSeries}
+              title={errorPick.form === 'count' ? 'Errors' : 'Error Rate'}
+              series={errorPick.series}
               frame={frame}
               color={COLORS.danger}
-              unit={view === 'count' ? 'errors' : '%'}
+              unit={errorPick.form === 'count' ? 'errors' : '%'}
               emptyMessage={emptyMessage}
             />
             <SeriesChart title="P95 Latency" series={findSeries('p95_duration_us')} frame={frame} color={COLORS.warning} unit="ms" scale={(v) => v / 1000} area emptyMessage={emptyMessage} />
@@ -419,7 +456,7 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
                   series={entry.series}
                   frame={frame}
                   color={[COLORS.primary, COLORS.info, COLORS.success, COLORS.warning][index % 4]}
-                  unit=""
+                  unit={entry.unit}
                   emptyMessage={emptyMessage}
                 />
               ))}

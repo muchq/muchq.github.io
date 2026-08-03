@@ -258,11 +258,11 @@ describe('ServiceDashboard', () => {
       await new Promise((resolve) => setTimeout(resolve, 100))
     })
 
-    // The timeseries endpoint is fetched with ?view= too now, so endsWith on
-    // the whole URL no longer matches it — same reason pathOf/viewOf exist
-    // for the scalar endpoint above.
+    // The timeseries endpoint takes no ?view= — request_rate/request_count
+    // (and their error_* counterparts) always come back together, and the
+    // toggle picks between them client-side — so plain endsWith matches it.
     const urls = mockFetch.mock.calls.map((call) => String(call[0]))
-    expect(urls.some((url) => pathOf(url).endsWith('/service/golf_hub/timeseries/30m'))).toBe(true)
+    expect(urls.some((url) => url.endsWith('/service/golf_hub/timeseries/30m'))).toBe(true)
   })
 
   it('reports failure and keeps the page shape when the API is down', async () => {
@@ -620,12 +620,14 @@ describe('ServiceDashboard', () => {
     expect(screen.queryByText('Command')).toBeNull()
   })
 
-  it('shows no data for the Serving chart, not a mislabeled rate, against a proxy with no request_count series', async () => {
+  it('falls back to Request Rate with real data against a proxy with no request_count series', async () => {
     // The toggle asks for count (the default) and the scalar side answers it
     // — but the timeseries side is still a pre-MoonBase#1292 proxy that has
-    // never heard of request_count. findSeries comes back undefined rather
-    // than the chart falling back to plotting request_rate under a "Requests"
-    // caption.
+    // never heard of request_count. pickSeriesForView falls back to
+    // request_rate rather than leaving the chart captioned "Requests" over
+    // nothing: DefaultView is count, so a bare view-driven pick would blank
+    // every service page's Serving chart on the default path until someone
+    // manually flipped to rate, real rate data sitting unused the whole time.
     mockFetch.mockImplementation((url: string) => {
       if (url.includes('/service/golf_hub/timeseries/')) return ok(legacyTimeseriesResponse)
       if (pathOf(url).endsWith('/service/golf_hub'))
@@ -640,11 +642,17 @@ describe('ServiceDashboard', () => {
     })
 
     // The custom tile did switch to count (12.0, the scalar side's own
-    // answer) — the Serving chart is titled for count too, since that's
-    // still what the toggle asked for, but has nothing to plot.
+    // answer) — the scalar and timeseries endpoints are independent, and only
+    // the latter is stuck on the old proxy here.
     expect(screen.getByText('12.0')).toBeTruthy()
-    expect(screen.getByText('Requests')).toBeTruthy()
-    expect(screen.queryByText('Request Rate')).toBeNull()
+
+    // The Serving chart falls back to its rate label and plots real data,
+    // rather than an empty "Requests" chart with rate data sitting unused in
+    // the same payload.
+    expect(screen.queryByText('Requests')).toBeNull()
+    const requestChart = screen.getByText('Request Rate').parentElement as HTMLElement
+    expect(within(requestChart).queryByText('No data available')).toBeNull()
+    expect(within(requestChart).getByTestId('line-chart')).toBeTruthy()
   })
 
   it('offers no toggle when the proxy sends no view at all', async () => {
