@@ -80,3 +80,4 @@ Routes are declared in `src/App.tsx`.
 
 - [GOLF.md](GOLF.md) — Golf multiplayer WebSocket API (v1)
 - [THOUGHTS.md](THOUGHTS.md) — Thoughts multiplayer WebSocket API
+- [WORKING_AGREEMENT.md](WORKING_AGREEMENT.md) — How work gets picked up, built, reviewed, and shipped
