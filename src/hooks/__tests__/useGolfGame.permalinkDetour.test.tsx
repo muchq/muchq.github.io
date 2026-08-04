@@ -40,6 +40,7 @@ const mockNetworkAdapter = {
     onRoomJoined?: (playerId: string, roomState: Room) => void
     onRoomLeft?: (roomId: string) => void
     onGameError?: (message: string) => void
+    onNotification?: (message: string) => void
   } | null
 }
 
@@ -118,13 +119,17 @@ describe('useGolfGame - permalink detour and rejection (#260)', () => {
     expect(result.current.permalinkJoinAttempt.isAttempting).toBe(true)
 
     // The hub's refusal is the race's signature — the cue to leave (the
-    // v2 wire needs no room id) and chain, not a terminal verdict.
+    // v2 wire needs no room id) and chain, not a terminal verdict. The
+    // wire fans the same string to onNotification; mid-recovery it must
+    // not reach the screen as a toast.
     act(() => {
       mockNetworkAdapter._callbacks?.onGameError?.('room unavailable or already in a room')
+      mockNetworkAdapter._callbacks?.onNotification?.('room unavailable or already in a room')
     })
     expect(mockNetworkAdapter.leaveRoom).toHaveBeenCalledTimes(1)
     expect(result.current.permalinkJoinAttempt.isAttempting).toBe(true)
     expect(result.current.permalinkJoinAttempt.error).toBeNull()
+    expect(result.current.notification).not.toBe('room unavailable or already in a room')
 
     act(() => {
       mockNetworkAdapter._callbacks?.onRoomLeft?.('old-room')
@@ -161,6 +166,35 @@ describe('useGolfGame - permalink detour and rejection (#260)', () => {
     // start the same link over — one send, not one per 10s timeout.
     expect(result.current.permalinkJoinAttempt.roomId).toBe('target-room')
     expect(mockNetworkAdapter.joinRoom).toHaveBeenCalledTimes(1)
+  })
+
+  it('a proactive leave spends the attempt\'s one leave: a refused chain join is terminal', () => {
+    const { result } = renderHook(() => useGolfGame({ permalinkParams: targetParams }), {
+      wrapper
+    })
+
+    // Room-state-first detour: the effect itself leaves the resumed
+    // room, which must count as the attempt's single leave.
+    act(() => {
+      mockNetworkAdapter._callbacks?.onRoomJoined?.('p1', makeRoom('old-room'))
+    })
+    act(() => {
+      mockNetworkAdapter._callbacks?.onConnectionChange?.(true)
+    })
+    expect(mockNetworkAdapter.leaveRoom).toHaveBeenCalledTimes(1)
+    act(() => {
+      mockNetworkAdapter._callbacks?.onRoomLeft?.('old-room')
+    })
+    expect(mockNetworkAdapter.joinRoom).toHaveBeenCalledWith('target-room')
+
+    // The chained join refused after a spent leave can only mean the
+    // target is gone: terminal, no second leave through the race branch.
+    act(() => {
+      mockNetworkAdapter._callbacks?.onGameError?.('room unavailable or already in a room')
+    })
+    expect(mockNetworkAdapter.leaveRoom).toHaveBeenCalledTimes(1)
+    expect(result.current.permalinkJoinAttempt.isAttempting).toBe(false)
+    expect(result.current.permalinkJoinAttempt.error).toBe('This room no longer exists.')
   })
 
   it('one leave per attempt: a repeat refusal after the retry is terminal', () => {

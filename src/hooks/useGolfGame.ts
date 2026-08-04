@@ -633,6 +633,13 @@ export const useGolfGame = ({
         setGameState(newGameState)
       },
       onNotification: (message) => {
+        // The recovery path's first refusal is a cue the attempt acts
+        // on, not news: while it is still working the leave-and-chain,
+        // the scary string stays off the screen. Terminal paths cleared
+        // isAttempting before this fires, so real failures still toast.
+        if (message.includes('already in a room') && permalinkJoinAttemptRef.current.isAttempting) {
+          return
+        }
         showNotification(message)
 
         // Parse game end notifications
@@ -844,7 +851,10 @@ export const useGolfGame = ({
         // names, and the hub refuses joinRoom for a seat already in a
         // room ("room unavailable or already in a room",
         // muchq.github.io#260). Leave first; onRoomLeft chains into
-        // joinRoom once the hub confirms.
+        // joinRoom once the hub confirms. This spends the attempt's one
+        // leave — a refusal of the chained join then terminates instead
+        // of burning a second leave through the race branch.
+        permalinkLeaveRetriedRef.current = true
         networkAdapterRef.current.leaveRoom(roomState.id)
       } else {
         // Join the room first
