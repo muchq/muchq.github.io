@@ -809,7 +809,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
               {containerTimeseries?.series?.some(s => s.metric_name === 'restarts') ? (
                 <ChartErrorBoundary>
                   <ResponsiveContainer width="100%" height={180}>
-                    <LineChart data={(() => {
+                    <BarChart data={(() => {
                       const restartSeries = containerTimeseries.series.filter(s => s.metric_name === 'restarts')
                       if (!containerFrame || !restartSeries.length) return []
 
@@ -845,11 +845,16 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                       {/* Not SortedTooltip: it suffixes every value with %,
                           which is right for CPU and wrong for a count. */}
                       <Tooltip />
+                      {/* Restarts are counts: each bucket is a discrete sum,
+                          not a continuous reading, so bars rather than an
+                          interpolated line. Stacked, so the bar height is
+                          total restarts in the bucket and the segments say
+                          which container. */}
                       {containerTimeseries.series.filter(s => s.metric_name === 'restarts' && s.labels?.name).map((s, i) => {
                         const colors = [COLORS.danger, COLORS.warning, COLORS.primary, COLORS.info, COLORS.success, COLORS.secondary]
-                        return <Line key={i} type="monotone" dataKey={seriesLabel(s.labels!.name)} stroke={colors[i % colors.length]} strokeWidth={2} dot={false} />
+                        return <Bar key={i} dataKey={seriesLabel(s.labels!.name)} fill={colors[i % colors.length]} stackId="restarts" />
                       })}
-                    </LineChart>
+                    </BarChart>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
