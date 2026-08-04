@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import styles from './GolfGame.module.css'
 import { useGolfGame } from '@/hooks/useGolfGame'
 import PermalinkDisplay from './PermalinkDisplay'
@@ -120,6 +120,8 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
   const isFinalRound = gameState?.gamePhase === 'knocked'
   const isKnocker = knockerId !== null && knockerId === playerId
   const [knockAlertDismissed, setKnockAlertDismissed] = useState(false)
+  const showKnockAlert = isFinalRound && !isKnocker && !knockAlertDismissed
+  const knockAlertRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const timer = isFinalRound
@@ -127,6 +129,12 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
       : setTimeout(() => setKnockAlertDismissed(false), 0)
     return () => clearTimeout(timer)
   }, [isFinalRound])
+
+  // Focus the alert while it's up so keyboard users can dismiss it —
+  // tapping is not the only input this game gets.
+  useEffect(() => {
+    if (showKnockAlert) knockAlertRef.current?.focus()
+  }, [showKnockAlert])
 
   const renderCard = (card: Card | null, index: number, isRevealed: boolean, isPlayer: boolean) => {
     const canInteract = isPlayer && (isMyTurn || (currentPlayer && !currentPlayer.hasPeeked && gameState?.gamePhase === 'playing'))
@@ -715,11 +723,19 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
         <div className={styles.finalRoundBackdrop} aria-hidden="true" />
       )}
 
-      {isFinalRound && !isKnocker && !knockAlertDismissed && (
+      {showKnockAlert && (
         <div
           className={styles.knockAlertOverlay}
           role="alert"
+          ref={knockAlertRef}
+          tabIndex={-1}
           onClick={() => setKnockAlertDismissed(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              setKnockAlertDismissed(true)
+            }
+          }}
         >
           <div className={styles.knockAlertContent}>
             <div className={styles.knockAlertEmoji}>✊</div>

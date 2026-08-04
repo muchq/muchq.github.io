@@ -601,6 +601,9 @@
   border-radius: 0.5rem;
   font-family: 'Lexend', sans-serif;
   animation: slideUp 0.3s ease;
+  /* Above the knock alert (1100): error toasts must stay visible on a
+     player's last turn. */
+  z-index: 1200;
 }
 
 /* Final round (knocked) styles */
@@ -627,14 +630,18 @@
 
 @keyframes knockBannerPulse {
   0%, 100% { background: #b91c1c; }
-  50% { background: #ef4444; }
+  /* #dc2626, not brighter: white text must hold AA contrast at the
+     pulse's bright phase too. */
+  50% { background: #dc2626; }
 }
 
 .finalRoundBackdrop {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 90;
+  /* Below the room chat surfaces (z 30-50): the vignette themes the
+     table, it must not wash over the chat panel or toasts. */
+  z-index: 20;
   background: radial-gradient(ellipse at center, rgba(220, 38, 38, 0) 35%, rgba(153, 27, 27, 0.55) 100%);
   box-shadow: inset 0 0 0 5px rgba(239, 68, 68, 0.9), inset 0 0 90px rgba(185, 28, 28, 0.6);
   animation: knockThrob 1.6s ease-in-out infinite;
@@ -965,6 +972,14 @@
   .finalRoundBanner {
     font-size: 0.8rem;
     padding: 0.5rem 0.75rem;
+  }
+
+  /* Softer vignette on small screens: the deck pile and full-width
+     action buttons sit near the viewport edge where the glow is
+     strongest, and they must stay legible for the whole final round. */
+  .finalRoundBackdrop {
+    background: radial-gradient(ellipse at center, rgba(220, 38, 38, 0) 45%, rgba(153, 27, 27, 0.35) 100%);
+    box-shadow: inset 0 0 0 3px rgba(239, 68, 68, 0.9), inset 0 0 45px rgba(185, 28, 28, 0.4);
   }
 
   .knockAlertEmoji {

@@ -37,13 +37,16 @@ const makeGameState = (overrides: Partial<GameState> = {}): GameState => ({
   ...overrides
 })
 
+const playingState = () => makeGameState({ gamePhase: 'playing', knockedPlayerId: null })
+
 interface HookOverrides {
   gameState?: GameState
   playerId?: string
   isMyTurn?: boolean
+  winner?: string | null
 }
 
-const mockHook = ({ gameState = makeGameState(), playerId = 'alice', isMyTurn = true }: HookOverrides = {}) => {
+const mockHook = ({ gameState = makeGameState(), playerId = 'alice', isMyTurn = true, winner = null }: HookOverrides = {}) => {
   const currentPlayer = gameState.players.find(p => p.id === playerId) ?? null
   vi.mocked(useGolfGame).mockReturnValue({
     gameState,
@@ -56,7 +59,7 @@ const mockHook = ({ gameState = makeGameState(), playerId = 'alice', isMyTurn = 
     currentPlayer,
     isMyTurn,
     peekCountdown: null,
-    winner: null,
+    winner,
     winners: [],
     currentRoomPermalink: null,
     currentGamePermalink: null,
@@ -87,16 +90,20 @@ const mockHook = ({ gameState = makeGameState(), playerId = 'alice', isMyTurn = 
   } as unknown as ReturnType<typeof useGolfGame>)
 }
 
-const renderGame = () =>
-  render(
-    <GolfGame
-      onGameIdChange={vi.fn()}
-      onPlayerIdChange={vi.fn()}
-      onPlayerNameChange={vi.fn()}
-      onConnectionChange={vi.fn()}
-      permalinkParams={{ roomId: null, gameId: null, isValid: true }}
-    />
-  )
+const gameJsx = () => (
+  <GolfGame
+    onGameIdChange={vi.fn()}
+    onPlayerIdChange={vi.fn()}
+    onPlayerNameChange={vi.fn()}
+    onConnectionChange={vi.fn()}
+    permalinkParams={{ roomId: null, gameId: null, isValid: true }}
+  />
+)
+
+const renderGame = () => render(gameJsx())
+
+const queryBackdrop = (container: HTMLElement) =>
+  container.querySelector('[class*="finalRoundBackdrop"]')
 
 describe('GolfGame knock visibility', () => {
   beforeEach(() => {
@@ -107,21 +114,24 @@ describe('GolfGame knock visibility', () => {
     vi.useRealTimers()
   })
 
-  it('shows a full-screen alert and urgent banner to non-knockers', () => {
+  it('shows a focused full-screen alert, urgent banner, and backdrop to non-knockers', () => {
     mockHook()
-    renderGame()
+    const { container } = renderGame()
 
     expect(screen.getByRole('alert')).toHaveTextContent('bob knocked!')
     expect(screen.getByRole('alert')).toHaveTextContent('This is your last turn — make it count!')
+    expect(screen.getByRole('alert')).toHaveFocus()
     expect(screen.getByText('🚨 Final round — bob knocked! 🚨')).toBeInTheDocument()
     expect(screen.getByText('Your last turn — tap a pile to draw')).toBeInTheDocument()
+    expect(queryBackdrop(container)).toBeInTheDocument()
   })
 
-  it('does not show the full-screen alert to the knocker', () => {
+  it('does not show the full-screen alert or backdrop to the knocker', () => {
     mockHook({ playerId: 'bob', isMyTurn: false })
-    renderGame()
+    const { container } = renderGame()
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(queryBackdrop(container)).not.toBeInTheDocument()
     expect(screen.getByText('You knocked — final round!')).toBeInTheDocument()
   })
 
@@ -130,6 +140,16 @@ describe('GolfGame knock visibility', () => {
     renderGame()
 
     fireEvent.click(screen.getByRole('alert'))
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('🚨 Final round — bob knocked! 🚨')).toBeInTheDocument()
+  })
+
+  it('dismisses the alert with the keyboard but keeps the banner', () => {
+    mockHook()
+    renderGame()
+
+    fireEvent.keyDown(screen.getByRole('alert'), { key: 'Escape' })
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.getByText('🚨 Final round — bob knocked! 🚨')).toBeInTheDocument()
@@ -150,11 +170,74 @@ describe('GolfGame knock visibility', () => {
     expect(screen.getByText('🚨 Final round — bob knocked! 🚨')).toBeInTheDocument()
   })
 
-  it('shows no knock UI during normal play', () => {
-    mockHook({ gameState: makeGameState({ gamePhase: 'playing', knockedPlayerId: null }) })
+  it('shows the alert when a knock arrives mid-game', () => {
+    mockHook({ gameState: playingState() })
+    const view = renderGame()
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+    mockHook()
+    view.rerender(gameJsx())
+
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText('🚨 Final round — bob knocked! 🚨')).toBeInTheDocument()
+  })
+
+  it('keeps the active-player turn label through the knocked phase', () => {
+    mockHook()
     renderGame()
+
+    expect(screen.getByText('your turn')).toBeInTheDocument()
+  })
+
+  it('removes all knock UI when the game ends', () => {
+    mockHook()
+    const view = renderGame()
+
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText('your turn')).toBeInTheDocument()
+
+    mockHook({ gameState: makeGameState({ gamePhase: 'ended' }), winner: 'bob', isMyTurn: false })
+    view.rerender(gameJsx())
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.queryByText(/final round/i)).not.toBeInTheDocument()
+    expect(queryBackdrop(view.container)).not.toBeInTheDocument()
+    expect(screen.queryByText('your turn')).not.toBeInTheDocument()
+  })
+
+  it('re-arms the alert for a new knock after a dismissed one', () => {
+    vi.useFakeTimers()
+    mockHook({ gameState: playingState() })
+    const view = renderGame()
+
+    // bob knocks; alice dismisses the alert
+    mockHook()
+    view.rerender(gameJsx())
+    fireEvent.click(screen.getByRole('alert'))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+    // game ends, next game starts, bob knocks again
+    mockHook({ gameState: makeGameState({ gamePhase: 'ended' }), winner: 'bob', isMyTurn: false })
+    view.rerender(gameJsx())
+    act(() => {
+      vi.advanceTimersByTime(0)
+    })
+    mockHook({ gameState: playingState() })
+    view.rerender(gameJsx())
+    mockHook()
+    view.rerender(gameJsx())
+
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
+
+  it('shows no knock UI during normal play', () => {
+    mockHook({ gameState: playingState() })
+    const { container } = renderGame()
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText(/final round/i)).not.toBeInTheDocument()
+    expect(queryBackdrop(container)).not.toBeInTheDocument()
+    expect(screen.getByText('Your turn — tap a pile to draw')).toBeInTheDocument()
   })
 })
