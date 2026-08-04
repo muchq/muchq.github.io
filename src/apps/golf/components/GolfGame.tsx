@@ -113,6 +113,21 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     }
   }, [gameState?.gamePhase])
 
+  // Final round: from the knock until the game ends. Non-knockers get a
+  // full-screen alert (auto-dismissed so it can't block their last turn)
+  // plus a persistent red theme; the knocker just gets a calm banner.
+  const knockerId = gameState?.knockedPlayerId ?? null
+  const isFinalRound = gameState?.gamePhase === 'knocked'
+  const isKnocker = knockerId !== null && knockerId === playerId
+  const [knockAlertDismissed, setKnockAlertDismissed] = useState(false)
+
+  useEffect(() => {
+    const timer = isFinalRound
+      ? setTimeout(() => setKnockAlertDismissed(true), 5000)
+      : setTimeout(() => setKnockAlertDismissed(false), 0)
+    return () => clearTimeout(timer)
+  }, [isFinalRound])
+
   const renderCard = (card: Card | null, index: number, isRevealed: boolean, isPlayer: boolean) => {
     const canInteract = isPlayer && (isMyTurn || (currentPlayer && !currentPlayer.hasPeeked && gameState?.gamePhase === 'playing'))
 
@@ -445,7 +460,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
             <h2>Room: {gameState.id}</h2>
             <div className={styles.playerList}>
               {gameState.players.map((player, index) => {
-                const isActivePlayer = index === gameState.currentPlayerIndex && gameState.gamePhase === 'playing'
+                const isActivePlayer = index === gameState.currentPlayerIndex && (gameState.gamePhase === 'playing' || gameState.gamePhase === 'knocked')
                 return (
                   <div
                     key={player.id}
@@ -601,6 +616,14 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
 
       {gameState.gamePhase !== 'waiting' && currentPlayer && (
         <div className={styles.gameArea}>
+          {isFinalRound && (
+            <div className={`${styles.finalRoundBanner} ${!isKnocker ? styles.finalRoundBannerUrgent : ''}`}>
+              {isKnocker
+                ? 'You knocked — final round!'
+                : `🚨 Final round — ${knockerId} knocked! 🚨`}
+            </div>
+          )}
+
           {/* Turn indicator */}
           <div className={styles.turnIndicator}>
             {!isMyTurn ? (
@@ -608,7 +631,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
             ) : !currentPlayer.hasPeeked && gameState.gamePhase === 'playing' ? (
               <span>Tap {2 - currentPlayer.revealedCards.length} cards to peek</span>
             ) : !gameState.drawnCard ? (
-              <span>Your turn — tap a pile to draw</span>
+              <span>{isFinalRound ? 'Your last turn — tap a pile to draw' : 'Your turn — tap a pile to draw'}</span>
             ) : (
               <span>Tap a card to swap, or discard</span>
             )}
@@ -684,6 +707,25 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {isFinalRound && !isKnocker && (
+        <div className={styles.finalRoundBackdrop} aria-hidden="true" />
+      )}
+
+      {isFinalRound && !isKnocker && !knockAlertDismissed && (
+        <div
+          className={styles.knockAlertOverlay}
+          role="alert"
+          onClick={() => setKnockAlertDismissed(true)}
+        >
+          <div className={styles.knockAlertContent}>
+            <div className={styles.knockAlertEmoji}>✊</div>
+            <h2 className={styles.knockAlertTitle}>{knockerId} knocked!</h2>
+            <p className={styles.knockAlertSubtitle}>This is your last turn — make it count!</p>
+            <p className={styles.knockAlertTap}>Tap to continue</p>
           </div>
         </div>
       )}
