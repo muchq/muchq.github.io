@@ -134,6 +134,27 @@ export const useGolfGame = ({
     error: null as string | null,
     gameJoinAttempted: false
   })
+  // The network adapter's callbacks are created once, on mount, so any
+  // attempt state they consult must ride a ref — the state closure they
+  // captured is forever the initial one. That stale closure is why a
+  // rejected permalink join used to fall through to the 10s timeout and
+  // an identical retry (muchq.github.io#260). Every write goes through
+  // the wrapper so ref and state cannot drift.
+  const permalinkJoinAttemptRef = useRef(permalinkJoinAttempt)
+  const updatePermalinkJoinAttempt = useCallback((next: typeof permalinkJoinAttemptRef.current) => {
+    permalinkJoinAttemptRef.current = next
+    setPermalinkJoinAttempt(next)
+  }, [])
+  // The link's target, visible to the once-created callbacks for the
+  // same reason: a resume that lands in an old room must not navigate
+  // the share link's URL away before the join flow ever runs.
+  const permalinkTargetRef = useRef(permalinkParams)
+  useEffect(() => {
+    permalinkTargetRef.current = permalinkParams
+  }, [permalinkParams])
+  // One leave-and-rejoin per attempt for the connect-before-resume race
+  // (see onGameError); reset when a fresh attempt starts.
+  const permalinkLeaveRetriedRef = useRef(false)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatReplayUpTo, setChatReplayUpTo] = useState(0)
   const [chatAvailable, setChatAvailable] = useState(false)
@@ -515,15 +536,50 @@ export const useGolfGame = ({
         onPlayerNameChange?.(player?.name || null)
         
         // Show different message for permalink vs manual joins
-        if (permalinkJoinAttempt.isAttempting) {
+        if (permalinkJoinAttemptRef.current.isAttempting) {
           showNotification(`Joined room ${newRoomState.id} via permalink!`)
         } else {
           showNotification('Joined room successfully!')
-          // Update URL for manual joins (not permalink joins)
-          setIsManualNavigation(true)
-          navigateToRoom(newRoomState.id)
-          // Reset flag after navigation
-          setTimeout(() => setIsManualNavigation(false), 200)
+          // Update URL for manual joins (not permalink joins) — and not
+          // for a resume that landed in a room the current URL's
+          // permalink does not name: navigating would rewrite the share
+          // link's target to the old room before the join flow ever ran
+          // (muchq.github.io#260), silently stranding the visitor there.
+          const target = permalinkTargetRef.current
+          const detouredResume =
+            target != null && target.isValid && target.roomId != null &&
+            target.roomId !== newRoomState.id
+          if (!detouredResume) {
+            setIsManualNavigation(true)
+            navigateToRoom(newRoomState.id)
+            // Reset flag after navigation
+            setTimeout(() => setIsManualNavigation(false), 200)
+          }
+        }
+      },
+      onRoomLeft: () => {
+        // The adapter has already dropped its own room state; mirror it.
+        // Its getter is the guard against a stale ack: if a new room was
+        // joined since the leave was sent, it is non-null and stays.
+        // Game state goes with the room, exactly as the manual leave
+        // clears it — a resume that restored a live game must not flash
+        // that game's UI while the detour joins the link's room.
+        if ((networkAdapterRef.current?.roomState ?? null) === null) {
+          setRoomState(null)
+          setIsInRoom(false)
+          setGameState(null)
+          setWinner(null)
+          setWinners(null)
+          setFinalScores(null)
+          setSelectedCardIndex(null)
+        }
+        // A permalink attempt that had to leave a resumed detour room
+        // continues into its target the moment the hub confirms the
+        // leave (muchq.github.io#260); the attempt's own timeout covers
+        // the whole leave-then-join.
+        const attempt = permalinkJoinAttemptRef.current
+        if (attempt.isAttempting && attempt.roomId && !attempt.error) {
+          networkAdapterRef.current?.joinRoom(attempt.roomId)
         }
       },
       onRoomStateUpdate: (newRoomState) => {
@@ -546,7 +602,7 @@ export const useGolfGame = ({
         onPlayerNameChange?.(player?.name || null)
         
         // Show different message for permalink vs manual joins vs new game creation
-        if (permalinkJoinAttempt.isAttempting) {
+        if (permalinkJoinAttemptRef.current.isAttempting) {
           showNotification(`Joined game ${newGameState.id} via permalink!`)
         } else if (isCreatingNewGameRef.current) {
           showNotification(`Created and joined new game ${newGameState.id}!`)
@@ -577,6 +633,13 @@ export const useGolfGame = ({
         setGameState(newGameState)
       },
       onNotification: (message) => {
+        // The recovery path's first refusal is a cue the attempt acts
+        // on, not news: while it is still working the leave-and-chain,
+        // the scary string stays off the screen. Terminal paths cleared
+        // isAttempting before this fires, so real failures still toast.
+        if (message.includes('already in a room') && permalinkJoinAttemptRef.current.isAttempting) {
+          return
+        }
         showNotification(message)
 
         // Parse game end notifications
@@ -604,20 +667,49 @@ export const useGolfGame = ({
         // Every rejection also flows to chat state — the composer
         // reacts once per seq, and only to reasons it recognizes.
         setChatRejection(prev => ({ seq: (prev?.seq ?? 0) + 1, reason: errorMessage }))
-        if (permalinkJoinAttempt.isAttempting &&
-            (errorMessage.includes('not found') || errorMessage.includes('does not exist'))) {
-          if (permalinkTimeoutRef.current) {
-            clearTimeout(permalinkTimeoutRef.current)
-            permalinkTimeoutRef.current = null
-          }
-          setPermalinkJoinAttempt({
-            isAttempting: false,
-            roomId: null,
-            gameId: null,
-            error: 'This room no longer exists.',
-            gameJoinAttempted: false
-          })
+        const attempt = permalinkJoinAttemptRef.current
+        if (!attempt.isAttempting) {
+          return
         }
+        // The connect-before-resume race: isConnected flips on socket
+        // open, before the resume's roomState lands, so the join effect
+        // usually sends a bare joinRoom that the hub refuses — the seat
+        // is still in its old room server-side. That refusal is the cue,
+        // not the verdict: leave (the v2 wire needs no room id; the hub
+        // knows the seat's room) and let onRoomLeft chain the join. Once
+        // per attempt, so a genuinely missing target cannot loop.
+        if (errorMessage.includes('already in a room') && attempt.roomId &&
+            !permalinkLeaveRetriedRef.current) {
+          permalinkLeaveRetriedRef.current = true
+          networkAdapterRef.current?.leaveRoom(networkAdapterRef.current?.roomState?.id ?? '')
+          return
+        }
+        // Any other rejection ends the attempt with its reason — the
+        // old not-found string match left everything else to the 10s
+        // timeout and an identical retry, the repeated-rejection loop
+        // of muchq.github.io#260. The failed target stays in the state
+        // so the join effect knows this exact link already failed and
+        // does not restart it.
+        if (permalinkTimeoutRef.current) {
+          clearTimeout(permalinkTimeoutRef.current)
+          permalinkTimeoutRef.current = null
+        }
+        // After a leave was already tried, a repeat of the combined
+        // refusal — or "not in a room" from leaving nothing — can only
+        // mean the target itself is gone.
+        const friendly =
+          errorMessage.includes('not found') || errorMessage.includes('does not exist') ||
+          (permalinkLeaveRetriedRef.current &&
+            (errorMessage.includes('already in a room') || errorMessage.includes('not in a room')))
+            ? 'This room no longer exists.'
+            : errorMessage
+        updatePermalinkJoinAttempt({
+          isAttempting: false,
+          roomId: attempt.roomId,
+          gameId: attempt.gameId,
+          error: friendly,
+          gameJoinAttempted: false
+        })
       },
       onConnectionChange: (connected) => {
         setIsConnected(connected)
@@ -694,6 +786,17 @@ export const useGolfGame = ({
       return
     }
 
+    // A finished attempt for this same target stays finished — the
+    // rejection or timeout that ended it would only repeat. Restarting
+    // here is what looped the hub's refusal every 10 seconds
+    // (muchq.github.io#260); a different link arrives as different
+    // params and starts fresh.
+    if (permalinkJoinAttempt.error &&
+        permalinkJoinAttempt.roomId === permalinkParams.roomId &&
+        permalinkJoinAttempt.gameId === permalinkParams.gameId) {
+      return
+    }
+
     // Don't attempt if we're already in the target room/game
     if (permalinkParams.roomId && roomState?.id === permalinkParams.roomId) {
       if (permalinkParams.gameId) {
@@ -705,7 +808,7 @@ export const useGolfGame = ({
         // Only attempt if we haven't already tried to join this game
         if (!permalinkJoinAttempt.gameJoinAttempted) {
           // eslint-disable-next-line react-hooks/set-state-in-effect -- state machine transition before network call
-          setPermalinkJoinAttempt({
+          updatePermalinkJoinAttempt({
             isAttempting: true,
             roomId: permalinkParams.roomId,
             gameId: permalinkParams.gameId,
@@ -719,7 +822,8 @@ export const useGolfGame = ({
     }
 
     // Start the joining process
-    setPermalinkJoinAttempt({
+    permalinkLeaveRetriedRef.current = false
+    updatePermalinkJoinAttempt({
       isAttempting: true,
       roomId: permalinkParams.roomId,
       gameId: permalinkParams.gameId,
@@ -727,12 +831,14 @@ export const useGolfGame = ({
       gameJoinAttempted: false
     })
 
-    // Set a timeout for the join attempt
+    // Set a timeout for the join attempt — it covers the whole flow,
+    // detour leave included. The target rides the failure state so the
+    // effect can tell "this link failed" from "no attempt yet".
     permalinkTimeoutRef.current = window.setTimeout(() => {
-      setPermalinkJoinAttempt({
+      updatePermalinkJoinAttempt({
         isAttempting: false,
-        roomId: null,
-        gameId: null,
+        roomId: permalinkParams.roomId,
+        gameId: permalinkParams.gameId,
         error: 'Join attempt timed out. Please try again.',
         gameJoinAttempted: false
       })
@@ -740,10 +846,22 @@ export const useGolfGame = ({
     }, 10000) // 10 second timeout
 
     if (permalinkParams.roomId) {
-      // Join the room first
-      networkAdapterRef.current.joinRoom(permalinkParams.roomId)
+      if (roomState && roomState.id !== permalinkParams.roomId) {
+        // The resume landed this seat in a different room than the link
+        // names, and the hub refuses joinRoom for a seat already in a
+        // room ("room unavailable or already in a room",
+        // muchq.github.io#260). Leave first; onRoomLeft chains into
+        // joinRoom once the hub confirms. This spends the attempt's one
+        // leave — a refusal of the chained join then terminates instead
+        // of burning a second leave through the race branch.
+        permalinkLeaveRetriedRef.current = true
+        networkAdapterRef.current.leaveRoom(roomState.id)
+      } else {
+        // Join the room first
+        networkAdapterRef.current.joinRoom(permalinkParams.roomId)
+      }
     }
-  }, [permalinkParams, isConnected, isReconnecting, roomState?.id, gameState?.id, permalinkJoinAttempt.isAttempting, permalinkJoinAttempt.gameJoinAttempted, showNotification])
+  }, [permalinkParams, isConnected, isReconnecting, roomState, gameState?.id, permalinkJoinAttempt, showNotification, updatePermalinkJoinAttempt])
 
   // Handle successful room join for permalink flow
   useEffect(() => {
@@ -757,19 +875,30 @@ export const useGolfGame = ({
       if (permalinkJoinAttempt.gameId && networkAdapterRef.current && !permalinkJoinAttempt.gameJoinAttempted) {
         // Check if the game exists in the room
         if (roomState.games[permalinkJoinAttempt.gameId]) {
-          // Mark that we're attempting to join the game to prevent duplicate calls
-          // eslint-disable-next-line react-hooks/set-state-in-effect -- state machine transition before network call
-          setPermalinkJoinAttempt(prev => ({
-            ...prev,
+          // Mark that we're attempting to join the game to prevent
+          // duplicate calls. Spread the ref, not this effect's state
+          // closure: a rejection can land between the commit that
+          // scheduled this effect and its run, and re-spreading the
+          // stale closure here would resurrect the attempt it ended.
+          updatePermalinkJoinAttempt({
+            ...permalinkJoinAttemptRef.current,
             gameJoinAttempted: true
-          }))
+          })
           networkAdapterRef.current.joinGame(permalinkJoinAttempt.roomId, permalinkJoinAttempt.gameId)
         } else {
-          // Game doesn't exist, clear attempt with error
-          setPermalinkJoinAttempt({
+          // Game doesn't exist, clear attempt and its timeout with an
+          // error — target kept so the join effect will not restart
+          // this same failed link. Without the clear, this stale timer
+          // firing later could overwrite a subsequent different link's
+          // attempt mid-detour.
+          if (permalinkTimeoutRef.current) {
+            clearTimeout(permalinkTimeoutRef.current)
+            permalinkTimeoutRef.current = null
+          }
+          updatePermalinkJoinAttempt({
             isAttempting: false,
-            roomId: null,
-            gameId: null,
+            roomId: permalinkJoinAttempt.roomId,
+            gameId: permalinkJoinAttempt.gameId,
             error: `Game ${permalinkJoinAttempt.gameId} not found in room`,
             gameJoinAttempted: false
           })
@@ -781,7 +910,7 @@ export const useGolfGame = ({
           clearTimeout(permalinkTimeoutRef.current)
           permalinkTimeoutRef.current = null
         }
-        setPermalinkJoinAttempt({
+        updatePermalinkJoinAttempt({
           isAttempting: false,
           roomId: null,
           gameId: null,
@@ -790,7 +919,7 @@ export const useGolfGame = ({
         })
       }
     }
-  }, [roomState, permalinkJoinAttempt, showNotification])
+  }, [roomState, permalinkJoinAttempt, showNotification, updatePermalinkJoinAttempt])
 
   // Handle successful game join for permalink flow
   useEffect(() => {
@@ -806,7 +935,7 @@ export const useGolfGame = ({
         permalinkTimeoutRef.current = null
       }
       // eslint-disable-next-line react-hooks/set-state-in-effect -- state machine transition on external event
-      setPermalinkJoinAttempt({
+      updatePermalinkJoinAttempt({
         isAttempting: false,
         roomId: null,
         gameId: null,
@@ -814,13 +943,22 @@ export const useGolfGame = ({
         gameJoinAttempted: false
       })
     }
-  }, [gameState, permalinkJoinAttempt])
+  }, [gameState, permalinkJoinAttempt, updatePermalinkJoinAttempt])
 
   // Handle URL synchronization for state changes (back/forward navigation support)
   useEffect(() => {
     // Only update URL if we're not currently attempting a permalink join or manual navigation
     // This prevents navigation loops
     if (permalinkJoinAttempt.isAttempting || isManualNavigation) {
+      return
+    }
+    // A share link owns the URL while it names a room this seat is not
+    // in — unresolved or failed alike. Syncing the resumed room over it
+    // would rewrite the link's target (the second of the two navigations
+    // that used to strand a visitor in their old room, muchq.github.io#260),
+    // and after a failure it would erase the URL a reload could retry.
+    if (permalinkParams?.isValid && permalinkParams.roomId &&
+        permalinkParams.roomId !== roomState?.id) {
       return
     }
 
@@ -842,7 +980,7 @@ export const useGolfGame = ({
         navigate(expectedUrl, { replace: true })
       }
     }
-  }, [roomState, gameState, permalinkJoinAttempt.isAttempting, isManualNavigation, navigate])
+  }, [roomState, gameState, permalinkJoinAttempt.isAttempting, permalinkJoinAttempt.error, isManualNavigation, navigate, permalinkParams])
 
   // Handle peek countdown when all players have peeked
   useEffect(() => {
