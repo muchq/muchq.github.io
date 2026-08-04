@@ -360,9 +360,10 @@ describe('MetricsDashboard (host view)', () => {
       await settle()
 
       expect(screen.getByText('Container Restarts')).toBeTruthy()
-      // The only series in this fixture is restarts, so any <Line> at all comes
-      // from the new chart rather than from CPU or memory.
-      const keys = screen.getAllByTestId('line').map((el) => el.getAttribute('data-key'))
+      // Restarts are counts, so they chart as bars; the per-container bar
+      // charts key on fixed names (cpu, rx, …), so a <Bar> keyed on the
+      // container's own label can only come from the restarts chart.
+      const keys = screen.getAllByTestId('bar').map((el) => el.getAttribute('data-key'))
       expect(keys).toContain('golf_hub')
     })
 

@@ -14,6 +14,10 @@ vi.mock('recharts', () => ({
     <div data-testid="area-chart" data-row-count={data?.length ?? 0}>{children}</div>
   ),
   Area: () => <div data-testid="area" />,
+  BarChart: ({ children, data }: { children: React.ReactNode; data?: unknown[] }) => (
+    <div data-testid="bar-chart" data-row-count={data?.length ?? 0}>{children}</div>
+  ),
+  Bar: () => <div data-testid="bar" />,
   XAxis: () => <div data-testid="x-axis" />,
   YAxis: () => <div data-testid="y-axis" />,
   CartesianGrid: () => <div data-testid="cartesian-grid" />,
@@ -545,6 +549,28 @@ describe('ServiceDashboard', () => {
 
     expect(screen.getByText('Request Rate')).toBeTruthy()
     expect(screen.queryByText('Requests')).toBeNull()
+  })
+
+  it('draws counts as bars and rates as lines', async () => {
+    render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    // A count is a per-bucket sum: each bucket stands alone and zero means
+    // nothing happened, so bars. A rate is a sampled derivative, so a line.
+    const requestsChart = screen.getByText('Requests').parentElement as HTMLElement
+    expect(within(requestsChart).getByTestId('bar-chart')).toBeTruthy()
+    expect(within(requestsChart).queryByTestId('line-chart')).toBeNull()
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Counter view'), { target: { value: 'rate' } })
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    const rateChart = screen.getByText('Request Rate').parentElement as HTMLElement
+    expect(within(rateChart).getByTestId('line-chart')).toBeTruthy()
+    expect(within(rateChart).queryByTestId('bar-chart')).toBeNull()
   })
 
   it('switches the Error Rate chart between error_count and error_rate_percent', async () => {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import ChartErrorBoundary from './ChartErrorBoundary'
 import styles from './MetricsDashboard.module.css'
 import ContainerHealthStrip from './ContainerHealth'
@@ -63,6 +63,7 @@ interface TrendEntry {
   title: string
   series: TimeSeries | undefined
   unit: string
+  bar: boolean
 }
 
 // Collapses a service's custom series into what Trends actually renders. A
@@ -98,12 +99,15 @@ const groupTrends = (series: TimeSeries[], view: MetricView): TrendEntry[] => {
           // form cue itself, the same "/s" a unitless scalar tile gets from
           // UnitFor in the rate view.
           unit: view === 'count' ? '' : '/s',
+          // A count is a per-bucket sum, not a continuous quantity — bars,
+          // not an interpolated line. The rate form stays a line.
+          bar: view === 'count',
         })
         continue
       }
     }
     consumed.add(s.metric_name)
-    entries.push({ key: s.metric_name, title: prettyLabel(s.metric_name), series: s, unit: '' })
+    entries.push({ key: s.metric_name, title: prettyLabel(s.metric_name), series: s, unit: '', bar: false })
   }
   return entries
 }
@@ -149,6 +153,7 @@ const SeriesChart = ({
   color,
   unit,
   area = false,
+  bar = false,
   scale = (value: number) => value,
   emptyMessage,
 }: {
@@ -158,6 +163,7 @@ const SeriesChart = ({
   color: string
   unit: string
   area?: boolean
+  bar?: boolean
   scale?: (value: number) => number
   emptyMessage?: string
 }) => {
@@ -186,7 +192,7 @@ const SeriesChart = ({
       value: scale(Math.max(0, v.value || 0)),
     }))
   }
-  const ChartComponent = area ? AreaChart : LineChart
+  const ChartComponent = bar ? BarChart : area ? AreaChart : LineChart
 
   return (
     <div className={styles.compactChart}>
@@ -201,7 +207,9 @@ const SeriesChart = ({
               contentStyle={{ backgroundColor: 'rgba(13, 17, 32, 0.9)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px', fontSize: '12px' }}
               formatter={(value) => [`${formatValue(Number(value))}${unit ? ` ${unit}` : ''}`, title]}
             />
-            {area ? (
+            {bar ? (
+              <Bar dataKey="value" fill={color} radius={[2, 2, 0, 0]} />
+            ) : area ? (
               <Area type="monotone" dataKey="value" stroke={color} fill={`${color}44`} strokeWidth={2} />
             ) : (
               <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false} />
@@ -407,6 +415,7 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
               frame={frame}
               color={COLORS.primary}
               unit={requestPick.form === 'count' ? 'requests' : 'req/s'}
+              bar={requestPick.form === 'count'}
               emptyMessage={emptyMessage}
             />
             <SeriesChart
@@ -415,6 +424,7 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
               frame={frame}
               color={COLORS.danger}
               unit={errorPick.form === 'count' ? 'errors' : '%'}
+              bar={errorPick.form === 'count'}
               emptyMessage={emptyMessage}
             />
             <SeriesChart title="P95 Latency" series={findSeries('p95_duration_us')} frame={frame} color={COLORS.warning} unit="ms" scale={(v) => v / 1000} area emptyMessage={emptyMessage} />
@@ -457,6 +467,7 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
                   frame={frame}
                   color={[COLORS.primary, COLORS.info, COLORS.success, COLORS.warning][index % 4]}
                   unit={entry.unit}
+                  bar={entry.bar}
                   emptyMessage={emptyMessage}
                 />
               ))}
