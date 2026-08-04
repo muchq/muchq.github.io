@@ -103,7 +103,10 @@ describe('useGolfGame - permalink detour and rejection (#260)', () => {
     expect(mockNavigate).not.toHaveBeenCalled()
   })
 
-  it('a rejection ends the attempt with its reason instead of retrying', () => {
+  it('recovers the connect-before-resume race: refusal, leave, chain, join', () => {
+    // Production order: the socket opens (isConnected flips) before the
+    // resume's roomState lands, so the join effect sends a bare
+    // joinRoom while the hub still has the seat in its old room.
     const { result } = renderHook(() => useGolfGame({ permalinkParams: targetParams }), {
       wrapper
     })
@@ -114,18 +117,73 @@ describe('useGolfGame - permalink detour and rejection (#260)', () => {
     expect(mockNetworkAdapter.joinRoom).toHaveBeenCalledWith('target-room')
     expect(result.current.permalinkJoinAttempt.isAttempting).toBe(true)
 
+    // The hub's refusal is the race's signature — the cue to leave (the
+    // v2 wire needs no room id) and chain, not a terminal verdict.
     act(() => {
       mockNetworkAdapter._callbacks?.onGameError?.('room unavailable or already in a room')
     })
+    expect(mockNetworkAdapter.leaveRoom).toHaveBeenCalledTimes(1)
+    expect(result.current.permalinkJoinAttempt.isAttempting).toBe(true)
+    expect(result.current.permalinkJoinAttempt.error).toBeNull()
 
+    act(() => {
+      mockNetworkAdapter._callbacks?.onRoomLeft?.('old-room')
+    })
+    expect(mockNetworkAdapter.joinRoom).toHaveBeenCalledTimes(2)
+    expect(mockNetworkAdapter.joinRoom).toHaveBeenLastCalledWith('target-room')
+
+    act(() => {
+      mockNetworkAdapter._callbacks?.onRoomJoined?.('p1', makeRoom('target-room'))
+    })
     expect(result.current.permalinkJoinAttempt.isAttempting).toBe(false)
-    expect(result.current.permalinkJoinAttempt.error).toBe(
-      'room unavailable or already in a room'
-    )
+    expect(result.current.permalinkJoinAttempt.error).toBeNull()
+    expect(result.current.roomState?.id).toBe('target-room')
+  })
+
+  it('a non-join rejection ends the attempt with its reason instead of retrying', () => {
+    const { result } = renderHook(() => useGolfGame({ permalinkParams: targetParams }), {
+      wrapper
+    })
+
+    act(() => {
+      mockNetworkAdapter._callbacks?.onConnectionChange?.(true)
+    })
+    expect(result.current.permalinkJoinAttempt.isAttempting).toBe(true)
+
+    act(() => {
+      mockNetworkAdapter._callbacks?.onGameError?.('invalid room id')
+    })
+
+    expect(mockNetworkAdapter.leaveRoom).not.toHaveBeenCalled()
+    expect(result.current.permalinkJoinAttempt.isAttempting).toBe(false)
+    expect(result.current.permalinkJoinAttempt.error).toBe('invalid room id')
     // The failed target stays recorded, and the join effect must not
     // start the same link over — one send, not one per 10s timeout.
     expect(result.current.permalinkJoinAttempt.roomId).toBe('target-room')
     expect(mockNetworkAdapter.joinRoom).toHaveBeenCalledTimes(1)
+  })
+
+  it('one leave per attempt: a repeat refusal after the retry is terminal', () => {
+    const { result } = renderHook(() => useGolfGame({ permalinkParams: targetParams }), {
+      wrapper
+    })
+
+    act(() => {
+      mockNetworkAdapter._callbacks?.onConnectionChange?.(true)
+    })
+    act(() => {
+      mockNetworkAdapter._callbacks?.onGameError?.('room unavailable or already in a room')
+    })
+    expect(mockNetworkAdapter.leaveRoom).toHaveBeenCalledTimes(1)
+
+    // Nothing to leave (or the target is simply gone): the second
+    // refusal must not loop, and its deduced meaning is target-missing.
+    act(() => {
+      mockNetworkAdapter._callbacks?.onGameError?.('not in a room')
+    })
+    expect(mockNetworkAdapter.leaveRoom).toHaveBeenCalledTimes(1)
+    expect(result.current.permalinkJoinAttempt.isAttempting).toBe(false)
+    expect(result.current.permalinkJoinAttempt.error).toBe('This room no longer exists.')
   })
 
   it('leaves a resumed detour room first and joins the target on roomLeft', () => {

@@ -152,6 +152,9 @@ export const useGolfGame = ({
   useEffect(() => {
     permalinkTargetRef.current = permalinkParams
   }, [permalinkParams])
+  // One leave-and-rejoin per attempt for the connect-before-resume race
+  // (see onGameError); reset when a fresh attempt starts.
+  const permalinkLeaveRetriedRef = useRef(false)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatReplayUpTo, setChatReplayUpTo] = useState(0)
   const [chatAvailable, setChatAvailable] = useState(false)
@@ -558,9 +561,17 @@ export const useGolfGame = ({
         // The adapter has already dropped its own room state; mirror it.
         // Its getter is the guard against a stale ack: if a new room was
         // joined since the leave was sent, it is non-null and stays.
+        // Game state goes with the room, exactly as the manual leave
+        // clears it — a resume that restored a live game must not flash
+        // that game's UI while the detour joins the link's room.
         if ((networkAdapterRef.current?.roomState ?? null) === null) {
           setRoomState(null)
           setIsInRoom(false)
+          setGameState(null)
+          setWinner(null)
+          setWinners(null)
+          setFinalScores(null)
+          setSelectedCardIndex(null)
         }
         // A permalink attempt that had to leave a resumed detour room
         // continues into its target the moment the hub confirms the
@@ -649,31 +660,49 @@ export const useGolfGame = ({
         // Every rejection also flows to chat state — the composer
         // reacts once per seq, and only to reasons it recognizes.
         setChatRejection(prev => ({ seq: (prev?.seq ?? 0) + 1, reason: errorMessage }))
-        // Any rejection during a permalink attempt ends the attempt
-        // with its reason. The old not-found string match left every
-        // other refusal — the hub's "room unavailable or already in a
-        // room" above all — to the 10s timeout and an identical retry,
-        // the repeated-rejection loop of muchq.github.io#260. The
-        // failed target stays in the state so the join effect knows
-        // this exact link already failed and does not restart it.
         const attempt = permalinkJoinAttemptRef.current
-        if (attempt.isAttempting) {
-          if (permalinkTimeoutRef.current) {
-            clearTimeout(permalinkTimeoutRef.current)
-            permalinkTimeoutRef.current = null
-          }
-          const friendly =
-            errorMessage.includes('not found') || errorMessage.includes('does not exist')
-              ? 'This room no longer exists.'
-              : errorMessage
-          updatePermalinkJoinAttempt({
-            isAttempting: false,
-            roomId: attempt.roomId,
-            gameId: attempt.gameId,
-            error: friendly,
-            gameJoinAttempted: false
-          })
+        if (!attempt.isAttempting) {
+          return
         }
+        // The connect-before-resume race: isConnected flips on socket
+        // open, before the resume's roomState lands, so the join effect
+        // usually sends a bare joinRoom that the hub refuses — the seat
+        // is still in its old room server-side. That refusal is the cue,
+        // not the verdict: leave (the v2 wire needs no room id; the hub
+        // knows the seat's room) and let onRoomLeft chain the join. Once
+        // per attempt, so a genuinely missing target cannot loop.
+        if (errorMessage.includes('already in a room') && attempt.roomId &&
+            !permalinkLeaveRetriedRef.current) {
+          permalinkLeaveRetriedRef.current = true
+          networkAdapterRef.current?.leaveRoom(networkAdapterRef.current?.roomState?.id ?? '')
+          return
+        }
+        // Any other rejection ends the attempt with its reason — the
+        // old not-found string match left everything else to the 10s
+        // timeout and an identical retry, the repeated-rejection loop
+        // of muchq.github.io#260. The failed target stays in the state
+        // so the join effect knows this exact link already failed and
+        // does not restart it.
+        if (permalinkTimeoutRef.current) {
+          clearTimeout(permalinkTimeoutRef.current)
+          permalinkTimeoutRef.current = null
+        }
+        // After a leave was already tried, a repeat of the combined
+        // refusal — or "not in a room" from leaving nothing — can only
+        // mean the target itself is gone.
+        const friendly =
+          errorMessage.includes('not found') || errorMessage.includes('does not exist') ||
+          (permalinkLeaveRetriedRef.current &&
+            (errorMessage.includes('already in a room') || errorMessage.includes('not in a room')))
+            ? 'This room no longer exists.'
+            : errorMessage
+        updatePermalinkJoinAttempt({
+          isAttempting: false,
+          roomId: attempt.roomId,
+          gameId: attempt.gameId,
+          error: friendly,
+          gameJoinAttempted: false
+        })
       },
       onConnectionChange: (connected) => {
         setIsConnected(connected)
@@ -786,6 +815,7 @@ export const useGolfGame = ({
     }
 
     // Start the joining process
+    permalinkLeaveRetriedRef.current = false
     updatePermalinkJoinAttempt({
       isAttempting: true,
       roomId: permalinkParams.roomId,
@@ -912,12 +942,13 @@ export const useGolfGame = ({
     if (permalinkJoinAttempt.isAttempting || isManualNavigation) {
       return
     }
-    // A share link that hasn't resolved yet owns the URL. Syncing the
-    // resumed room over it would rewrite the link's target before the
-    // join effect runs — the second of the two navigations that used to
-    // strand a visitor in their old room (muchq.github.io#260).
+    // A share link owns the URL while it names a room this seat is not
+    // in — unresolved or failed alike. Syncing the resumed room over it
+    // would rewrite the link's target (the second of the two navigations
+    // that used to strand a visitor in their old room, muchq.github.io#260),
+    // and after a failure it would erase the URL a reload could retry.
     if (permalinkParams?.isValid && permalinkParams.roomId &&
-        permalinkParams.roomId !== roomState?.id && !permalinkJoinAttempt.error) {
+        permalinkParams.roomId !== roomState?.id) {
       return
     }
 
