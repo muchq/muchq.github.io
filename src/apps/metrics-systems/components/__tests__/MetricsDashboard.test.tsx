@@ -141,14 +141,67 @@ describe('MetricsDashboard (host view)', () => {
     expect(urls.some((url) => url.endsWith('/host/timeseries/7d'))).toBe(true)
   })
 
-  it('says loading, not "no data", before the first fetch resolves', () => {
+  it('shows the loading skeleton, not "no data", before the first fetch resolves', () => {
     // A pending fetch is a promise of an answer, not an answer. Every chart
     // used to flash "No data available" for the second before data landed.
+    // The skeleton's visible part is decorative bars, so the accessible
+    // "Loading…" text must ride along with it.
     mockFetch.mockImplementation(() => new Promise(() => {}))
     render(<MetricsDashboard onConnectionStateChange={vi.fn()} />)
 
+    expect(screen.getAllByTestId('chart-skeleton').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Loading…').length).toBeGreaterThan(0)
     expect(screen.queryByText('No data available')).toBeNull()
+    // The restarts panel spells its own loading ternary (it has a custom
+    // settled message), so the flash-guard needs pinning there separately.
+    expect(screen.queryByText('No restart data in this window')).toBeNull()
+    // The System Resources tiles hold their row open with placeholder values
+    // instead of popping in wholesale when data lands.
+    expect(screen.getByText('CPU')).toBeTruthy()
+    expect(screen.getByText('Network')).toBeTruthy()
+  })
+
+  it('drops the skeleton once the first fetch settles, even a failed one', async () => {
+    // The skeleton claims an answer is coming. After the fetch settles empty,
+    // that claim is false — an infinitely shimmering placeholder over a dead
+    // API reads as "still loading" forever.
+    mockFetch.mockImplementation(() => Promise.resolve({ ok: false, text: () => Promise.resolve('') }))
+    render(<MetricsDashboard onConnectionStateChange={vi.fn()} />)
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    expect(screen.queryAllByTestId('chart-skeleton').length).toBe(0)
+    expect(screen.queryByText('Loading…')).toBeNull()
+    expect(screen.getAllByText('No data available').length).toBeGreaterThan(0)
+    expect(screen.getByText('No restart data in this window')).toBeTruthy()
+    // The placeholder tiles are a loading treatment, not a fallback — with the
+    // API down they'd be a permanent row of shimmering nothing.
+    expect(screen.queryByText('CPU')).toBeNull()
+  })
+
+  it('keeps the skeleton a first-load treatment — a range change refetch does not resurrect it', async () => {
+    // Deliberate: on a range change the panels keep their settled state (data
+    // or "No data available") until the new response lands. Re-arming the
+    // skeleton here would also re-arm it on every 30s poll, turning empty
+    // panels into an endlessly re-flashing placeholder.
+    const { container } = render(<MetricsDashboard onConnectionStateChange={vi.fn()} />)
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+    expect(screen.getAllByText('No data available').length).toBeGreaterThan(0)
+
+    mockFetch.mockImplementation(() => new Promise(() => {}))
+    const select = container.querySelector('select')!
+    fireEvent.change(select, { target: { value: '7d' } })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+
+    expect(screen.queryAllByTestId('chart-skeleton').length).toBe(0)
+    expect(screen.getAllByText('No data available').length).toBeGreaterThan(0)
   })
 
   it('stays up with empty sections when the API is down', async () => {

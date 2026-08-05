@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
 import ChartErrorBoundary from './ChartErrorBoundary'
+import ChartSkeleton from './ChartSkeleton'
 import styles from './MetricsDashboard.module.css'
 import {
   METRICS_API_URL,
@@ -121,9 +122,9 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
   const [containerTimeseries, setContainerTimeseries] = useState<TimeSeriesResponse | null>(null)
   const [timeRange, setTimeRange] = useState<'30m' | '1d' | '7d'>('1d')
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
-  // True until the first fetch settles either way. Empty panels say
-  // "Loading…" during it — flashing "No data available" at someone for the
-  // second before data lands claims a gap that doesn't exist.
+  // True until the first fetch settles either way. Empty panels show the
+  // loading skeleton during it — flashing "No data available" at someone for
+  // the second before data lands claims a gap that doesn't exist.
   const [loading, setLoading] = useState(true)
 
   // Charts get their container names from timeseries labels, which carry only
@@ -183,7 +184,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
   const systemFrame = seriesWindow(systemTimeseries)
   const containerFrame = seriesWindow(containerTimeseries)
 
-  const emptyMessage = loading ? 'Loading…' : 'No data available'
+  const emptyState = loading ? <ChartSkeleton /> : <NoDataMessage />
 
   const getCpuTimeseriesData = () => {
     const cpuSeries = systemTimeseries?.series?.find(s => s.metric_name === 'cpu_utilization')
@@ -310,6 +311,22 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
             unlabeled cluster. */}
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>System Resources</h2>
+          {/* While the first fetch is in flight the tiles render with
+              placeholder values instead of not at all — the labels are fixed
+              copy, so the row can hold its final size rather than popping in
+              wholesale when data lands and shoving the charts down. */}
+          {!systemMetrics && loading && (
+            <div className={styles.overviewCards}>
+              {['CPU', 'Memory', 'Disk', 'Network'].map((label) => (
+                <div key={label} className={styles.miniCard}>
+                  <div className={styles.miniLabel}>{label}</div>
+                  <div className={styles.miniValue}>
+                    <span className={styles.skeletonValue} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           {systemMetrics && (
             <div className={styles.overviewCards}>
               <div className={styles.miniCard}>
@@ -366,7 +383,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
-                <NoDataMessage message={emptyMessage} />
+                emptyState
               )}
             </div>
 
@@ -389,7 +406,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
-                <NoDataMessage message={emptyMessage} />
+                emptyState
               )}
             </div>
 
@@ -412,7 +429,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
-                <NoDataMessage message={emptyMessage} />
+                emptyState
               )}
             </div>
 
@@ -441,7 +458,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
-                <NoDataMessage message={emptyMessage} />
+                emptyState
               )}
             </div>
           </div>
@@ -471,7 +488,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
-                <NoDataMessage message={emptyMessage} />
+                emptyState
               )}
             </div>
 
@@ -498,7 +515,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
-                <NoDataMessage message={emptyMessage} />
+                emptyState
               )}
             </div>
 
@@ -522,7 +539,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
-                <NoDataMessage message={emptyMessage} />
+                emptyState
               )}
             </div>
           </div>
@@ -587,7 +604,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
-                <NoDataMessage message={emptyMessage} />
+                emptyState
               )}
             </div>
 
@@ -613,7 +630,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
-                <NoDataMessage message={emptyMessage} />
+                emptyState
               )}
             </div>
 
@@ -672,7 +689,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
-                <NoDataMessage message={emptyMessage} />
+                emptyState
               )}
             </div>
           </div>
@@ -704,7 +721,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
-                <NoDataMessage message={emptyMessage} />
+                emptyState
               )}
             </div>
 
@@ -732,7 +749,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
-                <NoDataMessage message={emptyMessage} />
+                emptyState
               )}
             </div>
 
@@ -791,7 +808,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
-                <NoDataMessage message={emptyMessage} />
+                emptyState
               )}
             </div>
           </div>
@@ -858,7 +875,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
-                <NoDataMessage message={loading ? 'Loading…' : 'No restart data in this window'} />
+                loading ? <ChartSkeleton /> : <NoDataMessage message="No restart data in this window" />
               )}
             </div>
           </div>
@@ -890,7 +907,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
-                <NoDataMessage message={emptyMessage} />
+                emptyState
               )}
             </div>
 
@@ -916,7 +933,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
                   </ResponsiveContainer>
                 </ChartErrorBoundary>
               ) : (
-                <NoDataMessage message={emptyMessage} />
+                emptyState
               )}
             </div>
           </div>
