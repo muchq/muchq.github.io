@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen as testingScreen } from '@testing-library/react'
+import { render, screen as testingScreen, within } from '@testing-library/react'
 import { BrowserRouter, MemoryRouter } from 'react-router-dom'
 import { describe, it, expect } from 'vitest'
 import Navigation from '../Navigation'
@@ -22,8 +22,58 @@ describe('Navigation', () => {
     renderWithRouter(<Navigation />)
     expect(testingScreen.getByText('Projects')).toBeDefined()
     expect(testingScreen.getByText('Games')).toBeDefined()
+    expect(testingScreen.getByText('Elsewhere')).toBeDefined()
     expect(testingScreen.getByText('Code')).toBeDefined()
     expect(testingScreen.getByText('Metrics')).toBeDefined()
+  })
+
+  // The accessible-name regexes are anchored and include "(external site)" on
+  // purpose: they pin that the srOnly text is part of the name AND that the
+  // aria-hidden ↗ is excluded from it (its presence would break the anchor).
+  it('links each Elsewhere app to its URL, with its description inside the link', () => {
+    renderWithRouter(<Navigation />)
+    const groupEl = testingScreen.getByText('Elsewhere').closest('li')
+    if (!groupEl) throw new Error('Elsewhere nav group not found')
+    const group = within(groupEl)
+    const expected: Array<[RegExp, string, string]> = [
+      [/^r3dr\s?\(external site\)/, 'https://r3dr.net', 'URL shortener'],
+      [/^Snowbonk\s?\(external site\)/, 'https://snowbonk.com', 'N-body simulation viewer'],
+      [/^1d4\s?\(external site\)/, 'https://1d4.net', 'Chess game indexer'],
+      [/^HoverCrap\s?\(external site\)/, 'https://hovercrap.com', 'ASCII hovercraft'],
+      [/^3xe\s?\(external site\)/, 'https://3xe.org', 'Madrid-style cheesecake'],
+    ]
+    for (const [name, href, description] of expected) {
+      const link = group.getByRole('link', { name })
+      expect(link.getAttribute('href')).toBe(href)
+      expect(within(link).getByText(description)).toBeDefined()
+    }
+  })
+
+  it('marks external links with a visible ↗ kept out of the accessible name', () => {
+    renderWithRouter(<Navigation />)
+    const external = testingScreen.getByRole('link', {
+      name: /^Snowbonk\s?\(external site\)/,
+    })
+    expect(external.textContent).toContain('↗')
+  })
+
+  it('visually hides the screen-reader-only external marker text', () => {
+    renderWithRouter(<Navigation />)
+    const external = testingScreen.getByRole('link', {
+      name: /^Snowbonk\s?\(external site\)/,
+    })
+    const srSpan = Array.from(external.querySelectorAll('span')).find(s =>
+      s.textContent?.includes('(external site)')
+    )
+    expect(srSpan?.className).toContain('srOnly')
+  })
+
+  it('leaves internal links unmarked', () => {
+    renderWithRouter(<Navigation />)
+    const internal = testingScreen.getByRole('link', { name: 'Golf' })
+    expect(internal.getAttribute('href')).toBe('/golf')
+    expect(internal.textContent).not.toContain('↗')
+    expect(internal.textContent).not.toContain('(external site)')
   })
 
   it('renders the app name in the brand link', () => {

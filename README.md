@@ -52,6 +52,10 @@ npm run deploy
 | `/resilience` | Distributed-systems game |
 | `/groups`, `/sets`, `/top` | Math learning modules (permutation groups, sets, Topology Quest) |
 
+The nav's **Elsewhere** menu links to apps hosted off muchq.com (r3dr.net,
+snowbonk.com, 1d4.net, hovercrap.com, 3xe.org). Those are external links, not
+routes — their code lives in their own repos, not here.
+
 ### Golf v1/v2
 
 Golf speaks two wires. The default v1 protocol is documented in [GOLF.md](GOLF.md); the v2
