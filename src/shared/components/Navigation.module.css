@@ -243,7 +243,8 @@
   .navItem.expanded .dropdown {
     opacity: 1;
     visibility: visible;
-    max-height: 500px;
+    /* Tall enough for the largest group (11 described items) with headroom for text zoom */
+    max-height: 1200px;
     margin-top: 8px;
     padding: 8px 0;
   }

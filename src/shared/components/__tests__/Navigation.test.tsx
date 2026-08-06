@@ -41,6 +41,12 @@ describe('Navigation', () => {
       [/^1d4\s?\(external site\)/, 'https://1d4.net', 'Chess game indexer'],
       [/^HoverCrap\s?\(external site\)/, 'https://hovercrap.com', 'ASCII hovercraft'],
       [/^3xe\s?\(external site\)/, 'https://3xe.org', 'Madrid-style cheesecake'],
+      [/^BitFear\s?\(external site\)/, 'https://bitfear.net', 'Text-to-binary converter'],
+      [/^Smallcat\s?\(external site\)/, 'https://smallcat.dog', 'Pong'],
+      [/^2n-1\s?\(external site\)/, 'https://2n-1.org', 'Odd-number mathematics'],
+      [/^tty1\s?\(external site\)/, 'https://tty1.uk', 'Web terminal'],
+      [/^里に春が来ました\s?\(external site\)/, 'https://sato-ni-haru-ga-kimashita.uk', 'Japanese sentence breakdown'],
+      [/^p2bx\s?\(external site\)/, 'https://p2bx.uk', 'Stone–Čech compactification'],
     ]
     for (const [name, href, description] of expected) {
       const link = group.getByRole('link', { name })

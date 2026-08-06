@@ -52,9 +52,10 @@ npm run deploy
 | `/resilience` | Distributed-systems game |
 | `/groups`, `/sets`, `/top` | Math learning modules (permutation groups, sets, Topology Quest) |
 
-The nav's **Elsewhere** menu links to apps hosted off muchq.com (r3dr.net,
-snowbonk.com, 1d4.net, hovercrap.com, 3xe.org). Those are external links, not
-routes — their code lives in their own repos, not here.
+The nav's **Elsewhere** menu links to apps hosted off muchq.com (see the
+`elsewhere` group in `src/shared/components/Navigation.tsx` for the current
+list). Those are external links, not routes — their code lives in their own
+repos, not here.
 
 ### Golf v1/v2
 
