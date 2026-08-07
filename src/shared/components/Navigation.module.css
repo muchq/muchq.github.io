@@ -80,6 +80,8 @@
   transform: translateY(-10px);
   transition: all 0.3s ease;
   min-width: 150px;
+  width: max-content;
+  max-width: 280px;
   padding: 8px 0;
 }
 
@@ -91,7 +93,8 @@
   line-height: 1;
 }
 
-.navItem:hover .dropdown {
+.navItem:hover .dropdown,
+.navItem:focus-within .dropdown {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
@@ -116,68 +119,28 @@
   font-weight: 500;
 }
 
-.dropdownItem span {
-  display: block;
-  cursor: default;
-  font-weight: 500;
-  position: relative;
+.externalMark {
+  font-size: 11px;
+  color: #767676; /* darkest gray that clears WCAG AA 4.5:1 on white */
 }
 
-.dropdownItem span::after {
-  content: '▸';
+.linkDescription {
+  display: block;
+  font-size: 12px;
+  color: #767676;
+  margin-top: 1px;
+}
+
+.srOnly {
   position: absolute;
-  right: 0;
-  opacity: 0.5;
-  transition: transform 0.2s ease;
-}
-
-.dropdownItem:hover span::after {
-  transform: translateX(2px);
-  opacity: 0.8;
-}
-
-.submenu {
-  display: none;
-  margin-top: 8px;
-  padding: 4px 0;
-  background: rgba(103, 126, 234, 0.03);
-  border-radius: 6px;
-  animation: slideIn 0.2s ease;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateX(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.dropdownItem:hover .submenu {
-  display: block;
-}
-
-.submenuItem {
-  display: block;
-  padding: 10px 16px;
-  margin: 2px 8px;
-  color: #555;
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  border-left: 3px solid transparent;
-  border-radius: 4px;
-}
-
-.submenuItem:hover {
-  background: linear-gradient(90deg, rgba(103, 126, 234, 0.08) 0%, rgba(103, 126, 234, 0.02) 100%);
-  border-left-color: #667eea;
-  color: #333;
-  transform: translateX(2px);
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .mobileMenuToggle {
@@ -264,6 +227,9 @@
     overflow: hidden;
     transition: all 0.3s ease;
     padding: 0;
+    /* Reset the desktop max-content sizing so the accordion panel spans the full row */
+    width: auto;
+    max-width: none;
   }
 
   /* Disable hover on mobile to prevent interference with touch events */
@@ -277,7 +243,8 @@
   .navItem.expanded .dropdown {
     opacity: 1;
     visibility: visible;
-    max-height: 500px;
+    /* Tall enough for the largest group (11 described items) with headroom for text zoom */
+    max-height: 1200px;
     margin-top: 8px;
     padding: 8px 0;
   }

@@ -17,6 +17,8 @@ interface MenuLink {
   label: string
   to: string
   external?: boolean
+  /** One-line subtitle shown under the label, for links whose names don't explain themselves */
+  description?: string
 }
 
 interface MenuGroup {
@@ -44,6 +46,23 @@ const MENU: MenuGroup[] = [
       { label: 'Golf', to: '/golf' },
       { label: 'Party', to: '/party' },
       { label: 'Resilience', to: '/resilience' },
+    ],
+  },
+  {
+    name: 'elsewhere',
+    label: 'Elsewhere',
+    links: [
+      { label: 'r3dr', to: 'https://r3dr.net', external: true, description: 'URL shortener' },
+      { label: 'Snowbonk', to: 'https://snowbonk.com', external: true, description: 'N-body simulation viewer' },
+      { label: '1d4', to: 'https://1d4.net', external: true, description: 'Chess game indexer' },
+      { label: 'HoverCrap', to: 'https://hovercrap.com', external: true, description: 'ASCII hovercraft' },
+      { label: '3xe', to: 'https://3xe.org', external: true, description: 'Madrid-style cheesecake' },
+      { label: 'BitFear', to: 'https://bitfear.net', external: true, description: 'Text-to-binary converter' },
+      { label: 'Smallcat', to: 'https://smallcat.dog', external: true, description: 'Pong' },
+      { label: '2n-1', to: 'https://2n-1.org', external: true, description: 'Odd-number mathematics' },
+      { label: 'tty1', to: 'https://tty1.uk', external: true, description: 'Web terminal' },
+      { label: '里に春が来ました', to: 'https://sato-ni-haru-ga-kimashita.uk', external: true, description: 'Japanese sentence breakdown' },
+      { label: 'p2bx', to: 'https://p2bx.uk', external: true, description: 'Stone–Čech compactification' },
     ],
   },
   {
@@ -111,10 +130,27 @@ const Navigation = ({ className, appName, context, floating }: NavigationProps) 
                 <span className={styles.accordionIcon}>›</span>
               </a>
               <div className={styles.dropdown}>
-                {group.links.map(link =>
-                  link.external ? (
-                    <a key={link.label} href={link.to} className={styles.dropdownItem}>
+                {group.links.map(link => {
+                  const children = (
+                    <>
                       {link.label}
+                      {link.external && (
+                        <>
+                          {/* U+FE0E pins text presentation: a bare ↗ renders as a color emoji on some platforms */}
+                          <span className={styles.externalMark} aria-hidden="true">
+                            {' ↗︎'}
+                          </span>
+                          <span className={styles.srOnly}> (external site)</span>
+                        </>
+                      )}
+                      {link.description && (
+                        <span className={styles.linkDescription}>{link.description}</span>
+                      )}
+                    </>
+                  )
+                  return link.external ? (
+                    <a key={link.label} href={link.to} className={styles.dropdownItem}>
+                      {children}
                     </a>
                   ) : (
                     <Link
@@ -122,10 +158,10 @@ const Navigation = ({ className, appName, context, floating }: NavigationProps) 
                       to={link.to}
                       className={`${styles.dropdownItem} ${isCurrentRoute(link.to) ? styles.currentItem : ''}`}
                     >
-                      {link.label}
+                      {children}
                     </Link>
                   )
-                )}
+                })}
               </div>
             </li>
           ))}
