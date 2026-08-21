@@ -1,0 +1,79 @@
+/* Springtime meadow — the look r3dr wears within the site's per-app
+   palette convention. */
+.container {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: linear-gradient(150deg, #f9fbf5 0%, #eef5ea 55%, #e6f2ec 100%);
+  background-attachment: fixed;
+  color: #2c3a31;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 1rem clamp(1rem, 4vw, 2.5rem);
+  position: relative;
+}
+
+/* Soft blossom and leaf glows in the corners — spring light, not neon. */
+.container::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 82%, rgba(224, 122, 164, 0.14) 0%, transparent 45%),
+    radial-gradient(circle at 82% 18%, rgba(94, 183, 124, 0.16) 0%, transparent 45%);
+  pointer-events: none;
+}
+
+.header {
+  text-align: center;
+  margin: clamp(1.5rem, 7vh, 4rem) 0 2rem;
+  position: relative;
+}
+
+.wordmark {
+  margin: 0;
+  font-size: clamp(3rem, 10vw, 4.5rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  /* Leaf gradient; blending green into pink muddies, so the blossom gets
+     one glyph to itself instead. */
+  background: linear-gradient(135deg, #27824b 0%, #3f9e61 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.blossom {
+  background: linear-gradient(135deg, #c9548a 0%, #d66b98 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.tagline {
+  margin: 0.5rem auto 0;
+  max-width: 26rem;
+  color: #5c6f63;
+  font-size: 1rem;
+}
+
+.content {
+  width: 100%;
+  max-width: 34rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  position: relative;
+}
+
+.footer {
+  margin-top: auto;
+  padding-top: 2.5rem;
+  color: #5c6f63;
+  font-size: 0.8rem;
+  text-align: center;
+  position: relative;
+}

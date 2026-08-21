@@ -1,0 +1,106 @@
+.recent {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid #d9e4d4;
+  border-radius: 18px;
+  padding: clamp(1rem, 3.5vw, 1.4rem);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+
+.head h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #5c6f63;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ghostBtn {
+  background: none;
+  border: none;
+  color: #5c6f63;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+}
+
+.ghostBtn:hover {
+  color: #1f5c39;
+}
+
+.ghostBtn:focus-visible {
+  outline: 2px solid #2e7d4f;
+  outline-offset: 2px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+}
+
+.row + .row {
+  border-top: 1px solid #d9e4d4;
+}
+
+.urls {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.urls a {
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  font-size: 0.9rem;
+  color: #1f5c39;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.urls a:hover {
+  text-decoration: underline;
+}
+
+.urls a:focus-visible {
+  outline: 2px solid #2e7d4f;
+  outline-offset: 2px;
+}
+
+.target {
+  font-size: 0.8rem;
+  color: #5c6f63;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.expiry {
+  font-size: 0.75rem;
+  color: #5c6f63;
+}
+
+@media (max-width: 560px) {
+  .target {
+    max-width: 48vw;
+  }
+}

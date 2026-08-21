@@ -36,6 +36,7 @@ const MENU: MenuGroup[] = [
       { label: 'Posterize', to: '/posterize' },
       { label: 'Metrics', to: '/metrics' },
       { label: 'Wordchains', to: '/wordchains' },
+      { label: 'r3dr', to: '/r3dr', description: 'URL shortener' },
     ],
   },
   {
@@ -52,7 +53,6 @@ const MENU: MenuGroup[] = [
     name: 'elsewhere',
     label: 'Elsewhere',
     links: [
-      { label: 'r3dr', to: 'https://r3dr.net', external: true, description: 'URL shortener' },
       { label: 'Snowbonk', to: 'https://snowbonk.com', external: true, description: 'N-body simulation viewer' },
       { label: '1d4', to: 'https://1d4.net', external: true, description: 'Chess game indexer' },
       { label: 'HoverCrap', to: 'https://hovercrap.com', external: true, description: 'ASCII hovercraft' },

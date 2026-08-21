@@ -36,7 +36,6 @@ describe('Navigation', () => {
     if (!groupEl) throw new Error('Elsewhere nav group not found')
     const group = within(groupEl)
     const expected: Array<[RegExp, string, string]> = [
-      [/^r3dr\s?\(external site\)/, 'https://r3dr.net', 'URL shortener'],
       [/^Snowbonk\s?\(external site\)/, 'https://snowbonk.com', 'N-body simulation viewer'],
       [/^1d4\s?\(external site\)/, 'https://1d4.net', 'Chess game indexer'],
       [/^HoverCrap\s?\(external site\)/, 'https://hovercrap.com', 'ASCII hovercraft'],
@@ -53,6 +52,18 @@ describe('Navigation', () => {
       expect(link.getAttribute('href')).toBe(href)
       expect(within(link).getByText(description)).toBeDefined()
     }
+  })
+
+  // r3dr moved from Elsewhere to Projects when the page moved into this
+  // site (#1359 chunk 2): internal now, description intact.
+  it('links r3dr as an internal Projects page', () => {
+    renderWithRouter(<Navigation />)
+    const groupEl = testingScreen.getByText('Projects').closest('li')
+    if (!groupEl) throw new Error('Projects nav group not found')
+    const link = within(groupEl).getByRole('link', { name: /^r3dr/ })
+    expect(link.getAttribute('href')).toBe('/r3dr')
+    expect(link.textContent).not.toContain('(external site)')
+    expect(within(link).getByText('URL shortener')).toBeDefined()
   })
 
   it('marks external links with a visible ↗ kept out of the accessible name', () => {

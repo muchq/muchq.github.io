@@ -1,0 +1,45 @@
+.copyBtn {
+  padding: 0.45rem 0.9rem;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid #c2d4bd;
+  border-radius: 10px;
+  color: #2c3a31;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+}
+
+.copyBtn:hover {
+  border-color: #2e7d4f;
+  color: #1f5c39;
+}
+
+.copyBtn:focus-visible {
+  outline: 2px solid #2e7d4f;
+  outline-offset: 2px;
+}
+
+.copied {
+  border-color: rgba(46, 125, 79, 0.5);
+  color: #2e7d4f;
+}
+
+.compact {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
