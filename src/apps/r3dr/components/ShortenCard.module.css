@@ -1,0 +1,240 @@
+.card {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid #d9e4d4;
+  border-radius: 18px;
+  padding: clamp(1.1rem, 4vw, 1.75rem);
+  box-shadow:
+    0 16px 36px rgba(47, 72, 55, 0.1),
+    0 2px 8px rgba(47, 72, 55, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.fieldLabel {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: #5c6f63;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.fieldRow {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.fieldRow input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.8rem 0.95rem;
+  background: #ffffff;
+  border: 1px solid #c2d4bd;
+  border-radius: 10px;
+  color: #2c3a31;
+  font-family: inherit;
+  font-size: 1rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.fieldRow input::placeholder {
+  color: #6f8174;
+}
+
+.fieldRow input:focus {
+  outline: none;
+  border-color: #2e7d4f;
+  box-shadow: 0 0 0 3px rgba(46, 125, 79, 0.13);
+}
+
+.submitBtn {
+  padding: 0.8rem 1.35rem;
+  /* White on green: both stops hold 4.5:1 for the 16px/600 label. */
+  background: linear-gradient(135deg, #338457 0%, #2a7148 100%);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+}
+
+.submitBtn:hover:not([aria-busy='true']) {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(46, 125, 79, 0.32);
+}
+
+.submitBtn:active:not([aria-busy='true']) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* Busy, not disabled: disabling would blur keyboard focus. */
+.submitBtn[aria-busy='true'] {
+  opacity: 0.75;
+  cursor: progress;
+}
+
+.submitBtn:focus-visible {
+  outline: 2px solid #2e7d4f;
+  outline-offset: 2px;
+}
+
+.expiry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.9rem;
+}
+
+.expiryLabel {
+  color: #5c6f63;
+  font-size: 0.85rem;
+  margin-right: 0.15rem;
+}
+
+.chip {
+  padding: 0.35rem 0.85rem;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid #c2d4bd;
+  border-radius: 999px;
+  color: #5c6f63;
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+}
+
+.chip:hover {
+  border-color: #2e7d4f;
+  color: #1f5c39;
+}
+
+.chip:focus-visible {
+  outline: 2px solid #2e7d4f;
+  outline-offset: 2px;
+}
+
+.chipOn {
+  background: rgba(46, 125, 79, 0.13);
+  border-color: #2e7d4f;
+  color: #1f5c39;
+  font-weight: 600;
+}
+
+.errorMessage {
+  margin: 1rem 0 0;
+  padding: 0.7rem 0.95rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  background: rgba(192, 80, 77, 0.08);
+  border: 1px solid rgba(192, 80, 77, 0.28);
+  color: #a13f3c;
+}
+
+/* An empty, always-mounted live region: zero footprint until it fills. */
+.liveSlot {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-height: 0;
+}
+
+.result {
+  margin-top: 1.1rem;
+  padding: 0.95rem 1rem;
+  background: rgba(46, 125, 79, 0.07);
+  border: 1px solid rgba(46, 125, 79, 0.25);
+  border-radius: 10px;
+  animation: rise 240ms ease;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.resultRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.resultLink {
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2e7d4f;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.resultLink:hover {
+  text-decoration: underline;
+}
+
+.resultLink:focus-visible {
+  outline: 2px solid #2e7d4f;
+  outline-offset: 2px;
+}
+
+.resultNote {
+  margin: 0.45rem 0 0;
+  font-size: 0.8rem;
+  color: #5c6f63;
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 0.25rem;
+}
+
+.resultTarget {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .fieldRow {
+    flex-direction: column;
+  }
+
+  .submitBtn {
+    width: 100%;
+    padding: 0.85rem 1rem;
+  }
+
+  .resultRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .resultRow button {
+    width: 100%;
+    padding: 0.6rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result {
+    animation: none;
+  }
+
+  .submitBtn,
+  .chip {
+    transition: none;
+  }
+}
