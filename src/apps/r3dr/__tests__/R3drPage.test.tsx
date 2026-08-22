@@ -28,7 +28,7 @@ describe('R3drPage', () => {
     await user.click(screen.getByRole('button', { name: 'Shorten' }))
 
     const recent = await screen.findByRole('region', { name: 'Recent links' })
-    expect(within(recent).getByRole('link', { name: 'iili.uk/r/AQA' })).toBeDefined()
+    expect(within(recent).getByRole('link', { name: 'i.iili.uk/r/AQA' })).toBeDefined()
     expect(localStorage.getItem('r3dr.recent')).toContain('"AQA"')
   })
 
@@ -43,7 +43,7 @@ describe('R3drPage', () => {
     render(<R3drPage />)
 
     const recent = screen.getByRole('region', { name: 'Recent links' })
-    expect(within(recent).getByRole('link', { name: 'iili.uk/r/AQA' })).toBeDefined()
+    expect(within(recent).getByRole('link', { name: 'i.iili.uk/r/AQA' })).toBeDefined()
     expect(within(recent).queryByText(/DAA/)).toBeNull()
   })
 

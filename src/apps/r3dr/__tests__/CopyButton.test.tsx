@@ -12,7 +12,7 @@ function stubClipboard(writeText: (text: string) => Promise<void>) {
   })
 }
 
-const TEXT = 'https://iili.uk/r/AQA'
+const TEXT = 'https://i.iili.uk/r/AQA'
 
 describe('CopyButton', () => {
   it('copies the exact text and confirms', async () => {

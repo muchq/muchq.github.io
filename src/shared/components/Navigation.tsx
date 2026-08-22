@@ -63,6 +63,7 @@ const MENU: MenuGroup[] = [
       { label: 'tty1', to: 'https://tty1.uk', external: true, description: 'Web terminal' },
       { label: '里に春が来ました', to: 'https://sato-ni-haru-ga-kimashita.uk', external: true, description: 'Japanese sentence breakdown' },
       { label: 'p2bx', to: 'https://p2bx.uk', external: true, description: 'Stone–Čech compactification' },
+      { label: 'iili', to: 'https://iili.uk', external: true, description: 'URL shortener' },
     ],
   },
   {
