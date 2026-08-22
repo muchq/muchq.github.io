@@ -4,9 +4,9 @@ import NavTagline from '@/shared/components/nav/NavTagline'
 import ShortenCard from '../components/ShortenCard'
 import RecentLinks from '../components/RecentLinks'
 import { addRecent, clearRecent, loadRecent, type RecentLink } from '../recent'
-import styles from './R3drPage.module.css'
+import styles from './IiliPage.module.css'
 
-const R3drPage = () => {
+const IiliPage = () => {
   const [recent, setRecent] = useState<RecentLink[]>(() => loadRecent(Date.now()))
 
   // Re-render each minute so "expires in …" stays true in a tab left open,
@@ -22,7 +22,7 @@ const R3drPage = () => {
 
   return (
     <div className={styles.container}>
-      <Navigation appName="r3dr" context={<NavTagline text="URL Shortener" />} />
+      <Navigation appName="iili" context={<NavTagline text="URL Shortener" />} />
       <header className={styles.header}>
         <h1 className={styles.wordmark}>
           r<span className={styles.blossom}>3</span>dr
@@ -46,4 +46,4 @@ const R3drPage = () => {
   )
 }
 
-export default R3drPage
+export default IiliPage
