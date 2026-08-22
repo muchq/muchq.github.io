@@ -46,6 +46,7 @@ describe('Navigation', () => {
       [/^tty1\s?\(external site\)/, 'https://tty1.uk', 'Web terminal'],
       [/^里に春が来ました\s?\(external site\)/, 'https://sato-ni-haru-ga-kimashita.uk', 'Japanese sentence breakdown'],
       [/^p2bx\s?\(external site\)/, 'https://p2bx.uk', 'Stone–Čech compactification'],
+      [/^iili\s?\(external site\)/, 'https://iili.uk', 'URL shortener'],
     ]
     for (const [name, href, description] of expected) {
       const link = group.getByRole('link', { name })

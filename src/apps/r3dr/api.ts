@@ -3,9 +3,10 @@
 const API_BASE: string =
   (import.meta.env.VITE_R3DR_API_URL as string | undefined) || 'https://api.muchq.com/r3dr/v2'
 
-// Short links live on the standalone site's short domain, whose worker
-// 302s /r/{slug} through the same API this page mints against.
-const SHORT_LINK_BASE = 'https://iili.uk/r/'
+// Short links resolve on i.iili.uk, where Caddy on the consolidated host
+// rewrites /r/{slug} onto the same API this page mints against. The
+// standalone SPA lives at iili.uk; the short domain only redirects.
+const SHORT_LINK_BASE = 'https://i.iili.uk/r/'
 
 export function shortLink(slug: string): string {
   // Identity on the slug alphabet; a URL-context barrier for anything else.

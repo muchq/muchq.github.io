@@ -10,7 +10,7 @@ const NOW = 1755000000000
 const MINUTE = 60 * 1000
 const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
-const LINK_NAME = 'iili.uk/r/AQA'
+const LINK_NAME = 'i.iili.uk/r/AQA'
 
 describe('ShortenCard', () => {
   beforeEach(() => {
@@ -37,7 +37,7 @@ describe('ShortenCard', () => {
     expect(api.shorten).toHaveBeenCalledWith('https://example.com/page', NOW + 7 * DAY)
     expect(await screen.findByRole('link', { name: LINK_NAME })).toHaveAttribute(
       'href',
-      'https://iili.uk/r/AQA'
+      'https://i.iili.uk/r/AQA'
     )
     expect(screen.getByText(/expires in 7 days/)).toBeDefined()
     expect(onMinted).toHaveBeenCalledWith({
