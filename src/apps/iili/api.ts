@@ -1,7 +1,7 @@
-// The r3dr_v2 API (MoonBase domains/r3dr/apis/r3dr_v2) behind api.muchq.com.
-// VITE_R3DR_API_URL points it at a local backend, like the other apps.
+// The iili API (MoonBase domains/iili/apis/iili) behind api.muchq.com.
+// VITE_IILI_API_URL points it at a local backend, like the other apps.
 const API_BASE: string =
-  (import.meta.env.VITE_R3DR_API_URL as string | undefined) || 'https://api.muchq.com/r3dr/v2'
+  (import.meta.env.VITE_IILI_API_URL as string | undefined) || 'https://api.muchq.com/iili/v1'
 
 // Short links resolve on i.iili.uk, where Caddy on the consolidated host
 // rewrites /r/{slug} onto the same API this page mints against. The

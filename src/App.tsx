@@ -13,7 +13,7 @@ import SystemsPage from './apps/metrics-systems/pages/SystemsPage'
 import ResilienceGamePage from './apps/metrics-systems/pages/ResilienceGamePage'
 import MetricsPage from './apps/metrics-systems/pages/MetricsPage'
 import WordchainsPage from './apps/wordchains/pages/WordchainsPage'
-import R3drPage from './apps/r3dr/pages/R3drPage'
+import IiliPage from './apps/iili/pages/IiliPage'
 import NotFoundPage from './core/pages/NotFoundPage'
 
 function App() {
@@ -31,7 +31,8 @@ function App() {
       <Route path="/tracy" element={<TracyPage />} />
       <Route path="/posterize" element={<PosterizePage />} />
       <Route path="/wordchains" element={<WordchainsPage />} />
-      <Route path="/r3dr" element={<R3drPage />} />
+      <Route path="/iili" element={<IiliPage />} />
+      <Route path="/r3dr" element={<Navigate to="/iili" replace />} />
       <Route path="/metrics" element={<Navigate to="/metrics/host" replace />} />
       <Route path="/metrics/:tab" element={<MetricsPage />} />
       <Route path="/resilience" element={<SystemsPage />} />

@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import R3drPage from '../pages/R3drPage'
+import IiliPage from '../pages/IiliPage'
 import * as api from '../api'
 
 vi.mock('../api', { spy: true })
@@ -11,7 +11,7 @@ vi.mock('@/shared/components/nav/NavTagline', () => ({ default: () => null }))
 
 const NOW = 1755000000000
 
-describe('R3drPage', () => {
+describe('IiliPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
@@ -21,7 +21,7 @@ describe('R3drPage', () => {
 
   it('adds a minted link to Recent links and persists it', async () => {
     vi.mocked(api.shorten).mockResolvedValue({ slug: 'AQA' })
-    render(<R3drPage />)
+    render(<IiliPage />)
 
     const user = userEvent.setup()
     await user.type(screen.getByLabelText('Long link'), 'https://example.com/page')
@@ -29,18 +29,18 @@ describe('R3drPage', () => {
 
     const recent = await screen.findByRole('region', { name: 'Recent links' })
     expect(within(recent).getByRole('link', { name: 'i.iili.uk/r/AQA' })).toBeDefined()
-    expect(localStorage.getItem('r3dr.recent')).toContain('"AQA"')
+    expect(localStorage.getItem('iili.recent')).toContain('"AQA"')
   })
 
   it('boots with stored links, skipping expired ones', () => {
     localStorage.setItem(
-      'r3dr.recent',
+      'iili.recent',
       JSON.stringify([
         { slug: 'AQA', longUrl: 'https://example.com/live', expiresAt: NOW + 1000 },
         { slug: 'DAA', longUrl: 'https://example.com/dead', expiresAt: NOW - 1000 },
       ])
     )
-    render(<R3drPage />)
+    render(<IiliPage />)
 
     const recent = screen.getByRole('region', { name: 'Recent links' })
     expect(within(recent).getByRole('link', { name: 'i.iili.uk/r/AQA' })).toBeDefined()
@@ -49,15 +49,15 @@ describe('R3drPage', () => {
 
   it('clears the list and the storage together', async () => {
     localStorage.setItem(
-      'r3dr.recent',
+      'iili.recent',
       JSON.stringify([{ slug: 'AQA', longUrl: 'https://example.com/x', expiresAt: NOW + 1000 }])
     )
-    render(<R3drPage />)
+    render(<IiliPage />)
 
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Clear recent links' }))
 
     expect(screen.queryByRole('region', { name: 'Recent links' })).toBeNull()
-    expect(localStorage.getItem('r3dr.recent')).toBeNull()
+    expect(localStorage.getItem('iili.recent')).toBeNull()
   })
 })

@@ -46,7 +46,7 @@ describe('Navigation', () => {
       [/^tty1\s?\(external site\)/, 'https://tty1.uk', 'Web terminal'],
       [/^里に春が来ました\s?\(external site\)/, 'https://sato-ni-haru-ga-kimashita.uk', 'Japanese sentence breakdown'],
       [/^p2bx\s?\(external site\)/, 'https://p2bx.uk', 'Stone–Čech compactification'],
-      [/^iili\s?\(external site\)/, 'https://iili.uk', 'URL shortener'],
+      [/^iili\.uk\s?\(external site\)/, 'https://iili.uk', 'The shortener on its own domain'],
     ]
     for (const [name, href, description] of expected) {
       const link = group.getByRole('link', { name })
@@ -55,14 +55,12 @@ describe('Navigation', () => {
     }
   })
 
-  // r3dr moved from Elsewhere to Projects when the page moved into this
-  // site (#1359 chunk 2): internal now, description intact.
-  it('links r3dr as an internal Projects page', () => {
+  it('links iili as an internal Projects page', () => {
     renderWithRouter(<Navigation />)
     const groupEl = testingScreen.getByText('Projects').closest('li')
     if (!groupEl) throw new Error('Projects nav group not found')
-    const link = within(groupEl).getByRole('link', { name: /^r3dr/ })
-    expect(link.getAttribute('href')).toBe('/r3dr')
+    const link = within(groupEl).getByRole('link', { name: /^iili/ })
+    expect(link.getAttribute('href')).toBe('/iili')
     expect(link.textContent).not.toContain('(external site)')
     expect(within(link).getByText('URL shortener')).toBeDefined()
   })

@@ -39,19 +39,19 @@ describe('addRecent + loadRecent', () => {
   })
 
   it('shrugs off garbage and missing storage', () => {
-    localStorage.setItem('r3dr.recent', 'not json')
+    localStorage.setItem('iili.recent', 'not json')
     expect(loadRecent(NOW)).toEqual([])
 
-    localStorage.setItem('r3dr.recent', '{"an":"object"}')
+    localStorage.setItem('iili.recent', '{"an":"object"}')
     expect(loadRecent(NOW)).toEqual([])
 
-    localStorage.setItem('r3dr.recent', '[{"slug":1}]')
+    localStorage.setItem('iili.recent', '[{"slug":1}]')
     expect(loadRecent(NOW)).toEqual([])
   })
 
   it('drops entries whose slug is not slug-shaped', () => {
     localStorage.setItem(
-      'r3dr.recent',
+      'iili.recent',
       JSON.stringify([
         { slug: '<img src=x>', longUrl: 'https://example.com/a', expiresAt: NOW + 1000 },
         { slug: 'javascript:alert(1)', longUrl: 'https://example.com/b', expiresAt: NOW + 1000 },
@@ -77,5 +77,23 @@ describe('clearRecent', () => {
     addRecent([], link('AAA'))
     clearRecent()
     expect(loadRecent(NOW)).toEqual([])
+  })
+
+  it('reads links saved under the pre-rename key', () => {
+    localStorage.setItem(
+      'r3dr.recent',
+      JSON.stringify([{ slug: 'AQA', longUrl: 'https://example.com', expiresAt: 2000 }])
+    )
+    expect(loadRecent(1000).map(l => l.slug)).toEqual(['AQA'])
+  })
+
+  it('moves them to the new key on the next save', () => {
+    localStorage.setItem(
+      'r3dr.recent',
+      JSON.stringify([{ slug: 'AQA', longUrl: 'https://example.com', expiresAt: 2000 }])
+    )
+    addRecent(loadRecent(1000), { slug: 'BQA', longUrl: 'https://example.org', expiresAt: 2000 })
+    expect(localStorage.getItem('r3dr.recent')).toBeNull()
+    expect(localStorage.getItem('iili.recent')).toContain('"AQA"')
   })
 })

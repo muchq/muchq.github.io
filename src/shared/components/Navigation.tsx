@@ -36,7 +36,7 @@ const MENU: MenuGroup[] = [
       { label: 'Posterize', to: '/posterize' },
       { label: 'Metrics', to: '/metrics' },
       { label: 'Wordchains', to: '/wordchains' },
-      { label: 'r3dr', to: '/r3dr', description: 'URL shortener' },
+      { label: 'iili', to: '/iili', description: 'URL shortener' },
     ],
   },
   {
@@ -63,7 +63,7 @@ const MENU: MenuGroup[] = [
       { label: 'tty1', to: 'https://tty1.uk', external: true, description: 'Web terminal' },
       { label: '里に春が来ました', to: 'https://sato-ni-haru-ga-kimashita.uk', external: true, description: 'Japanese sentence breakdown' },
       { label: 'p2bx', to: 'https://p2bx.uk', external: true, description: 'Stone–Čech compactification' },
-      { label: 'iili', to: 'https://iili.uk', external: true, description: 'URL shortener' },
+      { label: 'iili.uk', to: 'https://iili.uk', external: true, description: 'The shortener on its own domain' },
     ],
   },
   {

@@ -8,7 +8,9 @@ export interface RecentLink {
   expiresAt: number
 }
 
-const KEY = 'r3dr.recent'
+const KEY = 'iili.recent'
+// Links saved before the rename; read once so nobody's list disappears.
+const LEGACY_KEY = 'r3dr.recent'
 const MAX = 5
 
 // Slugs are exactly 3, 6, or 11 base64url chars (the encoder's widths). A
@@ -18,7 +20,7 @@ const SLUG_SHAPE = /^(?:[A-Za-z0-9_-]{3}|[A-Za-z0-9_-]{6}|[A-Za-z0-9_-]{11})$/
 
 export function loadRecent(now: number): RecentLink[] {
   try {
-    const raw = localStorage.getItem(KEY)
+    const raw = localStorage.getItem(KEY) ?? localStorage.getItem(LEGACY_KEY)
     if (!raw) return []
     const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
@@ -43,6 +45,7 @@ export function addRecent(links: RecentLink[], link: RecentLink): RecentLink[] {
   const next = [link, ...links.filter(l => l.slug !== link.slug)].slice(0, MAX)
   try {
     localStorage.setItem(KEY, JSON.stringify(next))
+    localStorage.removeItem(LEGACY_KEY)
   } catch {
     // storage unavailable; the in-memory list still renders
   }
@@ -52,6 +55,7 @@ export function addRecent(links: RecentLink[], link: RecentLink): RecentLink[] {
 export function clearRecent(): void {
   try {
     localStorage.removeItem(KEY)
+    localStorage.removeItem(LEGACY_KEY)
   } catch {
     // nothing to clear
   }
