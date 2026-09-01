@@ -21,4 +21,9 @@ describe('App routes', () => {
     at('/r3dr')
     expect(within(screen.getByRole('navigation')).getByText('MuchQ : iili')).toBeDefined()
   })
+
+  it('serves the traffic stats at /stats', () => {
+    at('/stats')
+    expect(within(screen.getByRole('navigation')).getByText('MuchQ : Stats')).toBeDefined()
+  })
 })

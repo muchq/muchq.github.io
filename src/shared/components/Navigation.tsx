@@ -35,6 +35,7 @@ const MENU: MenuGroup[] = [
       { label: 'Tracy', to: '/tracy' },
       { label: 'Posterize', to: '/posterize' },
       { label: 'Metrics', to: '/metrics' },
+      { label: 'Stats', to: '/stats', description: 'Traffic from the access logs' },
       { label: 'Wordchains', to: '/wordchains' },
       { label: 'iili', to: '/iili', description: 'URL shortener' },
     ],

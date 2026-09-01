@@ -5,7 +5,6 @@ import ConnectionStatus, { ConnectionState } from '@/shared/components/nav/Conne
 import RotatingText from '@/shared/components/nav/RotatingText'
 import MetricsDashboard from '../components/MetricsDashboard'
 import ContainersDashboard from '../components/ContainersDashboard'
-import StatsDashboard from '../components/StatsDashboard'
 import ServiceDashboard from '../components/ServiceDashboard'
 import styles from '../components/MetricsDashboard.module.css'
 import { METRICS_API_URL, fetchJson, serviceDisplayName, type ServiceCatalog } from '../api'
@@ -33,7 +32,7 @@ const LEGACY_TABS: Record<string, string> = {
 
 // Tabs that aren't services, so the catalog can't vouch for them and the
 // unknown-tab redirect must not bounce them.
-const BUILT_IN_TABS = ['host', 'containers', 'stats']
+const BUILT_IN_TABS = ['host', 'containers']
 
 const MetricsPage = () => {
   const { tab } = useParams<{ tab: string }>()
@@ -73,7 +72,6 @@ const MetricsPage = () => {
   const tabs = [
     { id: 'host', label: 'Host' },
     { id: 'containers', label: 'Containers' },
-    { id: 'stats', label: 'Stats' },
     ...(catalog?.services ?? []).map((service) => ({
       id: service.name,
       label: serviceDisplayName(service.name),
@@ -97,8 +95,6 @@ const MetricsPage = () => {
         <MetricsDashboard onConnectionStateChange={handleConnectionStateChange} />
       ) : activeTab === 'containers' ? (
         <ContainersDashboard onConnectionStateChange={handleConnectionStateChange} />
-      ) : activeTab === 'stats' ? (
-        <StatsDashboard onConnectionStateChange={handleConnectionStateChange} />
       ) : (
         <ServiceDashboard service={activeTab} onConnectionStateChange={handleConnectionStateChange} />
       )}

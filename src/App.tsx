@@ -12,6 +12,7 @@ import PosterizePage from './apps/posterize/pages/PosterizePage'
 import SystemsPage from './apps/metrics-systems/pages/SystemsPage'
 import ResilienceGamePage from './apps/metrics-systems/pages/ResilienceGamePage'
 import MetricsPage from './apps/metrics-systems/pages/MetricsPage'
+import StatsPage from './apps/stats/pages/StatsPage'
 import WordchainsPage from './apps/wordchains/pages/WordchainsPage'
 import IiliPage from './apps/iili/pages/IiliPage'
 import NotFoundPage from './core/pages/NotFoundPage'
@@ -35,6 +36,7 @@ function App() {
       <Route path="/r3dr" element={<Navigate to="/iili" replace />} />
       <Route path="/metrics" element={<Navigate to="/metrics/host" replace />} />
       <Route path="/metrics/:tab" element={<MetricsPage />} />
+      <Route path="/stats" element={<StatsPage />} />
       <Route path="/resilience" element={<SystemsPage />} />
       <Route path="/resilience/phase1/level1" element={<ResilienceGamePage />} />
       <Route path="/top" element={<Navigate to="/top/sets" replace />} />

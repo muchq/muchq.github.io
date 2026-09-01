@@ -1,0 +1,86 @@
+/* The host row is a disclosure: the whole first cell is the button so the
+   hit target is the host name, not a chevron. */
+.hostToggle {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chevron {
+  display: inline-block;
+  transition: transform 0.15s ease;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.hostRow td {
+  cursor: pointer;
+}
+
+.hostRow:hover td {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.detailCell {
+  padding: 0 !important;
+  background: rgba(255, 255, 255, 0.02);
+  /* The outer table's cells are nowrap; the detail is prose-shaped and
+     must wrap, or a long agent token pushes the host table sideways. */
+  white-space: normal;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px 32px;
+  padding: 16px 24px 20px;
+}
+
+.detailTitle {
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0 0 8px;
+}
+
+.detailTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.detailTable td {
+  padding: 4px 8px 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  vertical-align: top;
+}
+
+.detailTable td:not(:first-child) {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.agentName {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  word-break: break-all;
+}
+
+.none {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.8rem;
+}
+
+.served {
+  color: #ffb347;
+}

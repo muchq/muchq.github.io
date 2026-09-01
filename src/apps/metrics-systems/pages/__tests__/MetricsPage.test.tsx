@@ -85,11 +85,12 @@ describe('MetricsPage', () => {
       await new Promise((resolve) => setTimeout(resolve, 100))
     })
 
-    // Host, Containers and Stats are the tabs that aren't services: the
-    // catalog never lists them, so they're prepended rather than derived
-    // from it.
+    // Host and Containers are the tabs that aren't services: the catalog
+    // never lists them, so they're prepended rather than derived from it.
+    // Stats is not a tab any more; it has its own page at /stats.
     const tabs = screen.getAllByRole('button').map((button) => button.textContent)
-    expect(tabs.slice(0, 6)).toEqual(['Host', 'Containers', 'Stats', 'Golf Hub', 'MicroGPT', 'Portrait'])
+    expect(tabs.slice(0, 5)).toEqual(['Host', 'Containers', 'Golf Hub', 'MicroGPT', 'Portrait'])
+    expect(tabs).not.toContain('Stats')
     expect(screen.getByText('Host Metrics')).toBeTruthy()
   })
 
@@ -126,6 +127,18 @@ describe('MetricsPage', () => {
     })
 
     expect(screen.getByTestId('location').textContent).toBe('/metrics/microgpt-serve')
+  })
+
+  it('bounces the retired stats tab to host like any unknown name', async () => {
+    // Stats has its own page now; the old tab name must not resurrect an
+    // empty page here.
+    renderAt('/metrics/stats')
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    expect(screen.getByTestId('location').textContent).toBe('/metrics/host')
   })
 
   it('bounces unknown services to host once the catalog loads', async () => {
