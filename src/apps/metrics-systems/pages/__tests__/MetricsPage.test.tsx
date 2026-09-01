@@ -85,10 +85,11 @@ describe('MetricsPage', () => {
       await new Promise((resolve) => setTimeout(resolve, 100))
     })
 
-    // Host and Containers are the two tabs that aren't services: the catalog
-    // never lists them, so they're prepended rather than derived from it.
+    // Host, Containers and Stats are the tabs that aren't services: the
+    // catalog never lists them, so they're prepended rather than derived
+    // from it.
     const tabs = screen.getAllByRole('button').map((button) => button.textContent)
-    expect(tabs.slice(0, 5)).toEqual(['Host', 'Containers', 'Golf Hub', 'MicroGPT', 'Portrait'])
+    expect(tabs.slice(0, 6)).toEqual(['Host', 'Containers', 'Stats', 'Golf Hub', 'MicroGPT', 'Portrait'])
     expect(screen.getByText('Host Metrics')).toBeTruthy()
   })
 
