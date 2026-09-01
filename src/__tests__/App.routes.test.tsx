@@ -26,10 +26,4 @@ describe('App routes', () => {
     at('/stats')
     expect(within(screen.getByRole('navigation')).getByText('MuchQ : Stats')).toBeDefined()
   })
-
-  // The stats view began life as a metrics tab; bookmarks of it still arrive.
-  it('redirects the old /metrics/stats tab to /stats', () => {
-    at('/metrics/stats')
-    expect(within(screen.getByRole('navigation')).getByText('MuchQ : Stats')).toBeDefined()
-  })
 })

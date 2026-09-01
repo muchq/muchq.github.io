@@ -130,8 +130,8 @@ describe('MetricsPage', () => {
   })
 
   it('bounces the retired stats tab to host like any unknown name', async () => {
-    // App.tsx redirects /metrics/stats to /stats before this page sees it;
-    // if that route ever goes, the tab must not resurrect an empty page.
+    // Stats has its own page now; the old tab name must not resurrect an
+    // empty page here.
     renderAt('/metrics/stats')
 
     await act(async () => {

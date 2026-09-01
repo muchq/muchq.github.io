@@ -35,8 +35,6 @@ function App() {
       <Route path="/iili" element={<IiliPage />} />
       <Route path="/r3dr" element={<Navigate to="/iili" replace />} />
       <Route path="/metrics" element={<Navigate to="/metrics/host" replace />} />
-      {/* The stats tab moved out of metrics to its own page; old links still arrive. */}
-      <Route path="/metrics/stats" element={<Navigate to="/stats" replace />} />
       <Route path="/metrics/:tab" element={<MetricsPage />} />
       <Route path="/stats" element={<StatsPage />} />
       <Route path="/resilience" element={<SystemsPage />} />
