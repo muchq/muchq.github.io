@@ -49,6 +49,7 @@ npm run deploy
 | `/posterize` | Image posterizer |
 | `/wordchains` | Word chain puzzles |
 | `/metrics` | Live service/host dashboards for the backend fleet |
+| `/stats` | Traffic aggregates from the access logs: crawlers, scanners, short-link popularity |
 | `/resilience` | Distributed-systems game |
 | `/groups`, `/sets`, `/top` | Math learning modules (permutation groups, sets, Topology Quest) |
 

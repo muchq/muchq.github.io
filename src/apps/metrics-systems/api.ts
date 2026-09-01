@@ -416,33 +416,3 @@ export function splitHostTimeseries(merged: TimeSeriesResponse): {
   }
   return { system, container }
 }
-
-// --- Log-derived stats (MoonBase#1460): aggregates the stats service
-// computes from shipped Caddy access logs. Separate base URL because the
-// backend is a different service behind the same gateway.
-
-export const STATS_API_URL =
-  import.meta.env.VITE_STATS_API_URL || 'https://api.muchq.com/stats/v1'
-
-export interface StatsSummaryRow {
-  date: string
-  host: string
-  agent_class: string
-  requests: number
-  errors: number
-}
-
-export interface StatsSummary {
-  days: number
-  rows: StatsSummaryRow[]
-}
-
-export interface TopSlugRow {
-  slug: string
-  requests: number
-}
-
-export interface TopSlugs {
-  days: number
-  rows: TopSlugRow[]
-}
