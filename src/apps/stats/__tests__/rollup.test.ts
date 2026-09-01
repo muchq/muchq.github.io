@@ -19,6 +19,8 @@ const agents = {
     { date: '2026-08-30', host: 'b', agent_class: 'bot', agent: 'curl', requests: 20, blocked: 0 },
     { date: '2026-08-30', host: 'b', agent_class: 'ai_scraper', agent: 'gptbot', requests: 1, blocked: 0 },
     { date: '2026-08-30', host: 'a', agent_class: 'browser', agent: '', requests: 5, blocked: 0 },
+    // The same name under another class is a different agent.
+    { date: '2026-08-30', host: 'a', agent_class: 'bot', agent: 'gptbot', requests: 2, blocked: 0 },
   ],
 }
 
@@ -46,6 +48,7 @@ describe('rollupHosts', () => {
       { agent: 'gptbot', requests: 7, blocked: 7 },
     ])
     expect(a.agents.browser).toEqual([{ agent: '', requests: 5, blocked: 0 }])
+    expect(a.agents.bot).toEqual([{ agent: 'gptbot', requests: 2, blocked: 0 }])
     expect(a.probes.map((p) => p.probe)).toEqual(['wordpress', 'env'])
   })
 
@@ -76,6 +79,7 @@ describe('topAgents', () => {
       { agent: 'curl', agent_class: 'bot', requests: 20, blocked: 0, hosts: 1 },
       { agent: 'claudebot', agent_class: 'ai_scraper', requests: 9, blocked: 0, hosts: 1 },
       { agent: 'gptbot', agent_class: 'ai_scraper', requests: 8, blocked: 7, hosts: 2 },
+      { agent: 'gptbot', agent_class: 'bot', requests: 2, blocked: 0, hosts: 1 },
     ])
   })
 

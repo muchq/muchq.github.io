@@ -33,6 +33,9 @@
 .detailCell {
   padding: 0 !important;
   background: rgba(255, 255, 255, 0.02);
+  /* The outer table's cells are nowrap; the detail is prose-shaped and
+     must wrap, or a long agent token pushes the host table sideways. */
+  white-space: normal;
 }
 
 .detailGrid {

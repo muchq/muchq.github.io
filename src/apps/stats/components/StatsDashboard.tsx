@@ -26,8 +26,16 @@ interface Props {
 
 const WINDOW_DAYS = 30
 const TOP_AGENTS = 25
+// The agents endpoint caps its rows (busiest first) and this is its
+// ceiling; anything less and thin days of a real scraper fall off the
+// by-day table as missing rows rather than zeros.
+const AGENT_ROWS = 2000
 
 const n = (value: number) => value.toLocaleString()
+
+// A table whose endpoint failed says so; "no rows" is a claim about the
+// data, and this page never got any to make it about.
+const UNAVAILABLE = 'Not available from the stats service.'
 
 // Traffic stats derived from shipped Caddy access logs (MoonBase#1460,
 // #1458): who is crawling, per vhost and by name, which scanner shapes are
@@ -47,7 +55,7 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
     onConnectionStateChange('connecting')
     Promise.all([
       fetchJson<StatsSummary>(`${STATS_API_URL}/summary?days=${WINDOW_DAYS}`),
-      fetchJson<StatsAgents>(`${STATS_API_URL}/agents?days=${WINDOW_DAYS}`),
+      fetchJson<StatsAgents>(`${STATS_API_URL}/agents?days=${WINDOW_DAYS}&limit=${AGENT_ROWS}`),
       fetchJson<StatsProbes>(`${STATS_API_URL}/probes?days=${WINDOW_DAYS}`),
       fetchJson<TopSlugs>(`${STATS_API_URL}/iili/top?days=${WINDOW_DAYS}&limit=20`),
     ]).then(([summaryResult, agentsResult, probesResult, slugResult]) => {
@@ -109,7 +117,6 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
                           type="button"
                           className={own.hostToggle}
                           aria-expanded={open}
-                          aria-controls={`host-detail-${entry.host}`}
                           onClick={(event) => {
                             event.stopPropagation()
                             toggle()
@@ -128,7 +135,7 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
                       ))}
                     </tr>
                     {open && (
-                      <tr id={`host-detail-${entry.host}`} data-testid={`host-detail-${entry.host}`}>
+                      <tr data-testid={`host-detail-${entry.host}`}>
                         <td colSpan={3 + AGENT_CLASSES.length} className={own.detailCell}>
                           <HostDetail entry={entry} />
                         </td>
@@ -169,7 +176,7 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
                 ))}
                 {byDay.length === 0 && (
                   <tr>
-                    <td colSpan={3}>No AI scraper traffic in the window.</td>
+                    <td colSpan={3}>{agents ? 'No AI scraper traffic in the window.' : UNAVAILABLE}</td>
                   </tr>
                 )}
               </tbody>
@@ -202,7 +209,7 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
                 ))}
                 {busiest.length === 0 && (
                   <tr>
-                    <td colSpan={5}>No named agents aggregated yet.</td>
+                    <td colSpan={5}>{agents ? 'No named agents aggregated yet.' : UNAVAILABLE}</td>
                   </tr>
                 )}
               </tbody>
@@ -235,7 +242,7 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
                 ))}
                 {(probes?.rows ?? []).length === 0 && (
                   <tr>
-                    <td colSpan={4}>No scanner probes in the window.</td>
+                    <td colSpan={4}>{probes ? 'No scanner probes in the window.' : UNAVAILABLE}</td>
                   </tr>
                 )}
               </tbody>
@@ -262,7 +269,7 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
                 ))}
                 {(slugs?.rows ?? []).length === 0 && (
                   <tr>
-                    <td colSpan={2}>No redirects aggregated yet.</td>
+                    <td colSpan={2}>{slugs ? 'No redirects aggregated yet.' : UNAVAILABLE}</td>
                   </tr>
                 )}
               </tbody>

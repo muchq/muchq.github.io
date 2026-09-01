@@ -25,18 +25,20 @@ const agentsResponse = {
 }
 
 const probesResponse = {
-  days: 30,
+  days: 14,
+  // Server order is what renders; the fixture is ascending to prove it.
   rows: [
-    { host: 'git.muchq.com', probe: 'wordpress', requests: 12, served: 0 },
     { host: 'api.1d4.net', probe: 'env', requests: 4, served: 1 },
+    { host: 'git.muchq.com', probe: 'wordpress', requests: 12, served: 0 },
   ],
 }
 
 const slugsResponse = {
-  days: 30,
+  days: 90,
+  // Server order is what renders; the fixture is ascending to prove it.
   rows: [
-    { slug: 'abc123', requests: 41 },
     { slug: 'xyz', requests: 7 },
+    { slug: 'abc123', requests: 41 },
   ],
 }
 
@@ -117,8 +119,16 @@ describe('StatsDashboard', () => {
     expect(screen.queryByTestId('host-detail-git.muchq.com')).not.toBeInTheDocument()
     const api = within(screen.getByTestId('host-detail-api.1d4.net'))
     expect(cellsOf(api.getByText('env').closest('tr')!)).toEqual(['env', '4', '1 served'])
-    // A browser-only host has nothing named to show in the three classes.
+    // A browser-only host has nothing named to show in the three classes,
+    // and browsers themselves are not a fourth: one bucket has no breakdown.
     expect(api.getAllByText('none')).toHaveLength(3)
+    expect(api.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
+      'AI scrapers',
+      'Bots',
+      'Other',
+      'Probes',
+    ])
+    expect(api.queryByText('150')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /api\.1d4\.net/ }))
     expect(screen.queryByTestId('host-detail-api.1d4.net')).not.toBeInTheDocument()
@@ -150,9 +160,32 @@ describe('StatsDashboard', () => {
     const probes = screen.getByText(/Scanner probes/).closest('div')!
     const probeRows = within(probes).getAllByRole('row').slice(1).map(cellsOf)
     expect(probeRows).toEqual([
-      ['git.muchq.com', 'wordpress', '12', '0'],
       ['api.1d4.net', 'env', '4', '1'],
+      ['git.muchq.com', 'wordpress', '12', '0'],
     ])
+    const links = screen.getByText(/Top short links/).closest('div')!
+    expect(within(links).getAllByRole('row').slice(1).map(cellsOf)).toEqual([
+      ['xyz', '7'],
+      ['abc123', '41'],
+    ])
+
+    // Each heading carries the window its own endpoint reported.
+    expect(screen.getByText('Traffic by host — last 30 days')).toBeInTheDocument()
+    expect(screen.getByText('Busiest agents — last 30 days')).toBeInTheDocument()
+    expect(screen.getByText('Scanner probes — last 14 days')).toBeInTheDocument()
+    expect(screen.getByText('Top short links — last 90 days')).toBeInTheDocument()
+  })
+
+  it('toggles a host from anywhere on its row, not only the button', async () => {
+    mockFetch(everything)
+    render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
+    const row = (await screen.findByRole('button', { name: /git\.muchq\.com/ })).closest('tr')!
+    const requestsCell = within(row).getAllByRole('cell')[1]
+
+    fireEvent.click(requestsCell)
+    expect(screen.getByTestId('host-detail-git.muchq.com')).toBeInTheDocument()
+    fireEvent.click(requestsCell)
+    expect(screen.queryByTestId('host-detail-git.muchq.com')).not.toBeInTheDocument()
   })
 
   it('asks for one window across all four aggregates', async () => {
@@ -163,6 +196,9 @@ describe('StatsDashboard', () => {
     const urls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.map((call) => String(call[0]))
     expect(urls).toHaveLength(4)
     for (const url of urls) expect(url).toContain('days=30')
+    // The agents endpoint truncates busiest-first; ask for its ceiling so
+    // a scraper's thin days are rows, not gaps.
+    expect(urls.find((url) => url.includes('/agents'))).toContain('limit=2000')
   })
 
   it('reports failure without rendering a broken table when the API is down', async () => {
@@ -203,5 +239,9 @@ describe('StatsDashboard', () => {
     const gitRow = (await screen.findByRole('button', { name: /git\.muchq\.com/ })).closest('tr')!
     expect(cellsOf(gitRow)).toEqual(['›git.muchq.com', '913', '703', '0', '900', '10', '3'])
     expect(onState).toHaveBeenLastCalledWith('connected')
+    // The tables whose endpoints failed say so rather than claiming zero.
+    expect(screen.getAllByText('Not available from the stats service.')).toHaveLength(3)
+    expect(screen.queryByText('No scanner probes in the window.')).not.toBeInTheDocument()
+    expect(screen.getByText('abc123')).toBeInTheDocument()
   })
 })
