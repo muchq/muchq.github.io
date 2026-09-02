@@ -55,24 +55,34 @@ describe('Navigation', () => {
     }
   })
 
-  it('links stats as an internal Projects page beside metrics', () => {
+  it('lists the Projects in their order, as plain internal links without subtitles', () => {
     renderWithRouter(<Navigation />)
     const groupEl = testingScreen.getByText('Projects').closest('li')
     if (!groupEl) throw new Error('Projects nav group not found')
-    const link = within(groupEl).getByRole('link', { name: /^Stats/ })
-    expect(link.getAttribute('href')).toBe('/stats')
-    expect(link.textContent).not.toContain('(external site)')
-    expect(within(link).getByText('Traffic from the access logs')).toBeDefined()
-  })
-
-  it('links iili as an internal Projects page', () => {
-    renderWithRouter(<Navigation />)
-    const groupEl = testingScreen.getByText('Projects').closest('li')
-    if (!groupEl) throw new Error('Projects nav group not found')
-    const link = within(groupEl).getByRole('link', { name: /^iili/ })
-    expect(link.getAttribute('href')).toBe('/iili')
-    expect(link.textContent).not.toContain('(external site)')
-    expect(within(link).getByText('URL shortener')).toBeDefined()
+    // The dropdown, not the group's own header anchor.
+    const dropdown = groupEl.querySelector('div')
+    if (!dropdown) throw new Error('Projects dropdown not found')
+    const links = within(dropdown).getAllByRole('link')
+    expect(links.map(link => link.textContent)).toEqual([
+      'Tracy',
+      'Posterize',
+      'Wordchains',
+      'iili',
+      'Stats',
+      'Metrics',
+    ])
+    expect(links.map(link => link.getAttribute('href'))).toEqual([
+      '/tracy',
+      '/posterize',
+      '/wordchains',
+      '/iili',
+      '/stats',
+      '/metrics',
+    ])
+    for (const link of links) {
+      expect(link.textContent).not.toContain('(external site)')
+      expect(link.querySelector('span')).toBeNull()
+    }
   })
 
   it('marks external links with a visible ↗ kept out of the accessible name', () => {
