@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { rollupHosts, scrapersByDay, topAgents } from '../rollup'
+import { rollupHosts, scrapersByDay, topAgents, topCountries } from '../rollup'
 
 const summary = {
   days: 30,
@@ -85,5 +85,36 @@ describe('topAgents', () => {
 
   it('honours the limit', () => {
     expect(topAgents(agents, 1).map((a) => a.agent)).toEqual(['curl'])
+  })
+})
+
+describe('topCountries', () => {
+  const countries = {
+    days: 30,
+    rows: [
+      { host: 'a', agent_class: 'ai_scraper', country: 'US', requests: 8, blocked: 7, probes: 0 },
+      { host: 'b', agent_class: 'ai_scraper', country: 'US', requests: 1, blocked: 0, probes: 0 },
+      { host: 'a', agent_class: 'bot', country: 'GB', requests: 10, blocked: 0, probes: 12 },
+      { host: 'a', agent_class: 'other', country: '--', requests: 2, blocked: 0, probes: 1 },
+      { host: 'a', agent_class: 'browser', country: 'DE', requests: 5000, blocked: 0, probes: 0 },
+    ],
+  }
+
+  it('sums the non-browser classes per country across hosts, busiest first', () => {
+    expect(topCountries(countries, 10)).toEqual([
+      { country: 'GB', scrapers: 0, bots: 10, other: 0, probes: 12, blocked: 0, total: 10 },
+      { country: 'US', scrapers: 9, bots: 0, other: 0, probes: 0, blocked: 7, total: 9 },
+      { country: '--', scrapers: 0, bots: 0, other: 2, probes: 1, blocked: 0, total: 2 },
+    ])
+    expect(topCountries(countries, 1).map((c) => c.country)).toEqual(['GB'])
+    expect(topCountries(null, 10)).toEqual([])
+  })
+
+  it('gives each host its own country list, browsers excluded', () => {
+    const hosts = rollupHosts(null, null, null, countries)
+    expect(hosts.map((h) => [h.host, h.countries.map((c) => `${c.country}:${c.total}`)])).toEqual([
+      ['a', ['GB:10', 'US:8', '--:2']],
+      ['b', ['US:1']],
+    ])
   })
 })

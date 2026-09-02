@@ -42,11 +42,23 @@ const slugsResponse = {
   ],
 }
 
+const countriesResponse = {
+  days: 30,
+  rows: [
+    { host: 'git.muchq.com', agent_class: 'ai_scraper', country: 'US', requests: 800, blocked: 700, probes: 0 },
+    { host: 'git.muchq.com', agent_class: 'bot', country: 'GB', requests: 10, blocked: 0, probes: 12 },
+    { host: 'git.muchq.com', agent_class: 'browser', country: 'US', requests: 5000, blocked: 0, probes: 0 },
+    { host: 'api.1d4.net', agent_class: 'other', country: '--', requests: 20, blocked: 0, probes: 4 },
+    { host: 'api.1d4.net', agent_class: 'ai_scraper', country: 'US', requests: 100, blocked: 0, probes: 0 },
+  ],
+}
+
 const everything = {
   '/summary': summaryResponse,
   '/agents': agentsResponse,
   '/probes': probesResponse,
   '/iili/top': slugsResponse,
+  '/countries': countriesResponse,
 }
 
 function mockFetch(bodies: Record<string, unknown>) {
@@ -113,6 +125,9 @@ describe('StatsDashboard', () => {
     // Only this host's probes, not api.1d4.net's.
     expect(cellsOf(detail.getByText('wordpress').closest('tr')!)).toEqual(['wordpress', '12', '0 served'])
     expect(detail.queryByText('env')).not.toBeInTheDocument()
+    // Browsers do not count toward a host's countries: US is the scraper's 800, not 5,800.
+    expect(cellsOf(detail.getByText('US').closest('tr')!)).toEqual(['US', '800', '700 blocked'])
+    expect(cellsOf(detail.getByText('GB').closest('tr')!)).toEqual(['GB', '10', '0 blocked'])
 
     // Opening another host closes the first: one open row at a time.
     fireEvent.click(screen.getByRole('button', { name: /api\.1d4\.net/ }))
@@ -127,8 +142,14 @@ describe('StatsDashboard', () => {
       'Bots',
       'Other',
       'Probes',
+      'Countries',
     ])
     expect(api.queryByText('150')).not.toBeInTheDocument()
+    // Its countries, non-browser only, busiest first, with the unplaced bucket named.
+    expect(api.getAllByRole('row').slice(-2).map(cellsOf)).toEqual([
+      ['US', '100', '0 blocked'],
+      ['Unknown', '20', '0 blocked'],
+    ])
 
     fireEvent.click(screen.getByRole('button', { name: /api\.1d4\.net/ }))
     expect(screen.queryByTestId('host-detail-api.1d4.net')).not.toBeInTheDocument()
@@ -188,13 +209,31 @@ describe('StatsDashboard', () => {
     expect(screen.queryByTestId('host-detail-git.muchq.com')).not.toBeInTheDocument()
   })
 
-  it('asks for one window across all four aggregates', async () => {
+  it('shows where non-browser traffic comes from, with the attribution the data requires', async () => {
+    mockFetch(everything)
+    render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
+
+    const table = within(await screen.findByTestId('countries'))
+    // Summed across hosts and classes, browsers excluded, busiest first.
+    expect(table.getAllByRole('row').slice(1).map(cellsOf)).toEqual([
+      ['US', '900', '900', '0', '0', '0', '700'],
+      ['Unknown', '20', '0', '0', '20', '4', '0'],
+      ['GB', '10', '0', '10', '0', '12', '0'],
+    ])
+    expect(screen.getByText(/Where scrapers, bots, and probes come from — last 30 days/)).toBeInTheDocument()
+    // CC BY: the source is named, and linked, on the page that shows its data.
+    const credit = screen.getByRole('link', { name: 'DB-IP' })
+    expect(credit.getAttribute('href')).toBe('https://db-ip.com')
+    expect(credit.closest('p')?.textContent).toContain('IP geolocation by DB-IP')
+  })
+
+  it('asks for one window across all five aggregates', async () => {
     mockFetch(everything)
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
     await screen.findByRole('button', { name: /git\.muchq\.com/ })
 
     const urls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.map((call) => String(call[0]))
-    expect(urls).toHaveLength(4)
+    expect(urls).toHaveLength(5)
     for (const url of urls) expect(url).toContain('days=30')
     // The agents endpoint truncates busiest-first; ask for its ceiling so
     // a scraper's thin days are rows, not gaps.
@@ -217,11 +256,13 @@ describe('StatsDashboard', () => {
       '/agents': { days: 30, rows: [] },
       '/probes': { days: 30, rows: [] },
       '/iili/top': { days: 30, rows: [] },
+      '/countries': { days: 30, rows: [] },
     })
 
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
     expect(await screen.findByText('No aggregated traffic yet.')).toBeInTheDocument()
+    expect(screen.getByText('No non-browser traffic in the window.')).toBeInTheDocument()
     expect(screen.getByText('No AI scraper traffic in the window.')).toBeInTheDocument()
     expect(screen.getByText('No named agents aggregated yet.')).toBeInTheDocument()
     expect(screen.getByText('No scanner probes in the window.')).toBeInTheDocument()
@@ -240,7 +281,7 @@ describe('StatsDashboard', () => {
     expect(cellsOf(gitRow)).toEqual(['›git.muchq.com', '913', '703', '0', '900', '10', '3'])
     expect(onState).toHaveBeenLastCalledWith('connected')
     // The tables whose endpoints failed say so rather than claiming zero.
-    expect(screen.getAllByText('Not available from the stats service.')).toHaveLength(3)
+    expect(screen.getAllByText('Not available from the stats service.')).toHaveLength(4)
     expect(screen.queryByText('No scanner probes in the window.')).not.toBeInTheDocument()
     expect(screen.getByText('abc123')).toBeInTheDocument()
   })
