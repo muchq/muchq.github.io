@@ -33,9 +33,6 @@
 .detailCell {
   padding: 0 !important;
   background: rgba(255, 255, 255, 0.02);
-  /* The outer table's cells are nowrap; the detail is prose-shaped and
-     must wrap, or a long agent token pushes the host table sideways. */
-  white-space: normal;
 }
 
 .detailGrid {
@@ -43,6 +40,12 @@
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 16px 32px;
   padding: 16px 24px 20px;
+}
+
+/* Grid items default to min-width:auto, which lets a wide inner table
+   grow the column into its neighbour instead of wrapping. */
+.detailGrid > div {
+  min-width: 0;
 }
 
 .detailTitle {
@@ -60,20 +63,25 @@
   font-size: 0.8rem;
 }
 
-.detailTable td {
+/* These cells sit inside the host table, whose `.containerTable td` rule
+   is nowrap; the selector here outranks it so names can wrap while the
+   numbers still cannot. */
+.detailCell .detailTable td {
   padding: 4px 8px 4px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   vertical-align: top;
+  white-space: normal;
 }
 
-.detailTable td:not(:first-child) {
+.detailCell .detailTable td:not(:first-child) {
   text-align: right;
   white-space: nowrap;
+  width: 1%;
 }
 
 .agentName {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .none {
