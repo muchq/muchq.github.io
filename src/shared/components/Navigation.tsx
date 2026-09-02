@@ -31,13 +31,14 @@ const MENU: MenuGroup[] = [
   {
     name: 'projects',
     label: 'Projects',
+    // Projects are the house's own; they carry no subtitle, unlike Elsewhere's.
     links: [
       { label: 'Tracy', to: '/tracy' },
       { label: 'Posterize', to: '/posterize' },
-      { label: 'Metrics', to: '/metrics' },
-      { label: 'Stats', to: '/stats', description: 'Traffic from the access logs' },
       { label: 'Wordchains', to: '/wordchains' },
-      { label: 'iili', to: '/iili', description: 'URL shortener' },
+      { label: 'iili', to: '/iili' },
+      { label: 'Stats', to: '/stats' },
+      { label: 'Metrics', to: '/metrics' },
     ],
   },
   {
