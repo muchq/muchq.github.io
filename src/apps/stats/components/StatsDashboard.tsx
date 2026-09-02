@@ -6,6 +6,7 @@ import {
   STATS_API_URL,
   fetchJson,
   type StatsAgents,
+  type StatsCountries,
   type StatsProbes,
   type StatsSummary,
   type TopSlugs,
@@ -16,6 +17,9 @@ import {
   rollupHosts,
   scrapersByDay,
   topAgents,
+  topCountries,
+  UNKNOWN_COUNTRY,
+  type CountryTotal,
   type HostEntry,
   type NamedAgent,
 } from '../rollup'
@@ -30,6 +34,8 @@ const TOP_AGENTS = 25
 // ceiling; anything less and thin days of a real scraper fall off the
 // by-day table as missing rows rather than zeros.
 const AGENT_ROWS = 2000
+const TOP_COUNTRIES = 25
+const HOST_COUNTRIES = 8
 
 const n = (value: number) => value.toLocaleString()
 
@@ -46,6 +52,7 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
   const [summary, setSummary] = useState<StatsSummary | null>(null)
   const [agents, setAgents] = useState<StatsAgents | null>(null)
   const [probes, setProbes] = useState<StatsProbes | null>(null)
+  const [countries, setCountries] = useState<StatsCountries | null>(null)
   const [slugs, setSlugs] = useState<TopSlugs | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [openHost, setOpenHost] = useState<string | null>(null)
@@ -58,12 +65,14 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
       fetchJson<StatsAgents>(`${STATS_API_URL}/agents?days=${WINDOW_DAYS}&limit=${AGENT_ROWS}`),
       fetchJson<StatsProbes>(`${STATS_API_URL}/probes?days=${WINDOW_DAYS}`),
       fetchJson<TopSlugs>(`${STATS_API_URL}/iili/top?days=${WINDOW_DAYS}&limit=20`),
-    ]).then(([summaryResult, agentsResult, probesResult, slugResult]) => {
+      fetchJson<StatsCountries>(`${STATS_API_URL}/countries?days=${WINDOW_DAYS}`),
+    ]).then(([summaryResult, agentsResult, probesResult, slugResult, countriesResult]) => {
       if (cancelled) return
       setSummary(summaryResult)
       setAgents(agentsResult)
       setProbes(probesResult)
       setSlugs(slugResult)
+      setCountries(countriesResult)
       setLoaded(true)
       onConnectionStateChange(summaryResult ? 'connected' : 'failed')
     })
@@ -72,9 +81,13 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
     }
   }, [onConnectionStateChange])
 
-  const hosts = useMemo(() => rollupHosts(summary, agents, probes), [summary, agents, probes])
+  const hosts = useMemo(
+    () => rollupHosts(summary, agents, probes, countries),
+    [summary, agents, probes, countries]
+  )
   const byDay = useMemo(() => scrapersByDay(agents), [agents])
   const busiest = useMemo(() => topAgents(agents, TOP_AGENTS), [agents])
+  const fromWhere = useMemo(() => topCountries(countries, TOP_COUNTRIES), [countries])
 
   if (!loaded) {
     return <div className={styles.noData}>Loading stats…</div>
@@ -218,6 +231,52 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
         </div>
       </div>
 
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>
+          Where scrapers, bots, and probes come from — last {countries?.days ?? days} days
+        </h2>
+        <div className={styles.tableScroll}>
+          <table className={styles.containerTable} data-testid="countries">
+            <thead>
+              <tr>
+                <th>Country</th>
+                <th>Requests</th>
+                <th>AI scrapers</th>
+                <th>Bots</th>
+                <th>Other</th>
+                <th>Probes</th>
+                <th>Blocked</th>
+              </tr>
+            </thead>
+            <tbody>
+              {fromWhere.map((row) => (
+                <tr key={row.country}>
+                  <td>{countryLabel(row.country)}</td>
+                  <td>{n(row.total)}</td>
+                  <td>{n(row.scrapers)}</td>
+                  <td>{n(row.bots)}</td>
+                  <td>{n(row.other)}</td>
+                  <td>{n(row.probes)}</td>
+                  <td>{n(row.blocked)}</td>
+                </tr>
+              ))}
+              {fromWhere.length === 0 && (
+                <tr>
+                  <td colSpan={7}>{countries ? 'No non-browser traffic in the window.' : UNAVAILABLE}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <p className={own.attribution}>
+          Browsers are left out. IP geolocation by{' '}
+          <a href="https://db-ip.com" rel="noreferrer">
+            DB-IP
+          </a>
+          ; addresses no database placed read as Unknown.
+        </p>
+      </div>
+
       <div className={styles.sectionGrid}>
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Scanner probes — last {probes?.days ?? days} days</h2>
@@ -310,8 +369,31 @@ const HostDetail = ({ entry }: { entry: HostEntry }) => (
         </table>
       )}
     </div>
+    <div>
+      <h3 className={own.detailTitle}>Countries</h3>
+      <CountryList countries={entry.countries.slice(0, HOST_COUNTRIES)} />
+    </div>
   </div>
 )
+
+const countryLabel = (country: string) => (country === UNKNOWN_COUNTRY ? 'Unknown' : country)
+
+const CountryList = ({ countries }: { countries: CountryTotal[] }) =>
+  countries.length === 0 ? (
+    <span className={own.none}>none</span>
+  ) : (
+    <table className={own.detailTable}>
+      <tbody>
+        {countries.map((row) => (
+          <tr key={row.country}>
+            <td>{countryLabel(row.country)}</td>
+            <td>{n(row.total)}</td>
+            <td>{n(row.blocked)} blocked</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
 
 const AgentList = ({ agents }: { agents: NamedAgent[] }) =>
   agents.length === 0 ? (

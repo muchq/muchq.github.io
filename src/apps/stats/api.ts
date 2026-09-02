@@ -60,3 +60,20 @@ export interface StatsProbes {
   days: number
   rows: ProbeRow[]
 }
+
+// One host's traffic of one class from one country over the window;
+// blocked is the 403 count and probes how many were scanner probes. "--"
+// is an address no database placed.
+export interface CountryRow {
+  host: string
+  agent_class: string
+  country: string
+  requests: number
+  blocked: number
+  probes: number
+}
+
+export interface StatsCountries {
+  days: number
+  rows: CountryRow[]
+}

@@ -1,4 +1,4 @@
-import type { ProbeRow, StatsAgents, StatsProbes, StatsSummary } from './api'
+import type { CountryRow, ProbeRow, StatsAgents, StatsCountries, StatsProbes, StatsSummary } from './api'
 
 export const AGENT_CLASSES = ['browser', 'ai_scraper', 'bot', 'other'] as const
 
@@ -24,6 +24,53 @@ export interface HostEntry {
   agents: Record<string, NamedAgent[]>
   /** Scanner families seen on this host, busiest first. */
   probes: ProbeRow[]
+  /** Where this host's non-browser traffic came from, busiest first. */
+  countries: CountryTotal[]
+}
+
+export const UNKNOWN_COUNTRY = '--'
+
+// Junk traffic by country: everything that is not a browser, split by
+// class, with the probe and refusal counts alongside. Browsers are left
+// out on purpose — where the humans are is a different question, and one
+// this page is not for.
+export interface CountryTotal {
+  country: string
+  scrapers: number
+  bots: number
+  other: number
+  probes: number
+  blocked: number
+  total: number
+}
+
+function addCountry(totals: Map<string, CountryTotal>, row: CountryRow) {
+  if (row.agent_class === 'browser') return
+  const total = totals.get(row.country) ?? {
+    country: row.country,
+    scrapers: 0,
+    bots: 0,
+    other: 0,
+    probes: 0,
+    blocked: 0,
+    total: 0,
+  }
+  if (row.agent_class === 'ai_scraper') total.scrapers += row.requests
+  else if (row.agent_class === 'bot') total.bots += row.requests
+  else total.other += row.requests
+  total.probes += row.probes
+  total.blocked += row.blocked
+  total.total += row.requests
+  totals.set(row.country, total)
+}
+
+const byTotalDesc = (a: CountryTotal, b: CountryTotal) =>
+  b.total - a.total || a.country.localeCompare(b.country)
+
+export function topCountries(countries: StatsCountries | null, limit: number): CountryTotal[] {
+  const totals = new Map<string, CountryTotal>()
+  for (const row of countries?.rows ?? []) addCountry(totals, row)
+  return [...totals.values()].sort(byTotalDesc).slice(0, limit)
 }
 
 const byRequestsDesc = <T extends { requests: number }>(a: T, b: T) => b.requests - a.requests
@@ -35,13 +82,14 @@ const byRequestsDesc = <T extends { requests: number }>(a: T, b: T) => b.request
 export function rollupHosts(
   summary: StatsSummary | null,
   agents: StatsAgents | null,
-  probes: StatsProbes | null
+  probes: StatsProbes | null,
+  countries: StatsCountries | null = null
 ): HostEntry[] {
   const hosts = new Map<string, HostEntry>()
   const entryFor = (host: string) => {
     let entry = hosts.get(host)
     if (!entry) {
-      entry = { host, total: 0, errors: 0, classes: {}, agents: {}, probes: [] }
+      entry = { host, total: 0, errors: 0, classes: {}, agents: {}, probes: [], countries: [] }
       hosts.set(host, entry)
     }
     return entry
@@ -71,6 +119,19 @@ export function rollupHosts(
 
   for (const row of probes?.rows ?? []) {
     entryFor(row.host).probes.push(row)
+  }
+
+  const perHost = new Map<string, Map<string, CountryTotal>>()
+  for (const row of countries?.rows ?? []) {
+    let totals = perHost.get(row.host)
+    if (!totals) {
+      totals = new Map()
+      perHost.set(row.host, totals)
+    }
+    addCountry(totals, row)
+  }
+  for (const [host, totals] of perHost) {
+    entryFor(host).countries = [...totals.values()].sort(byTotalDesc)
   }
 
   for (const entry of hosts.values()) {
