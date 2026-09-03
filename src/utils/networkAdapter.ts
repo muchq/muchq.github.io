@@ -524,7 +524,7 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
   }
 
   startNewGame(): void {
-    // v2 folded startNewGame into createGame; the creator is auto-seated.
+    // The hub has no separate start: creating a game seats the creator.
     this.requestCreateGame()
   }
 

@@ -670,7 +670,7 @@ export const useGolfGame = ({
         // open, before the resume's roomState lands, so the join effect
         // usually sends a bare joinRoom that the hub refuses — the seat
         // is still in its old room server-side. That refusal is the cue,
-        // not the verdict: leave (the v2 wire needs no room id; the hub
+        // not the verdict: leave (the wire needs no room id; the hub
         // knows the seat's room) and let onRoomLeft chain the join. Once
         // per attempt, so a genuinely missing target cannot loop.
         if (errorMessage.includes('already in a room') && attempt.roomId &&

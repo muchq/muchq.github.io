@@ -217,12 +217,13 @@ preview. Chromium and Playwright are available in the sandbox.
 ## Docs
 
 - Update docs in the same PR as the code: [README.md](README.md) and the
-  wire-contract docs ([GOLF.md](GOLF.md), [THOUGHTS.md](THOUGHTS.md)).
+  wire-contract docs ([THOUGHTS.md](THOUGHTS.md) here, the golf_hub smithy
+  model in MoonBase).
 - **When behavior changes, fix the doc that describes it in the same commit.**
   A doc left contradicting the code is a defect in its own right.
-- GOLF.md and THOUGHTS.md describe contracts the MoonBase server speaks; when
-  either side of the wire changes, the doc moves with it — or says explicitly
-  which side is ahead.
+- THOUGHTS.md and the golf_hub model describe contracts the MoonBase server
+  speaks; when either side of the wire changes, the doc moves with it — or
+  says explicitly which side is ahead.
 - Keep the claims accurate. Don't write that something is covered
   "everywhere" when a subtree is deliberately excluded; name the exclusion.
 - There are no ADRs and no CHANGELOG. The nearest equivalents are the docs

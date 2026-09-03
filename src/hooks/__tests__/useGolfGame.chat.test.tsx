@@ -30,7 +30,7 @@ const mockNetworkAdapter = {
   hideCards: vi.fn(),
   isMyTurn: vi.fn(),
   getCurrentPlayer: vi.fn(),
-  // Declared the way the v2 adapter does; the send path forwards here.
+  // Declared the way the adapter does; the send path forwards here.
   // Availability is proven by wire events, not by this declaration.
   sendChat: vi.fn(),
   roomState: null,
