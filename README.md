@@ -58,12 +58,13 @@ The nav's **Elsewhere** menu links to apps hosted off muchq.com (see the
 list). Those are external links, not routes — their code lives in their own
 repos, not here.
 
-### Golf v1/v2
+### Golf
 
-Golf speaks two wires. The default v1 protocol is documented in [GOLF.md](GOLF.md); the v2
-event-stream hub is a per-browser beta — opt in with `?golf=v2` (sticky via localStorage),
-back out with `?golf=v1`, or default a build in with `VITE_GOLF_V2_DEFAULT=true`. Room chat
-is v2-only, and the UI reveals it only once the server actually delivers chat on the wire.
+Golf speaks the golf_hub event-stream wire (`/games/v2/*` on api.muchq.com; the model and
+the protocol are documented with the service in MoonBase, `domains/games/apis/golf_hub`).
+`VITE_GOLF_WEBSOCKET_URL` overrides the play socket at build time; the session mint is
+derived from it. The UI reveals room chat only once the server actually delivers chat on
+the wire.
 
 ## 🏗️ Project Structure
 
@@ -84,6 +85,5 @@ Routes are declared in `src/App.tsx`.
 
 ## 📄 Documentation
 
-- [GOLF.md](GOLF.md) — Golf multiplayer WebSocket API (v1)
 - [THOUGHTS.md](THOUGHTS.md) — Thoughts multiplayer WebSocket API
 - [WORKING_AGREEMENT.md](WORKING_AGREEMENT.md) — How work gets picked up, built, reviewed, and shipped

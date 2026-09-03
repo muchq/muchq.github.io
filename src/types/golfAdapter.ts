@@ -1,23 +1,18 @@
 import type { GameState, Room, FinalScore, Player } from './golf'
 import type { ChatMessage } from './golfChat'
 
-// The one adapter contract useGolfGame depends on. Both the v1
-// GolfNetworkAdapter and the v2 GolfV2NetworkAdapter implement this, so
-// the "?golf=v2 swaps the wire, not the UI" premise is a compile-time
-// fact rather than two surfaces trusted to stay identical.
+// The one adapter contract useGolfGame depends on: the hook and the
+// components see this surface, never the wire.
 //
-// Room chat (MoonBase#1226) is a v2-only capability: the v1 wire never
-// carried it, so sendChat and the chat callbacks are optional. The UI
-// reveals chat only after the wire actually delivers it (the join
-// replay or a live message) — an adapter declaring sendChat is not
-// proof the connected server has chat.
+// Room chat (MoonBase#1226): the UI reveals chat only after the wire
+// actually delivers it (the join replay or a live message) — an adapter
+// declaring sendChat is not proof the connected server has chat.
 
 export interface GolfAdapterCallbacks {
   onRoomJoined?: (playerId: string, roomState: Room) => void
-  // The server confirmed a leaveRoom. Optional and v2-only today: the
-  // v1 wire has no leave acknowledgement. The permalink flow chains on
-  // this to join a share link's room after leaving a resumed one
-  // (muchq.github.io#260) — an adapter without it simply cannot detour.
+  // The server confirmed a leaveRoom. The permalink flow chains on this
+  // to join a share link's room after leaving a resumed one
+  // (muchq.github.io#260).
   onRoomLeft?: (roomId: string) => void
   onGameJoined?: (playerId: string, gameState: GameState) => void
   onGameStateUpdate?: (gameState: GameState) => void
@@ -37,7 +32,7 @@ export interface GolfAdapterCallbacks {
 }
 
 export interface GolfGameAdapter {
-  connect(url: string): void
+  connect(): void
   disconnect(): void
   readonly isConnected: boolean
   readonly playerId: string | null
@@ -62,7 +57,6 @@ export interface GolfGameAdapter {
   isMyTurn(): boolean
   getCurrentPlayer(): Player | null
 
-  // Absent on adapters whose wire has no chat (v1). The server trims,
-  // validates, and authorizes; this only ships the text.
-  sendChat?(text: string): void
+  // The server trims, validates, and authorizes; this only ships the text.
+  sendChat(text: string): void
 }

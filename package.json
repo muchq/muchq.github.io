@@ -15,7 +15,7 @@
     "test:ui": "vitest --ui",
     "typecheck": "tsc --noEmit",
     "test:run": "vitest run",
-    "local-server": "cross-env VITE_THOUGHTS_WEBSOCKET_URL=ws://localhost:2015/games/v1/thoughts-ws VITE_GOLF_WEBSOCKET_URL=ws://localhost:2015/games/v1/golf-ws VITE_THOUGHTS_SIMULATED=false VITE_METRICS_API_URL=http://localhost:2015/metrics/v1 VITE_MITHRIL_API_URL=http://localhost:2015/mithril/v1/wordchain VITE_TRACY_API_URL=http://localhost:2015/portrait/v1/trace VITE_POSTERIZE_API_URL=http://localhost:2015/imagine/v1 VITE_R3DR_API_URL=http://localhost:2015/r3dr/v2 vite",
+    "local-server": "cross-env VITE_THOUGHTS_WEBSOCKET_URL=ws://localhost:2015/games/v1/thoughts-ws VITE_GOLF_WEBSOCKET_URL=ws://localhost:2015/games/v2/golf/play VITE_THOUGHTS_SIMULATED=false VITE_METRICS_API_URL=http://localhost:2015/metrics/v1 VITE_MITHRIL_API_URL=http://localhost:2015/mithril/v1/wordchain VITE_TRACY_API_URL=http://localhost:2015/portrait/v1/trace VITE_POSTERIZE_API_URL=http://localhost:2015/imagine/v1 VITE_R3DR_API_URL=http://localhost:2015/r3dr/v2 vite",
     "deploy": "wrangler deploy"
   },
   "dependencies": {

@@ -5,7 +5,6 @@ import PermalinkDisplay from './PermalinkDisplay'
 import RoomChat from './RoomChat'
 import NewGameNotification from './NewGameNotification'
 import type { ParsedPermalinkParams } from '../../../utils/golfPermalinks'
-import { isGolfV2Enabled, setGolfV2Enabled } from '../../../utils/golfV2'
 
 interface Card {
   rank: string
@@ -30,19 +29,6 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
   const [showRules, setShowRules] = useState(false)
   const [showScores, setShowScores] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
-  // Read once at mount: the active adapter was chosen from the same flag,
-  // and flipping it reloads so the choice and the connection can't skew.
-  const [v2Beta] = useState(() => isGolfV2Enabled())
-
-  const toggleV2Beta = () => {
-    setGolfV2Enabled(!v2Beta)
-    // Reload without any golf query param: the param outranks the stored
-    // choice on load, so keeping it would immediately undo the toggle.
-    const url = new URL(window.location.href)
-    url.searchParams.delete('golf')
-    window.location.href = url.toString()
-  }
-
   // Helper function to get display name (now just use the ID directly)
   const getDisplayName = (player: Player | null) => {
     // Since IDs are now whimsical names directly, just use the ID
@@ -219,15 +205,6 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
             >
               How to Play
             </button>
-
-            <label className={styles.betaToggle}>
-              <input
-                type="checkbox"
-                checked={v2Beta}
-                onChange={toggleV2Beta}
-              />
-              New engine beta
-            </label>
           </div>
         </div>
 

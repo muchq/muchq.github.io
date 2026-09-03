@@ -108,17 +108,6 @@ describe('golfPermalinks', () => {
     it('should throw error for invalid room ID', () => {
       expect(() => generateRoomPermalink('room 123')).toThrow('Invalid room ID provided for permalink generation')
     })
-
-    it('carries the beta flag while v2 is enabled', () => {
-      localStorage.setItem('golf_v2_beta', '1')
-      expect(generateRoomPermalink('room123')).toBe('/golf/room/room123?golf=v2')
-      localStorage.clear()
-    })
-
-    it('omits the beta flag while v2 is disabled', () => {
-      localStorage.clear()
-      expect(generateRoomPermalink('room123')).toBe('/golf/room/room123')
-    })
   })
 
   describe('generateGamePermalink', () => {
@@ -133,17 +122,6 @@ describe('golfPermalinks', () => {
 
     it('should throw error for invalid game ID', () => {
       expect(() => generateGamePermalink('room123', 'game 456')).toThrow('Invalid game ID provided for permalink generation')
-    })
-
-    it('carries the beta flag while v2 is enabled', () => {
-      localStorage.setItem('golf_v2_beta', '1')
-      expect(generateGamePermalink('room123', 'game456')).toBe('/golf/room/room123/game/game456?golf=v2')
-      localStorage.clear()
-    })
-
-    it('omits the beta flag while v2 is disabled', () => {
-      localStorage.clear()
-      expect(generateGamePermalink('room123', 'game456')).toBe('/golf/room/room123/game/game456')
     })
   })
 

@@ -5,8 +5,8 @@ down so a future session starts where the last one left off instead of
 rediscovering the same conventions.
 
 This is process, not architecture. Architecture lives in
-[README.md](README.md) and the wire-contract docs at the repo root
-([GOLF.md](GOLF.md), [THOUGHTS.md](THOUGHTS.md)).
+[README.md](README.md) and the wire-contract docs: [THOUGHTS.md](THOUGHTS.md)
+at the repo root, and the golf_hub model in MoonBase for golf.
 
 Adapted from the MoonBase working agreement
 ([`MoonBase/docs/WORKING_AGREEMENT.md`](https://github.com/muchq/MoonBase/blob/main/docs/WORKING_AGREEMENT.md)),
@@ -154,10 +154,10 @@ observable behavior worth keeping gets a test, at every level that fits:
 - **component** — the behavior through the real component or hook with
   Testing Library under jsdom (`src/test/setup.ts` carries the shared shims);
 - **the consumer's boundary** — this repo is itself a consumer: the golf and
-  thoughts backends live in MoonBase, and [GOLF.md](GOLF.md) /
-  [THOUGHTS.md](THOUGHTS.md) are the contracts. Prove wire behavior by
-  feeding raw JSON messages to the real adapter (as
-  `src/utils/__tests__/golfV2Adapter.test.ts` does), not through helpers
+  thoughts backends live in MoonBase, and their models (golf_hub's smithy
+  model, [THOUGHTS.md](THOUGHTS.md)) are the contracts. Prove wire
+  behavior by feeding raw JSON messages to the real adapter (as
+  `src/utils/__tests__/networkAdapter.test.ts` does), not through helpers
   that mirror the adapter's own assumptions back at it.
 
 An untested observable behavior is not a guarantee; it is a coincidence that
