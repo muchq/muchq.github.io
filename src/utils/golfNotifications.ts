@@ -1,5 +1,5 @@
-// User-facing golf notification strings, shared by the v1 plugin and the
-// v2 adapter so the same game event reads identically on either wire.
+// User-facing golf notification strings, kept apart from the adapter so
+// the wording is testable without a wire.
 
 export const JOINED_ROOM = 'Joined room successfully!'
 export const JOINED_GAME = 'Joined game successfully!'

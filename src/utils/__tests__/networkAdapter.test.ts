@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { Mock } from 'vitest'
-import { GolfV2NetworkAdapter } from '../golfV2Adapter'
-import type { GolfAdapterCallbacks } from '../golfV2Adapter'
+import { GolfNetworkAdapter, golfSessionUrl } from '../networkAdapter'
+import type { GolfAdapterCallbacks } from '../networkAdapter'
 import type { GameState } from '@/types/golf'
 
 type MockedCallbacks = {
   [K in keyof Required<GolfAdapterCallbacks>]: Mock<Required<GolfAdapterCallbacks>[K]>
 }
 
-// The v2 adapter against a scripted wire: session mint, the smithy
-// JSON-text envelopes, v2->v1 shape translation, and the local
-// take-from-discard emulation (MoonBase#1187 phase 3).
+// The adapter against a scripted wire: session mint, the smithy
+// JSON-text envelopes, wire-to-UI shape translation, and the local
+// take-from-discard emulation.
 
 class FakeWebSocket {
   static instances: FakeWebSocket[] = []
@@ -56,7 +56,20 @@ class FakeWebSocket {
 
 const flushAsync = () => new Promise(resolve => setTimeout(resolve, 0))
 
-describe('GolfV2NetworkAdapter', () => {
+describe('GolfNetworkAdapter', () => {
+  it('derives the session url from the play url', () => {
+    expect(golfSessionUrl()).toBe('https://api.muchq.com/games/v2/session')
+  })
+
+  it('follows the play url override, plain http for a plain ws', () => {
+    vi.stubEnv('VITE_GOLF_WEBSOCKET_URL', 'ws://localhost:2015/games/v2/golf/play')
+    try {
+      expect(golfSessionUrl()).toBe('http://localhost:2015/games/v2/session')
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
   let fetchMock: ReturnType<typeof vi.fn>
   let callbacks: MockedCallbacks
 
@@ -110,8 +123,8 @@ describe('GolfV2NetworkAdapter', () => {
     vi.unstubAllGlobals()
   })
 
-  const connect = async (): Promise<[GolfV2NetworkAdapter, FakeWebSocket]> => {
-    const adapter = new GolfV2NetworkAdapter(callbacks)
+  const connect = async (): Promise<[GolfNetworkAdapter, FakeWebSocket]> => {
+    const adapter = new GolfNetworkAdapter(callbacks)
     adapter.connect()
     await flushAsync()
     const ws = FakeWebSocket.instances[0]
@@ -201,7 +214,7 @@ describe('GolfV2NetworkAdapter', () => {
     expect(ws.lastSent()).toEqual({ event: 'chat', payload: { text: 'hello room' } })
   })
 
-  it('translates game views into the v1 shape', async () => {
+  it('translates game views into the UI shape', async () => {
     const [adapter, ws] = await connect()
     ws.receive('golf', { update: { gameState: { view: sampleView } } })
 
@@ -298,7 +311,7 @@ describe('GolfV2NetworkAdapter', () => {
   })
 
   it('signals a resumed session', async () => {
-    const adapter = new GolfV2NetworkAdapter(callbacks)
+    const adapter = new GolfNetworkAdapter(callbacks)
     adapter.connect()
     await flushAsync()
     const ws = FakeWebSocket.instances[0]
@@ -309,7 +322,7 @@ describe('GolfV2NetworkAdapter', () => {
   })
 
   it('drops the resume token when refused before admission', async () => {
-    const adapter = new GolfV2NetworkAdapter(callbacks)
+    const adapter = new GolfNetworkAdapter(callbacks)
     adapter.connect()
     await flushAsync()
     expect(localStorage.getItem('golf_v2_resume_token')).toBe('rt-456')
@@ -418,7 +431,7 @@ describe('GolfV2NetworkAdapter', () => {
   it('re-dials with a fresh mint after an abrupt close', async () => {
     vi.useFakeTimers()
     try {
-      const adapter = new GolfV2NetworkAdapter(callbacks)
+      const adapter = new GolfNetworkAdapter(callbacks)
       adapter.connect()
       await vi.advanceTimersByTimeAsync(0)
       const first = FakeWebSocket.instances[0]
@@ -443,7 +456,7 @@ describe('GolfV2NetworkAdapter', () => {
     vi.useFakeTimers()
     try {
       fetchMock.mockResolvedValueOnce({ ok: false, status: 503 })
-      const adapter = new GolfV2NetworkAdapter(callbacks)
+      const adapter = new GolfNetworkAdapter(callbacks)
       adapter.connect()
       await vi.advanceTimersByTimeAsync(0)
       expect(FakeWebSocket.instances).toHaveLength(0)
@@ -460,7 +473,7 @@ describe('GolfV2NetworkAdapter', () => {
   it('disconnect stops the reconnect loop', async () => {
     vi.useFakeTimers()
     try {
-      const adapter = new GolfV2NetworkAdapter(callbacks)
+      const adapter = new GolfNetworkAdapter(callbacks)
       adapter.connect()
       await vi.advanceTimersByTimeAsync(0)
       FakeWebSocket.instances[0].open()
@@ -478,7 +491,7 @@ describe('GolfV2NetworkAdapter', () => {
     vi.useFakeTimers()
     try {
       fetchMock.mockRejectedValue(new Error('down'))
-      const adapter = new GolfV2NetworkAdapter(callbacks)
+      const adapter = new GolfNetworkAdapter(callbacks)
       adapter.connect()
       await vi.advanceTimersByTimeAsync(0)
       for (let i = 0; i < 10; i++) {

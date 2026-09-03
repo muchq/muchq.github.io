@@ -109,13 +109,6 @@ vi.mock('../../utils/networkAdapter', () => ({
   })
 }))
 
-// Mock environment variable
-vi.mock('import.meta', () => ({
-  env: {
-    VITE_GOLF_WEBSOCKET_URL: 'ws://test-server'
-  }
-}))
-
 describe('useGolfGame enhanced game creation flow', () => {
   beforeEach(() => {
     vi.clearAllMocks()

@@ -2,8 +2,6 @@
  * Golf permalink utilities for URL parameter parsing and validation
  */
 
-import { isGolfV2Enabled } from './golfV2'
-
 export interface GolfRouteParams extends Record<string, string | undefined> {
   roomId?: string
   gameId?: string
@@ -25,17 +23,6 @@ export interface ParsedPermalinkParams {
 export function isValidId(id: string | undefined): boolean {
   if (!id) return false
   return /^[a-zA-Z0-9-]+$/.test(id)
-}
-
-/**
- * While the v2 beta is active, minted permalinks carry the opt-in flag so
- * a shared link lands its recipient on the same backend as its sender —
- * a v2 room does not exist on the v1 hub. Deliberately applied on every
- * generated path, not just explicit share links: navigation pushes these
- * into the address bar, and a hand-copied URL must carry the flag too.
- */
-function betaSuffix(): string {
-  return isGolfV2Enabled() ? '?golf=v2' : ''
 }
 
 /**
@@ -98,7 +85,7 @@ export function generateRoomPermalink(roomId: string): string {
   if (!isValidId(roomId)) {
     throw new Error('Invalid room ID provided for permalink generation')
   }
-  return `/golf/room/${roomId}${betaSuffix()}`
+  return `/golf/room/${roomId}`
 }
 
 /**
@@ -111,7 +98,7 @@ export function generateGamePermalink(roomId: string, gameId: string): string {
   if (!isValidId(gameId)) {
     throw new Error('Invalid game ID provided for permalink generation')
   }
-  return `/golf/room/${roomId}/game/${gameId}${betaSuffix()}`
+  return `/golf/room/${roomId}/game/${gameId}`
 }
 
 /**

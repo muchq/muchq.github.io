@@ -119,7 +119,7 @@ describe('useGolfGame - permalink detour and rejection (#260)', () => {
     expect(result.current.permalinkJoinAttempt.isAttempting).toBe(true)
 
     // The hub's refusal is the race's signature — the cue to leave (the
-    // v2 wire needs no room id) and chain, not a terminal verdict. The
+    // wire needs no room id) and chain, not a terminal verdict. The
     // wire fans the same string to onNotification; mid-recovery it must
     // not reach the screen as a toast.
     act(() => {

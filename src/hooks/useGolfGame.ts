@@ -4,8 +4,6 @@ import type { GameState, Player, Room } from '@/types/golf'
 import type { ChatMessage } from '@/types/golfChat'
 import { mergeChatMessages } from '@/types/golfChat'
 import { GolfNetworkAdapter } from '@/utils/networkAdapter'
-import { GolfV2NetworkAdapter } from '@/utils/golfV2Adapter'
-import { isGolfV2Enabled } from '@/utils/golfV2'
 import type { GolfGameAdapter } from '@/types/golfAdapter'
 import type { ParsedPermalinkParams } from '@/utils/golfPermalinks'
 import { generateRoomPermalink, generateGamePermalink } from '@/utils/golfPermalinks'
@@ -493,7 +491,7 @@ export const useGolfGame = ({
     // Trim here so what the byte counter measured is what ships; the
     // server validates again and rejects what a stale client sends.
     const trimmed = text.trim()
-    if (!adapter?.sendChat || !trimmed) return
+    if (!adapter || !trimmed) return
     adapter.sendChat(trimmed)
   }, [])
 
@@ -503,10 +501,7 @@ export const useGolfGame = ({
 
   // Initialize network adapter and connect on mount
   useEffect(() => {
-    // Create network adapter with callbacks; ?golf=v2 opts this browser
-    // into the smithy hub (MoonBase#1187 phase 3), ?golf=v1 opts out.
-    const AdapterClass = isGolfV2Enabled() ? GolfV2NetworkAdapter : GolfNetworkAdapter
-    const adapter = new AdapterClass({
+    const adapter = new GolfNetworkAdapter({
       onReconnecting: () => {
         setIsReconnecting(true)
         // Safety: clear after 2s in case server has no state to restore
@@ -675,7 +670,7 @@ export const useGolfGame = ({
         // open, before the resume's roomState lands, so the join effect
         // usually sends a bare joinRoom that the hub refuses — the seat
         // is still in its old room server-side. That refusal is the cue,
-        // not the verdict: leave (the v2 wire needs no room id; the hub
+        // not the verdict: leave (the wire needs no room id; the hub
         // knows the seat's room) and let onRoomLeft chain the join. Once
         // per attempt, so a genuinely missing target cannot loop.
         if (errorMessage.includes('already in a room') && attempt.roomId &&
@@ -752,9 +747,7 @@ export const useGolfGame = ({
 
     networkAdapterRef.current = adapter
 
-    // Connect to server (the v2 adapter resolves its own endpoints)
-    const websocketUrl = import.meta.env.VITE_GOLF_WEBSOCKET_URL || 'wss://api.muchq.com/games/v1/golf-ws'
-    adapter.connect(websocketUrl)
+    adapter.connect()
 
     // Cleanup on unmount
     return () => {
@@ -962,8 +955,8 @@ export const useGolfGame = ({
       return
     }
 
-    // Compare path AND query: permalinks carry ?golf=v2 while the beta is
-    // active, and a pathname-only comparison would re-navigate every run.
+    // The permalink is the whole URL, query included: anything else in
+    // the address bar is replaced by the canonical link.
     // If we have both room and game state, ensure URL reflects game
     if (roomState && gameState && roomState.id && gameState.id) {
       const expectedUrl = generateGamePermalink(roomState.id, gameState.id)
