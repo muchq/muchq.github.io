@@ -61,6 +61,15 @@ describe('GolfNetworkAdapter', () => {
     expect(golfSessionUrl()).toBe('https://api.muchq.com/games/v2/session')
   })
 
+  it('follows the play url override, plain http for a plain ws', () => {
+    vi.stubEnv('VITE_GOLF_WEBSOCKET_URL', 'ws://localhost:2015/games/v2/golf/play')
+    try {
+      expect(golfSessionUrl()).toBe('http://localhost:2015/games/v2/session')
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
   let fetchMock: ReturnType<typeof vi.fn>
   let callbacks: MockedCallbacks
 
