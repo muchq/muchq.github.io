@@ -33,22 +33,13 @@ export interface Player {
   getBouncingY(time: number): number
 }
 
-// Player data as received from server in game_state messages
+// One player as the hub's wire carries it (thoughts.smithy's WorldPlayer):
+// in worldState's list and inside playerJoined.
 export interface GameStatePlayer {
   playerId: string
   position: [number, number, number]
   color: [number, number, number]
   shape: ShapeType
-}
-
-export interface NetworkMessage {
-  type: 'player_join' | 'player_leave' | 'position_update' | 'shape_update' | 'game_state' | 'welcome'
-  playerId?: string  // Optional - only used in server-to-client messages
-  position?: [number, number, number]
-  color?: [number, number, number]
-  shape?: ShapeType
-  timestamp: number
-  players?: GameStatePlayer[]  // For game_state messages
 }
 
 export interface VirtualJoystickState {
@@ -102,52 +93,6 @@ export interface WebGLShaderProgram {
     position: WebGLBuffer | null
     vao: WebGLVertexArrayObject | null
   }
-}
-
-export interface NetworkManager {
-  ws: WebSocket | null
-  isConnected: boolean
-  isSimulated: boolean
-  lastSentPosition: [number, number, number] | null
-  positionUpdateThrottle: number
-  lastPositionSent: number
-  pendingPlayerData?: {
-    position: [number, number, number]
-    color: [number, number, number]
-    shape: ShapeType
-  }
-  onPlayerIdReceived?: (playerId: string) => void
-  
-  connect(url: string): void
-  disconnect(): void
-  sendMessage(message: NetworkMessage): void
-  sendPositionUpdate(position: [number, number, number]): void
-  sendPlayerJoin(): void
-  setFakeServer(fakeServer: FakeServer): void
-}
-
-export interface BotPlayer {
-  id: string
-  position: [number, number, number]
-  color: [number, number, number]
-  velocity: [number, number, number]
-  direction: number
-  speed: number
-  directionChangeTimer: number
-}
-
-export interface FakeServer {
-  players: Map<string, BotPlayer>
-  isRunning: boolean
-  updateInterval: number | null
-  botPlayers: BotPlayer[]
-  stateUpdateFrequency: number
-  
-  start(): void
-  stop(): void
-  createBotPlayers(count: number): void
-  updateBotPositions(): void
-  sendStateUpdate(): void
 }
 
 export interface MelodyPattern {

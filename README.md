@@ -58,13 +58,15 @@ The nav's **Elsewhere** menu links to apps hosted off muchq.com (see the
 list). Those are external links, not routes — their code lives in their own
 repos, not here.
 
-### Golf
+### Golf and thoughts
 
-Golf speaks the golf_hub event-stream wire (`/games/v2/*` on api.muchq.com; the model and
-the protocol are documented with the service in MoonBase, `domains/games/apis/golf_hub`).
-`VITE_GOLF_WEBSOCKET_URL` overrides the play socket at build time; the session mint is
-derived from it. The UI reveals room chat only once the server actually delivers chat on
-the wire.
+Both speak the games hub's event-stream wire (`/games/v2/*` on api.muchq.com; the models
+and the protocol are documented with the service in MoonBase, `domains/games/apis/games_hub`).
+`VITE_GOLF_WEBSOCKET_URL` and `VITE_THOUGHTS_WEBSOCKET_URL` override the play sockets at
+build time; the session mint is derived from either (`src/utils/hubSession.ts`). Golf keeps
+a resume token so a reconnect reclaims its seat; thoughts mints a fresh identity per dial
+(`src/utils/networkSystem.ts` says why). The golf UI reveals room chat only once the server
+actually delivers chat on the wire.
 
 ## 🏗️ Project Structure
 
@@ -85,5 +87,4 @@ Routes are declared in `src/App.tsx`.
 
 ## 📄 Documentation
 
-- [THOUGHTS.md](THOUGHTS.md) — Thoughts multiplayer WebSocket API
 - [WORKING_AGREEMENT.md](WORKING_AGREEMENT.md) — How work gets picked up, built, reviewed, and shipped

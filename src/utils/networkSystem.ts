@@ -1,149 +1,169 @@
 /* eslint-disable no-console */
-import type { NetworkManager as INetworkManager, NetworkMessage, BotPlayer, FakeServer as IFakeServer, GameState } from '@/types/game'
-import { generateRandomColor, generateRandomSpawnPosition } from './gameUtils'
-import { GAME_CONFIG } from './gameClasses'
+// The thoughts client: the games hub's Think event-stream wire, behind the
+// NetworkManager surface useThoughtsGame drives. The contract is MoonBase's
+// domains/games/apis/games_hub/model/thoughts.smithy; this file is the
+// client's reading of it.
+//
+// Wire shape (smithy-cpp ADR-0018 JSON-text mode):
+//   - POST /games/v2/session {} -> {playerId, ticket, resumeToken}
+//   - new WebSocket(playUrl + "?ticket=...", "smithy.eventstream.v1+json")
+//   - frames both ways: {"event": "<member>", "payload": {...}}, and one
+//     terminal {"exception": "<shape>", "payload": {"message"}} when the
+//     hub refuses the dial (a spent ticket, a second live socket)
+//   - up: join {position, color, shape}, move {position}, shape {shape}, leave {}
+//   - down: sessionReady, worldState, playerJoined, playerMoved,
+//     shapeChanged, playerLeft, commandRejected
+//
+// Every dial mints a fresh identity: thoughts is presence, the hub keeps
+// nothing past the socket, and a fresh id per tab is what keeps two tabs
+// from contending for one seat. The resume token the mint returns is
+// unused here. A closed socket is a player gone on the hub's side, so the
+// manual reconnect mints again and joins afresh — the world hears a new
+// arrival, not a return.
+
+import type { GameState, GameStatePlayer } from '@/types/game'
 import { ShapeType } from '@/types/game'
+import { HUB_SUBPROTOCOL, mintHubSession } from './hubSession'
 
-// Network Communication System
-export class NetworkManager implements INetworkManager {
-  ws: WebSocket | null
-  isConnected: boolean
-  isSimulated: boolean
-  connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'failed'
-  connectionError: string | null
-  lastSentPosition: [number, number, number] | null
-  positionUpdateThrottle: number
-  lastPositionSent: number
-  messageHandlers: Map<string, (message: NetworkMessage) => void>
-  gameState: GameState
-  fakeServer: IFakeServer | null
-  pendingPlayerData?: {
-    position: [number, number, number]
-    color: [number, number, number]
-    shape: ShapeType
-  }
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'failed'
+
+export function thoughtsPlayUrl(): string {
+  return import.meta.env.VITE_THOUGHTS_WEBSOCKET_URL || 'wss://api.muchq.com/games/v2/thoughts/play'
+}
+
+// Inbound frames as a discriminated union: the switch narrows each case,
+// and a new event is a compile-time hole instead of a silent cast.
+export type ThoughtsFrame =
+  | { event: 'sessionReady'; payload: { playerId: string; resumed: boolean } }
+  | { event: 'worldState'; payload: { players: GameStatePlayer[] } }
+  | { event: 'playerJoined'; payload: { player: GameStatePlayer } }
+  | { event: 'playerMoved'; payload: { playerId: string; position: [number, number, number] } }
+  | { event: 'shapeChanged'; payload: { playerId: string; shape: ShapeType } }
+  | { event: 'playerLeft'; payload: { playerId: string } }
+  | { event: 'commandRejected'; payload: { reason: string } }
+  | { exception: string; payload: { message?: string } }
+
+type ThoughtsCommand = 'join' | 'move' | 'shape' | 'leave'
+
+const OFFLINE_ERROR = 'Connection failed - Playing offline'
+const RECONNECT_DELAY_MS = 100
+
+export class NetworkManager {
+  // True from the join going out until the socket closes: the hub refuses
+  // a move or shape before a join, so the render loop's sends gate on
+  // this, not on the socket being open.
+  isConnected = false
+  connectionStatus: ConnectionStatus = 'disconnected'
+  connectionError: string | null = null
+  lastSentPosition: [number, number, number] | null = null
+  positionUpdateThrottle = 50 // Send updates max every 50ms (20fps)
+  lastPositionSent = 0
   onPlayerIdReceived?: (playerId: string) => void
-  onConnectionStateChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'failed', error?: string) => void
-  websocketUrl: string | null
+  onConnectionStateChange?: (status: ConnectionStatus, error?: string) => void
 
-  constructor(gameState: GameState) {
-    this.ws = null
-    this.isConnected = false
-    this.isSimulated = false
-    this.connectionStatus = 'disconnected'
-    this.connectionError = null
-    this.lastSentPosition = null
-    this.positionUpdateThrottle = 50 // Send updates max every 50ms (20fps)
-    this.lastPositionSent = 0
-    this.messageHandlers = new Map()
-    this.gameState = gameState
-    this.fakeServer = null
-    this.websocketUrl = null
-  }
+  private ws: WebSocket | null = null
+  private websocketUrl: string | null = null
+  private reconnectTimeout: number | null = null
+  // Each dial gets a generation; a socket from an earlier one (retired by
+  // reconnect or disconnect, or a mint that resolved late) must not touch
+  // the state.
+  private dialGeneration = 0
+
+  constructor(private readonly gameState: GameState) {}
 
   connect(url: string): void {
     this.websocketUrl = url
+    // One live dial at a time: a connect over a live socket retires it,
+    // or the old session would stay joined under an id nobody can leave.
+    this.retire()
+    this.setStatus('connecting')
+    void this.dial(url, this.dialGeneration)
+  }
 
-    if (this.isSimulated) {
-      // Only simulate if explicitly in simulation mode
-      console.log('🔌 Simulating WebSocket connection to', url)
-      this.isConnected = true
-      this.connectionStatus = 'connected'
-      this.connectionError = null
-      this.onConnectionStateChange?.('connected')
-      this.onConnected()
-      return
-    }
-
+  private async dial(url: string, generation: number): Promise<void> {
+    let ws: WebSocket
     try {
-      this.connectionStatus = 'connecting'
-      this.connectionError = null
-      this.onConnectionStateChange?.('connecting')
-
-      this.ws = new WebSocket(url)
-
-      this.ws.onopen = () => {
-        console.log('🔌 WebSocket connected to', url)
-        this.isConnected = true
-        this.connectionStatus = 'connected'
-        this.connectionError = null
-        this.onConnectionStateChange?.('connected')
-        this.onConnected()
-      }
-
-      this.ws.onmessage = (event) => {
-        this.handleMessage(JSON.parse(event.data))
-      }
-
-      this.ws.onclose = () => {
-        console.log('🔌 WebSocket disconnected')
-        this.isConnected = false
-        this.connectionStatus = 'disconnected'
-        this.onConnectionStateChange?.('disconnected')
-        this.onDisconnected()
-      }
-
-      this.ws.onerror = (error) => {
-        console.error('🔌 WebSocket error:', error)
-        console.log('🎮 Running in single-player mode')
-        this.isConnected = false
-        this.connectionStatus = 'failed'
-        this.connectionError = 'Connection failed - Playing offline'
-        this.onConnectionStateChange?.('failed', this.connectionError)
-        // Don't try to simulate or create bots - just play single player
-      }
+      const session = await mintHubSession(url)
+      if (generation !== this.dialGeneration) return // superseded while minting
+      ws = new WebSocket(`${url}?ticket=${encodeURIComponent(session.ticket)}`, HUB_SUBPROTOCOL)
     } catch (error) {
       console.error('🔌 Failed to connect to WebSocket:', error)
       console.log('🎮 Running in single-player mode')
+      if (generation !== this.dialGeneration) return
+      this.setStatus('failed', OFFLINE_ERROR)
+      return
+    }
+    this.ws = ws
+
+    ws.onopen = () => {
+      if (generation !== this.dialGeneration) return
+      console.log('🔌 WebSocket connected to', url)
+      // Not connected yet: the join waits for sessionReady.
+    }
+
+    ws.onmessage = event => {
+      if (generation !== this.dialGeneration) return
+      try {
+        // The one boundary cast: frames are validated by shape of use,
+        // not a runtime schema — unknown events fall through the switch.
+        this.handleFrame(JSON.parse(event.data as string) as ThoughtsFrame)
+      } catch (error) {
+        console.error('🔌 bad frame', error)
+      }
+    }
+
+    ws.onclose = () => {
+      if (generation !== this.dialGeneration) return
+      console.log('🔌 WebSocket disconnected')
       this.isConnected = false
-      this.connectionStatus = 'failed'
-      this.connectionError = 'Connection failed - Playing offline'
-      this.onConnectionStateChange?.('failed', this.connectionError)
-      // Don't try to simulate or create bots - just play single player
+      // A refusal (exception frame, or the browser's error event) has
+      // already said why; the close that follows it must not overwrite
+      // that with a plain "offline".
+      if (this.connectionStatus !== 'failed') this.setStatus('disconnected')
+    }
+
+    ws.onerror = error => {
+      if (generation !== this.dialGeneration) return
+      console.error('🔌 WebSocket error:', error)
+      console.log('🎮 Running in single-player mode')
+      this.isConnected = false
+      this.setStatus('failed', OFFLINE_ERROR)
     }
   }
 
-  private onConnected(): void {
-    // Don't send player_join yet - wait for welcome message with server-assigned ID
+  private setStatus(status: ConnectionStatus, error: string | null = null): void {
+    this.connectionStatus = status
+    this.connectionError = error
+    this.onConnectionStateChange?.(status, error ?? undefined)
+  }
 
-    // Only start fake server if explicitly in simulation mode
-    if (this.isSimulated && this.fakeServer) {
-      this.fakeServer.start()
-      // In simulation mode, keep the existing local player ID
-      console.log('🤖 Simulation mode: keeping local player ID')
-      // Just send the player_join message directly without changing ID
-      setTimeout(() => {
-        this.sendPlayerJoin()
-      }, 100)
+  // Cancels any pending dial and closes any socket, silently: the retired
+  // generation's callbacks no longer speak for the manager.
+  private retire(): void {
+    this.dialGeneration++
+    if (this.reconnectTimeout !== null) {
+      clearTimeout(this.reconnectTimeout)
+      this.reconnectTimeout = null
     }
-    // If not simulated, wait for real server welcome message
+    this.ws?.close()
+    this.ws = null
+    this.isConnected = false
   }
 
-  setFakeServer(fakeServer: IFakeServer): void {
-    this.fakeServer = fakeServer
-  }
-
-  private onDisconnected(): void {
-    // Handle disconnection
-  }
-
-  sendPlayerJoin(): void {
+  private sendPlayerJoin(): void {
     const localPlayer = this.gameState.getLocalPlayer()
     if (!localPlayer) return
 
-    const message: NetworkMessage = {
-      type: 'player_join',
+    this.sendCommand('join', {
       position: localPlayer.position,
       color: localPlayer.color,
-      shape: localPlayer.shape,
-      timestamp: Date.now()
-    }
-
-    this.sendMessage(message)
-    console.log('📤 Sent player join:', message)
+      shape: localPlayer.shape
+    })
+    console.log('📤 Sent player join')
   }
 
   sendPositionUpdate(position: [number, number, number]): void {
+    if (!this.isConnected) return
     const now = Date.now()
 
     // Throttle position updates
@@ -163,406 +183,141 @@ export class NetworkManager implements INetworkManager {
       }
     }
 
-    const message: NetworkMessage = {
-      type: 'position_update',
-      position: position,
-      timestamp: now
-    }
-
-    this.sendMessage(message)
+    this.sendCommand('move', { position })
     this.lastSentPosition = [...position]
     this.lastPositionSent = now
   }
 
-  sendMessage(message: NetworkMessage): void {
-    if (this.isSimulated) {
-      // Simulate sending to server (just log for now)
-      console.log('📡 [SIMULATED] Sending to server:', message)
-      return
-    }
+  sendShapeUpdate(shape: ShapeType): void {
+    if (!this.isConnected) return
+    this.sendCommand('shape', { shape })
+  }
 
+  sendLeave(): void {
+    if (!this.isConnected) return
+    this.sendCommand('leave', {})
+  }
+
+  private sendCommand(event: ThoughtsCommand, payload: unknown): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message))
+      this.ws.send(JSON.stringify({ event, payload }))
     }
   }
 
-  handleMessage(message: NetworkMessage): void {
-    console.log('📥 Received from server:', message)
-
-    switch (message.type) {
-      case 'welcome':
-        this.handleWelcome(message)
-        break
-      case 'player_join':
-        this.handlePlayerJoin(message)
-        break
-      case 'player_leave':
-        this.handlePlayerLeave(message)
-        break
-      case 'position_update':
-        this.handlePositionUpdate(message)
-        break
-      case 'shape_update':
-        this.handleShapeUpdate(message)
-        break
-      case 'game_state':
-        this.handleGameState(message)
-        break
-      default:
-        console.warn('Unknown message type:', message.type)
-    }
-  }
-
-  private handleWelcome(message: NetworkMessage): void {
-    if (!message.playerId) {
-      console.error('Welcome message missing playerId')
+  private handleFrame(frame: ThoughtsFrame): void {
+    if ('exception' in frame) {
+      // The hub refused the dial and will close; the reason is the one
+      // it gave, and the close must not downgrade it to "offline".
+      console.error(`🚫 Refused by the hub: ${frame.exception}`, frame.payload.message)
+      this.isConnected = false
+      this.setStatus('failed', frame.payload.message ?? frame.exception)
       return
     }
+    switch (frame.event) {
+      case 'sessionReady':
+        this.handleSessionReady(frame.payload.playerId)
+        return
+      case 'worldState':
+        this.handleWorldState(frame.payload.players)
+        return
+      case 'playerJoined':
+        this.addRemotePlayer(frame.payload.player)
+        return
+      case 'playerLeft':
+        this.handlePlayerLeft(frame.payload.playerId)
+        return
+      case 'playerMoved':
+        if (frame.payload.playerId !== this.gameState.localPlayerId) {
+          this.gameState.updatePlayer(frame.payload.playerId, frame.payload.position)
+        }
+        return
+      case 'shapeChanged':
+        this.handleShapeChanged(frame.payload.playerId, frame.payload.shape)
+        return
+      case 'commandRejected':
+        console.warn('🚫 Command rejected:', frame.payload.reason)
+        return
+      default:
+        console.warn('Unknown event:', frame)
+    }
+  }
 
-    // Get the existing local player
-    const existingLocalPlayer = this.gameState.getLocalPlayer()
+  private handleSessionReady(playerId: string): void {
+    const localPlayer = this.gameState.getLocalPlayer()
     const oldLocalPlayerId = this.gameState.localPlayerId
 
-    // Update to server-assigned ID
-    this.gameState.localPlayerId = message.playerId
-    console.log(`🎉 Received player ID from server: ${message.playerId} (replacing ${oldLocalPlayerId})`)
-
-    // If we already had a local player, update its ID
-    if (existingLocalPlayer && oldLocalPlayerId) {
-      // Remove the old player entry
+    // Re-key the local player under the server's id.
+    this.gameState.localPlayerId = playerId
+    console.log(`🎉 Received player ID from server: ${playerId} (replacing ${oldLocalPlayerId})`)
+    if (localPlayer && oldLocalPlayerId) {
       this.gameState.players.delete(oldLocalPlayerId)
-
-      // Re-add with new ID
-      this.gameState.addPlayer(
-        message.playerId,
-        existingLocalPlayer.position,
-        existingLocalPlayer.color,
-        existingLocalPlayer.shape
-      )
-
-      console.log(`Updated local player ID from ${oldLocalPlayerId} to ${message.playerId}`)
-    } else if (this.pendingPlayerData) {
-      // Fallback: create player if somehow it doesn't exist
-      this.gameState.addPlayer(
-        message.playerId,
-        this.pendingPlayerData.position,
-        this.pendingPlayerData.color,
-        this.pendingPlayerData.shape
-      )
-
-      console.log(`Spawning player ${message.playerId} at position [${this.pendingPlayerData.position.map(x => x.toFixed(2)).join(', ')}] with color [${this.pendingPlayerData.color.map(x => x.toFixed(2)).join(', ')}]`)
+      this.gameState.addPlayer(playerId, localPlayer.position, localPlayer.color, localPlayer.shape)
     }
 
-    // Call the callback with new server ID
-    if (this.onPlayerIdReceived) {
-      this.onPlayerIdReceived(message.playerId)
-    }
+    this.onPlayerIdReceived?.(playerId)
 
-    // Send the player_join message
+    // Enter the world; from here the render loop's moves are welcome.
     this.sendPlayerJoin()
-
-    // Clear pending data
-    this.pendingPlayerData = undefined
+    this.isConnected = true
+    this.setStatus('connected')
   }
 
-  private handlePlayerJoin(message: NetworkMessage): void {
-    if (!message.playerId) {
-      console.error('Player join message missing playerId')
-      return
-    }
-
-    if (message.playerId !== this.gameState.localPlayerId) {
-      this.gameState.addPlayer(
-        message.playerId,
-        message.position!,
-        message.color!,
-        message.shape || ShapeType.SPHERE
-      )
-      console.log(`👋 Player ${message.playerId} joined at [${message.position!.join(', ')}]`)
-    }
-  }
-
-  private handlePlayerLeave(message: NetworkMessage): void {
-    if (!message.playerId) {
-      console.error('Player leave message missing playerId')
-      return
-    }
-
-    if (message.playerId !== this.gameState.localPlayerId) {
-      const player = this.gameState.players.get(message.playerId)
-      if (player) {
-        console.log(`👋 Player ${message.playerId} left the game`)
-        this.gameState.removePlayer(message.playerId)
-        console.log(`📊 ${this.gameState.players.size} players remaining`)
+  // The snapshot is authoritative: everyone it lists is here, and everyone
+  // else we remembered has gone — their playerLeft went out while this
+  // client was off the wire.
+  private handleWorldState(players: GameStatePlayer[]): void {
+    const listed = new Set(players.map(player => player.playerId))
+    for (const id of [...this.gameState.players.keys()]) {
+      if (id !== this.gameState.localPlayerId && !listed.has(id)) {
+        this.gameState.removePlayer(id)
       }
     }
+    for (const player of players) this.addRemotePlayer(player)
+    console.log(`🎮 World state: ${players.length} players`)
   }
 
-  private handlePositionUpdate(message: NetworkMessage): void {
-    if (!message.playerId) {
-      console.error('Position update message missing playerId')
-      return
-    }
-
-    if (message.playerId !== this.gameState.localPlayerId) {
-      this.gameState.updatePlayer(message.playerId, message.position!)
-    }
+  private addRemotePlayer(player: GameStatePlayer): void {
+    // The hub never lists the joiner; the guard pins that a copy of
+    // ourselves could not replace us if it did.
+    if (player.playerId === this.gameState.localPlayerId) return
+    this.gameState.addPlayer(player.playerId, player.position, player.color, player.shape ?? ShapeType.SPHERE)
+    console.log(`👋 Player ${player.playerId} joined at [${player.position.join(', ')}]`)
   }
 
-  private handleShapeUpdate(message: NetworkMessage): void {
-    if (!message.playerId) {
-      console.error('Shape update message missing playerId')
-      return
-    }
-
-    if (message.playerId !== this.gameState.localPlayerId) {
-      const player = this.gameState.players.get(message.playerId)
-      if (player) {
-        player.shape = message.shape!
-        const shapeNames = ['Sphere', 'Cube', 'Pyramid']
-        console.log(`🔄 Player ${message.playerId} changed to: ${shapeNames[message.shape!]}`)
-      }
+  private handlePlayerLeft(playerId: string): void {
+    if (playerId === this.gameState.localPlayerId) return
+    if (this.gameState.players.get(playerId)) {
+      console.log(`👋 Player ${playerId} left the game`)
+      this.gameState.removePlayer(playerId)
+      console.log(`📊 ${this.gameState.players.size} players remaining`)
     }
   }
 
-  private handleGameState(message: NetworkMessage): void {
-    // Handle full game state updates
-    console.log('🎮 Received game state update:', message)
-
-    // Process the players array from the game_state message
-    if (message.players && Array.isArray(message.players)) {
-      message.players.forEach(player => {
-        // Skip adding the local player (server uses "playerId" field)
-        if (player.playerId !== this.gameState.localPlayerId) {
-          this.gameState.addPlayer(player.playerId, player.position, player.color, player.shape || ShapeType.SPHERE)
-          console.log(`🎮 Added player ${player.playerId} from game state at [${player.position.join(', ')}]`)
-        }
-      })
+  private handleShapeChanged(playerId: string, shape: ShapeType): void {
+    if (playerId === this.gameState.localPlayerId) return
+    const player = this.gameState.players.get(playerId)
+    if (player) {
+      player.shape = shape
+      const shapeNames = ['Sphere', 'Cube', 'Pyramid']
+      console.log(`🔄 Player ${playerId} changed to: ${shapeNames[shape]}`)
     }
   }
 
   disconnect(): void {
-    if (this.ws) {
-      this.ws.close()
-    }
-    this.isConnected = false
-    this.connectionStatus = 'disconnected'
-    this.onConnectionStateChange?.('disconnected')
+    this.retire()
+    this.setStatus('disconnected')
   }
 
   reconnect(): void {
     console.log('🔄 Attempting to reconnect...')
-    // Close existing connection if any
-    if (this.ws) {
-      this.ws.close()
-      this.ws = null
-    }
-
-    // Reset connection state
-    this.isConnected = false
+    this.retire()
     this.connectionError = null
-
-    // Reconnect after a short delay
     if (this.websocketUrl) {
-      setTimeout(() => {
-        this.connect(this.websocketUrl!)
-      }, 100)
+      const url = this.websocketUrl
+      this.reconnectTimeout = window.setTimeout(() => {
+        this.reconnectTimeout = null
+        this.connect(url)
+      }, RECONNECT_DELAY_MS)
     }
-  }
-}
-
-// Fake Server Simulation (for testing multiplayer without real server)
-export class FakeServer implements IFakeServer {
-  players: Map<string, BotPlayer>
-  isRunning: boolean
-  updateInterval: number | null
-  botPlayers: BotPlayer[]
-  stateUpdateFrequency: number
-  networkManager: NetworkManager
-
-  constructor(networkManager: NetworkManager) {
-    this.players = new Map()
-    this.isRunning = false
-    this.updateInterval = null
-    this.botPlayers = []
-    this.stateUpdateFrequency = 300 // Send state updates every 300ms for smoother movement
-    this.networkManager = networkManager
-  }
-
-  start(): void {
-    if (this.isRunning) return
-    this.isRunning = true
-
-    // Create some bot players for testing
-    this.createBotPlayers(2) // Create 2 bot players
-
-    // Start sending periodic state updates
-    this.updateInterval = window.setInterval(() => {
-      this.sendStateUpdate()
-    }, this.stateUpdateFrequency)
-
-    console.log('🤖 Fake server started with bot players')
-  }
-
-  stop(): void {
-    if (!this.isRunning) return
-    this.isRunning = false
-
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval)
-      this.updateInterval = null
-    }
-
-    console.log('🤖 Fake server stopped')
-  }
-
-  createBotPlayers(count: number): void {
-    for (let i = 0; i < count; i++) {
-      const botId = `bot-${i + 1}`
-      const botPlayer: BotPlayer = {
-        id: botId,
-        position: generateRandomSpawnPosition(GAME_CONFIG.worldBoundary),
-        color: generateRandomColor(),
-        velocity: [0, 0, 0], // Start stationary
-        direction: Math.random() * Math.PI * 2, // Random direction
-        speed: 0.02 + Math.random() * 0.03, // Adjusted for 300ms updates: 0.02-0.05 units per update
-        directionChangeTimer: 0
-      }
-
-      this.players.set(botId, botPlayer)
-      this.botPlayers.push(botPlayer)
-
-      // Simulate bot joining
-      setTimeout(() => {
-        this.simulatePlayerJoin(botPlayer)
-      }, 1000 + i * 500) // Stagger bot joins
-    }
-  }
-
-  updateBotPositions(): void {
-    this.botPlayers.forEach(bot => {
-      // Increment direction change timer
-      bot.directionChangeTimer++
-
-      // Change direction less frequently and more smoothly
-      if (bot.directionChangeTimer > 10 + Math.random() * 17) { // Change direction every 3-8 seconds
-        bot.direction += (Math.random() - 0.5) * 0.3 // Smaller direction changes
-        bot.directionChangeTimer = 0
-      }
-
-      // Sometimes pause movement for more natural behavior
-      const shouldMove = Math.random() > 0.1 // 90% chance to move each update
-
-      if (shouldMove) {
-        // Update velocity based on direction (much slower)
-        bot.velocity[0] = Math.cos(bot.direction) * bot.speed
-        bot.velocity[2] = Math.sin(bot.direction) * bot.speed
-
-        // Update position
-        bot.position[0] += bot.velocity[0]
-        bot.position[2] += bot.velocity[2]
-      }
-
-      // Smoother boundary handling - turn around gradually when approaching edges
-      const boundaryBuffer = 10
-      if (Math.abs(bot.position[0]) > GAME_CONFIG.worldBoundary - boundaryBuffer) {
-        // Turn away from boundary gradually
-        const turnDirection = bot.position[0] > 0 ? Math.PI : 0
-        bot.direction = bot.direction * 0.8 + turnDirection * 0.2
-        bot.directionChangeTimer = 0
-      }
-      if (Math.abs(bot.position[2]) > GAME_CONFIG.worldBoundary - boundaryBuffer) {
-        // Turn away from boundary gradually
-        const turnDirection = bot.position[2] > 0 ? -Math.PI/2 : Math.PI/2
-        bot.direction = bot.direction * 0.8 + turnDirection * 0.2
-        bot.directionChangeTimer = 0
-      }
-    })
-  }
-
-  sendStateUpdate(): void {
-    if (!this.isRunning) return
-
-    // Update bot positions
-    this.updateBotPositions()
-
-    // Occasionally disconnect and reconnect bots for testing
-    if (Math.random() < 0.002) { // 0.2% chance per update (roughly every 2-3 minutes)
-      this.simulateRandomDisconnection()
-    }
-
-    // Send position updates for each bot
-    this.botPlayers.forEach(bot => {
-      const message: NetworkMessage = {
-        type: 'position_update',
-        playerId: bot.id,
-        position: [...bot.position],
-        timestamp: Date.now()
-      }
-
-      // Simulate receiving the message
-      setTimeout(() => {
-        this.networkManager.handleMessage(message)
-      }, 10 + Math.random() * 20) // Simulate 10-30ms network latency
-    })
-  }
-
-  simulateRandomDisconnection(): void {
-    if (this.botPlayers.length === 0) return
-
-    // Pick a random bot to disconnect
-    const randomIndex = Math.floor(Math.random() * this.botPlayers.length)
-    const botToRemove = this.botPlayers[randomIndex]
-
-    console.log(`🤖 Simulating disconnection of bot ${botToRemove.id}`)
-    this.simulatePlayerLeave(botToRemove.id)
-
-    // After a random delay, add a new bot to maintain population
-    setTimeout(() => {
-      if (this.isRunning && this.botPlayers.length < 3) { // Keep 2-3 bots
-        console.log('🤖 Adding replacement bot after disconnection')
-        this.createBotPlayers(1)
-      }
-    }, 3000 + Math.random() * 5000) // Wait 3-8 seconds before adding replacement
-  }
-
-  private simulatePlayerJoin(player: BotPlayer): void {
-    const message: NetworkMessage = {
-      type: 'player_join',
-      playerId: player.id,
-      position: [...player.position],
-      color: [...player.color],
-      timestamp: Date.now()
-    }
-
-    // Simulate receiving the join message
-    setTimeout(() => {
-      this.networkManager.handleMessage(message)
-    }, 50 + Math.random() * 100) // Simulate 50-150ms network latency
-  }
-
-  private simulatePlayerLeave(playerId: string): void {
-    const message: NetworkMessage = {
-      type: 'player_leave',
-      playerId: playerId,
-      timestamp: Date.now()
-    }
-
-    // Simulate receiving the leave message
-    setTimeout(() => {
-      this.networkManager.handleMessage(message)
-    }, 50 + Math.random() * 100)
-
-    // Remove from fake server
-    this.players.delete(playerId)
-    this.botPlayers = this.botPlayers.filter(bot => bot.id !== playerId)
-  }
-}
-
-// Test function for debugging (each tab gets its own instance)
-export function createTestDisconnectionFunction(fakeServer: FakeServer): () => void {
-  return () => {
-    console.log('🧪 Testing bot disconnection...')
-    fakeServer.simulateRandomDisconnection()
   }
 }

@@ -5,7 +5,7 @@ import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
 import { generateRandomColor, generateRandomSpawnPosition, createShader, createProgram } from '@/utils/gameUtils'
 import { VirtualJoystick } from '@/utils/virtualJoystick'
 import { AudioSystem } from '@/utils/audioSystem'
-import { NetworkManager, FakeServer } from '@/utils/networkSystem'
+import { NetworkManager, thoughtsPlayUrl } from '@/utils/networkSystem'
 import { ShapeType } from '@/types/game'
 
 export const useThoughtsGame = () => {
@@ -35,15 +35,6 @@ export const useThoughtsGame = () => {
       }
     }
 
-    // Only create fake server if explicitly in simulated mode (not as fallback)
-    const isSimulated = import.meta.env.VITE_THOUGHTS_SIMULATED === 'true'
-    if (isSimulated) {
-      const fakeServer = new FakeServer(networkManager)
-      networkManager.setFakeServer(fakeServer)
-      // Enable simulation mode
-      networkManager.isSimulated = true
-    }
-
     // Prepare local player data
     const randomSpawnPosition = generateRandomSpawnPosition(GAME_CONFIG.worldBoundary)
     const randomColor = generateRandomColor()
@@ -63,13 +54,6 @@ export const useThoughtsGame = () => {
     // Notify that we have a player ID (even if offline)
     if (onPlayerIdReceived) {
       onPlayerIdReceived(localPlayerId)
-    }
-
-    // Store initial player data for when we connect to server
-    networkManager.pendingPlayerData = {
-      position: randomSpawnPosition,
-      color: randomColor,
-      shape: ShapeType.SPHERE
     }
 
     // Input tracking
@@ -119,12 +103,7 @@ export const useThoughtsGame = () => {
 
       // Send shape update to server
       if (networkManager.isConnected) {
-        const message = {
-          type: 'shape_update' as const,
-          shape: localPlayer.shape,
-          timestamp: Date.now()
-        }
-        networkManager.sendMessage(message)
+        networkManager.sendShapeUpdate(localPlayer.shape)
       }
     }
 
@@ -645,7 +624,7 @@ export const useThoughtsGame = () => {
     }
 
     // Connect to server (or simulate connection) - but don't block game from starting
-    const websocketUrl = import.meta.env.VITE_THOUGHTS_WEBSOCKET_URL || 'wss://api.muchq.com/games/v1/thoughts-ws'
+    const websocketUrl = thoughtsPlayUrl()
 
     // Delay connection attempt slightly to ensure game renders first
     setTimeout(() => {
@@ -655,13 +634,8 @@ export const useThoughtsGame = () => {
     // Handle page unload - notify server when player leaves
     const handleBeforeUnload = () => {
       if (networkManager.isConnected) {
-        const localPlayer = gameState.getLocalPlayer()
-        if (localPlayer) {
-          const message = {
-            type: 'player_leave' as const,
-            timestamp: Date.now()
-          }
-          networkManager.sendMessage(message)
+        if (gameState.getLocalPlayer()) {
+          networkManager.sendLeave()
         }
         networkManager.disconnect()
       }
@@ -689,9 +663,6 @@ export const useThoughtsGame = () => {
       // Clean up game systems
       audioSystem.cleanup()
       networkManager.disconnect()
-      if (networkManager.fakeServer) {
-        networkManager.fakeServer.stop()
-      }
     }
   }, [])
 

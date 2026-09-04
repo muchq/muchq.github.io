@@ -32,6 +32,7 @@ import {
   gameOverMessage
 } from './golfNotifications'
 import { safeLocalStorage } from './safeLocalStorage'
+import { HUB_SUBPROTOCOL, hubSessionUrl, mintHubSession } from './hubSession'
 
 export type { GolfAdapterCallbacks } from '@/types/golfAdapter'
 
@@ -39,17 +40,11 @@ export function golfPlayUrl(): string {
   return import.meta.env.VITE_GOLF_WEBSOCKET_URL || 'wss://api.muchq.com/games/v2/golf/play'
 }
 
-// The session mint lives beside the play socket: same origin, http(s)
-// for ws(s), /games/v2/session.
 export function golfSessionUrl(): string {
-  const play = new URL(golfPlayUrl())
-  const protocol = play.protocol === 'wss:' ? 'https:' : 'http:'
-  return `${protocol}//${play.host}/games/v2/session`
+  return hubSessionUrl(golfPlayUrl())
 }
 
 const RESUME_TOKEN_KEY = 'golf_v2_resume_token'
-const SUBPROTOCOL = 'smithy.eventstream.v1+json'
-const MINT_TIMEOUT_MS = 10_000
 // 2s x 10 sits well inside the hub's 5-minute reconnect grace.
 const RECONNECT_DELAY_MS = 2000
 const MAX_RECONNECT_ATTEMPTS = 10
@@ -305,28 +300,12 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
 
   private async dial(): Promise<void> {
     try {
-      const stored = safeLocalStorage.get(RESUME_TOKEN_KEY)
-      const response = await fetch(golfSessionUrl(), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(stored ? { resumeToken: stored } : {}),
-        // A hung server must count as a failed attempt, not stall the
-        // bounded reconnect loop forever.
-        signal: AbortSignal.timeout(MINT_TIMEOUT_MS)
-      })
-      if (!response.ok) {
-        throw new Error(`session mint failed: ${response.status}`)
-      }
-      const session = (await response.json()) as {
-        playerId: string
-        ticket: string
-        resumeToken: string
-      }
+      const session = await mintHubSession(golfPlayUrl(), safeLocalStorage.get(RESUME_TOKEN_KEY))
       this._playerId = session.playerId
       safeLocalStorage.set(RESUME_TOKEN_KEY, session.resumeToken)
 
       const url = `${golfPlayUrl()}?ticket=${encodeURIComponent(session.ticket)}`
-      const ws = new WebSocket(url, SUBPROTOCOL)
+      const ws = new WebSocket(url, HUB_SUBPROTOCOL)
       this.ws = ws
       this.sawSessionReady = false
 
