@@ -90,7 +90,7 @@ const CastleGame = (props: UseCastleGameProps) => {
     return (
       <div className={styles.lobby}>
         <h1 className={styles.title}>Castle</h1>
-        <p className={styles.tagline}>Shed every card first. Twos reset, tens burn, fours of a kind burn.</p>
+        <p className={styles.tagline}>Shed every card first. 2s reset the deck, 10s clear it, four of a kind counts as a 10.</p>
         <div className={styles.lobbyActions}>
           <button type="button" className={styles.primary} onClick={game.createRoom} disabled={!connected}>
             Create a room
@@ -218,66 +218,77 @@ const CastleGame = (props: UseCastleGameProps) => {
           {onTurn && <span className={styles.turn}> · to play</span>}
           {seat.out && <span className={styles.muted}> · out</span>}
         </h3>
-        <div className={styles.rows}>
-          <div className={styles.rowCards} role="group" aria-label={`${whose} face-down row`}>
-            {Array.from({ length: seat.faceDownCount }, (_, i) => (
-              <CardBack
-                key={i}
-                label={mine && myTurn && myRow === 'faceDown' ? `flip face-down card ${i + 1}` : 'face-down card'}
-                onClick={mine && myTurn && myRow === 'faceDown' && connected ? () => game.playFaceDown(i) : undefined}
-              />
-            ))}
-          </div>
-          <div className={styles.rowCards} role="group" aria-label={`${whose} face-up row`}>
-            {seat.faceUp.map((card, i) => {
-              const swappable = mine && swapFrom !== null
-              const playable = mine && myTurn && myRow === 'faceUp'
-              if (swappable) {
-                return (
-                  <CardFace
-                    key={i}
-                    card={card}
-                    className={styles.swapTarget}
-                    label={`swap for ${face(card)}`}
-                    onClick={() => {
-                      game.swapForSetup(swapFrom, i)
-                      setPendingSwap(null)
-                    }}
-                  />
-                )
-              }
-              return (
-                <CardFace
-                  key={i}
-                  card={card}
-                  toggle={playable ? selected.includes(i) : undefined}
-                  onClick={playable && connected ? () => game.toggleCard(i) : undefined}
-                />
-              )
-            })}
-          </div>
-          <div className={styles.rowCards} role="group" aria-label={`${whose} hand`}>
-            {seat.hand.length > 0
-              ? seat.hand.map((card, i) => {
-                  const picking = mine && arranging
-                  const playable = mine && myTurn && myRow === 'hand'
-                  return (
-                    <CardFace
-                      key={i}
-                      card={card}
-                      toggle={picking ? swapFrom === i : playable ? selected.includes(i) : undefined}
-                      onClick={
-                        picking
-                          ? () => setPendingSwap(swapFrom === i ? null : { gameId: view.gameId, index: i })
-                          : playable && connected
-                            ? () => game.toggleCard(i)
-                            : undefined
-                      }
+        {/* The castle: three stacks, each a face-down card with a face-up
+            card covering it. Stacks pair the rows by index, which is how
+            they were dealt; a played face-up card leaves its back bare. */}
+        <div className={styles.castle} role="group" aria-label={`${whose} castle`}>
+          {Array.from({ length: Math.max(seat.faceDownCount, seat.faceUp.length) }, (_, i) => {
+            const card = seat.faceUp[i]
+            const swappable = card !== undefined && mine && swapFrom !== null
+            const playable = card !== undefined && mine && myTurn && myRow === 'faceUp'
+            const blind = mine && myTurn && myRow === 'faceDown'
+            return (
+              <div key={i} className={styles.stack}>
+                {i < seat.faceDownCount && (
+                  <span className={styles.stackBase}>
+                    <CardBack
+                      label={blind ? `flip face-down card ${i + 1}` : 'face-down card'}
+                      onClick={blind && connected ? () => game.playFaceDown(i) : undefined}
                     />
-                  )
-                })
-              : Array.from({ length: seat.handCount }, (_, i) => <CardBack key={i} label="hand card" />)}
-          </div>
+                  </span>
+                )}
+                {card !== undefined && (
+                  <span className={styles.stackTop}>
+                    {swappable ? (
+                      <CardFace
+                        card={card}
+                        className={styles.swapTarget}
+                        label={`swap for ${face(card)}`}
+                        onClick={() => {
+                          game.swapForSetup(swapFrom, i)
+                          setPendingSwap(null)
+                        }}
+                      />
+                    ) : (
+                      <CardFace
+                        card={card}
+                        toggle={playable ? selected.includes(i) : undefined}
+                        onClick={playable && connected ? () => game.toggleCard(i) : undefined}
+                      />
+                    )}
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        {/* The hand, fanned: faces for the viewer's own (and everyone's
+            once the game ends), backs for the rest. */}
+        <div className={styles.hand} role="group" aria-label={`${whose} hand`}>
+          {(seat.hand.length > 0 ? seat.hand : Array.from({ length: seat.handCount }, () => null)).map((card, i, all) => {
+            const picking = card !== null && mine && arranging
+            const playable = card !== null && mine && myTurn && myRow === 'hand'
+            const angle = (i - (all.length - 1) / 2) * 5
+            return (
+              <span key={i} className={styles.fanSlot} style={{ transform: `rotate(${angle}deg) translateY(${Math.abs(angle) * 0.35}px)` }}>
+                {card === null ? (
+                  <CardBack label="hand card" />
+                ) : (
+                  <CardFace
+                    card={card}
+                    toggle={picking ? swapFrom === i : playable ? selected.includes(i) : undefined}
+                    onClick={
+                      picking
+                        ? () => setPendingSwap(swapFrom === i ? null : { gameId: view.gameId, index: i })
+                        : playable && connected
+                          ? () => game.toggleCard(i)
+                          : undefined
+                    }
+                  />
+                )}
+              </span>
+            )
+          })}
         </div>
       </section>
     )
@@ -291,7 +302,7 @@ const CastleGame = (props: UseCastleGameProps) => {
         : 'Now pick the face-up card to swap it with.'
     }
     if (view.phase === 'setup' && me?.ready) return 'Ready. Waiting for the table.'
-    if (myTurn && myRow === 'faceDown') return 'Flip a face-down card. Blind.'
+    if (myTurn && myRow === 'faceDown') return 'Flip a face-down card, blind, or pick up the pile.'
     return ''
   })()
 
@@ -310,20 +321,20 @@ const CastleGame = (props: UseCastleGameProps) => {
         </button>
       )
     }
-    if (myTurn && me !== undefined && myRow !== 'faceDown') {
+    if (myTurn && me !== undefined) {
+      // The pile is always the mover's to take, a legal play or not.
+      const pickUp = (
+        <button type="button" className={styles.secondary} onClick={game.pickUp} disabled={view.pileCount === 0 || !connected}>
+          Pick up the pile
+        </button>
+      )
+      if (myRow === 'faceDown') return pickUp
       return (
         <>
           <button type="button" className={styles.primary} onClick={game.playSelected} disabled={selected.length === 0 || !connected}>
             Play {selected.length > 0 ? selected.map(i => face(inPlay[i])).join(' ') : ''}
           </button>
-          <button
-            type="button"
-            className={styles.secondary}
-            onClick={game.pickUp}
-            disabled={me.canPlay || view.pileCount === 0 || !connected}
-          >
-            Pick up the pile
-          </button>
+          {pickUp}
         </>
       )
     }
@@ -355,7 +366,18 @@ const CastleGame = (props: UseCastleGameProps) => {
         {(view.phase === 'playing' || view.phase === 'ended') && (
           <section className={styles.pile} aria-label="pile">
             <div className={styles.pileCards}>
-              {view.pileTop === undefined ? <div className={styles.emptyPile}>empty</div> : <CardFace card={view.pileTop} />}
+              {view.run.length === 0 ? (
+                <div className={styles.emptyPile}>empty</div>
+              ) : (
+                // The run on top, tightly fanned: a pair of sevens reads as a pair.
+                <div className={styles.run} role="group" aria-label="run on top">
+                  {view.run.map((card, i) => (
+                    <span key={i} className={styles.runSlot} style={{ transform: `rotate(${(i - (view.run.length - 1) / 2) * 4}deg)` }}>
+                      <CardFace card={card} />
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className={styles.pileText}>
                 <p>{describePile(view)}</p>
                 <p className={styles.muted}>

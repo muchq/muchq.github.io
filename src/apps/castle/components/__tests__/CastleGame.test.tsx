@@ -41,8 +41,10 @@ const view = (over: Partial<CastleView> = {}): CastleView => ({
   currentPlayerId: 'alice',
   drawPileCount: 30,
   pileCount: 2,
-  pileTop: { rank: '8', suit: '♥' },
-  pileRun: 2,
+  run: [
+    { rank: '8', suit: '♠' },
+    { rank: '8', suit: '♥' }
+  ],
   finished: [],
   lastPlay: { playerId: 'bob', cards: [{ rank: '8', suit: '♥' }], burned: false, pickedUp: false },
   ...over
@@ -135,6 +137,22 @@ describe('CastleGame', () => {
     expect(pair.startTable).toHaveBeenCalled()
   })
 
+  it("shows a castle of stacks and a hand: the other seat's faces on its stacks, backs in its hand", () => {
+    const bobSeat = seat('bob', { faceUp: [{ rank: 'J', suit: '♠' }, { rank: 'J', suit: '♥' }], faceDownCount: 3, handCount: 2 })
+    mountWith({ room: { roomId: 'R', players: [], games: [] }, view: view({ players: [seat('alice', { hand: myHand }), bobSeat] }) })
+    const castle = within(screen.getByRole('group', { name: "bob's castle" }))
+    // Three stacks: two with a face on the back, the third bare where
+    // its face-up card was played.
+    expect(castle.getAllByRole('img', { name: 'face-down card' })).toHaveLength(3)
+    expect(castle.getByRole('img', { name: 'J♠' })).toBeDefined()
+    expect(castle.getByRole('img', { name: 'J♥' })).toBeDefined()
+    const hand = within(screen.getByRole('group', { name: "bob's hand" }))
+    expect(hand.getAllByRole('img', { name: 'hand card' })).toHaveLength(2)
+    expect(hand.queryByRole('img', { name: /[♠♥♦♣]$/ })).toBeNull()
+    // The viewer's own hand is faces.
+    expect(within(screen.getByRole('group', { name: 'Your hand' })).getByRole('button', { name: 'K♦' })).toBeDefined()
+  })
+
   it('offline, nothing at the table sends', () => {
     const game = mountWith({ room: { roomId: 'R', players: [], games: [] }, view: view(), selected: [0], connected: false })
     expect(screen.getByRole('button', { name: /^Play/ })).toBeDisabled()
@@ -172,7 +190,11 @@ describe('CastleGame', () => {
 
   it('on turn: hand cards select, play sends the selection, pick-up only without a play', () => {
     const game = mountWith({ room: { roomId: 'R', players: [], games: [] }, view: view(), selected: [0, 1] })
-    expect(screen.getByText('two 8s on top: play two or more of 8 or higher')).toBeDefined()
+    expect(screen.getByText('two 8s on top: play one or more of 8 or higher')).toBeDefined()
+    // The run itself is on the table, every card of it.
+    const run = within(screen.getByRole('group', { name: 'run on top' }))
+    expect(run.getByRole('img', { name: '8♠' })).toBeDefined()
+    expect(run.getByRole('img', { name: '8♥' })).toBeDefined()
     expect(screen.getByText('bob played 8♥')).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: 'Q♠' }))
     expect(game.toggleCard).toHaveBeenCalledWith(2)
@@ -182,16 +204,17 @@ describe('CastleGame', () => {
     // Bob's hand is a count of backs, never faces, and not buttons.
     const bob = within(screen.getByRole('region', { name: 'bob' }))
     expect(within(bob.getByRole('group', { name: "bob's hand" })).getAllByRole('img', { name: 'hand card' })).toHaveLength(3)
-    expect(screen.getByRole('group', { name: 'Your face-down row' })).toBeDefined()
+    expect(screen.getByRole('group', { name: 'Your castle' })).toBeDefined()
   })
 
-  it('a legal play in hand forbids the pick-up, and so does an empty pile', () => {
+  it('the pile is always there to pick up, unless it is empty', () => {
     const playable = view()
     playable.players[0] = { ...playable.players[0], canPlay: true }
-    mountWith({ room: { roomId: 'R', players: [], games: [] }, view: playable })
-    expect(screen.getByRole('button', { name: 'Pick up the pile' })).toBeDisabled()
+    const game = mountWith({ room: { roomId: 'R', players: [], games: [] }, view: playable })
+    fireEvent.click(screen.getByRole('button', { name: 'Pick up the pile' }))
+    expect(game.pickUp).toHaveBeenCalled()
     cleanup()
-    mountWith({ room: { roomId: 'R', players: [], games: [] }, view: view({ pileCount: 0, pileTop: undefined, pileRun: 0, lastPlay: undefined }) })
+    mountWith({ room: { roomId: 'R', players: [], games: [] }, view: view({ pileCount: 0, run: [], lastPlay: undefined }) })
     expect(screen.getByText('Empty pile: anything goes')).toBeDefined()
     expect(screen.getByRole('button', { name: 'Pick up the pile' })).toBeDisabled()
   })
@@ -204,13 +227,15 @@ describe('CastleGame', () => {
     expect(screen.getByRole('region', { name: 'bob, to play' })).toBeDefined()
   })
 
-  it('a blind row flips on click, and offers no pick-up', () => {
+  it('a blind row flips on click, or picks up the pile', () => {
     const blind = view()
     blind.players[0] = { ...blind.players[0], hand: [], handCount: 0, faceUp: [], faceDownCount: 2 }
     const game = mountWith({ room: { roomId: 'R', players: [], games: [] }, view: blind })
     fireEvent.click(screen.getByRole('button', { name: 'flip face-down card 2' }))
     expect(game.playFaceDown).toHaveBeenCalledWith(1)
-    expect(screen.queryByRole('button', { name: 'Pick up the pile' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Play/ })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Pick up the pile' }))
+    expect(game.pickUp).toHaveBeenCalled()
   })
 
   it('the ending reads from this chair, with every hand face up', () => {

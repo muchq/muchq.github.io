@@ -217,6 +217,21 @@
   color: #f0c96a;
 }
 
+.run {
+  display: flex;
+  padding-left: 0.4rem;
+}
+
+.runSlot {
+  display: block;
+  margin-left: -1.7rem;
+  transform-origin: 50% 140%;
+}
+
+.runSlot:first-child {
+  margin-left: 0;
+}
+
 .emptyPile {
   width: 3.2rem;
   height: 4.6rem;
@@ -261,17 +276,59 @@
   color: #f0c96a;
 }
 
-.rows {
+/* The castle: three stacks, a back with a face on it. The face sits
+   down and to the right so the back's corner shows under it. */
+.castle {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  min-height: 5.4rem;
+  margin-bottom: 0.5rem;
 }
 
-.rowCards {
+.stack {
+  position: relative;
+  width: 3.8rem;
+  height: 5.4rem;
+}
+
+.stackBase,
+.stackTop {
+  position: absolute;
+  display: block;
+}
+
+.stackBase {
+  left: 0;
+  top: 0;
+}
+
+.stackTop {
+  left: 0.6rem;
+  top: 0.8rem;
+}
+
+/* The hand, fanned around a point below the cards. */
+.hand {
   display: flex;
-  gap: 0.4rem;
-  min-height: 4.6rem;
-  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: flex-end;
+  min-height: 5.2rem;
+  padding: 0.5rem 0 0 0.75rem;
+}
+
+.fanSlot {
+  display: block;
+  margin-left: -1rem;
+  transform-origin: 50% 160%;
+}
+
+.fanSlot:first-child {
+  margin-left: 0;
+}
+
+.fanSlot:hover,
+.fanSlot:focus-within {
+  z-index: 1;
 }
 
 .card {
@@ -344,8 +401,19 @@
     height: 3.8rem;
   }
 
-  .rowCards {
-    min-height: 3.8rem;
+  .stack {
+    width: 3.2rem;
+    height: 4.5rem;
+  }
+
+  .stackTop {
+    left: 0.5rem;
+    top: 0.7rem;
+  }
+
+  .castle,
+  .hand {
+    min-height: 4.5rem;
   }
 
   .seats {

@@ -32,7 +32,7 @@ const setupView = (over: Partial<CastleView> = {}): CastleView => ({
   ],
   drawPileCount: 34,
   pileCount: 0,
-  pileRun: 0,
+  run: [],
   finished: [],
   ...over
 })
