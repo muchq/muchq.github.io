@@ -138,6 +138,8 @@ describe('GolfNetworkAdapter', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0]
+    // A hung mint must time out rather than stall the reconnect loop.
+    expect(init.signal).toBeInstanceOf(AbortSignal)
     expect(url).toContain('/games/v2/session')
     expect(JSON.parse((init as { body: string }).body)).toEqual({})
 
