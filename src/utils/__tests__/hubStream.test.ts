@@ -66,12 +66,14 @@ describe('HubStream', () => {
     expect(callbacks.onSessionReady).toHaveBeenCalledWith({ playerId: 'alice', resumed: false })
   })
 
-  it('offers its own resume token, under its own key', async () => {
+  it('offers its own resume token, under its own key, and writes only there', async () => {
     localStorage.setItem(TOKEN_KEY, 'rt-old')
     localStorage.setItem('golf_v2_resume_token', 'rt-golf')
     await connect()
     const [, init] = fetchMock.mock.calls[0]
     expect(JSON.parse((init as { body: string }).body)).toEqual({ resumeToken: 'rt-old' })
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    expect(localStorage.getItem('golf_v2_resume_token')).toBe('rt-golf')
   })
 
   it('a disconnect during the mint creates no socket', async () => {
@@ -92,8 +94,18 @@ describe('HubStream', () => {
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull()
     hub.disconnect()
 
-    const [, ws] = await connect()
+    const [admittedHub, ws] = await connect()
     ws.close()
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    admittedHub.disconnect()
+  })
+
+  it('a deliberate disconnect before admission keeps the identity', async () => {
+    const hub = stream()
+    hub.connect()
+    await flushAsync()
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    hub.disconnect()
     expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
   })
 
@@ -148,10 +160,12 @@ describe('HubStream', () => {
     expect(callbacks.onGame).toHaveBeenCalledWith('golf', { gameStarted: {} })
   })
 
-  it('a terminal refusal is lost, not rejected', async () => {
+  it('a terminal refusal is lost, not rejected, named by its shape when it says nothing', async () => {
     const [, ws] = await connect()
     ws.receiveRaw({ exception: 'AccessDenied', payload: { message: 'origin not allowed' } })
     expect(callbacks.onLost).toHaveBeenCalledWith('origin not allowed')
+    ws.receiveRaw({ exception: 'ThrottlingException', payload: {} })
+    expect(callbacks.onLost).toHaveBeenCalledWith('ThrottlingException')
     expect(callbacks.onRejected).not.toHaveBeenCalled()
   })
 
@@ -164,12 +178,17 @@ describe('HubStream', () => {
     expect(callbacks.onLost).not.toHaveBeenCalled()
   })
 
-  it('reconnects on close and gives up after ten tries', async () => {
+  it('reconnects two seconds after a close and gives up after ten tries', async () => {
     vi.useFakeTimers()
     const hub = stream()
     hub.connect()
     await vi.advanceTimersByTimeAsync(0)
-    for (let attempt = 0; attempt < 10; attempt++) {
+    FakeWebSocket.instances[0].close()
+    await vi.advanceTimersByTimeAsync(1999)
+    expect(FakeWebSocket.instances).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(FakeWebSocket.instances).toHaveLength(2)
+    for (let attempt = 1; attempt < 10; attempt++) {
       FakeWebSocket.instances[attempt].close()
       await vi.advanceTimersByTimeAsync(2000)
     }
@@ -181,11 +200,44 @@ describe('HubStream', () => {
     expect(callbacks.onLost).toHaveBeenCalledWith('Lost connection to the games hub')
   })
 
+  it('an admitted socket resets the reconnect budget', async () => {
+    vi.useFakeTimers()
+    const hub = stream()
+    hub.connect()
+    // Three sessions that each got in and then dropped...
+    for (let session = 0; session < 3; session++) {
+      await vi.advanceTimersByTimeAsync(0)
+      const ws = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
+      ws.open()
+      ws.receive('sessionReady', { playerId: 'alice', resumed: true })
+      ws.close()
+      await vi.advanceTimersByTimeAsync(2000)
+    }
+    // ...leave the full ten tries for the outage that follows: the
+    // dial after the last drop was the first, nine more come, and the
+    // tenth failure is the end.
+    expect(FakeWebSocket.instances).toHaveLength(4)
+    for (let attempt = 0; attempt < 9; attempt++) {
+      FakeWebSocket.instances[FakeWebSocket.instances.length - 1].close()
+      await vi.advanceTimersByTimeAsync(2000)
+    }
+    expect(FakeWebSocket.instances).toHaveLength(13)
+    expect(callbacks.onLost).not.toHaveBeenCalled()
+    FakeWebSocket.instances[12].close()
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(FakeWebSocket.instances).toHaveLength(13)
+    expect(callbacks.onLost).toHaveBeenCalled()
+  })
+
   it('a deliberate disconnect never reconnects', async () => {
     vi.useFakeTimers()
     const hub = stream()
     hub.connect()
     await vi.advanceTimersByTimeAsync(0)
+    const ws = FakeWebSocket.instances[0]
+    ws.open()
+    ws.receive('sessionReady', { playerId: 'alice', resumed: false })
+    expect(hub.isConnected).toBe(true)
     hub.disconnect()
     await vi.advanceTimersByTimeAsync(5000)
     expect(FakeWebSocket.instances).toHaveLength(1)

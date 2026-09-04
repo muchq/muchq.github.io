@@ -110,6 +110,12 @@ export const useCastleGame = ({
       playerIdRef.current = ready.playerId
       setPlayerId(ready.playerId)
       onPlayerIdChange?.(ready.playerId)
+      // A seat that survived the disconnect comes back as a gameJoined
+      // after this; one that did not (grace expired, identity gone)
+      // sends nothing, and the old table must not linger.
+      setView(null)
+      setEnded(null)
+      setSelected([])
       const wanted = permalinkRef.current
       if (!wanted || wanted === ready.roomId) return
       // The link names another room: leave the resumed one first, and
@@ -198,6 +204,7 @@ export const useCastleGame = ({
       callbacks: {
         onConnection: up => {
           setConnected(up)
+          if (up) setLost(null)
           onConnectionChange?.(up)
         },
         onSessionReady: handleSessionReady,

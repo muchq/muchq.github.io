@@ -98,7 +98,11 @@
   color: rgba(255, 255, 255, 0.7);
   text-decoration: underline;
   padding: 0.25rem 0;
-  align-self: flex-start;
+}
+
+.link:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .roomHeader,
@@ -140,22 +144,51 @@
   background: rgba(0, 0, 0, 0.2);
 }
 
+/* Above the room chat's drawer and toggle (z 30-50): a refusal is the
+   app's only error channel and must stay visible with the chat open. */
 .notice {
   position: fixed;
   left: 50%;
-  bottom: 1.5rem;
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
+  max-width: min(28rem, calc(100vw - 6rem));
   padding: 0.75rem 1.25rem;
   border-radius: 0.5rem;
   background: rgba(0, 0, 0, 0.8);
   color: white;
-  z-index: 10;
+  z-index: 1200;
+}
+
+/* Mounted before it has anything to say, so the live region is announced. */
+.noticeEmpty {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.headerActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.ending,
+.hint {
+  margin: 0;
 }
 
 .ending {
-  margin: 0;
   font-size: 1.15rem;
   color: #f0c96a;
+}
+
+.ending:empty,
+.hint:empty {
+  display: none;
+}
+
+.hint {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .pile {
@@ -214,7 +247,9 @@
 }
 
 .out {
-  opacity: 0.6;
+  opacity: 0.75;
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .seatName {
@@ -273,6 +308,11 @@
   transform: translateY(-6px);
 }
 
+.card.swapTarget {
+  border-color: #f0c96a;
+  border-style: dashed;
+}
+
 .back {
   background: repeating-linear-gradient(45deg, #4a3a8a, #4a3a8a 4px, #3a2c6e 4px, #3a2c6e 8px);
 }
@@ -302,6 +342,10 @@
   .emptyPile {
     width: 2.6rem;
     height: 3.8rem;
+  }
+
+  .rowCards {
+    min-height: 3.8rem;
   }
 
   .seats {

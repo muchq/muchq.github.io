@@ -43,7 +43,9 @@ export type HubGameName = 'golf' | 'castle'
 
 export interface HubGameSummary {
   gameId: string
-  game: HubGameName
+  // Which game the table plays; a row from before castle omits it and
+  // is golf's.
+  game?: HubGameName
   status: string
   playerCount: number
 }
@@ -91,6 +93,8 @@ export interface HubStreamCallbacks {
   // A game envelope's update, exactly one member present.
   onGame?: (game: HubGameName, update: Record<string, unknown>) => void
   // The reconnect loop gave up, or the hub refused the stream outright.
+  // A refusal still reconnects (the next dial mints fresh), so a later
+  // onConnection(true) supersedes it.
   onLost?: (reason: string) => void
 }
 
@@ -172,9 +176,12 @@ export class HubStream {
       }
       ws.onclose = () => {
         this.callbacks.onConnection?.(false)
+        if (this.closed) return
         if (!this.sawSessionReady) {
           // Refused before admission (spent ticket, seat conflict, bad
           // resume token): drop the token so the next dial mints fresh.
+          // A deliberate disconnect before admission is not a refusal,
+          // and keeps the identity for the next visit.
           safeLocalStorage.remove(this.resumeTokenKey)
         }
         this.scheduleReconnect()

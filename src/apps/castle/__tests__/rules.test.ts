@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { describeEnding, describeLastPlay, describePile, rowInPlay, toggleSelection } from '../rules'
+import { cardsOf, describeEnding, describeLastPlay, describePile, rowInPlay, toggleSelection } from '../rules'
 import type { CastlePlayer, CastleView } from '../wire'
 
 const seat = (over: Partial<CastlePlayer> = {}): CastlePlayer => ({
@@ -34,6 +34,12 @@ describe('rowInPlay', () => {
 
   it('reads the count, not the faces: an opponent hand is a count alone', () => {
     expect(rowInPlay(seat({ handCount: 3, hand: [], faceUp: [{ rank: '4', suit: '♣' }] }))).toBe('hand')
+  })
+
+  it('a blind row offers no cards to pick from', () => {
+    const blind = seat({ faceDownCount: 2 })
+    expect(cardsOf(blind, 'faceDown')).toEqual([])
+    expect(toggleSelection([], cardsOf(blind, rowInPlay(blind)), 0)).toEqual([])
   })
 })
 
@@ -82,7 +88,11 @@ describe('describePile', () => {
       '8♥ on top: play one or more of 8 or higher'
     )
     expect(describePile(view({ pileTop: { rank: '8', suit: '♥' }, pileRun: 2, pileCount: 3 }))).toBe(
-      '2 × 8 on top: play 2+ of 8 or higher'
+      'two 8s on top: play two or more of 8 or higher'
+    )
+    // Three 3s must not read as arithmetic.
+    expect(describePile(view({ pileTop: { rank: '3', suit: '♥' }, pileRun: 3, pileCount: 3 }))).toBe(
+      'three 3s on top: play three or more of 3 or higher'
     )
   })
 })

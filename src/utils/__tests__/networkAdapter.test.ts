@@ -220,6 +220,15 @@ describe('GolfNetworkAdapter', () => {
     expect(Object.keys(mapped.games).sort()).toEqual(['GOLF01', 'OLD01'])
   })
 
+  it("the room's castle announcements are not golf's to read", async () => {
+    const [adapter, ws] = await connect()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    ws.receive('castle', { update: { gameCreated: { gameId: 'CASTLE1', createdBy: 'bob' } } })
+    expect(warn).not.toHaveBeenCalled()
+    expect(callbacks.onNewGameStarted).not.toHaveBeenCalled()
+    expect(adapter.gameState).toBeNull()
+  })
+
   it('delivers chat as typed state, never as a toast', async () => {
     const [, ws] = await connect()
     const message = { messageId: 7, playerId: 'bob', text: 'nice draw', sentAtUnixMillis: 1700000000000 }

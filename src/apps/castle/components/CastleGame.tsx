@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useCastleGame } from '@/hooks/useCastleGame'
+import { castleRoomPath, useCastleGame } from '@/hooks/useCastleGame'
 import type { UseCastleGameProps } from '@/hooks/useCastleGame'
 import RoomChat from '@/apps/golf/components/RoomChat'
 import PermalinkDisplay from '@/apps/golf/components/PermalinkDisplay'
@@ -13,62 +13,69 @@ import styles from './CastleGame.module.css'
 
 interface CardFaceProps {
   card: Card
-  selected?: boolean
+  // Present only for a card the viewer can act on: those are buttons,
+  // the rest are pictures. A toggle (selection) reports its state.
   onClick?: () => void
+  toggle?: boolean
   label?: string
+  className?: string
 }
 
-const CardFace = ({ card, selected = false, onClick, label }: CardFaceProps) => (
-  <button
-    type="button"
-    className={`${styles.card} ${isRed(card) ? styles.red : ''} ${selected ? styles.selected : ''}`}
-    onClick={onClick}
-    disabled={onClick === undefined}
-    aria-pressed={onClick === undefined ? undefined : selected}
-    aria-label={label ?? face(card)}
-  >
-    <span className={styles.rank}>{card.rank}</span>
-    <span className={styles.suit}>{card.suit}</span>
-  </button>
-)
+const CardFace = ({ card, onClick, toggle, label, className = '' }: CardFaceProps) => {
+  const classes = `${styles.card} ${isRed(card) ? styles.red : ''} ${toggle ? styles.selected : ''} ${className}`
+  if (onClick === undefined) {
+    return (
+      <span className={classes} role="img" aria-label={label ?? face(card)}>
+        <span className={styles.rank}>{card.rank}</span>
+        <span className={styles.suit}>{card.suit}</span>
+      </span>
+    )
+  }
+  return (
+    <button type="button" className={classes} onClick={onClick} aria-pressed={toggle} aria-label={label ?? face(card)}>
+      <span className={styles.rank}>{card.rank}</span>
+      <span className={styles.suit}>{card.suit}</span>
+    </button>
+  )
+}
 
 interface CardBackProps {
   onClick?: () => void
   label: string
 }
 
-const CardBack = ({ onClick, label }: CardBackProps) => (
-  <button
-    type="button"
-    className={`${styles.card} ${styles.back}`}
-    onClick={onClick}
-    disabled={onClick === undefined}
-    aria-label={label}
-  />
-)
+const CardBack = ({ onClick, label }: CardBackProps) =>
+  onClick === undefined ? (
+    <span className={`${styles.card} ${styles.back}`} role="img" aria-label={label} />
+  ) : (
+    <button type="button" className={`${styles.card} ${styles.back}`} onClick={onClick} aria-label={label} />
+  )
 
 const CastleGame = (props: UseCastleGameProps) => {
   const game = useCastleGame(props)
-  const { playerId, room, view, ended, notice, chat, selected } = game
-  // Setup: the hand card picked, waiting for the face-up card to swap with.
-  const [swapFrom, setSwapFrom] = useState<number | null>(null)
+  const { playerId, room, view, ended, notice, chat, selected, connected } = game
+  // Setup: the hand card picked, waiting for the face-up card to swap
+  // with. Keyed to its table, so a pick never outlives the table it was
+  // made on.
+  const [pendingSwap, setPendingSwap] = useState<{ gameId: string; index: number } | null>(null)
 
   const roomChat = chat.available ? (
     <RoomChat
       messages={chat.messages}
       playerId={playerId}
-      connected={game.connected}
+      connected={connected}
       replayUpTo={chat.replayUpTo}
       rejection={chat.rejection}
       onSend={game.sendChat}
     />
   ) : null
 
-  const noticeBar = notice ? (
-    <div className={styles.notice} role="status">
+  // Always mounted, so screen readers announce what lands in it.
+  const noticeBar = (
+    <div className={`${styles.notice} ${notice ? '' : styles.noticeEmpty}`} role="status">
       {notice}
     </div>
-  ) : null
+  )
 
   if (game.lost) {
     return (
@@ -85,7 +92,7 @@ const CastleGame = (props: UseCastleGameProps) => {
         <h1 className={styles.title}>Castle</h1>
         <p className={styles.tagline}>Shed every card first. Twos reset, tens burn, fours of a kind burn.</p>
         <div className={styles.lobbyActions}>
-          <button type="button" className={styles.primary} onClick={game.createRoom} disabled={!game.connected}>
+          <button type="button" className={styles.primary} onClick={game.createRoom} disabled={!connected}>
             Create a room
           </button>
           <div className={styles.joinRow}>
@@ -96,10 +103,10 @@ const CastleGame = (props: UseCastleGameProps) => {
               value={game.roomCode}
               onChange={event => game.setRoomCode(event.target.value)}
               onKeyDown={event => {
-                if (event.key === 'Enter') game.joinRoom()
+                if (event.key === 'Enter' && connected) game.joinRoom()
               }}
             />
-            <button type="button" className={styles.secondary} onClick={game.joinRoom} disabled={!game.connected}>
+            <button type="button" className={styles.secondary} onClick={game.joinRoom} disabled={!connected}>
               Join
             </button>
           </div>
@@ -122,7 +129,12 @@ const CastleGame = (props: UseCastleGameProps) => {
                 {room.players.length} {room.players.length === 1 ? 'player' : 'players'}
               </p>
             </div>
-            <PermalinkDisplay label="Share room" url={`${window.location.origin}/castle/room/${room.roomId}`} />
+            <div className={styles.headerActions}>
+              <PermalinkDisplay label="Share room" url={`${window.location.origin}${castleRoomPath(room.roomId)}`} />
+              <button type="button" className={styles.link} onClick={game.leaveRoom} disabled={!connected}>
+                Leave room
+              </button>
+            </div>
           </div>
           <section className={styles.section} aria-labelledby="castle-players">
             <h2 id="castle-players">Players</h2>
@@ -131,7 +143,9 @@ const CastleGame = (props: UseCastleGameProps) => {
                 <li key={player.playerId} className={styles.row}>
                   <span>
                     {player.playerId === playerId ? `${player.playerId} (you)` : player.playerId}{' '}
-                    <span aria-label={player.connected ? 'connected' : 'away'}>{player.connected ? '🟢' : '🔴'}</span>
+                    <span role="img" aria-label={player.connected ? 'connected' : 'away'}>
+                      {player.connected ? '🟢' : '🔴'}
+                    </span>
                   </span>
                   <span className={styles.muted}>
                     {player.gamesWon}/{player.gamesPlayed} won
@@ -146,30 +160,31 @@ const CastleGame = (props: UseCastleGameProps) => {
               <p className={styles.muted}>No castle tables yet</p>
             ) : (
               <ul className={styles.list}>
-                {tables.map(table => (
-                  <li key={table.gameId} className={styles.row}>
-                    <span>
-                      {table.gameId} · {table.playerCount}/4 · {table.status}
-                    </span>
-                    <button
-                      type="button"
-                      className={styles.secondary}
-                      onClick={() => game.joinTable(table.gameId)}
-                      disabled={table.status !== 'waiting' || table.playerCount >= 4}
-                    >
-                      {table.status === 'waiting' ? 'Join' : 'In play'}
-                    </button>
-                  </li>
-                ))}
+                {tables.map(table => {
+                  const full = table.playerCount >= 4
+                  const open = table.status === 'waiting' && !full
+                  return (
+                    <li key={table.gameId} className={styles.row}>
+                      <span>
+                        {table.gameId} · {table.playerCount}/4 · {table.status}
+                      </span>
+                      <button
+                        type="button"
+                        className={styles.secondary}
+                        onClick={() => game.joinTable(table.gameId)}
+                        disabled={!open || !connected}
+                      >
+                        {table.status !== 'waiting' ? 'In play' : full ? 'Full' : 'Join'}
+                      </button>
+                    </li>
+                  )
+                })}
               </ul>
             )}
-            <button type="button" className={styles.primary} onClick={game.createTable}>
+            <button type="button" className={styles.primary} onClick={game.createTable} disabled={!connected}>
               Open a table
             </button>
           </section>
-          <button type="button" className={styles.link} onClick={game.leaveRoom}>
-            Leave room
-          </button>
           {noticeBar}
         </div>
       </>
@@ -180,11 +195,17 @@ const CastleGame = (props: UseCastleGameProps) => {
   const myTurn = view.currentPlayerId === playerId && view.phase === 'playing'
   const myRow = me === undefined ? 'hand' : rowInPlay(me)
   const inPlay = me === undefined ? [] : cardsOf(me, myRow)
+  const arranging = view.phase === 'setup' && me !== undefined && !me.ready
+  const swapFrom =
+    arranging && pendingSwap !== null && pendingSwap.gameId === view.gameId && pendingSwap.index < me.hand.length
+      ? pendingSwap.index
+      : null
 
   const renderSeat = (seat: CastlePlayer) => {
     const mine = seat.playerId === playerId
     const onTurn = view.phase === 'playing' && view.currentPlayerId === seat.playerId
     const label = mine ? `${seat.playerId} (you)` : seat.playerId
+    const whose = mine ? 'Your' : `${seat.playerId}'s`
     return (
       <section
         key={seat.playerId}
@@ -198,51 +219,59 @@ const CastleGame = (props: UseCastleGameProps) => {
           {seat.out && <span className={styles.muted}> · out</span>}
         </h3>
         <div className={styles.rows}>
-          <div className={styles.rowCards} aria-label={`${label} face down`}>
+          <div className={styles.rowCards} role="group" aria-label={`${whose} face-down row`}>
             {Array.from({ length: seat.faceDownCount }, (_, i) => (
               <CardBack
                 key={i}
                 label={mine && myTurn && myRow === 'faceDown' ? `flip face-down card ${i + 1}` : 'face-down card'}
-                onClick={mine && myTurn && myRow === 'faceDown' ? () => game.playFaceDown(i) : undefined}
+                onClick={mine && myTurn && myRow === 'faceDown' && connected ? () => game.playFaceDown(i) : undefined}
               />
             ))}
           </div>
-          <div className={styles.rowCards} aria-label={`${label} face up`}>
+          <div className={styles.rowCards} role="group" aria-label={`${whose} face-up row`}>
             {seat.faceUp.map((card, i) => {
-              const swappable = mine && view.phase === 'setup' && !seat.ready && swapFrom !== null
+              const swappable = mine && swapFrom !== null
               const playable = mine && myTurn && myRow === 'faceUp'
+              if (swappable) {
+                return (
+                  <CardFace
+                    key={i}
+                    card={card}
+                    className={styles.swapTarget}
+                    label={`swap for ${face(card)}`}
+                    onClick={() => {
+                      game.swapForSetup(swapFrom, i)
+                      setPendingSwap(null)
+                    }}
+                  />
+                )
+              }
               return (
                 <CardFace
                   key={i}
                   card={card}
-                  selected={playable && selected.includes(i)}
-                  label={swappable ? `swap for ${face(card)}` : face(card)}
-                  onClick={
-                    swappable
-                      ? () => {
-                          game.swapForSetup(swapFrom, i)
-                          setSwapFrom(null)
-                        }
-                      : playable
-                        ? () => game.toggleCard(i)
-                        : undefined
-                  }
+                  toggle={playable ? selected.includes(i) : undefined}
+                  onClick={playable && connected ? () => game.toggleCard(i) : undefined}
                 />
               )
             })}
           </div>
-          <div className={styles.rowCards} aria-label={`${label} hand`}>
+          <div className={styles.rowCards} role="group" aria-label={`${whose} hand`}>
             {seat.hand.length > 0
               ? seat.hand.map((card, i) => {
-                  const arranging = mine && view.phase === 'setup' && !seat.ready
+                  const picking = mine && arranging
                   const playable = mine && myTurn && myRow === 'hand'
                   return (
                     <CardFace
                       key={i}
                       card={card}
-                      selected={(arranging && swapFrom === i) || (playable && selected.includes(i))}
+                      toggle={picking ? swapFrom === i : playable ? selected.includes(i) : undefined}
                       onClick={
-                        arranging ? () => setSwapFrom(swapFrom === i ? null : i) : playable ? () => game.toggleCard(i) : undefined
+                        picking
+                          ? () => setPendingSwap(swapFrom === i ? null : { gameId: view.gameId, index: i })
+                          : playable && connected
+                            ? () => game.toggleCard(i)
+                            : undefined
                       }
                     />
                   )
@@ -254,38 +283,45 @@ const CastleGame = (props: UseCastleGameProps) => {
     )
   }
 
+  const hint = (() => {
+    if (view.phase === 'waiting' && view.players.length < 2) return 'Waiting for a second seat.'
+    if (arranging) {
+      return swapFrom === null
+        ? 'Pick a hand card to swap into your face-up row, or ready up.'
+        : 'Now pick the face-up card to swap it with.'
+    }
+    if (view.phase === 'setup' && me?.ready) return 'Ready. Waiting for the table.'
+    if (myTurn && myRow === 'faceDown') return 'Flip a face-down card. Blind.'
+    return ''
+  })()
+
   const actions = (() => {
     if (view.phase === 'waiting') {
       return (
-        <>
-          <button type="button" className={styles.primary} onClick={game.startTable} disabled={view.players.length < 2}>
-            {view.players.length < 2 ? 'Waiting for a second seat' : 'Deal'}
-          </button>
-        </>
+        <button type="button" className={styles.primary} onClick={game.startTable} disabled={view.players.length < 2 || !connected}>
+          Deal
+        </button>
       )
     }
-    if (view.phase === 'setup' && me !== undefined) {
-      return me.ready ? (
-        <p className={styles.muted}>Ready. Waiting for the table.</p>
-      ) : (
-        <>
-          <p className={styles.muted}>
-            {swapFrom === null ? 'Pick a hand card to swap into your face-up row, or ready up.' : 'Now pick the face-up card to swap it with.'}
-          </p>
-          <button type="button" className={styles.primary} onClick={game.ready}>
-            Ready
-          </button>
-        </>
+    if (arranging) {
+      return (
+        <button type="button" className={styles.primary} onClick={game.ready} disabled={!connected}>
+          Ready
+        </button>
       )
     }
-    if (view.phase === 'playing' && me !== undefined && myTurn) {
-      if (myRow === 'faceDown') return <p className={styles.muted}>Flip a face-down card. Blind.</p>
+    if (myTurn && me !== undefined && myRow !== 'faceDown') {
       return (
         <>
-          <button type="button" className={styles.primary} onClick={game.playSelected} disabled={selected.length === 0}>
+          <button type="button" className={styles.primary} onClick={game.playSelected} disabled={selected.length === 0 || !connected}>
             Play {selected.length > 0 ? selected.map(i => face(inPlay[i])).join(' ') : ''}
           </button>
-          <button type="button" className={styles.secondary} onClick={game.pickUp} disabled={me.canPlay || view.pileCount === 0}>
+          <button
+            type="button"
+            className={styles.secondary}
+            onClick={game.pickUp}
+            disabled={me.canPlay || view.pileCount === 0 || !connected}
+          >
             Pick up the pile
           </button>
         </>
@@ -308,16 +344,14 @@ const CastleGame = (props: UseCastleGameProps) => {
         <div className={styles.tableHeader}>
           <h1 className={styles.title}>Table {view.gameId}</h1>
           {view.phase !== 'ended' && (
-            <button type="button" className={styles.link} onClick={game.leaveTable}>
+            <button type="button" className={styles.link} onClick={game.leaveTable} disabled={!connected}>
               Leave table
             </button>
           )}
         </div>
-        {view.phase === 'ended' && ended !== null && (
-          <p className={styles.ending} role="status">
-            {describeEnding(ended.finished, ended.loser, playerId)}
-          </p>
-        )}
+        <p className={styles.ending} role="status">
+          {view.phase === 'ended' && ended !== null ? describeEnding(ended.finished, ended.loser, playerId) : ''}
+        </p>
         {(view.phase === 'playing' || view.phase === 'ended') && (
           <section className={styles.pile} aria-label="pile">
             <div className={styles.pileCards}>
@@ -332,6 +366,9 @@ const CastleGame = (props: UseCastleGameProps) => {
             </div>
           </section>
         )}
+        <p className={styles.hint} role="status">
+          {hint}
+        </p>
         <div className={styles.seats}>{view.players.map(renderSeat)}</div>
         <div className={styles.actions}>{actions}</div>
         {noticeBar}

@@ -133,6 +133,9 @@ type V2Frame =
   | { event: 'roomChatHistory'; payload: { messages: ChatMessage[] } }
   | { event: 'commandRejected'; payload: { reason: string } }
   | { event: 'golf'; payload: { update: V2GolfUpdate } }
+  // The room's other game (MoonBase#77): its announcements reach every
+  // member, and are not golf's to read.
+  | { event: 'castle'; payload: { update: unknown } }
 
 type V2CommandEvent = 'createRoom' | 'joinRoom' | 'leaveRoom' | 'getRoomState' | 'chat' | 'golf'
 type V2MoveName =
@@ -401,6 +404,8 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
         return
       case 'golf':
         this.handleUpdate(frame.payload.update)
+        return
+      case 'castle':
         return
       default:
         console.warn('golf v2: unknown event', frame)

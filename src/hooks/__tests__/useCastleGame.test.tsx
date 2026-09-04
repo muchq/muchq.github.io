@@ -228,6 +228,101 @@ describe('useCastleGame', () => {
     expect(result.current.chat.available).toBe(false)
   })
 
+  // The socket drops and the next dial is admitted, under fake timers
+  // so the two-second reconnect costs nothing.
+  const redial = async (ws: FakeWebSocket, roomId?: string): Promise<FakeWebSocket> => {
+    act(() => ws.close())
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000)
+    })
+    const next = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
+    act(() => {
+      next.open()
+      next.receive('sessionReady', roomId === undefined ? { playerId: 'alice', resumed: true } : { playerId: 'alice', resumed: true, roomId })
+    })
+    return next
+  }
+
+  const openUnderFakeTimers = async () => {
+    vi.useFakeTimers()
+    const hook = mount()
+    let ws!: FakeWebSocket
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+      ws = FakeWebSocket.instances[0]
+      ws.open()
+      ws.receive('sessionReady', { playerId: 'alice', resumed: false })
+    })
+    return { ...hook, ws }
+  }
+
+  it('a session ready without a seat drops the table it had', async () => {
+    try {
+      const { result, ws } = await openUnderFakeTimers()
+      act(() => ws.receive('castle', { update: { gameJoined: { view: setupView() } } }))
+      expect(result.current.view).not.toBeNull()
+      // The next admission finds the grace expired and the seat gone,
+      // so no gameJoined follows.
+      const next = await redial(ws, 'ROOM01')
+      expect(result.current.view).toBeNull()
+      expect(result.current.ended).toBeNull()
+      // A seat that survived comes back as gameJoined and is the table again.
+      act(() => next.receive('castle', { update: { gameJoined: { view: setupView() } } }))
+      expect(result.current.view?.gameId).toBe('G1')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a refused stream is lost only until the next dial gets in', async () => {
+    try {
+      const { result, ws } = await openUnderFakeTimers()
+      act(() => ws.receiveRaw({ exception: 'SeatConflict', payload: { message: 'the player already holds a live seat' } }))
+      expect(result.current.lost).toBe('the player already holds a live seat')
+      await redial(ws)
+      expect(result.current.lost).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a notice fades after three seconds', async () => {
+    vi.useFakeTimers()
+    try {
+      const hook = mount()
+      let ws!: FakeWebSocket
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+        ws = FakeWebSocket.instances[0]
+        ws.open()
+        ws.receive('sessionReady', { playerId: 'alice', resumed: false })
+      })
+      act(() => ws.receive('commandRejected', { reason: 'still setting up' }))
+      expect(hook.result.current.notice).toBe('still setting up')
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2999)
+      })
+      expect(hook.result.current.notice).toBe('still setting up')
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1)
+      })
+      expect(hook.result.current.notice).toBe('')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('an empty room code is refused locally', async () => {
+    const { result, ws } = await open()
+    act(() => result.current.setRoomCode('   '))
+    act(() => result.current.joinRoom())
+    expect(result.current.notice).toBe('Enter a room code')
+    expect(ws.sent).toEqual([])
+    act(() => result.current.setRoomCode(' ROOM01 '))
+    act(() => result.current.joinRoom())
+    expect(ws.lastSent()).toEqual({ event: 'joinRoom', payload: { roomId: 'ROOM01' } })
+  })
+
   it('unmounting closes the socket', async () => {
     const { unmount, ws } = await open()
     unmount()

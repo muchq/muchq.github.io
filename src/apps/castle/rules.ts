@@ -50,11 +50,16 @@ export function describeLastPlay(play: CastleLastPlay, viewer: string): string {
   return play.burned ? `${who} played ${faces} and burned the pile` : `${who} played ${faces}`
 }
 
-// The pile as a price: what the next play must match.
+const COUNTS = ['none', 'one', 'two', 'three', 'four']
+
+// The pile as a price: what the next play must match. Counts are words,
+// so a run of three 3s does not read as arithmetic.
 export function describePile(view: CastleView): string {
   if (view.pileTop === undefined) return 'Empty pile: anything goes'
-  const run = view.pileRun > 1 ? `${view.pileRun} × ${view.pileTop.rank}` : face(view.pileTop)
-  return `${run} on top: play ${view.pileRun > 1 ? `${view.pileRun}+` : 'one or more'} of ${view.pileTop.rank} or higher`
+  const rank = view.pileTop.rank
+  const count = COUNTS[view.pileRun] ?? String(view.pileRun)
+  const top = view.pileRun > 1 ? `${count} ${rank}s` : face(view.pileTop)
+  return `${top} on top: play ${count} or more of ${rank} or higher`
 }
 
 // How a finished game reads from one chair.
