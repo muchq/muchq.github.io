@@ -21,8 +21,8 @@ export interface CastlePlayer {
   // Shed every card: finished, and out of the turn order.
   out: boolean
   // True only for the viewer's own seat, on turn, with a legal play on
-  // the pile as it stands. A seat on turn without one picks up, unless
-  // its row in play is face down, where the move is a blind flip.
+  // the pile as it stands; always false for a blind row. The pile can
+  // be picked up either way.
   canPlay: boolean
 }
 
