@@ -108,6 +108,7 @@ describe('thoughts on the hub wire', () => {
   })
 
   it('mints a fresh session beside the play url and dials with the ticket', async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout')
     manager.connect(PLAY_URL)
     expect(statuses).toEqual(['connecting'])
     await flushAsync()
@@ -118,8 +119,10 @@ describe('thoughts on the hub wire', () => {
     expect(init.method).toBe('POST')
     // Always a fresh identity: no resume token goes up.
     expect(init.body).toBe('{}')
-    // A hung mint must time out rather than stall the reconnect loop.
-    expect(init.signal).toBeInstanceOf(AbortSignal)
+    // A hung mint must time out rather than stall the reconnect loop;
+    // the budget is pinned, not just the wiring.
+    expect(timeoutSpy).toHaveBeenCalledWith(10_000)
+    expect(init.signal).toBe(timeoutSpy.mock.results[0].value)
 
     const ws = FakeWebSocket.instances[0]
     expect(ws.url).toBe(`${PLAY_URL}?ticket=t-123`)
@@ -259,9 +262,27 @@ describe('thoughts on the hub wire', () => {
 
     statuses = []
     const ws = await connectReady()
+    ws.receive('playerJoined', {
+      player: { playerId: 'jolly-teal-bilby-cd34', position: [2, 0, 2], color: [0, 1, 0], shape: 0 }
+    })
+    expect(gameState.players.has('jolly-teal-bilby-cd34')).toBe(true)
     ws.close()
     expect(manager.isConnected).toBe(false)
     expect(statuses).toEqual(['connecting', 'connected', 'disconnected'])
+    // Off the wire, the peers are gone too: no frozen avatars until a
+    // snapshot that may never come.
+    expect([...gameState.players.keys()]).toEqual([PLAYER])
+  })
+
+  it('disconnect forgets the peers and keeps the local player', async () => {
+    const ws = await connectReady()
+    ws.receive('playerJoined', {
+      player: { playerId: 'jolly-teal-bilby-cd34', position: [2, 0, 2], color: [0, 1, 0], shape: 0 }
+    })
+    expect(gameState.players.has('jolly-teal-bilby-cd34')).toBe(true)
+    manager.disconnect()
+    expect([...gameState.players.keys()]).toEqual([PLAYER])
+    expect(gameState.getLocalPlayer()?.position).toEqual([10, 0, -5])
   })
 
   it('a refusal stays failed through the close that follows it', async () => {
@@ -308,6 +329,11 @@ describe('thoughts on the hub wire', () => {
       expect(manager.isConnected).toBe(false)
       await vi.advanceTimersByTimeAsync(200)
       expect(fetchMock).toHaveBeenCalledTimes(2)
+      // The reconnect mints afresh too: the first mint handed back a
+      // resume token, and it stays unused.
+      await expect(fetchMock.mock.results[0].value.then((r: { json: () => Promise<unknown> }) => r.json()))
+        .resolves.toMatchObject({ resumeToken: 'rt-456' })
+      expect(fetchMock.mock.calls[1][1].body).toBe('{}')
       const second = FakeWebSocket.instances[1]
       expect(second).toBeDefined()
       second.open()

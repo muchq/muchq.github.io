@@ -19,7 +19,8 @@
 // from contending for one seat. The resume token the mint returns is
 // unused here. A closed socket is a player gone on the hub's side, so the
 // manual reconnect mints again and joins afresh — the world hears a new
-// arrival, not a return.
+// arrival, not a return. The same holds in reverse: a closed socket drops
+// the remembered peers, since nobody else is here off the wire.
 
 import type { GameState, GameStatePlayer } from '@/types/game'
 import { ShapeType } from '@/types/game'
@@ -116,6 +117,7 @@ export class NetworkManager {
       if (generation !== this.dialGeneration) return
       console.log('🔌 WebSocket disconnected')
       this.isConnected = false
+      this.forgetRemotePlayers()
       // A refusal (exception frame, or the browser's error event) has
       // already said why; the close that follows it must not overwrite
       // that with a plain "offline".
@@ -148,6 +150,15 @@ export class NetworkManager {
     this.ws?.close()
     this.ws = null
     this.isConnected = false
+    this.forgetRemotePlayers()
+  }
+
+  // Off the wire, nobody else is here: the peers we remember would
+  // otherwise stand frozen until a snapshot that may never come.
+  private forgetRemotePlayers(): void {
+    for (const id of [...this.gameState.players.keys()]) {
+      if (id !== this.gameState.localPlayerId) this.gameState.removePlayer(id)
+    }
   }
 
   private sendPlayerJoin(): void {

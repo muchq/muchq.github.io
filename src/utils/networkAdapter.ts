@@ -301,6 +301,9 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
   private async dial(): Promise<void> {
     try {
       const session = await mintHubSession(golfPlayUrl(), safeLocalStorage.get(RESUME_TOKEN_KEY))
+      // Disconnected during the mint: no socket, or a torn-down adapter
+      // would hold a seat under the live one's playerId.
+      if (this.closed) return
       this._playerId = session.playerId
       safeLocalStorage.set(RESUME_TOKEN_KEY, session.resumeToken)
 
