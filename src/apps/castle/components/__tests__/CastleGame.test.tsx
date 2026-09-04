@@ -135,6 +135,17 @@ describe('CastleGame', () => {
     expect(pair.startTable).toHaveBeenCalled()
   })
 
+  it('names each row, since only the face-up one is public', () => {
+    mountWith({ room: { roomId: 'R', players: [], games: [] }, view: view() })
+    const bob = within(screen.getByRole('region', { name: 'bob' }))
+    expect(bob.getByText('Face down')).toBeDefined()
+    expect(bob.getByText('Face up, for all to see')).toBeDefined()
+    expect(bob.getByText('Hand')).toBeDefined()
+    // The other seat's face-up cards are shown; its hand is backs.
+    expect(within(bob.getByRole('group', { name: "bob's face-up row" })).getByRole('img', { name: 'J♠' })).toBeDefined()
+    expect(within(bob.getByRole('group', { name: "bob's hand" })).queryByRole('img', { name: /[♠♥♦♣]$/ })).toBeNull()
+  })
+
   it('offline, nothing at the table sends', () => {
     const game = mountWith({ room: { roomId: 'R', players: [], games: [] }, view: view(), selected: [0], connected: false })
     expect(screen.getByRole('button', { name: /^Play/ })).toBeDisabled()

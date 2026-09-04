@@ -219,6 +219,7 @@ const CastleGame = (props: UseCastleGameProps) => {
           {seat.out && <span className={styles.muted}> · out</span>}
         </h3>
         <div className={styles.rows}>
+          <span className={styles.rowLabel}>Face down</span>
           <div className={styles.rowCards} role="group" aria-label={`${whose} face-down row`}>
             {Array.from({ length: seat.faceDownCount }, (_, i) => (
               <CardBack
@@ -228,6 +229,7 @@ const CastleGame = (props: UseCastleGameProps) => {
               />
             ))}
           </div>
+          <span className={styles.rowLabel}>Face up, for all to see</span>
           <div className={styles.rowCards} role="group" aria-label={`${whose} face-up row`}>
             {seat.faceUp.map((card, i) => {
               const swappable = mine && swapFrom !== null
@@ -256,6 +258,7 @@ const CastleGame = (props: UseCastleGameProps) => {
               )
             })}
           </div>
+          <span className={styles.rowLabel}>Hand</span>
           <div className={styles.rowCards} role="group" aria-label={`${whose} hand`}>
             {seat.hand.length > 0
               ? seat.hand.map((card, i) => {

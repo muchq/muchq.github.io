@@ -264,7 +264,17 @@
 .rows {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.25rem;
+}
+
+/* Each seat has three rows and only the face-up one is public: say so,
+   or the other seat's face-up row reads as a hand. */
+.rowLabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.55);
+  margin-top: 0.25rem;
 }
 
 .rowCards {
