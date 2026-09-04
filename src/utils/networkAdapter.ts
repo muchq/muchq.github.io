@@ -88,6 +88,9 @@ interface V2PlayerInfo {
 
 interface V2GameSummary {
   gameId: string
+  // Which game the table plays: a room hosts golf and castle tables on
+  // one stream (MoonBase#77), and this client lists only its own.
+  game?: 'golf' | 'castle'
   status: GamePhase
   playerCount: number
 }
@@ -209,6 +212,7 @@ function mapGameView(view: V2GameView): GolfGameState {
 function mapRoomState(room: V2RoomState): Room {
   const games: Record<string, GolfGameState> = {}
   for (const summary of room.games) {
+    if ((summary.game ?? 'golf') !== 'golf') continue
     games[summary.gameId] = {
       id: summary.gameId,
       players: stubSeats(summary.playerCount),

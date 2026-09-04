@@ -22,6 +22,13 @@ describe('App routes', () => {
     expect(within(screen.getByRole('navigation')).getByText('MuchQ : iili')).toBeDefined()
   })
 
+  it('serves castle at /castle and its room share link', () => {
+    at('/castle')
+    expect(within(screen.getByRole('navigation')).getByText('MuchQ : Castle')).toBeDefined()
+    at('/castle/room/ROOM01')
+    expect(screen.getAllByText('MuchQ : Castle')).toHaveLength(2)
+  })
+
   it('serves the traffic stats at /stats', () => {
     at('/stats')
     expect(within(screen.getByRole('navigation')).getByText('MuchQ : Stats')).toBeDefined()
