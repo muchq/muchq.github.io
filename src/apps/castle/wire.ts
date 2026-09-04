@@ -26,7 +26,7 @@ export interface CastlePlayer {
   canPlay: boolean
 }
 
-// The pile's last move: a play (its cards, and whether they burned the
+// The pile's last move: a play (its cards, and whether they cleared the
 // pile), a pick-up by choice (no cards), or a blind flip that failed
 // (the card it turned over, then the pile with it). The seat named may
 // have left since.
@@ -44,10 +44,10 @@ export interface CastleView {
   currentPlayerId?: string
   drawPileCount: number
   pileCount: number
-  pileTop?: Card
-  // How many cards of the top's rank sit on the pile: the count the
-  // next play must match, or the four of a kind it must complete.
-  pileRun: number
+  // The run on top of the pile, top card last: every card of the top's
+  // rank in a row. Its length is the count the next play must match, or
+  // the four of a kind it must complete. Empty on an empty pile.
+  run: Card[]
   // First out first; the game ends on the first, so at most one name.
   finished: string[]
   lastPlay?: CastleLastPlay

@@ -41,8 +41,10 @@ const view = (over: Partial<CastleView> = {}): CastleView => ({
   currentPlayerId: 'alice',
   drawPileCount: 30,
   pileCount: 2,
-  pileTop: { rank: '8', suit: '♥' },
-  pileRun: 2,
+  run: [
+    { rank: '8', suit: '♠' },
+    { rank: '8', suit: '♥' }
+  ],
   finished: [],
   lastPlay: { playerId: 'bob', cards: [{ rank: '8', suit: '♥' }], burned: false, pickedUp: false },
   ...over
@@ -188,7 +190,11 @@ describe('CastleGame', () => {
 
   it('on turn: hand cards select, play sends the selection, pick-up only without a play', () => {
     const game = mountWith({ room: { roomId: 'R', players: [], games: [] }, view: view(), selected: [0, 1] })
-    expect(screen.getByText('two 8s on top: play two or more of 8 or higher')).toBeDefined()
+    expect(screen.getByText('two 8s on top: play one or more of 8 or higher')).toBeDefined()
+    // The run itself is on the table, every card of it.
+    const run = within(screen.getByRole('group', { name: 'run on top' }))
+    expect(run.getByRole('img', { name: '8♠' })).toBeDefined()
+    expect(run.getByRole('img', { name: '8♥' })).toBeDefined()
     expect(screen.getByText('bob played 8♥')).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: 'Q♠' }))
     expect(game.toggleCard).toHaveBeenCalledWith(2)
@@ -208,7 +214,7 @@ describe('CastleGame', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pick up the pile' }))
     expect(game.pickUp).toHaveBeenCalled()
     cleanup()
-    mountWith({ room: { roomId: 'R', players: [], games: [] }, view: view({ pileCount: 0, pileTop: undefined, pileRun: 0, lastPlay: undefined }) })
+    mountWith({ room: { roomId: 'R', players: [], games: [] }, view: view({ pileCount: 0, run: [], lastPlay: undefined }) })
     expect(screen.getByText('Empty pile: anything goes')).toBeDefined()
     expect(screen.getByRole('button', { name: 'Pick up the pile' })).toBeDisabled()
   })

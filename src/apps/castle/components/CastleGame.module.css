@@ -217,6 +217,21 @@
   color: #f0c96a;
 }
 
+.run {
+  display: flex;
+  padding-left: 0.4rem;
+}
+
+.runSlot {
+  display: block;
+  margin-left: -1.7rem;
+  transform-origin: 50% 140%;
+}
+
+.runSlot:first-child {
+  margin-left: 0;
+}
+
 .emptyPile {
   width: 3.2rem;
   height: 4.6rem;

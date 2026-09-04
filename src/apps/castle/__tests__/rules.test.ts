@@ -20,7 +20,7 @@ const view = (over: Partial<CastleView> = {}): CastleView => ({
   players: [],
   drawPileCount: 10,
   pileCount: 0,
-  pileRun: 0,
+  run: [],
   finished: [],
   ...over
 })
@@ -70,7 +70,7 @@ describe('describeLastPlay', () => {
     expect(describeLastPlay({ playerId: 'bob', cards: [{ rank: '7', suit: '♠' }], burned: false, pickedUp: false }, 'alice')).toBe('bob played 7♠')
     expect(
       describeLastPlay({ playerId: 'alice', cards: [{ rank: '10', suit: '♣' }], burned: true, pickedUp: false }, 'alice')
-    ).toBe('You played 10♣ and burned the pile')
+    ).toBe('You played 10♣ and cleared the pile')
   })
 
   it('tells a pick-up by choice from a failed blind flip', () => {
@@ -84,16 +84,27 @@ describe('describeLastPlay', () => {
 describe('describePile', () => {
   it('names the price the next play must match', () => {
     expect(describePile(view())).toBe('Empty pile: anything goes')
-    expect(describePile(view({ pileTop: { rank: '8', suit: '♥' }, pileRun: 1, pileCount: 3 }))).toBe(
+    expect(describePile(view({ run: [{ rank: '8', suit: '♥' }], pileCount: 3 }))).toBe(
       '8♥ on top: play one or more of 8 or higher'
     )
-    expect(describePile(view({ pileTop: { rank: '8', suit: '♥' }, pileRun: 2, pileCount: 3 }))).toBe(
+    expect(describePile(view({ run: [{ rank: '8', suit: '♠' }, { rank: '8', suit: '♥' }], pileCount: 3 }))).toBe(
       'two 8s on top: play two or more of 8 or higher'
     )
+    // A queen on a queen: two show, but one king answers, since the
+    // count to match is the last play's.
+    expect(
+      describePile(
+        view({
+          run: [{ rank: 'Q', suit: '♠' }, { rank: 'Q', suit: '♥' }],
+          pileCount: 2,
+          lastPlay: { playerId: 'bob', cards: [{ rank: 'Q', suit: '♥' }], burned: false, pickedUp: false }
+        })
+      )
+    ).toBe('two Qs on top: play one or more of Q or higher')
     // Three 3s must not read as arithmetic.
-    expect(describePile(view({ pileTop: { rank: '3', suit: '♥' }, pileRun: 3, pileCount: 3 }))).toBe(
-      'three 3s on top: play three or more of 3 or higher'
-    )
+    expect(
+      describePile(view({ run: [{ rank: '3', suit: '♠' }, { rank: '3', suit: '♦' }, { rank: '3', suit: '♥' }], pileCount: 3 }))
+    ).toBe('three 3s on top: play three or more of 3 or higher')
   })
 })
 

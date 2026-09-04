@@ -90,7 +90,7 @@ const CastleGame = (props: UseCastleGameProps) => {
     return (
       <div className={styles.lobby}>
         <h1 className={styles.title}>Castle</h1>
-        <p className={styles.tagline}>Shed every card first. Twos reset, tens burn, fours of a kind burn.</p>
+        <p className={styles.tagline}>Shed every card first. 2s reset the deck, 10s clear it, four of a kind counts as a 10.</p>
         <div className={styles.lobbyActions}>
           <button type="button" className={styles.primary} onClick={game.createRoom} disabled={!connected}>
             Create a room
@@ -366,7 +366,18 @@ const CastleGame = (props: UseCastleGameProps) => {
         {(view.phase === 'playing' || view.phase === 'ended') && (
           <section className={styles.pile} aria-label="pile">
             <div className={styles.pileCards}>
-              {view.pileTop === undefined ? <div className={styles.emptyPile}>empty</div> : <CardFace card={view.pileTop} />}
+              {view.run.length === 0 ? (
+                <div className={styles.emptyPile}>empty</div>
+              ) : (
+                // The run on top, tightly fanned: a pair of sevens reads as a pair.
+                <div className={styles.run} role="group" aria-label="run on top">
+                  {view.run.map((card, i) => (
+                    <span key={i} className={styles.runSlot} style={{ transform: `rotate(${(i - (view.run.length - 1) / 2) * 4}deg)` }}>
+                      <CardFace card={card} />
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className={styles.pileText}>
                 <p>{describePile(view)}</p>
                 <p className={styles.muted}>
