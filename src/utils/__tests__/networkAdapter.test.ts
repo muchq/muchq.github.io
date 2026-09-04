@@ -204,6 +204,31 @@ describe('GolfNetworkAdapter', () => {
     expect(callbacks.onRoomJoined).toHaveBeenCalledTimes(2)
   })
 
+  it('lists only golf tables: a castle table in the room is not a golf game', async () => {
+    const [, ws] = await connect()
+    ws.receive('roomState', {
+      roomId: 'ROOM01',
+      players: [],
+      games: [
+        { gameId: 'GOLF01', game: 'golf', status: 'waiting', playerCount: 1 },
+        { gameId: 'CASTLE1', game: 'castle', status: 'waiting', playerCount: 2 },
+        // A row from before the field is golf: it predates castle.
+        { gameId: 'OLD01', status: 'playing', playerCount: 2 }
+      ]
+    })
+    const [, mapped] = callbacks.onRoomJoined.mock.calls[0]
+    expect(Object.keys(mapped.games).sort()).toEqual(['GOLF01', 'OLD01'])
+  })
+
+  it("the room's castle announcements are not golf's to read", async () => {
+    const [adapter, ws] = await connect()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    ws.receive('castle', { update: { gameCreated: { gameId: 'CASTLE1', createdBy: 'bob' } } })
+    expect(warn).not.toHaveBeenCalled()
+    expect(callbacks.onNewGameStarted).not.toHaveBeenCalled()
+    expect(adapter.gameState).toBeNull()
+  })
+
   it('delivers chat as typed state, never as a toast', async () => {
     const [, ws] = await connect()
     const message = { messageId: 7, playerId: 'bob', text: 'nice draw', sentAtUnixMillis: 1700000000000 }

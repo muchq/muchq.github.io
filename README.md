@@ -42,6 +42,7 @@ npm run deploy
 | Route | App |
 |---|---|
 | `/golf` | Multiplayer 4-card golf — rooms, permalinks, and (on the v2 wire) room chat |
+| `/castle` | Castle (Palace) — shed every card first; rooms and chat shared with golf |
 | `/thoughts` | 3D multiplayer thoughts game |
 | `/party` | Rescue Party |
 | `/quest` | Quest — score-chasing arcade game |
@@ -58,15 +59,17 @@ The nav's **Elsewhere** menu links to apps hosted off muchq.com (see the
 list). Those are external links, not routes — their code lives in their own
 repos, not here.
 
-### Golf and thoughts
+### Golf, castle and thoughts
 
-Both speak the games hub's event-stream wire (`/games/v2/*` on api.muchq.com; the models
+All three speak the games hub's event-stream wire (`/games/v2/*` on api.muchq.com; the models
 and the protocol are documented with the service in MoonBase, `domains/games/apis/games_hub`).
 `VITE_GOLF_WEBSOCKET_URL` and `VITE_THOUGHTS_WEBSOCKET_URL` override the play sockets at
 build time; the session mint is derived from either (`src/utils/hubSession.ts`). Golf keeps
 a resume token so a reconnect reclaims its seat; thoughts mints a fresh identity per dial
-(`src/utils/networkSystem.ts` says why). The golf UI reveals room chat only once the server
-actually delivers chat on the wire.
+(`src/utils/networkSystem.ts` says why). Castle rides the golf play socket (a room hosts
+tables of either game) through `src/utils/hubStream.ts`, the game-agnostic room stream, and
+keeps a resume token of its own. The golf and castle UIs reveal room chat only once the
+server actually delivers chat on the wire.
 
 ## 🏗️ Project Structure
 

@@ -88,6 +88,9 @@ interface V2PlayerInfo {
 
 interface V2GameSummary {
   gameId: string
+  // Which game the table plays: a room hosts golf and castle tables on
+  // one stream (MoonBase#77), and this client lists only its own.
+  game?: 'golf' | 'castle'
   status: GamePhase
   playerCount: number
 }
@@ -130,6 +133,9 @@ type V2Frame =
   | { event: 'roomChatHistory'; payload: { messages: ChatMessage[] } }
   | { event: 'commandRejected'; payload: { reason: string } }
   | { event: 'golf'; payload: { update: V2GolfUpdate } }
+  // The room's other game (MoonBase#77): its announcements reach every
+  // member, and are not golf's to read.
+  | { event: 'castle'; payload: { update: unknown } }
 
 type V2CommandEvent = 'createRoom' | 'joinRoom' | 'leaveRoom' | 'getRoomState' | 'chat' | 'golf'
 type V2MoveName =
@@ -209,6 +215,7 @@ function mapGameView(view: V2GameView): GolfGameState {
 function mapRoomState(room: V2RoomState): Room {
   const games: Record<string, GolfGameState> = {}
   for (const summary of room.games) {
+    if ((summary.game ?? 'golf') !== 'golf') continue
     games[summary.gameId] = {
       id: summary.gameId,
       players: stubSeats(summary.playerCount),
@@ -397,6 +404,8 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
         return
       case 'golf':
         this.handleUpdate(frame.payload.update)
+        return
+      case 'castle':
         return
       default:
         console.warn('golf v2: unknown event', frame)
