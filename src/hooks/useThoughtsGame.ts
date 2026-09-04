@@ -81,9 +81,10 @@ export const useThoughtsGame = () => {
 
     // Setup audio system
     const soundToggle = document.getElementById('sound-toggle')
-    soundToggle?.addEventListener('click', () => {
-      audioSystem.toggleSound()
-    })
+    const handleSoundToggle = () => audioSystem.toggleSound()
+    soundToggle?.addEventListener('click', handleSoundToggle)
+    // Set once the canvas is up; cleanup removes the same reference.
+    let resizeCanvas: (() => void) | null = null
 
     // Function to cycle through shapes
     function cyclePlayerShape() {
@@ -204,7 +205,7 @@ export const useThoughtsGame = () => {
       const webglContext = gl
 
       // Resize function
-      const resizeCanvas = () => {
+      resizeCanvas = () => {
         const dpr = window.devicePixelRatio || 1
         canvas.width = window.innerWidth * dpr
         canvas.height = window.innerHeight * dpr
@@ -623,13 +624,9 @@ export const useThoughtsGame = () => {
       animationId = requestAnimationFrame(render)
     }
 
-    // Connect to server (or simulate connection) - but don't block game from starting
-    const websocketUrl = thoughtsPlayUrl()
-
-    // Delay connection attempt slightly to ensure game renders first
-    setTimeout(() => {
-      networkManager.connect(websocketUrl)
-    }, 100)
+    // Dialled here, not from a timer: cleanup's disconnect() retires this
+    // dial, so nothing joins the world after teardown.
+    networkManager.connect(thoughtsPlayUrl())
 
     // Handle page unload - notify server when player leaves
     const handleBeforeUnload = () => {
@@ -648,8 +645,8 @@ export const useThoughtsGame = () => {
       document.removeEventListener('keydown', handleKeyDown)
       document.removeEventListener('keyup', handleKeyUp)
       mobileMenuToggle?.removeEventListener('click', handleMobileMenuToggle)
-      soundToggle?.removeEventListener('click', () => {})
-      window.removeEventListener('resize', () => {})
+      soundToggle?.removeEventListener('click', handleSoundToggle)
+      if (resizeCanvas) window.removeEventListener('resize', resizeCanvas)
       window.removeEventListener('beforeunload', handleBeforeUnload)
 
       if (animationId) {

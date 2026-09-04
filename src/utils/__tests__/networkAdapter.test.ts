@@ -121,6 +121,7 @@ describe('GolfNetworkAdapter', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   const connect = async (): Promise<[GolfNetworkAdapter, FakeWebSocket]> => {
@@ -133,13 +134,29 @@ describe('GolfNetworkAdapter', () => {
     return [adapter, ws]
   }
 
+  it('a disconnect during the mint creates no socket', async () => {
+    const adapter = new GolfNetworkAdapter(callbacks)
+    adapter.connect()
+    // Torn down (a StrictMode remount, a fast navigation) before the mint
+    // resolves: nothing may dial afterwards, or a seat nobody can close
+    // would be held under the live adapter's playerId.
+    adapter.disconnect()
+    await flushAsync()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(FakeWebSocket.instances).toHaveLength(0)
+    expect(adapter.playerId).toBeNull()
+  })
+
   it('mints a session, stores the resume token, and dials with the ticket', async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout')
     const [, ws] = await connect()
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0]
-    // A hung mint must time out rather than stall the reconnect loop.
-    expect(init.signal).toBeInstanceOf(AbortSignal)
+    // A hung mint must time out rather than stall the reconnect loop;
+    // the budget is pinned, not just the wiring.
+    expect(timeoutSpy).toHaveBeenCalledWith(10_000)
+    expect(init.signal).toBe(timeoutSpy.mock.results[0].value)
     expect(url).toContain('/games/v2/session')
     expect(JSON.parse((init as { body: string }).body)).toEqual({})
 
