@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { GolfTableActions, GolfTableEnded } from '@/hooks/useGolfTable'
 import type { Card, GameState, Player } from '@/types/golf'
@@ -7,26 +7,32 @@ import styles from './GolfGame.module.css'
 
 // The table from the viewer's chair, over whatever hook holds it: the
 // golf page's (GolfGame) or the lobby's. The buttons offer what the
-// phase allows; the hub refuses in band, and the owner's notice says why.
+// phase allows, and nothing while the socket is down (a move it cannot
+// carry is not a move); the hub refuses in band, and the owner's notice
+// says why.
 
 export interface GolfTableProps {
   playerId: string
+  connected: boolean
   view: GameState
   table: GolfTableActions & { ended: GolfTableEnded | null; peekCountdown: number | null }
   shareUrl?: string | null
-  // The owner's additions to the scorecard: room totals, more links.
+  // The owner's additions to the scorecard: room totals above the
+  // links, more links beside "Back to Room".
   children?: ReactNode
+  links?: ReactNode
 }
 
 const isRed = (card: Card) => card.suit === '♥' || card.suit === '♦'
 
-const GolfTable = ({ playerId, view, table, shareUrl = null, children }: GolfTableProps) => {
+const GolfTable = ({ playerId, connected, view, table, shareUrl = null, children, links }: GolfTableProps) => {
   const { ended, peekCountdown } = table
   const [showScores, setShowScores] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
 
   const me = view.players.find(player => player.id === playerId)
   const isMyTurn = view.players[view.currentPlayerIndex]?.id === playerId
+  const acting = isMyTurn && connected
   const inPlay = view.gamePhase === 'playing' || view.gamePhase === 'knocked'
 
   const isWinner = (player: Player | undefined) => {
@@ -34,11 +40,6 @@ const GolfTable = ({ playerId, view, table, shareUrl = null, children }: GolfTab
     if (ended.winners.length > 0) return ended.winners.includes(player.id)
     return player.id === ended.winner
   }
-
-  const confirmLeave = useCallback(() => {
-    setShowLeaveConfirm(false)
-    table.leaveTable()
-  }, [table])
 
   useEffect(() => {
     if (view.gamePhase === 'ended') {
@@ -75,7 +76,7 @@ const GolfTable = ({ playerId, view, table, shareUrl = null, children }: GolfTab
   }, [showKnockAlert])
 
   const renderCard = (card: Card | null, index: number, isRevealed: boolean, isMine: boolean) => {
-    const canInteract = isMine && (isMyTurn || (me !== undefined && !me.hasPeeked && view.gamePhase === 'playing'))
+    const canInteract = isMine && connected && (isMyTurn || (me !== undefined && !me.hasPeeked && view.gamePhase === 'playing'))
 
     return (
       <div
@@ -106,8 +107,8 @@ const GolfTable = ({ playerId, view, table, shareUrl = null, children }: GolfTab
     )
   }
 
-  const canDraw = isMyTurn && !view.drawnCard
-  const canTakeDiscard = canDraw && view.discardPile.length > 0
+  // The discard offers only while it shows a card, so one gate serves.
+  const canDraw = acting && !view.drawnCard
 
   return (
     <div className={styles.gameContainer}>
@@ -141,7 +142,14 @@ const GolfTable = ({ playerId, view, table, shareUrl = null, children }: GolfTab
         {showLeaveConfirm && (
           <div className={styles.leaveConfirm}>
             <span>Leave this game?</span>
-            <button onClick={confirmLeave} className={styles.leaveConfirmYes}>
+            <button
+              onClick={() => {
+                setShowLeaveConfirm(false)
+                table.leaveTable()
+              }}
+              className={styles.leaveConfirmYes}
+              disabled={!connected}
+            >
               Leave
             </button>
             <button onClick={() => setShowLeaveConfirm(false)} className={styles.leaveConfirmNo}>
@@ -156,11 +164,11 @@ const GolfTable = ({ playerId, view, table, shareUrl = null, children }: GolfTab
           <h3 className={styles.waitingPulse}>Waiting for players...</h3>
           <p>{view.players.length}/4 players</p>
           {view.players.length >= 2 && (
-            <button onClick={table.startTable} className={`${styles.primaryButton} ${styles.startGameButton}`}>
+            <button onClick={table.startTable} className={`${styles.primaryButton} ${styles.startGameButton}`} disabled={!connected}>
               Start Game
             </button>
           )}
-          <button onClick={table.leaveTable} className={styles.textLink}>
+          <button onClick={table.leaveTable} className={styles.textLink} disabled={!connected}>
             Leave Game
           </button>
         </div>
@@ -181,7 +189,7 @@ const GolfTable = ({ playerId, view, table, shareUrl = null, children }: GolfTab
       {view.gamePhase === 'ended' && showScores && (
         <div className={styles.gameEndOverlay}>
           <div className={styles.gameEndContent}>
-            <button onClick={table.playAgain} className={styles.playAgainButton}>
+            <button onClick={table.createTable} className={styles.playAgainButton} disabled={!connected}>
               Play Again
             </button>
 
@@ -204,6 +212,7 @@ const GolfTable = ({ playerId, view, table, shareUrl = null, children }: GolfTab
               <button onClick={table.leaveTable} className={styles.textLink}>
                 Back to Room
               </button>
+              {links}
             </div>
           </div>
         </div>
@@ -250,11 +259,11 @@ const GolfTable = ({ playerId, view, table, shareUrl = null, children }: GolfTab
                 <h3>Discard</h3>
                 {view.discardPile.length > 0 ? (
                   <div
-                    className={`${canTakeDiscard ? styles.clickable : ''} ${view.drawnCard ? styles.pileDepleted : ''}`}
-                    onClick={() => canTakeDiscard && table.takeFromDiscard()}
+                    className={`${canDraw ? styles.clickable : ''} ${view.drawnCard ? styles.pileDepleted : ''}`}
+                    onClick={() => canDraw && table.takeFromDiscard()}
                     onTouchEnd={e => {
                       e.preventDefault()
-                      if (canTakeDiscard) table.takeFromDiscard()
+                      if (canDraw) table.takeFromDiscard()
                     }}
                   >
                     {renderCard(view.discardPile[view.discardPile.length - 1], -1, true, false)}
@@ -280,13 +289,13 @@ const GolfTable = ({ playerId, view, table, shareUrl = null, children }: GolfTab
 
             <div className={styles.actions} style={!isMyTurn ? { visibility: 'hidden' } : undefined}>
               {view.drawnCard ? (
-                <button onClick={table.discardDrawn} className={styles.actionButton}>
+                <button onClick={table.discardDrawn} className={styles.actionButton} disabled={!connected}>
                   Discard
                 </button>
               ) : null}
 
               {view.gamePhase === 'playing' && !view.drawnCard && (
-                <button onClick={table.knock} className={styles.knockButton}>
+                <button onClick={table.knock} className={styles.knockButton} disabled={!connected}>
                   Knock
                 </button>
               )}

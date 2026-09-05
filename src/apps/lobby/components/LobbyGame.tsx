@@ -55,6 +55,7 @@ const LobbyGame = (props: UseLobbyProps) => {
         <div className={styles.tableOverlay}>
           <GolfTable
             playerId={playerId}
+            connected={connected}
             view={golf.view}
             table={golf}
             shareUrl={room === null ? null : `${window.location.origin}${lobbyTablePath(room.roomId, golf.view.id)}`}

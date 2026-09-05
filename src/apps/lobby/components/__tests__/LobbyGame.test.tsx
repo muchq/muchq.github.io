@@ -32,7 +32,9 @@ vi.mock('@/hooks/useLobby', async importOriginal => ({
 }))
 vi.mock('@/apps/thoughts/components/ThoughtsGame', () => ({ default: () => <div>world</div> }))
 vi.mock('@/apps/castle/components/CastleTable', () => ({ default: () => <div>table</div> }))
-vi.mock('@/apps/golf/components/GolfTable', () => ({ default: () => <div>golf table</div> }))
+vi.mock('@/apps/golf/components/GolfTable', () => ({
+  default: ({ shareUrl }: { shareUrl: string | null }) => <div>golf table {shareUrl}</div>
+}))
 
 import LobbyGame from '../LobbyGame'
 
@@ -71,13 +73,15 @@ describe('LobbyGame', () => {
   it('a golf table is a table too: over the world, the panel folded', () => {
     const { rerender } = render(<LobbyGame />)
     state.golf.view = golfView
+    state.room = { roomId: 'R1', players: [], games: [] }
     rerender(<LobbyGame />)
-    expect(screen.getByText('golf table')).toBeTruthy()
+    expect(screen.getByText(`golf table ${window.location.origin}/games/room/R1/table/G2`)).toBeTruthy()
     expect(screen.queryByText('table')).toBeNull()
     expect(screen.queryByRole('complementary', { name: 'lobby' })).toBeNull()
     state.golf.view = null
+    state.room = null
     rerender(<LobbyGame />)
-    expect(screen.queryByText('golf table')).toBeNull()
+    expect(screen.queryByText(/golf table/)).toBeNull()
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
   })
 })

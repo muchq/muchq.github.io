@@ -43,7 +43,7 @@ const table = (over: Partial<GolfTableProps['table']> = {}): GolfTableProps['tab
   peekCountdown: null,
   startTable: vi.fn(),
   leaveTable: vi.fn(),
-  playAgain: vi.fn(),
+  createTable: vi.fn(),
   drawCard: vi.fn(),
   takeFromDiscard: vi.fn(),
   discardDrawn: vi.fn(),
@@ -58,7 +58,7 @@ describe('GolfTable', () => {
 
   it('on your turn the piles draw, the hand taps, and knock is offered; off it, nothing is', () => {
     const t = table()
-    const { container, rerender } = render(<GolfTable playerId="alice" view={view()} table={t} />)
+    const { container, rerender } = render(<GolfTable playerId="alice" connected view={view()} table={t} />)
     fireEvent.click(screen.getByText('Deck').nextElementSibling!)
     expect(t.drawCard).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByText('Discard').nextElementSibling!)
@@ -69,7 +69,7 @@ describe('GolfTable', () => {
     fireEvent.click(hand[2])
     expect(t.tapCard).toHaveBeenCalledWith(2)
 
-    rerender(<GolfTable playerId="alice" view={view({ currentPlayerIndex: 1 })} table={t} />)
+    rerender(<GolfTable playerId="alice" connected view={view({ currentPlayerIndex: 1 })} table={t} />)
     fireEvent.click(screen.getByText('Deck').nextElementSibling!)
     fireEvent.click(screen.getByText('Discard').nextElementSibling!)
     fireEvent.click(container.querySelectorAll('[class*="cardGrid"] > [class*="card"]')[2])
@@ -81,7 +81,7 @@ describe('GolfTable', () => {
 
   it('holding a card offers discard and no second draw', () => {
     const t = table()
-    render(<GolfTable playerId="alice" view={view({ drawnCard: { rank: '7', suit: '♣' } })} table={t} />)
+    render(<GolfTable playerId="alice" connected view={view({ drawnCard: { rank: '7', suit: '♣' } })} table={t} />)
     fireEvent.click(screen.getByText('Deck').nextElementSibling!)
     expect(t.drawCard).not.toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: 'Knock' })).toBeNull()
@@ -92,9 +92,9 @@ describe('GolfTable', () => {
 
   it('a waiting table starts with two seated and leaves straight away', () => {
     const t = table()
-    const { rerender } = render(<GolfTable playerId="alice" view={view({ gamePhase: 'waiting', players: [player('alice')] })} table={t} />)
+    const { rerender } = render(<GolfTable playerId="alice" connected view={view({ gamePhase: 'waiting', players: [player('alice')] })} table={t} />)
     expect(screen.queryByRole('button', { name: 'Start Game' })).toBeNull()
-    rerender(<GolfTable playerId="alice" view={view({ gamePhase: 'waiting' })} table={t} />)
+    rerender(<GolfTable playerId="alice" connected view={view({ gamePhase: 'waiting' })} table={t} />)
     fireEvent.click(screen.getByRole('button', { name: 'Start Game' }))
     expect(t.startTable).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole('button', { name: 'Leave Game' }))
@@ -103,7 +103,7 @@ describe('GolfTable', () => {
 
   it('leaving mid-game asks first', () => {
     const t = table()
-    render(<GolfTable playerId="alice" view={view()} table={t} />)
+    render(<GolfTable playerId="alice" connected view={view()} table={t} />)
     fireEvent.click(screen.getByRole('button', { name: '✕' }))
     fireEvent.click(screen.getByRole('button', { name: 'Stay' }))
     expect(t.leaveTable).not.toHaveBeenCalled()
@@ -114,40 +114,67 @@ describe('GolfTable', () => {
 
   it('an ended table celebrates, then scores it with the winners crowned and the owner\'s extras', () => {
     vi.useFakeTimers()
-    const t = table({ ended: { winner: 'bob', winners: ['bob'], finalScores: [] } })
+    const t = table({ ended: { winner: 'bob', winners: ['bob']} })
     const ended = view({
       gamePhase: 'ended',
       players: [player('alice', { score: 9 }), player('bob', { score: 4 })]
     })
-    render(
-      <GolfTable playerId="alice" view={ended} table={t} shareUrl="https://muchq.com/games/room/R1/table/G1">
+    const { container } = render(
+      <GolfTable playerId="alice" connected view={ended} table={t} shareUrl="https://muchq.com/games/room/R1/table/G1" links={<button>more</button>}>
         <p>room totals</p>
       </GolfTable>
     )
     expect(screen.getByText('bob wins!')).toBeTruthy()
     expect(screen.getByText('😤')).toBeTruthy()
-    act(() => vi.advanceTimersByTime(3000))
+    // A tap skips the wait.
+    fireEvent.click(screen.getByText('Tap to see scores'))
     expect(screen.getByText('Final Scores')).toBeTruthy()
     expect(screen.getByText('👑')).toBeTruthy()
     expect(screen.getByText('#2')).toBeTruthy()
     expect(screen.getByText('room totals')).toBeTruthy()
+    // Scored low to high, while the header keeps the seats in order.
+    const scoreRows = container.querySelectorAll('[class*="scoreRow"] [class*="playerName"]')
+    expect([...scoreRows].map(row => row.textContent)).toEqual(['bob', 'alice'])
+    const seats = container.querySelectorAll('[class*="playerInfo"] > span:first-child')
+    expect([...seats].map(seat => seat.textContent)).toEqual(['alice', 'bob'])
+    // The owner's links sit beside "Back to Room".
+    expect(screen.getByRole('button', { name: 'Back to Room' }).parentElement).toBe(screen.getByRole('button', { name: 'more' }).parentElement)
     fireEvent.click(screen.getByRole('button', { name: 'Play Again' }))
-    expect(t.playAgain).toHaveBeenCalledTimes(1)
+    expect(t.createTable).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole('button', { name: 'Back to Room' }))
     expect(t.leaveTable).toHaveBeenCalledTimes(1)
   })
 
   it('a shared win crowns every winner and reads as yours', () => {
     vi.useFakeTimers()
-    const t = table({ ended: { winner: 'alice & bob', winners: ['alice', 'bob'], finalScores: [] } })
-    render(<GolfTable playerId="alice" view={view({ gamePhase: 'ended' })} table={t} />)
+    const t = table({ ended: { winner: 'alice & bob', winners: ['alice', 'bob']} })
+    render(<GolfTable playerId="alice" connected view={view({ gamePhase: 'ended' })} table={t} />)
     expect(screen.getByText('You won!')).toBeTruthy()
     act(() => vi.advanceTimersByTime(3000))
     expect(screen.getAllByText('👑')).toHaveLength(2)
   })
 
+  it('an ended table with no result yet is just over', () => {
+    render(<GolfTable playerId="alice" connected view={view({ gamePhase: 'ended' })} table={table()} />)
+    expect(screen.getByText('Game over')).toBeTruthy()
+  })
+
+  it('offers nothing while the socket is down', () => {
+    const t = table()
+    const { container, rerender } = render(<GolfTable playerId="alice" connected={false} view={view()} table={t} />)
+    fireEvent.click(screen.getByText('Deck').nextElementSibling!)
+    fireEvent.click(screen.getByText('Discard').nextElementSibling!)
+    fireEvent.click(container.querySelectorAll('[class*="cardGrid"] > [class*="card"]')[0])
+    expect(screen.getByRole('button', { name: 'Knock' })).toHaveProperty('disabled', true)
+    rerender(<GolfTable playerId="alice" connected={false} view={view({ gamePhase: 'waiting' })} table={t} />)
+    expect(screen.getByRole('button', { name: 'Start Game' })).toHaveProperty('disabled', true)
+    expect(t.drawCard).not.toHaveBeenCalled()
+    expect(t.takeFromDiscard).not.toHaveBeenCalled()
+    expect(t.tapCard).not.toHaveBeenCalled()
+  })
+
   it('shows the peek countdown the hook keeps', () => {
-    render(<GolfTable playerId="alice" view={view({ gamePhase: 'peeking' })} table={table({ peekCountdown: 2 })} />)
+    render(<GolfTable playerId="alice" connected view={view({ gamePhase: 'peeking' })} table={table({ peekCountdown: 2 })} />)
     expect(screen.getByText('2')).toBeTruthy()
     expect(screen.getByText('All players have peeked!')).toBeTruthy()
   })

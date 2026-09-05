@@ -124,6 +124,19 @@ describe('useGolfTable', () => {
     expect(move).toHaveBeenCalledTimes(1)
   })
 
+  it('a table that leaves the peek mid-count stops the clock and hides nothing', () => {
+    vi.useFakeTimers()
+    const { result, receive, move } = mount()
+    receive({ gameJoined: { view: view({ phase: 'peeking', allPlayersPeeked: true }) } })
+    act(() => vi.advanceTimersByTime(1100))
+    expect(result.current.peekCountdown).toBe(2)
+    receive({ gameState: { view: view() } })
+    expect(result.current.peekCountdown).toBeNull()
+    act(() => vi.advanceTimersByTime(5000))
+    expect(result.current.peekCountdown).toBeNull()
+    expect(move).not.toHaveBeenCalled()
+  })
+
   it('tells the room about the game as it goes, but not about its own table opening', () => {
     const { receive, showNotice } = mount()
     receive({ gameCreated: { gameId: 'G2', createdBy: 'alice' } })
@@ -141,11 +154,12 @@ describe('useGolfTable', () => {
   })
 
   it('an ended table keeps its result until it is left, locally, since the hub has dropped it', () => {
-    const { result, receive, move, onLeft } = mount()
+    const { result, receive, move, showNotice, onLeft } = mount()
     receive({ gameJoined: { view: view() } })
     receive({ gameState: { view: view({ phase: 'ended', currentPlayerId: undefined }) } })
     receive({ gameEnded: { winner: 'bob', winners: ['bob'], finalScores: [{ playerId: 'alice', score: 9 }, { playerId: 'bob', score: 4 }] } })
-    expect(result.current.ended).toEqual({ winner: 'bob', winners: ['bob'], finalScores: [{ playerName: 'alice', score: 9 }, { playerName: 'bob', score: 4 }] })
+    expect(result.current.ended).toEqual({ winner: 'bob', winners: ['bob'] })
+    expect(showNotice).toHaveBeenLastCalledWith('Game over! Winner: bob')
     act(() => result.current.leaveTable())
     expect(move).not.toHaveBeenCalled()
     expect(result.current.view).toBeNull()
@@ -157,7 +171,7 @@ describe('useGolfTable', () => {
     const { result, receive, move } = mount()
     receive({ gameJoined: { view: view() } })
     receive({ gameEnded: { winner: 'bob', winners: ['bob'], finalScores: [] } })
-    act(() => result.current.playAgain())
+    act(() => result.current.createTable())
     expect(move).toHaveBeenLastCalledWith('createGame')
     receive({ gameJoined: { view: view({ gameId: 'G2', phase: 'waiting' }) } })
     expect(result.current.view?.id).toBe('G2')

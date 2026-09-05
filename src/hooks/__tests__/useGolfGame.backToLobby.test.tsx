@@ -3,10 +3,9 @@ import { renderHook, act } from '@testing-library/react'
 import { useGolfGame } from '../useGolfGame'
 import type { GameState, Room } from '@/types/golf'
 
-// The lobby is this room too (MoonBase#1490): a golf table opened there
-// hands off to this page, and the way back is the lobby's room path. A
-// table still held would pull the lobby straight back here, so it is
-// left first.
+// The lobby is this room too (MoonBase#1490): the way back is the
+// lobby's room path. A table still held would come up over the lobby's
+// world on arrival, so it is left first.
 
 const mockNavigate = vi.fn()
 vi.mock('react-router-dom', () => ({

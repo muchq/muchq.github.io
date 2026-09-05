@@ -61,7 +61,6 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     dismissNewGameNotification,
     joinNewGame,
     permalinkJoinAttempt,
-    finalScores,
     chatMessages,
     chatAvailable,
     chatReplayUpTo,
@@ -357,11 +356,11 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
   // The table over this page's hook: its actions under the table's
   // names, and the page's own additions to the scorecard.
   const table = {
-    ended: winner === null ? null : { winner, winners: winners ?? [], finalScores: finalScores ?? [] },
+    ended: winner === null ? null : { winner, winners: winners ?? [] },
     peekCountdown,
+    createTable: startNewGame,
     startTable: startGame,
     leaveTable: leaveGame,
-    playAgain: startNewGame,
     drawCard,
     takeFromDiscard,
     discardDrawn,
@@ -372,7 +371,18 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
   return (
     <>
     {roomChat}
-    <GolfTable playerId={playerId} view={gameState} table={table} shareUrl={currentGamePermalink}>
+    <GolfTable
+      playerId={playerId}
+      connected={isConnected}
+      view={gameState}
+      table={table}
+      shareUrl={currentGamePermalink}
+      links={
+        <button onClick={backToLobby} className={styles.textLink}>
+          Lobby: world & chat
+        </button>
+      }
+    >
       {roomState && (
         <details className={styles.roomTotalsDetails}>
           <summary className={styles.roomTotalsSummary}>Room Totals</summary>
@@ -422,12 +432,6 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
           </div>
         </div>
       )}
-
-      <div className={styles.gameEndLinks}>
-        <button onClick={backToLobby} className={styles.textLink}>
-          Lobby: world & chat
-        </button>
-      </div>
     </GolfTable>
 
     {notification && (

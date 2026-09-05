@@ -224,6 +224,13 @@ describe('useLobby', () => {
     expect(gone.result.current.notice).toBe('Table G2 is in play')
     expect(gone.pathname()).toBe('/games/room/R2')
     expect(gone.ws.sentFrames().some(frame => frame.event === 'castle')).toBe(false)
+    gone.unmount()
+
+    installFakeHub()
+    const busy = await open({ permalinkRoomId: 'R3', permalinkGameId: 'G3' }, '/games/room/R3/table/G3')
+    act(() => busy.ws.receive('roomState', roomState('R3', [{ gameId: 'G3', game: 'golf', status: 'playing', playerCount: 2 }])))
+    expect(busy.result.current.notice).toBe('Table G3 is in play')
+    expect(busy.ws.sentFrames().some(frame => frame.event === 'golf')).toBe(false)
   })
 
   it('a share link into the room the seat resumed in keeps the seat: no leave, one join, then the table', async () => {

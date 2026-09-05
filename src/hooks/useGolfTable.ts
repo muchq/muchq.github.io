@@ -1,14 +1,13 @@
 import { useCallback, useRef, useState } from 'react'
-import type { FinalScore, GameState } from '@/types/golf'
+import type { GameState } from '@/types/golf'
 import type { GolfMoveName, GolfUpdate, GolfView } from '@/apps/golf/wire'
 import { mapGameView } from '@/apps/golf/wire'
 import { GAME_STARTED, gameOverMessage, knockedMessage, turnMessage } from '@/utils/golfNotifications'
 import { usePeekCountdown } from './usePeekCountdown'
 
-// A golf table as the wire sends it, in the UI's model, over whatever
-// stream carries the golf envelope: the lobby's (useLobby), or later
-// golf's own page. The owner feeds handleUpdate every golf update and
-// clears the table on a resume.
+// A golf table as the wire sends it, in the UI's model, over the lobby's
+// stream (useLobby; golf's own page still rides useGolfGame). The owner
+// feeds handleUpdate every golf update and clears the table on a resume.
 //
 // The UI's take-then-place discard flow is emulated here: the discard
 // top is public, so "taking" it reveals nothing, and the hub's one
@@ -17,15 +16,14 @@ import { usePeekCountdown } from './usePeekCountdown'
 export interface GolfTableEnded {
   winner: string
   winners: string[]
-  finalScores: FinalScore[]
 }
 
-// What the table's chrome offers; the room screen adds create and join.
+// What the table's chrome calls; the room screen adds joinTable.
 export interface GolfTableActions {
+  // Also an ended table's "again": the hub seats the creator at a new one.
+  createTable: () => void
   startTable: () => void
   leaveTable: () => void
-  // An ended table's "again": the hub seats the creator at a new one.
-  playAgain: () => void
   drawCard: () => void
   takeFromDiscard: () => void
   discardDrawn: () => void
@@ -38,7 +36,6 @@ export interface UseGolfTable extends GolfTableActions {
   view: GameState | null
   ended: GolfTableEnded | null
   peekCountdown: number | null
-  createTable: () => void
   joinTable: (gameId: string) => void
   handleUpdate: (update: GolfUpdate) => void
   clear: () => void
@@ -105,11 +102,7 @@ export const useGolfTable = ({ playerId, move, showNotice, onLeft }: UseGolfTabl
       if (update.gameEnded) {
         const over = update.gameEnded
         showNotice(gameOverMessage(over.winner))
-        setEnded({
-          winner: over.winner,
-          winners: over.winners,
-          finalScores: over.finalScores.map(score => ({ playerName: score.playerId, score: score.score }))
-        })
+        setEnded({ winner: over.winner, winners: over.winners })
         return
       }
       if (update.gameLeft) {
@@ -123,7 +116,6 @@ export const useGolfTable = ({ playerId, move, showNotice, onLeft }: UseGolfTabl
   const createTable = useCallback(() => move('createGame'), [move])
   const joinTable = useCallback((gameId: string) => move('joinGame', { gameId }), [move])
   const startTable = useCallback(() => move('startGame'), [move])
-  const playAgain = useCallback(() => move('createGame'), [move])
   const leaveTable = useCallback(() => {
     if (view !== null && view.gamePhase !== 'ended') {
       move('leaveGame')
@@ -189,7 +181,6 @@ export const useGolfTable = ({ playerId, move, showNotice, onLeft }: UseGolfTabl
     joinTable,
     startTable,
     leaveTable,
-    playAgain,
     drawCard,
     takeFromDiscard,
     discardDrawn,

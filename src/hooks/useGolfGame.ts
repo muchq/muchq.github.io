@@ -370,10 +370,10 @@ export const useGolfGame = ({
   }, [])
 
   // The seat is shared with the lobby, which resumes in this room with
-  // the world and chat up. A table still held would pull the lobby
-  // straight back here, so the table is left first — and a leave the
-  // socket cannot carry is not a leave, so while disconnected the table
-  // keeps the player here.
+  // the world and chat up. A table still held would come up over the
+  // world there instead of the room, so the table is left first — and a
+  // leave the socket cannot carry is not a leave, so while disconnected
+  // the table keeps the player here.
   const backToLobby = useCallback(() => {
     if (!roomState?.id) return
     if (gameState) {

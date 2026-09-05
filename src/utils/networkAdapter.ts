@@ -10,6 +10,8 @@
 // table shares it). The UI's take-then-place discard flow is emulated
 // here: the discard top is public, so "taking" it reveals nothing; the
 // hub's takeFromDiscard{cardIndex} is sent when the player places it.
+// useGolfTable carries the same emulation for the lobby; this copy
+// retires with useGolfGame (MoonBase#1502).
 
 import type { GameState as GolfGameState, Player, Room, FinalScore } from '@/types/golf'
 import type { GolfMoveName, GolfUpdate, GolfView } from '@/apps/golf/wire'
