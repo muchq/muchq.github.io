@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { lobbyRoomPath } from '@/hooks/useLobby'
 import type { GameState, Player, Room } from '@/types/golf'
 import type { ChatMessage } from '@/types/golfChat'
 import { mergeChatMessages } from '@/types/golfChat'
@@ -99,6 +100,9 @@ interface UseGolfGameReturn {
   clearGameState: () => void
   leaveGame: () => void
   leaveRoom: () => void
+  // The lobby is this room too (MoonBase#1490): back to it, out of any
+  // table first.
+  backToLobby: () => void
 
   // Computed
   currentPlayer: Player | undefined
@@ -359,6 +363,23 @@ export const useGolfGame = ({
     setFinalScores(null)
     setSelectedCardIndex(null)
   }, [])
+
+  // The seat is shared with the lobby, which resumes in this room with
+  // the world and chat up. A table still held would pull the lobby
+  // straight back here, so the table is left first — and a leave the
+  // socket cannot carry is not a leave, so while disconnected the table
+  // keeps the player here.
+  const backToLobby = useCallback(() => {
+    if (!roomState?.id) return
+    if (gameState) {
+      if (!isConnected) {
+        showNotification('Reconnecting; the table is left once the connection is back')
+        return
+      }
+      networkAdapterRef.current?.leaveGame()
+    }
+    navigate(lobbyRoomPath(roomState.id))
+  }, [gameState, isConnected, navigate, roomState?.id, showNotification])
 
   const leaveRoom = useCallback(() => {
     if (roomState?.id) {
@@ -1065,6 +1086,7 @@ export const useGolfGame = ({
     clearGameState,
     leaveGame,
     leaveRoom,
+    backToLobby,
 
     // Navigation helpers
     navigateToRoom,

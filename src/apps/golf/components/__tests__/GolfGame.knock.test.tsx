@@ -78,6 +78,7 @@ const mockHook = ({ gameState = makeGameState(), playerId = 'alice', isMyTurn = 
     setRoomCode: vi.fn(),
     leaveGame: vi.fn(),
     leaveRoom: vi.fn(),
+    backToLobby: vi.fn(),
     dismissNewGameNotification: vi.fn(),
     joinNewGame: vi.fn(),
     permalinkJoinAttempt: { isAttempting: false, error: null },
