@@ -83,7 +83,7 @@ describe('useLobby', () => {
   it("dials with golf's identity and joins the plaza's world once the session is ready", async () => {
     localStorage.setItem(GOLF_RESUME_TOKEN_KEY, 'rt-golf')
     const onPlayerIdChange = vi.fn()
-    const { result, ws, gameState } = await open({ onPlayerIdChange })
+    const { result, ws, gameState, pathname } = await open({ onPlayerIdChange })
     const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>
     expect(fetchMock.mock.calls[0][1].body).toBe('{"resumeToken":"rt-golf"}')
     expect(onPlayerIdChange).toHaveBeenCalledWith('alice')
@@ -94,6 +94,7 @@ describe('useLobby', () => {
       { event: 'lobby', payload: { action: { join: { position: [10, 0, -5], color: [0.8, 0.2, 0.6], shape: 0 } } } }
     ])
     expect(result.current.world.isConnected).toBe(true)
+    expect(pathname()).toBe('/games')
     // The world's updates reach the renderer's state.
     act(() => ws.receive('lobby', { update: { playerJoined: { player: { playerId: 'bob', position: [1, 0, 1], color: [1, 1, 1], shape: 1 } } } }))
     expect(gameState.players.get('bob')?.shape).toBe(ShapeType.CUBE)
@@ -190,6 +191,16 @@ describe('useLobby', () => {
     expect(gone.result.current.notice).toBe('Table G2 is in play')
     expect(gone.pathname()).toBe('/games/room/R2')
     expect(gone.ws.sentFrames().some(frame => frame.event === 'castle')).toBe(false)
+  })
+
+  it('a share link into the room the seat resumed in keeps the seat: no leave, one join, then the table', async () => {
+    const { ws, pathname } = await open({ permalinkRoomId: 'R1', permalinkGameId: 'G1' }, '/games/room/R1/table/G1', 'R1')
+    expect(ws.sentFrames().some(frame => frame.event === 'leaveRoom' || frame.event === 'joinRoom')).toBe(false)
+    expect(lobbyFrames(ws)).toHaveLength(1)
+    act(() => ws.receive('roomState', roomState('R1', [{ gameId: 'G1', game: 'castle', status: 'waiting', playerCount: 1 }])))
+    expect(lobbyFrames(ws)).toHaveLength(1)
+    expect(ws.lastSent()).toEqual({ event: 'castle', payload: { move: { joinGame: { gameId: 'G1' } } } })
+    expect(pathname()).toBe('/games/room/R1')
   })
 
   it('a resumed session in another room leaves it for the linked one', async () => {

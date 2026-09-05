@@ -51,13 +51,17 @@ describe('LobbyGame', () => {
     rerender(<LobbyGame />)
     expect(screen.getByText('table')).toBeTruthy()
     expect(screen.queryByRole('complementary', { name: 'lobby' })).toBeNull()
-    // Still a toggle away over the table.
-    fireEvent.click(screen.getByRole('button', { name: 'Room' }))
-    expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
 
     state.castle.view = null
     rerender(<LobbyGame />)
     expect(screen.queryByText('table')).toBeNull()
+    expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
+
+    // Over a table it is still a toggle away.
+    state.castle.view = view
+    rerender(<LobbyGame />)
+    expect(screen.queryByRole('complementary', { name: 'lobby' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Room' }))
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
   })
 })
