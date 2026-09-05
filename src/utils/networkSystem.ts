@@ -1,8 +1,8 @@
 /* eslint-disable no-console */
-// The thoughts client: the games hub's Think event-stream wire, behind the
-// NetworkManager surface useThoughtsGame drives. The contract is MoonBase's
-// domains/games/apis/games_hub/model/thoughts.smithy; this file is the
-// client's reading of it.
+// The thoughts client: the games hub's one stream (/games/v2/play), behind
+// the NetworkManager surface useThoughtsGame drives. The contract is
+// MoonBase's domains/games/apis/games_hub/model/thoughts.smithy (the world)
+// and games.smithy (the stream); this file is the client's reading of it.
 //
 // Wire shape (smithy-cpp ADR-0018 JSON-text mode):
 //   - POST /games/v2/session {} -> {playerId, ticket, resumeToken}
@@ -10,41 +10,49 @@
 //   - frames both ways: {"event": "<member>", "payload": {...}}, and one
 //     terminal {"exception": "<shape>", "payload": {"message"}} when the
 //     hub refuses the dial (a spent ticket, a second live socket)
-//   - up: join {position, color, shape}, move {position}, shape {shape}, leave {}
-//   - down: sessionReady, worldState, playerJoined, playerMoved,
-//     shapeChanged, playerLeft, commandRejected
+//   - up, in the lobby envelope: {"event":"lobby","payload":{"action":
+//     {"join":{position,color,shape}}}} — likewise move {position},
+//     shape {shape}, leave {}
+//   - down: sessionReady and commandRejected bare; the world in the same
+//     envelope: {"event":"lobby","payload":{"update":{"worldState":{...}}}}
+//     — likewise playerJoined, playerMoved, shapeChanged, playerLeft
 //
+// This page is unroomed, so its world is the plaza's (MoonBase#1490).
 // Every dial mints a fresh identity: thoughts is presence, the hub keeps
 // nothing past the socket, and a fresh id per tab is what keeps two tabs
 // from contending for one seat. The resume token the mint returns is
-// unused here. A closed socket is a player gone on the hub's side, so the
+// unused here. A closed socket leaves the world on the hub's side, so the
 // manual reconnect mints again and joins afresh — the world hears a new
 // arrival, not a return. The same holds in reverse: a closed socket drops
 // the remembered peers, since nobody else is here off the wire.
 
 import type { GameState, GameStatePlayer } from '@/types/game'
 import { ShapeType } from '@/types/game'
-import { HUB_SUBPROTOCOL, mintHubSession } from './hubSession'
+import { HUB_SUBPROTOCOL, hubPlayUrl, mintHubSession } from './hubSession'
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'failed'
 
 export function thoughtsPlayUrl(): string {
-  return import.meta.env.VITE_THOUGHTS_WEBSOCKET_URL || 'wss://api.muchq.com/games/v2/thoughts/play'
+  return hubPlayUrl()
 }
+
+// The world's updates, one key each, as the lobby envelope carries them.
+export type LobbyUpdate =
+  | { worldState: { players: GameStatePlayer[] } }
+  | { playerJoined: { player: GameStatePlayer } }
+  | { playerMoved: { playerId: string; position: [number, number, number] } }
+  | { shapeChanged: { playerId: string; shape: ShapeType } }
+  | { playerLeft: { playerId: string } }
 
 // Inbound frames as a discriminated union: the switch narrows each case,
 // and a new event is a compile-time hole instead of a silent cast.
 export type ThoughtsFrame =
   | { event: 'sessionReady'; payload: { playerId: string; resumed: boolean } }
-  | { event: 'worldState'; payload: { players: GameStatePlayer[] } }
-  | { event: 'playerJoined'; payload: { player: GameStatePlayer } }
-  | { event: 'playerMoved'; payload: { playerId: string; position: [number, number, number] } }
-  | { event: 'shapeChanged'; payload: { playerId: string; shape: ShapeType } }
-  | { event: 'playerLeft'; payload: { playerId: string } }
+  | { event: 'lobby'; payload: { update: LobbyUpdate } }
   | { event: 'commandRejected'; payload: { reason: string } }
   | { exception: string; payload: { message?: string } }
 
-type ThoughtsCommand = 'join' | 'move' | 'shape' | 'leave'
+type LobbyAction = 'join' | 'move' | 'shape' | 'leave'
 
 const OFFLINE_ERROR = 'Connection failed - Playing offline'
 const RECONNECT_DELAY_MS = 100
@@ -209,9 +217,9 @@ export class NetworkManager {
     this.sendCommand('leave', {})
   }
 
-  private sendCommand(event: ThoughtsCommand, payload: unknown): void {
+  private sendCommand(action: LobbyAction, payload: unknown): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ event, payload }))
+      this.ws.send(JSON.stringify({ event: 'lobby', payload: { action: { [action]: payload } } }))
     }
   }
 
@@ -228,28 +236,32 @@ export class NetworkManager {
       case 'sessionReady':
         this.handleSessionReady(frame.payload.playerId)
         return
-      case 'worldState':
-        this.handleWorldState(frame.payload.players)
-        return
-      case 'playerJoined':
-        this.addRemotePlayer(frame.payload.player)
-        return
-      case 'playerLeft':
-        this.handlePlayerLeft(frame.payload.playerId)
-        return
-      case 'playerMoved':
-        if (frame.payload.playerId !== this.gameState.localPlayerId) {
-          this.gameState.updatePlayer(frame.payload.playerId, frame.payload.position)
-        }
-        return
-      case 'shapeChanged':
-        this.handleShapeChanged(frame.payload.playerId, frame.payload.shape)
+      case 'lobby':
+        this.handleUpdate(frame.payload.update)
         return
       case 'commandRejected':
         console.warn('🚫 Command rejected:', frame.payload.reason)
         return
       default:
         console.warn('Unknown event:', frame)
+    }
+  }
+
+  private handleUpdate(update: LobbyUpdate): void {
+    if ('worldState' in update) {
+      this.handleWorldState(update.worldState.players)
+    } else if ('playerJoined' in update) {
+      this.addRemotePlayer(update.playerJoined.player)
+    } else if ('playerLeft' in update) {
+      this.handlePlayerLeft(update.playerLeft.playerId)
+    } else if ('playerMoved' in update) {
+      if (update.playerMoved.playerId !== this.gameState.localPlayerId) {
+        this.gameState.updatePlayer(update.playerMoved.playerId, update.playerMoved.position)
+      }
+    } else if ('shapeChanged' in update) {
+      this.handleShapeChanged(update.shapeChanged.playerId, update.shapeChanged.shape)
+    } else {
+      console.warn('Unknown lobby update:', update)
     }
   }
 

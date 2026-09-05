@@ -61,14 +61,14 @@ repos, not here.
 
 ### Golf, castle and thoughts
 
-All three speak the games hub's event-stream wire (`/games/v2/*` on api.muchq.com; the models
+All three speak the games hub's one stream (`/games/v2/play` on api.muchq.com; the models
 and the protocol are documented with the service in MoonBase, `domains/games/apis/games_hub`).
-`VITE_GOLF_WEBSOCKET_URL` and `VITE_THOUGHTS_WEBSOCKET_URL` override the play sockets at
-build time; the session mint is derived from either (`src/utils/hubSession.ts`). Golf keeps
-a resume token so a reconnect reclaims its seat; thoughts mints a fresh identity per dial
-(`src/utils/networkSystem.ts` says why). Castle rides the golf play socket (a room hosts
-tables of either game) through `src/utils/hubStream.ts`, the game-agnostic room stream, and
-keeps a resume token of its own. The golf and castle UIs reveal room chat only once the
+`VITE_HUB_WEBSOCKET_URL` overrides the play socket at build time; the session mint is
+derived from it (`src/utils/hubSession.ts`). Golf keeps a resume token so a reconnect
+reclaims its seat; thoughts mints a fresh identity per dial (`src/utils/networkSystem.ts`
+says why) and speaks the stream's `lobby` envelope. Castle rides the same socket (a room
+hosts tables of either game) through `src/utils/hubStream.ts`, the game-agnostic room
+stream, and keeps a resume token of its own. The golf and castle UIs reveal room chat only once the
 server actually delivers chat on the wire.
 
 ## 🏗️ Project Structure

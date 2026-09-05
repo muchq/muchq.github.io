@@ -48,16 +48,16 @@ describe('HubStream', () => {
     return [hub, ws]
   }
 
-  it('rides the golf play socket, override included', () => {
-    expect(hubPlayUrl()).toBe('wss://api.muchq.com/games/v2/golf/play')
-    vi.stubEnv('VITE_GOLF_WEBSOCKET_URL', 'ws://localhost:2015/games/v2/golf/play')
-    expect(hubPlayUrl()).toBe('ws://localhost:2015/games/v2/golf/play')
+  it('rides the one play socket, override included', () => {
+    expect(hubPlayUrl()).toBe('wss://api.muchq.com/games/v2/play')
+    vi.stubEnv('VITE_HUB_WEBSOCKET_URL', 'ws://localhost:2015/games/v2/play')
+    expect(hubPlayUrl()).toBe('ws://localhost:2015/games/v2/play')
   })
 
   it('mints a session, then dials with the ticket and the JSON subprotocol', async () => {
     const [hub, ws] = await connect()
     expect(fetchMock).toHaveBeenCalledWith('https://api.muchq.com/games/v2/session', expect.objectContaining({ method: 'POST' }))
-    expect(ws.url).toBe('wss://api.muchq.com/games/v2/golf/play?ticket=t-123')
+    expect(ws.url).toBe('wss://api.muchq.com/games/v2/play?ticket=t-123')
     expect(ws.protocol).toBe('smithy.eventstream.v1+json')
     expect(hub.isConnected).toBe(true)
     expect(hub.playerId).toBe('alice')

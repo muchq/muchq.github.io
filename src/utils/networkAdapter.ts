@@ -32,12 +32,12 @@ import {
   gameOverMessage
 } from './golfNotifications'
 import { safeLocalStorage } from './safeLocalStorage'
-import { HUB_SUBPROTOCOL, hubSessionUrl, mintHubSession } from './hubSession'
+import { HUB_SUBPROTOCOL, hubPlayUrl, hubSessionUrl, mintHubSession } from './hubSession'
 
 export type { GolfAdapterCallbacks } from '@/types/golfAdapter'
 
 export function golfPlayUrl(): string {
-  return import.meta.env.VITE_GOLF_WEBSOCKET_URL || 'wss://api.muchq.com/games/v2/golf/play'
+  return hubPlayUrl()
 }
 
 export function golfSessionUrl(): string {
