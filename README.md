@@ -41,8 +41,7 @@ npm run deploy
 
 | Route | App |
 |---|---|
-| `/golf` | Multiplayer 4-card golf — rooms, permalinks, and (on the v2 wire) room chat |
-| `/castle` | Castle (Palace) — shed every card first; rooms and chat shared with golf |
+| `/golf`, `/castle` | Redirect into the lobby; old share links land on the same room and table |
 | `/thoughts` | 3D multiplayer thoughts game |
 | `/party` | Rescue Party |
 | `/quest` | Quest — score-chasing arcade game |
@@ -59,22 +58,23 @@ The nav's **Elsewhere** menu links to apps hosted off muchq.com (see the
 list). Those are external links, not routes — their code lives in their own
 repos, not here.
 
-### Golf, castle, thoughts, and the lobby
+### The lobby, golf, castle, and thoughts
 
 `/games` is the lobby (MoonBase#1490): the thoughts world with a panel for the room, its
 players and their tables, and the room's chat, all on one stream. A table of either game opens
-over the world (MoonBase#1502). Share links are `/games/room/:roomId` and
-`/games/room/:roomId/table/:gameId`.
+over the world (MoonBase#1502); `GolfTable` and `CastleTable` are the tables, `useGolfTable`
+and `useCastleTable` their state over the room stream's game envelopes. Share links are
+`/games/room/:roomId` and `/games/room/:roomId/table/:gameId`; the old `/golf` and `/castle`
+links redirect to them.
 
-All three speak the games hub's one stream (`/games/v2/play` on api.muchq.com; the models
-and the protocol are documented with the service in MoonBase, `domains/games/apis/games_hub`).
-`VITE_HUB_WEBSOCKET_URL` overrides the play socket at build time; the session mint is
-derived from it (`src/utils/hubSession.ts`). Golf, castle and the lobby ride
-`src/utils/hubStream.ts`, the game-agnostic room stream, which keeps a resume token so a
-reconnect reclaims its seat (golf and the lobby share one; castle keeps its own). Thoughts is
-the exception: it dials its own socket and mints a fresh identity per dial
-(`src/utils/networkSystem.ts` says why). The golf and castle UIs reveal room chat only once
-the server actually delivers chat on the wire.
+The lobby speaks the games hub's one stream (`/games/v2/play` on api.muchq.com; the models
+and the protocol are documented with the service in MoonBase, `domains/games/apis/games_hub`)
+through `src/utils/hubStream.ts`, which owns the session mint, the socket, the reconnect loop,
+and the resume token that reclaims the seat. `VITE_HUB_WEBSOCKET_URL` overrides the play
+socket at build time; the session mint is derived from it (`src/utils/hubSession.ts`).
+Thoughts on its own page dials its own socket and mints a fresh identity per dial
+(`src/utils/networkSystem.ts` says why). Room chat appears only once the server actually
+delivers chat on the wire.
 
 ## 🏗️ Project Structure
 
@@ -84,7 +84,7 @@ src/
 │               # components, styles, and tests live with their app
 ├── core/       # Page shells and routing targets
 ├── shared/     # Components shared across apps (navigation, backgrounds, …)
-├── hooks/      # Cross-app React hooks (useGolfGame, useThoughtsGame, …)
+├── hooks/      # Cross-app React hooks (useLobby, useThoughtsGame, …)
 ├── plugins/    # Network plugins for the multiplayer games
 ├── types/      # Shared TypeScript contracts (adapter interfaces, wire shapes)
 ├── utils/      # Adapters, permalinks, feature flags, helpers

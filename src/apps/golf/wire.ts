@@ -2,8 +2,7 @@
 // model/golf.smithy, and its translation into the UI's older model
 // (types/golf): ids to seat indexes, card slots to nullable cards.
 
-import type { Card, GameState, Player, Room } from '@/types/golf'
-import type { HubRoom } from '@/utils/hubStream'
+import type { Card, GameState, Player } from '@/types/golf'
 
 export type GolfPhase = GameState['gamePhase']
 
@@ -65,7 +64,7 @@ export type GolfMoveName =
 
 // The hub has no separate display names: the whimsical playerId is the
 // label, so it fills both id and name.
-export function stubPlayer(id: string): Player {
+function stubPlayer(id: string): Player {
   return {
     id,
     name: id,
@@ -81,12 +80,6 @@ export function stubPlayer(id: string): Player {
     isConnected: true,
     joinedAt: ''
   }
-}
-
-// Placeholder seats carrying only a count — the Room shape wants Player[]
-// where the hub sends playerCount, and the lobby reads only the length.
-function stubSeats(count: number): Player[] {
-  return Array.from({ length: count }, (_, i) => stubPlayer(`seat-${i}`))
 }
 
 function mapGamePlayer(player: GolfWirePlayer): Player {
@@ -119,39 +112,5 @@ export function mapGameView(view: GolfView): GameState {
     knockedPlayerId: view.knockedPlayerId ?? null,
     drawnCard: view.drawnCard ?? null,
     allPlayersPeeked: view.allPlayersPeeked
-  }
-}
-
-// A room hosts golf and castle tables on one stream (MoonBase#77); this
-// lists only golf's.
-export function mapRoomState(room: HubRoom): Room {
-  const games: Record<string, GameState> = {}
-  for (const summary of room.games) {
-    if ((summary.game ?? 'golf') !== 'golf') continue
-    games[summary.gameId] = {
-      id: summary.gameId,
-      players: stubSeats(summary.playerCount),
-      currentPlayerIndex: 0,
-      drawPile: 0,
-      discardPile: [],
-      gamePhase: summary.status as GolfPhase,
-      knockedPlayerId: null,
-      drawnCard: null,
-      allPlayersPeeked: false
-    }
-  }
-  return {
-    id: room.roomId,
-    players: room.players.map(info => ({
-      ...stubPlayer(info.playerId),
-      isConnected: info.connected,
-      totalScore: info.totalScore,
-      gamesPlayed: info.gamesPlayed,
-      gamesWon: info.gamesWon
-    })),
-    games,
-    gameHistory: [],
-    createdAt: '',
-    lastActivity: ''
   }
 }

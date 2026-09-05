@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { useLobby } from '../useLobby'
 import type { UseLobbyProps } from '../useLobby'
-import { FakeWebSocket, admitted, installFakeHub } from '@/test/fakeHub'
+import { FakeWebSocket, admitted, flushAsync, installFakeHub } from '@/test/fakeHub'
 import { GameState } from '@/utils/gameClasses'
 import { HUB_RESUME_TOKEN_KEY } from '@/utils/hubSession'
 import { ShapeType } from '@/types/game'
@@ -309,6 +309,91 @@ describe('useLobby', () => {
     expect(result.current.castle.view?.gameId).toBe('G1')
     expect(pathname()).toBe('/games/room/R1/table/G1')
     expect(lobbyFrames(ws)).toHaveLength(1)
+  })
+
+  it('chat appears only once the wire delivers it, merged by id, and is the room\'s', async () => {
+    const { result, ws } = await open()
+    act(() => ws.receive('roomState', roomState('R1')))
+    expect(result.current.chat.available).toBe(false)
+    const message = { messageId: 3, playerId: 'bob', text: 'hi', sentAtUnixMillis: 1 }
+    act(() => ws.receive('roomChatHistory', { messages: [message] }))
+    expect(result.current.chat.available).toBe(true)
+    expect(result.current.chat.replayUpTo).toBe(3)
+    act(() => ws.receive('roomChat', message))
+    expect(result.current.chat.messages).toHaveLength(1)
+    act(() => result.current.sendChat('hello'))
+    expect(ws.lastSent()).toEqual({ event: 'chat', payload: { text: 'hello' } })
+    act(() => ws.receive('commandRejected', { reason: 'slow down' }))
+    expect(result.current.chat.rejection).toEqual({ seq: 1, reason: 'slow down' })
+    act(() => ws.receive('roomState', roomState('R2')))
+    expect(result.current.chat).toEqual({ messages: [], available: false, replayUpTo: 0, rejection: null })
+  })
+
+  it('a notice fades after three seconds, and an empty room code is refused locally', async () => {
+    vi.useFakeTimers()
+    try {
+      const hook = mount()
+      let ws!: FakeWebSocket
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+        ws = FakeWebSocket.instances[0]
+        ws.open()
+        ws.receive('sessionReady', { playerId: 'alice', resumed: false })
+      })
+      act(() => hook.result.current.setRoomCode('   '))
+      act(() => hook.result.current.joinRoom())
+      expect(hook.result.current.notice).toBe('Enter a room code')
+      expect(ws.sentFrames().some(frame => frame.event === 'joinRoom')).toBe(false)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2999)
+      })
+      expect(hook.result.current.notice).toBe('Enter a room code')
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1)
+      })
+      expect(hook.result.current.notice).toBe('')
+      act(() => hook.result.current.setRoomCode(' R1 '))
+      act(() => hook.result.current.joinRoom())
+      expect(ws.lastSent()).toEqual({ event: 'joinRoom', payload: { roomId: 'R1' } })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a refused stream is lost only until the next dial gets in', async () => {
+    vi.useFakeTimers()
+    try {
+      const { result } = mount()
+      let ws!: FakeWebSocket
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+        ws = FakeWebSocket.instances[0]
+        ws.open()
+        ws.receive('sessionReady', { playerId: 'alice', resumed: false })
+      })
+      act(() => ws.receiveRaw({ exception: 'SeatConflict', payload: { message: 'the player already holds a live seat' } }))
+      expect(result.current.lost).toBe('the player already holds a live seat')
+      act(() => ws.close())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000)
+      })
+      const next = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
+      act(() => {
+        next.open()
+        next.receive('sessionReady', { playerId: 'alice', resumed: true })
+      })
+      expect(result.current.lost).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('unmounting closes the socket', async () => {
+    const { unmount, ws } = await open()
+    unmount()
+    expect(ws.readyState).toBe(3)
+    await flushAsync()
+    expect(FakeWebSocket.instances).toHaveLength(1)
   })
 
   it('a dropped socket empties the world until the reconnect joins again', async () => {

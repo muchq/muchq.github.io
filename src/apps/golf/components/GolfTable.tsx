@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import type { GolfTableActions, GolfTableEnded } from '@/hooks/useGolfTable'
 import type { Card, GameState, Player } from '@/types/golf'
 import PermalinkDisplay from './PermalinkDisplay'
-import styles from './GolfGame.module.css'
+import styles from './GolfTable.module.css'
 
 // The table from the viewer's chair, over whatever hook holds it: the
 // golf page's (GolfGame) or the lobby's. The buttons offer what the

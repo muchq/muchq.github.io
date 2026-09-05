@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import type { CastleTableActions } from '@/hooks/useCastleTable'
 import type { Card, CastleGameEnded, CastlePlayer, CastleView } from '../wire'
 import { cardsOf, describeEnding, describeLastPlay, describePile, face, isRed, rowInPlay, seatOf } from '../rules'
-import styles from './CastleGame.module.css'
+import styles from './CastleTable.module.css'
 
 // The table from the viewer's chair, over whatever hook holds it: the
 // castle app's own (CastleGame) or the lobby's. Every rule the UI

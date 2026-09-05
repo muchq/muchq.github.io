@@ -106,8 +106,8 @@ describe('Navigation', () => {
 
   it('leaves internal links unmarked', () => {
     renderWithRouter(<Navigation />)
-    const internal = testingScreen.getByRole('link', { name: 'Golf' })
-    expect(internal.getAttribute('href')).toBe('/golf')
+    const internal = testingScreen.getByRole('link', { name: 'Lobby' })
+    expect(internal.getAttribute('href')).toBe('/games')
     expect(internal.textContent).not.toContain('↗')
     expect(internal.textContent).not.toContain('(external site)')
   })
@@ -139,12 +139,12 @@ describe('Navigation', () => {
 
   it('highlights the current route in the menu', () => {
     render(
-      <MemoryRouter initialEntries={['/golf/room/xyz']}>
-        <Navigation appName="Golf" />
+      <MemoryRouter initialEntries={['/games/room/xyz']}>
+        <Navigation appName="Lobby" />
       </MemoryRouter>
     )
-    const golfLink = testingScreen.getByText('Golf', { selector: 'a' })
-    expect(golfLink.className).toContain('currentItem')
+    const lobbyLink = testingScreen.getByText('Lobby', { selector: 'a' })
+    expect(lobbyLink.className).toContain('currentItem')
     const partyLink = testingScreen.getByText('Party')
     expect(partyLink.className).not.toContain('currentItem')
   })

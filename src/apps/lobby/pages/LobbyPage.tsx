@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import Navigation from '@/shared/components/Navigation'
 import ConnectionStatus from '@/shared/components/nav/ConnectionStatus'
 import NavStat from '@/shared/components/nav/NavStat'
-import { isValidId } from '@/utils/golfPermalinks'
+import { isValidId } from '@/utils/hubIds'
 import LobbyGame from '../components/LobbyGame'
 
 // /games, /games/room/:roomId, /games/room/:roomId/table/:gameId: the
