@@ -507,4 +507,24 @@ describe('GolfNetworkAdapter', () => {
     }
   })
 
+
+  // Where golf's socket layer diverges from hubStream's (muchq.github.io#297),
+  // pinned as it is before the move.
+  it('a deliberate disconnect before admission drops the resume token', async () => {
+    const adapter = new GolfNetworkAdapter(callbacks)
+    adapter.connect()
+    await flushAsync()
+    expect(localStorage.getItem('golf_v2_resume_token')).toBe('rt-456')
+    adapter.disconnect()
+    expect(localStorage.getItem('golf_v2_resume_token')).toBeNull()
+  })
+
+  it('a terminal refusal frame is ignored', async () => {
+    const [, ws] = await connect()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    ws.receiveRaw({ exception: 'AccessDenied', payload: { message: 'origin not allowed' } })
+    expect(warn).toHaveBeenCalled()
+    expect(callbacks.onGameError).not.toHaveBeenCalled()
+    expect(callbacks.onNotification).not.toHaveBeenCalled()
+  })
 })
