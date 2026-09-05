@@ -16,6 +16,7 @@ vi.mock('react-router-dom', () => ({
 type Callbacks = {
   onRoomJoined?: (playerId: string, room: Room) => void
   onGameJoined?: (playerId: string, game: GameState) => void
+  onConnectionChange?: (connected: boolean) => void
 }
 const mockAdapter = {
   connect: vi.fn(),
@@ -61,8 +62,21 @@ describe('useGolfGame backToLobby', () => {
     expect(mockNavigate).toHaveBeenLastCalledWith('/games/room/R1')
 
     act(() => mockAdapter._callbacks?.onGameJoined?.('alice', game))
+    act(() => mockAdapter._callbacks?.onConnectionChange?.(true))
     act(() => result.current.backToLobby())
     expect(mockAdapter.leaveGame).toHaveBeenCalledTimes(1)
     expect(mockNavigate).toHaveBeenLastCalledWith('/games/room/R1')
+  })
+
+  it('stays at a held table while the socket is down: a leave it cannot carry is not a leave', () => {
+    const { result } = renderHook(() => useGolfGame({}))
+    act(() => mockAdapter._callbacks?.onRoomJoined?.('alice', room))
+    act(() => mockAdapter._callbacks?.onGameJoined?.('alice', game))
+    act(() => mockAdapter._callbacks?.onConnectionChange?.(false))
+    mockNavigate.mockClear()
+    act(() => result.current.backToLobby())
+    expect(mockAdapter.leaveGame).not.toHaveBeenCalled()
+    expect(mockNavigate).not.toHaveBeenCalled()
+    expect(result.current.notification).toContain('Reconnecting')
   })
 })

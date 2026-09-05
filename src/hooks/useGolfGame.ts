@@ -366,12 +366,20 @@ export const useGolfGame = ({
 
   // The seat is shared with the lobby, which resumes in this room with
   // the world and chat up. A table still held would pull the lobby
-  // straight back here, so the table is left first.
+  // straight back here, so the table is left first — and a leave the
+  // socket cannot carry is not a leave, so while disconnected the table
+  // keeps the player here.
   const backToLobby = useCallback(() => {
     if (!roomState?.id) return
-    if (gameState) networkAdapterRef.current?.leaveGame()
+    if (gameState) {
+      if (!isConnected) {
+        showNotification('Reconnecting; the table is left once the connection is back')
+        return
+      }
+      networkAdapterRef.current?.leaveGame()
+    }
     navigate(lobbyRoomPath(roomState.id))
-  }, [gameState, navigate, roomState?.id])
+  }, [gameState, isConnected, navigate, roomState?.id, showNotification])
 
   const leaveRoom = useCallback(() => {
     if (roomState?.id) {
