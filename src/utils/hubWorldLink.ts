@@ -1,16 +1,16 @@
 // The lobby's way into the world: the same renderer (useThoughtsGame)
 // the thoughts page drives, over the room stream the lobby already holds
 // (MoonBase#1490 phase 4). The hub decides which world — the session's
-// room's, or the plaza's — so a join names no room; the lobby hook tells
-// this link when the session is ready and when the room changed, and
-// hands it every lobby update off the stream.
+// room's, or the plaza's — so a join names no room; the lobby hook says
+// when the session is ready, when it has settled in a world, and when
+// the socket dropped, and hands this link every lobby update.
 //
 // The stream is the hook's, not this link's: a "disconnect" here leaves
 // the world and detaches from the renderer, never closes the socket.
 
 import type { GameState, ShapeType } from '@/types/game'
 import type { HubStream, LobbyUpdate } from './hubStream'
-import type { ConnectionStatus, WorldLink } from './networkSystem'
+import type { ConnectionStatus, WorldLink } from './worldSync'
 import { PositionThrottle, WorldSync } from './worldSync'
 
 export class HubWorldLink implements WorldLink {
@@ -22,6 +22,9 @@ export class HubWorldLink implements WorldLink {
 
   private sync: WorldSync | null = null
   private playerId: string | null = null
+  // The hook has this session in a world: the join goes out now, or as
+  // soon as the renderer attaches.
+  private due = false
   private readonly throttle = new PositionThrottle()
 
   constructor(
@@ -29,11 +32,11 @@ export class HubWorldLink implements WorldLink {
     private readonly redial: () => void
   ) {}
 
-  // The renderer mounted with its GameState (the local player already
-  // spawned in it); if the session is ready, that is the join.
+  // The renderer mounted with its GameState, the local player already
+  // spawned in it.
   attach(gameState: GameState): this {
     this.sync = new WorldSync(gameState)
-    this.enter()
+    if (this.due) this.enter()
     return this
   }
 
@@ -42,12 +45,13 @@ export class HubWorldLink implements WorldLink {
   sessionReady(playerId: string): void {
     this.playerId = playerId
     this.onPlayerIdReceived?.(playerId)
-    this.enter()
   }
 
-  // A room change: the hub has already left the old world; join the new.
-  rejoin(): void {
+  // The session settled in a world — its room's, or the plaza's — and
+  // the hub has left whichever it stood in before.
+  join(): void {
     this.isConnected = false
+    this.due = true
     this.enter()
   }
 
@@ -55,9 +59,12 @@ export class HubWorldLink implements WorldLink {
     this.sync?.apply(update)
   }
 
-  // The socket dropped: nobody else is here until it is back.
+  // The socket dropped: nobody else is here, and the next session is a
+  // new one — its sessionReady names the id, its hook the world.
   dropped(): void {
     this.isConnected = false
+    this.due = false
+    this.playerId = null
     this.sync?.forgetRemotePlayers()
     this.onConnectionStateChange?.('disconnected')
   }

@@ -240,7 +240,16 @@
   }
 }
 /* The lobby takes the left for its panel: the HUD moves right, under the
-   nav, and the FPS counter clears the chat button. */
+   nav, and the FPS counter clears the chat button. The lobby's own
+   surfaces (panel, table, chat, from 10 up) cover the HUD, joysticks
+   included: a touch on the sheet is the sheet's, not the avatar's. */
+.hudRight .miniMap,
+.hudRight .soundToggle,
+.hudRight .fpsCounter,
+.hudRight .mobileJoystick {
+  z-index: 5;
+}
+
 .hudRight .miniMap,
 .hudRight .soundToggle {
   left: auto;
@@ -260,6 +269,7 @@
   .hudRight .miniMap,
   .hudRight .soundToggle {
     right: 10px;
+    z-index: 5;
   }
 
   .hudRight .soundToggle {

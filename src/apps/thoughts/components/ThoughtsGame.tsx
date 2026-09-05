@@ -4,7 +4,7 @@ import type { HubWorldLink } from '@/utils/hubWorldLink'
 import styles from './ThoughtsGame.module.css'
 
 interface ThoughtsGameProps {
-  onPlayerIdReceived: (playerId: string) => void
+  onPlayerIdReceived?: (playerId: string) => void
   onConnectionStateChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'failed', error?: string) => void
   networkManagerRef?: React.MutableRefObject<{ reconnect: () => void } | null>
   // The lobby's way into the world; absent, the page dials its own.

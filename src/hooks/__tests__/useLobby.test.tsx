@@ -6,9 +6,10 @@ import { useLobby } from '../useLobby'
 import type { UseLobbyProps } from '../useLobby'
 import { FakeWebSocket, admitted, installFakeHub } from '@/test/fakeHub'
 import { GameState } from '@/utils/gameClasses'
-import { GOLF_RESUME_TOKEN_KEY } from '@/utils/networkAdapter'
+import { HUB_RESUME_TOKEN_KEY } from '@/utils/hubSession'
 import { ShapeType } from '@/types/game'
 import type { CastleView } from '@/apps/castle/wire'
+import type { HubRoom } from '@/utils/hubStream'
 
 // The lobby hook against a scripted hub: the world it joins and re-joins,
 // the castle table that swaps in and out, the golf hand-off, and the
@@ -24,7 +25,7 @@ const waitingView = (gameId = 'G1'): CastleView => ({
   finished: []
 })
 
-const roomState = (roomId: string, games: { gameId: string; game: 'golf' | 'castle'; status: string; playerCount: number }[] = []) => ({
+const roomState = (roomId: string, games: HubRoom['games'] = []): HubRoom => ({
   roomId,
   players: [{ playerId: 'alice', connected: true, gamesPlayed: 0, gamesWon: 0, totalScore: 0 }],
   games
@@ -81,7 +82,7 @@ describe('useLobby', () => {
   const lobbyFrames = (ws: FakeWebSocket) => ws.sentFrames().filter(frame => frame.event === 'lobby')
 
   it("dials with golf's identity and joins the plaza's world once the session is ready", async () => {
-    localStorage.setItem(GOLF_RESUME_TOKEN_KEY, 'rt-golf')
+    localStorage.setItem(HUB_RESUME_TOKEN_KEY, 'rt-golf')
     const onPlayerIdChange = vi.fn()
     const { result, ws, gameState, pathname } = await open({ onPlayerIdChange })
     const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>
@@ -200,14 +201,75 @@ describe('useLobby', () => {
     act(() => ws.receive('roomState', roomState('R1', [{ gameId: 'G1', game: 'castle', status: 'waiting', playerCount: 1 }])))
     expect(lobbyFrames(ws)).toHaveLength(1)
     expect(ws.lastSent()).toEqual({ event: 'castle', payload: { move: { joinGame: { gameId: 'G1' } } } })
+    // The link's URL stands until the table answers.
+    expect(pathname()).toBe('/games/room/R1/table/G1')
+  })
+
+  it("a resumed session in another room leaves it for the linked one, through the hub's own order", async () => {
+    const { result, ws, pathname } = await open({ permalinkRoomId: 'R2' }, '/games/room/R2', 'R1')
+    expect(ws.lastSent()).toEqual({ event: 'leaveRoom', payload: {} })
+    // The hub projects the resumed room before it reads the leave: that
+    // is where the session is, not where it is going.
+    act(() => ws.receive('roomState', roomState('R1')))
+    expect(result.current.room?.roomId).toBe('R1')
+    expect(pathname()).toBe('/games/room/R2')
+    expect(lobbyFrames(ws)).toHaveLength(0)
+    act(() => ws.receive('roomLeft', { roomId: 'R1' }))
+    expect(ws.lastSent()).toEqual({ event: 'joinRoom', payload: { roomId: 'R2' } })
+    expect(lobbyFrames(ws)).toHaveLength(0)
+    act(() => ws.receive('roomState', roomState('R2')))
+    expect(result.current.room?.roomId).toBe('R2')
+    expect(pathname()).toBe('/games/room/R2')
+    expect(lobbyFrames(ws)).toHaveLength(1)
+    expect(result.current.notice).toBe('')
+  })
+
+  it('a share link the hub refuses lands in the plaza, its world joined', async () => {
+    const { result, ws, pathname } = await open({ permalinkRoomId: 'BOGUS0' }, '/games/room/BOGUS0')
+    expect(ws.lastSent()).toEqual({ event: 'joinRoom', payload: { roomId: 'BOGUS0' } })
+    expect(lobbyFrames(ws)).toHaveLength(0)
+    act(() => ws.receive('commandRejected', { reason: 'room unavailable or already in a room' }))
+    expect(pathname()).toBe('/games')
+    expect(lobbyFrames(ws)).toHaveLength(1)
+    expect(result.current.world.isConnected).toBe(true)
+    expect(result.current.notice).toBe('room unavailable or already in a room')
+    // Creating a room from here is an ordinary room change.
+    act(() => ws.receive('roomState', roomState('R1')))
+    expect(lobbyFrames(ws)).toHaveLength(2)
+  })
+
+  it('a seat reaped while away rejoins the room its link names, world and all', async () => {
+    // In R1, the socket drops, and the seat is gone by the time the
+    // redial lands: the new session starts in the plaza.
+    const { result, ws, pathname } = await open({ permalinkRoomId: 'R1' }, '/games/room/R1', 'R1')
+    act(() => ws.receive('roomState', roomState('R1')))
+    expect(lobbyFrames(ws)).toHaveLength(1)
+    act(() => ws.close())
+    expect(result.current.world.isConnected).toBe(false)
+    act(() => result.current.world.reconnect())
+    let again!: FakeWebSocket
+    await act(async () => {
+      again = await admitted('alice')
+    })
+    expect(again.lastSent()).toEqual({ event: 'joinRoom', payload: { roomId: 'R1' } })
+    expect(lobbyFrames(again)).toHaveLength(0)
+    act(() => again.receive('roomState', roomState('R1')))
+    expect(lobbyFrames(again)).toHaveLength(1)
+    expect(result.current.world.isConnected).toBe(true)
     expect(pathname()).toBe('/games/room/R1')
   })
 
-  it('a resumed session in another room leaves it for the linked one', async () => {
-    const { ws } = await open({ permalinkRoomId: 'R2' }, '/games/room/R2', 'R1')
-    expect(ws.lastSent()).toEqual({ event: 'leaveRoom', payload: {} })
-    act(() => ws.receive('roomLeft', { roomId: 'R1' }))
-    expect(ws.lastSent()).toEqual({ event: 'joinRoom', payload: { roomId: 'R2' } })
+  it('a reload at a table waits for the seat to come back rather than sitting twice', async () => {
+    const { result, ws, pathname } = await open({ permalinkRoomId: 'R1', permalinkGameId: 'G1' }, '/games/room/R1/table/G1', 'R1')
+    const seated = roomState('R1', [{ gameId: 'G1', game: 'castle', status: 'playing', playerCount: 2 }])
+    seated.players[0] = { ...seated.players[0], table: { game: 'castle', gameId: 'G1' } }
+    act(() => ws.receive('roomState', seated))
+    expect(ws.sentFrames().some(frame => frame.event === 'castle')).toBe(false)
+    expect(result.current.notice).toBe('')
+    act(() => ws.receive('castle', { update: { gameJoined: { view: { ...waitingView(), phase: 'playing' } } } }))
+    expect(result.current.castle.view?.gameId).toBe('G1')
+    expect(pathname()).toBe('/games/room/R1/table/G1')
+    expect(lobbyFrames(ws)).toHaveLength(1)
   })
 
   it('a dropped socket empties the world until the reconnect joins again', async () => {

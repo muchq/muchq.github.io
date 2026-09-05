@@ -121,3 +121,20 @@ export class PositionThrottle {
     this.lastAt = 0
   }
 }
+
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'failed'
+
+// What the world renderer (useThoughtsGame) drives: a link to the world
+// that says whether moves are welcome, ships them, and can be dropped
+// and redialed. NetworkManager is the thoughts page's, on its own
+// socket; HubWorldLink is the lobby's, on the room stream.
+export interface WorldLink {
+  readonly isConnected: boolean
+  onPlayerIdReceived?: (playerId: string) => void
+  onConnectionStateChange?: (status: ConnectionStatus, error?: string) => void
+  sendPositionUpdate(position: [number, number, number]): void
+  sendShapeUpdate(shape: ShapeType): void
+  sendLeave(): void
+  disconnect(): void
+  reconnect(): void
+}

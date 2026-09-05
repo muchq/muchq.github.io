@@ -31,29 +31,13 @@ import type { ShapeType } from '@/types/game'
 import { HUB_SUBPROTOCOL, hubPlayUrl, mintHubSession } from './hubSession'
 import type { LobbyActionName, LobbyUpdate } from './hubStream'
 import { PositionThrottle, WorldSync } from './worldSync'
-
-export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'failed'
+import type { ConnectionStatus, WorldLink } from './worldSync'
 
 export function thoughtsPlayUrl(): string {
   return hubPlayUrl()
 }
 
 export type { LobbyUpdate }
-
-// What the world renderer (useThoughtsGame) drives: a link to the world
-// that says whether moves are welcome, ships them, and can be dropped
-// and redialed. NetworkManager is the thoughts page's, on its own
-// socket; HubWorldLink is the lobby's, on the room stream.
-export interface WorldLink {
-  readonly isConnected: boolean
-  onPlayerIdReceived?: (playerId: string) => void
-  onConnectionStateChange?: (status: ConnectionStatus, error?: string) => void
-  sendPositionUpdate(position: [number, number, number]): void
-  sendShapeUpdate(shape: ShapeType): void
-  sendLeave(): void
-  disconnect(): void
-  reconnect(): void
-}
 
 // Inbound frames as a discriminated union: the switch narrows each case,
 // and a new event is a compile-time hole instead of a silent cast.

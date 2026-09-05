@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { CastleTableActions } from '@/hooks/useCastleTable'
 import type { Card, CastleGameEnded, CastlePlayer, CastleView } from '../wire'
@@ -54,14 +54,18 @@ export interface CastleTableProps {
   playerId: string
   connected: boolean
   view: CastleView
-  ended: CastleGameEnded | null
-  selected: number[]
-  table: CastleTableActions
+  table: CastleTableActions & { ended: CastleGameEnded | null; selected: number[] }
   // The owner's chrome, rendered beside the table: chat, the notice bar.
   children?: ReactNode
 }
 
-const CastleTable = ({ playerId, connected, view, ended, selected, table, children }: CastleTableProps) => {
+const CastleTable = ({ playerId, connected, view, table, children }: CastleTableProps) => {
+  const { ended, selected } = table
+  // Joining unmounts whatever was clicked; the table announces itself.
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    headingRef.current?.focus()
+  }, [])
   // Setup: the hand card picked, waiting for the face-up card to swap
   // with. Keyed to its table, so a pick never outlives the table it was
   // made on.
@@ -227,7 +231,9 @@ const CastleTable = ({ playerId, connected, view, ended, selected, table, childr
   return (
     <div className={styles.table}>
       <div className={styles.tableHeader}>
-        <h1 className={styles.title}>Table {view.gameId}</h1>
+        <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
+          Table {view.gameId}
+        </h1>
         {view.phase !== 'ended' && (
           <button type="button" className={styles.link} onClick={table.leaveTable} disabled={!connected}>
             Leave table

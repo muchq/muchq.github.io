@@ -32,7 +32,7 @@ import {
   gameOverMessage
 } from './golfNotifications'
 import { safeLocalStorage } from './safeLocalStorage'
-import { HUB_SUBPROTOCOL, hubPlayUrl, hubSessionUrl, mintHubSession } from './hubSession'
+import { HUB_RESUME_TOKEN_KEY, HUB_SUBPROTOCOL, hubPlayUrl, hubSessionUrl, mintHubSession } from './hubSession'
 
 export type { GolfAdapterCallbacks } from '@/types/golfAdapter'
 
@@ -44,10 +44,6 @@ export function golfSessionUrl(): string {
   return hubSessionUrl(golfPlayUrl())
 }
 
-// Shared with the lobby (MoonBase#1490): a golf table opened from the
-// lobby hands the same identity to golf's page.
-export const GOLF_RESUME_TOKEN_KEY = 'golf_v2_resume_token'
-const RESUME_TOKEN_KEY = GOLF_RESUME_TOKEN_KEY
 // 2s x 10 sits well inside the hub's 5-minute reconnect grace.
 const RECONNECT_DELAY_MS = 2000
 const MAX_RECONNECT_ATTEMPTS = 10
@@ -310,12 +306,12 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
 
   private async dial(): Promise<void> {
     try {
-      const session = await mintHubSession(golfPlayUrl(), safeLocalStorage.get(RESUME_TOKEN_KEY))
+      const session = await mintHubSession(golfPlayUrl(), safeLocalStorage.get(HUB_RESUME_TOKEN_KEY))
       // Disconnected during the mint: no socket, or a torn-down adapter
       // would hold a seat under the live one's playerId.
       if (this.closed) return
       this._playerId = session.playerId
-      safeLocalStorage.set(RESUME_TOKEN_KEY, session.resumeToken)
+      safeLocalStorage.set(HUB_RESUME_TOKEN_KEY, session.resumeToken)
 
       const url = `${golfPlayUrl()}?ticket=${encodeURIComponent(session.ticket)}`
       const ws = new WebSocket(url, HUB_SUBPROTOCOL)
@@ -341,7 +337,7 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
         if (!this.sawSessionReady) {
           // Refused before admission (spent ticket, seat conflict, bad
           // resume token): drop the token so the next dial mints fresh.
-          safeLocalStorage.remove(RESUME_TOKEN_KEY)
+          safeLocalStorage.remove(HUB_RESUME_TOKEN_KEY)
         }
         this.scheduleReconnect()
       }

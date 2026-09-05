@@ -5,8 +5,9 @@ import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
 import { generateRandomColor, generateRandomSpawnPosition, createShader, createProgram } from '@/utils/gameUtils'
 import { VirtualJoystick } from '@/utils/virtualJoystick'
 import { AudioSystem } from '@/utils/audioSystem'
+import { isTypingTarget } from '@/utils/keyboard'
 import { NetworkManager, thoughtsPlayUrl } from '@/utils/networkSystem'
-import type { WorldLink } from '@/utils/networkSystem'
+import type { WorldLink } from '@/utils/worldSync'
 import type { HubWorldLink } from '@/utils/hubWorldLink'
 import { ShapeType } from '@/types/game'
 
@@ -118,6 +119,7 @@ export const useThoughtsGame = () => {
 
     // Event listeners
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isTypingTarget(e.target)) return
       keys[e.key.toLowerCase()] = true
 
       // Handle spacebar for shape cycling
@@ -128,6 +130,7 @@ export const useThoughtsGame = () => {
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (isTypingTarget(e.target)) return
       keys[e.key.toLowerCase()] = false
     }
 

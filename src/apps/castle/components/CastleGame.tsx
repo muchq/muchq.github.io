@@ -11,7 +11,7 @@ import styles from './CastleGame.module.css'
 
 const CastleGame = (props: UseCastleGameProps) => {
   const game = useCastleGame(props)
-  const { playerId, room, view, ended, notice, chat, selected, connected } = game
+  const { playerId, room, view, notice, chat, connected } = game
 
   const roomChat = chat.available ? (
     <RoomChat
@@ -148,7 +148,7 @@ const CastleGame = (props: UseCastleGameProps) => {
   return (
     <>
       {roomChat}
-      <CastleTable playerId={playerId} connected={connected} view={view} ended={ended} selected={selected} table={game}>
+      <CastleTable playerId={playerId} connected={connected} view={view} table={game}>
         {noticeBar}
       </CastleTable>
     </>

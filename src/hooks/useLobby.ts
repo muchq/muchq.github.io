@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { mergeChatMessages } from '@/types/golfChat'
+import { HUB_RESUME_TOKEN_KEY } from '@/utils/hubSession'
 import { HubStream, hubPlayUrl } from '@/utils/hubStream'
-import type { HubGameSummary, HubRoom, HubSessionReady } from '@/utils/hubStream'
+import type { HubRoom, HubSessionReady } from '@/utils/hubStream'
 import { HubWorldLink } from '@/utils/hubWorldLink'
-import { GOLF_RESUME_TOKEN_KEY } from '@/utils/networkAdapter'
 import type { CastleMoveName, CastleUpdate } from '@/apps/castle/wire'
 import type { CastleChat } from './useCastleGame'
 import { useCastleTable } from './useCastleTable'
@@ -17,14 +17,18 @@ import type { UseCastleTable } from './useCastleTable'
 // hand-off to golf's own page: it dials with the identity this hook
 // holds (the same resume token), so the seat parks here and resumes
 // there, at the table.
+//
+// The world follows the hub's room. The hub leaves a world for this
+// session on every room change and at every close, and refuses a second
+// join to one it already stands in — so the join goes out once per room
+// the session settles in, and a roomState that only re-projects the same
+// room is not a change.
 
 export const lobbyRoomPath = (roomId: string) => `/games/room/${encodeURIComponent(roomId)}`
-export const lobbyTablePath = (roomId: string, gameId: string) =>
+const lobbyTablePath = (roomId: string, gameId: string) =>
   `${lobbyRoomPath(roomId)}/table/${encodeURIComponent(gameId)}`
-export const golfTablePath = (roomId: string, gameId?: string) =>
-  gameId === undefined
-    ? `/golf/room/${encodeURIComponent(roomId)}`
-    : `/golf/room/${encodeURIComponent(roomId)}/game/${encodeURIComponent(gameId)}`
+const golfTablePath = (roomId: string, gameId: string) =>
+  `/golf/room/${encodeURIComponent(roomId)}/game/${encodeURIComponent(gameId)}`
 
 const NOTICE_MS = 3000
 
@@ -50,12 +54,18 @@ export interface UseLobby {
   joinRoom: () => void
   leaveRoom: () => void
   sendChat: (text: string) => void
-  reconnect: () => void
   world: HubWorldLink
   castle: UseCastleTable
   // Golf tables live on golf's page: open one there, or go to one.
   createGolfTable: () => void
   openGolfTable: (gameId: string) => void
+}
+
+// A share link's room the session is on its way to: left the resumed
+// one, or asked for this one, and waiting on the hub.
+interface RoomSwitch {
+  roomId: string
+  gameId: string | null
 }
 
 export const useLobby = ({
@@ -76,10 +86,12 @@ export const useLobby = ({
   const noticeTimeoutRef = useRef<number | null>(null)
   // The stream's callbacks are created once; anything they consult
   // rides a ref so the closure never goes stale.
+  // The room the hub has this session in; null is the plaza.
   const roomIdRef = useRef<string | null>(null)
+  // The room whose world this session joined; undefined is no world.
+  const worldRoomRef = useRef<string | null | undefined>(undefined)
   const permalinkRef = useRef({ roomId: permalinkRoomId, gameId: permalinkGameId })
-  // One join per share link: a later roomState must not re-trigger it.
-  const permalinkPendingRef = useRef(false)
+  const switchRef = useRef<RoomSwitch | null>(null)
   // The table the share link named, sat at once its room arrives.
   const tablePendingRef = useRef<string | null>(null)
   const chatSeqRef = useRef(0)
@@ -102,15 +114,32 @@ export const useLobby = ({
     setChat({ messages: [], available: false, replayUpTo: 0, rejection: null })
   }, [])
 
-  const redial = useCallback(() => {
-    streamRef.current?.disconnect()
-    streamRef.current?.connect()
-  }, [])
   // One link for the life of the hook; the renderer attaches to it when
   // its canvas mounts.
   const worldRef = useRef<HubWorldLink | null>(null)
-  if (worldRef.current === null) worldRef.current = new HubWorldLink(() => streamRef.current, redial)
+  if (worldRef.current === null) {
+    worldRef.current = new HubWorldLink(
+      () => streamRef.current,
+      () => {
+        streamRef.current?.disconnect()
+        streamRef.current?.connect()
+      }
+    )
+  }
   const world = worldRef.current
+
+  const enterWorld = useCallback(
+    (roomId: string | null) => {
+      if (worldRoomRef.current === roomId) return
+      worldRoomRef.current = roomId
+      world.join()
+    },
+    [world]
+  )
+  const dropWorld = useCallback(() => {
+    worldRoomRef.current = undefined
+    world.dropped()
+  }, [world])
 
   const move = useCallback((name: CastleMoveName, payload: unknown = {}) => {
     streamRef.current?.move('castle', name, payload)
@@ -130,6 +159,10 @@ export const useLobby = ({
       const gameId = tablePendingRef.current
       if (gameId === null) return
       tablePendingRef.current = null
+      // A seat the hub still holds at a table comes back on its own, as
+      // the gameJoined that follows this roomState.
+      const me = next.players.find(player => player.playerId === streamRef.current?.playerId)
+      if (me?.table !== undefined) return
       const table = next.games.find(summary => summary.gameId === gameId)
       if (table === undefined) {
         showNotice(`Table ${gameId} is gone`)
@@ -156,50 +189,54 @@ export const useLobby = ({
       // after this; one that did not sends nothing, and the old table
       // must not linger.
       castleRef.current.clear()
+      world.sessionReady(ready.playerId)
+      // A fresh seat, or one whose close left the world: in none yet.
+      worldRoomRef.current = undefined
+      switchRef.current = null
+      tablePendingRef.current = null
+      const here = ready.roomId ?? null
+      roomIdRef.current = here
       const wanted = permalinkRef.current
-      if (wanted.roomId && wanted.roomId !== ready.roomId) {
-        // The link names another room: leave the resumed one first, and
-        // join on the roomLeft; or join outright when there is none.
-        permalinkPendingRef.current = true
-        tablePendingRef.current = wanted.gameId
-        if (ready.roomId) {
-          streamRef.current?.leaveRoom()
-        } else {
-          streamRef.current?.joinRoom(wanted.roomId)
-        }
+      if (wanted.roomId && wanted.roomId !== here) {
+        // The link names another room: leave the resumed one first and
+        // join on the roomLeft, or join outright when there is none. The
+        // world waits for the room to settle.
+        switchRef.current = { roomId: wanted.roomId, gameId: wanted.gameId ?? null }
+        if (here !== null) streamRef.current?.leaveRoom()
+        else streamRef.current?.joinRoom(wanted.roomId)
         return
       }
-      if (wanted.roomId && wanted.gameId) tablePendingRef.current = wanted.gameId
-      // The world is the session's — its room's, or the plaza's. A room
-      // the seat resumed into is already this session's: the roomState
-      // that follows is not a room change, and the world is joined once.
-      if (ready.roomId) {
-        roomIdRef.current = ready.roomId
-        navigate(lobbyRoomPath(ready.roomId), { replace: true })
-      }
-      world.sessionReady(ready.playerId)
+      if (wanted.gameId) tablePendingRef.current = wanted.gameId
+      if (here !== null && !wanted.roomId) navigate(lobbyRoomPath(here), { replace: true })
+      enterWorld(here)
     },
-    [navigate, onPlayerIdChange, world]
+    [enterWorld, navigate, onPlayerIdChange, world]
   )
 
   const handleRoom = useCallback(
     (next: HubRoom) => {
-      if (roomIdRef.current !== next.roomId) {
+      const pending = switchRef.current
+      if (pending !== null && next.roomId !== pending.roomId) {
+        // The resumed room's own state, on the way out of it.
         roomIdRef.current = next.roomId
+        setRoom(next)
+        return
+      }
+      const changed = roomIdRef.current !== next.roomId
+      roomIdRef.current = next.roomId
+      if (pending !== null) {
+        switchRef.current = null
+        tablePendingRef.current = pending.gameId
+      }
+      if (changed) {
         resetChat()
         navigate(lobbyRoomPath(next.roomId), { replace: true })
-        // A new room is a new world: the hub left the old one for us.
-        if (permalinkPendingRef.current) {
-          permalinkPendingRef.current = false
-          world.sessionReady(streamRef.current?.playerId ?? '')
-        } else {
-          world.rejoin()
-        }
       }
       setRoom(next)
+      enterWorld(next.roomId)
       sitAtPendingTable(next)
     },
-    [navigate, resetChat, sitAtPendingTable, world]
+    [enterWorld, navigate, resetChat, sitAtPendingTable]
   )
 
   const handleRoomLeft = useCallback(() => {
@@ -207,14 +244,30 @@ export const useLobby = ({
     setRoom(null)
     castleRef.current.clear()
     resetChat()
-    const wanted = permalinkRef.current
-    if (permalinkPendingRef.current && wanted.roomId) {
-      streamRef.current?.joinRoom(wanted.roomId)
+    const pending = switchRef.current
+    if (pending !== null) {
+      streamRef.current?.joinRoom(pending.roomId)
       return
     }
     navigate('/games', { replace: true })
-    world.rejoin()
-  }, [navigate, resetChat, world])
+    enterWorld(null)
+  }, [enterWorld, navigate, resetChat])
+
+  const handleRejected = useCallback(
+    (reason: string) => {
+      if (switchRef.current !== null) {
+        // The switch failed; the hub has this session where it is.
+        switchRef.current = null
+        const here = roomIdRef.current
+        navigate(here === null ? '/games' : lobbyRoomPath(here), { replace: true })
+        enterWorld(here)
+      }
+      chatSeqRef.current += 1
+      setChat(prev => ({ ...prev, rejection: { seq: chatSeqRef.current, reason } }))
+      showNotice(reason)
+    },
+    [enterWorld, navigate, showNotice]
+  )
 
   const handleGame = useCallback(
     (game: string, update: Record<string, unknown>) => {
@@ -226,8 +279,8 @@ export const useLobby = ({
         }
         return
       }
-      // A golf table this session just sat at — opened from here — is
-      // golf's page's from now on; it resumes this seat there.
+      // A golf seat — sat at from here, or one the resume found still
+      // held — is golf's page's from now on; it resumes this seat there.
       const joined = update.gameJoined as { view?: { gameId?: string } } | undefined
       if (joined?.view?.gameId !== undefined && roomIdRef.current !== null) {
         navigate(golfTablePath(roomIdRef.current, joined.view.gameId))
@@ -239,12 +292,12 @@ export const useLobby = ({
   useEffect(() => {
     const stream = new HubStream({
       playUrl: hubPlayUrl(),
-      resumeTokenKey: GOLF_RESUME_TOKEN_KEY,
+      resumeTokenKey: HUB_RESUME_TOKEN_KEY,
       callbacks: {
         onConnection: up => {
           setConnected(up)
           if (up) setLost(null)
-          else world.dropped()
+          else dropWorld()
           onConnectionChange?.(up)
         },
         onSessionReady: handleSessionReady,
@@ -259,15 +312,13 @@ export const useLobby = ({
             messages: mergeChatMessages(prev.messages, messages),
             replayUpTo: Math.max(prev.replayUpTo, ...messages.map(m => m.messageId))
           })),
-        onRejected: reason => {
-          permalinkPendingRef.current = false
-          chatSeqRef.current += 1
-          setChat(prev => ({ ...prev, rejection: { seq: chatSeqRef.current, reason } }))
-          showNotice(reason)
-        },
+        onRejected: handleRejected,
         onGame: handleGame,
         onLobby: update => world.apply(update),
-        onLost: reason => setLost(reason)
+        onLost: reason => {
+          dropWorld()
+          setLost(reason)
+        }
       }
     })
     streamRef.current = stream
@@ -314,19 +365,9 @@ export const useLobby = ({
     joinRoom,
     leaveRoom,
     sendChat,
-    reconnect: redial,
     world,
     castle,
     createGolfTable,
     openGolfTable
   }
-}
-
-// How a table reads in the panel: open to join, or why not. Both games
-// seat four.
-export const TABLE_SEATS = 4
-export function tableOffer(table: HubGameSummary): { label: string; open: boolean } {
-  if (table.status !== 'waiting') return { label: 'In play', open: false }
-  if (table.playerCount >= TABLE_SEATS) return { label: 'Full', open: false }
-  return { label: 'Join', open: true }
 }

@@ -61,7 +61,7 @@ describe('LobbyGame', () => {
     state.castle.view = view
     rerender(<LobbyGame />)
     expect(screen.queryByRole('complementary', { name: 'lobby' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Room' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Lobby' }))
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
   })
 })

@@ -1,10 +1,9 @@
-import { useCallback, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ThoughtsGame from '@/apps/thoughts/components/ThoughtsGame'
 import CastleTable from '@/apps/castle/components/CastleTable'
 import RoomChat from '@/apps/golf/components/RoomChat'
 import { useLobby } from '@/hooks/useLobby'
 import type { UseLobbyProps } from '@/hooks/useLobby'
-import type { ConnectionState } from '@/shared/components/nav/ConnectionStatus'
 import LobbyPanel from './LobbyPanel'
 import styles from './LobbyGame.module.css'
 
@@ -13,11 +12,7 @@ import styles from './LobbyGame.module.css'
 // the world, which keeps ticking underneath so presence and chat never
 // drop. The panel hides behind a toggle while a table is up.
 
-export interface LobbyGameProps extends UseLobbyProps {
-  onWorldStateChange?: (status: ConnectionState) => void
-}
-
-const LobbyGame = ({ onWorldStateChange, ...props }: LobbyGameProps) => {
+const LobbyGame = (props: UseLobbyProps) => {
   const lobby = useLobby(props)
   const { castle, chat, connected, playerId, notice } = lobby
   const atTable = castle.view !== null
@@ -29,14 +24,14 @@ const LobbyGame = ({ onWorldStateChange, ...props }: LobbyGameProps) => {
     setFoldedFor(atTable)
     setPanelOpen(!atTable && window.innerWidth > 700)
   }
-
-  // The renderer's own spawn id is not the session's; the hook reports
-  // the server's through onPlayerIdChange.
-  const ignoreSpawnId = useCallback(() => {}, [])
-  const handleWorldState = useCallback(
-    (status: ConnectionState) => onWorldStateChange?.(status),
-    [onWorldStateChange]
-  )
+  // The table takes its own focus on mount; when it goes, the button the
+  // player last used is gone with it, so focus lands on the toggle.
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const wasAtTable = useRef(atTable)
+  useEffect(() => {
+    if (wasAtTable.current && !atTable) toggleRef.current?.focus()
+    wasAtTable.current = atTable
+  }, [atTable])
 
   if (lobby.lost) {
     return (
@@ -47,53 +42,44 @@ const LobbyGame = ({ onWorldStateChange, ...props }: LobbyGameProps) => {
     )
   }
 
-  const noticeBar = (
-    <div className={`${styles.notice} ${notice ? '' : styles.noticeEmpty}`} role="status">
-      {notice}
-    </div>
-  )
-  const roomChat = chat.available ? (
-    <RoomChat
-      messages={chat.messages}
-      playerId={playerId}
-      connected={connected}
-      replayUpTo={chat.replayUpTo}
-      rejection={chat.rejection}
-      onSend={lobby.sendChat}
-    />
-  ) : null
-
   return (
     <>
-      <ThoughtsGame link={lobby.world} onPlayerIdReceived={ignoreSpawnId} onConnectionStateChange={handleWorldState} hudSide="right" />
-      {atTable && castle.view !== null && (
+      <ThoughtsGame link={lobby.world} hudSide="right" />
+      {castle.view !== null && (
         <div className={styles.tableOverlay}>
-          <CastleTable
-            playerId={playerId}
-            connected={connected}
-            view={castle.view}
-            ended={castle.ended}
-            selected={castle.selected}
-            table={castle}
-          />
+          <CastleTable playerId={playerId} connected={connected} view={castle.view} table={castle} />
         </div>
       )}
       <button
+        ref={toggleRef}
         type="button"
         className={styles.panelToggle}
         onClick={() => setPanelOpen(open => !open)}
         aria-expanded={panelOpen}
         aria-controls="lobby-panel"
       >
-        {panelOpen ? 'Hide room' : 'Room'}
+        {panelOpen ? 'Hide lobby' : 'Lobby'}
       </button>
       {panelOpen && (
         <div id="lobby-panel">
           <LobbyPanel lobby={lobby} />
         </div>
       )}
-      {roomChat}
-      {noticeBar}
+      {chat.available && (
+        <div className={styles.chatHost}>
+          <RoomChat
+            messages={chat.messages}
+            playerId={playerId}
+            connected={connected}
+            replayUpTo={chat.replayUpTo}
+            rejection={chat.rejection}
+            onSend={lobby.sendChat}
+          />
+        </div>
+      )}
+      <div className={`${styles.notice} ${notice ? '' : styles.noticeEmpty}`} role="status">
+        {notice}
+      </div>
     </>
   )
 }

@@ -1,12 +1,20 @@
 import PermalinkDisplay from '@/apps/golf/components/PermalinkDisplay'
 import type { UseLobby } from '@/hooks/useLobby'
-import { TABLE_SEATS, lobbyRoomPath, tableOffer } from '@/hooks/useLobby'
-import type { HubRoomPlayer } from '@/utils/hubStream'
+import { lobbyRoomPath } from '@/hooks/useLobby'
+import type { HubGameSummary, HubRoomPlayer } from '@/utils/hubStream'
 import styles from './LobbyPanel.module.css'
 
 // The side panel beside the world: where you are (the plaza, or a room
 // by code), who is here and what they are doing, and the tables. The
 // world and the chat are the page's; this only offers.
+
+// How a table reads: open to join, or why not. Both games seat four.
+const TABLE_SEATS = 4
+function tableOffer(table: HubGameSummary): { label: string; open: boolean } {
+  if (table.status !== 'waiting') return { label: 'In play', open: false }
+  if (table.playerCount >= TABLE_SEATS) return { label: 'Full', open: false }
+  return { label: 'Join', open: true }
+}
 
 const presence = (player: HubRoomPlayer): string => {
   if (player.table !== undefined) return `at ${player.table.game} ${player.table.gameId}`
