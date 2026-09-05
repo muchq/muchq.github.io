@@ -8,6 +8,7 @@ import { GolfNetworkAdapter } from '@/utils/networkAdapter'
 import type { GolfGameAdapter } from '@/types/golfAdapter'
 import type { ParsedPermalinkParams } from '@/utils/golfPermalinks'
 import { generateRoomPermalink, generateGamePermalink } from '@/utils/golfPermalinks'
+import { usePeekCountdown } from './usePeekCountdown'
 
 interface UseGolfGameProps {
   onGameIdChange?: (id: string | null) => void
@@ -125,7 +126,6 @@ export const useGolfGame = ({
   const [isInRoom, setIsInRoom] = useState(false)
   const [notification, setNotification] = useState<string>('')
   const [isConnected, setIsConnected] = useState(false)
-  const [peekCountdown, setPeekCountdown] = useState<number | null>(null)
   const [winner, setWinner] = useState<string | null>(null)
   const [winners, setWinners] = useState<string[] | null>(null)
   const [finalScores, setFinalScores] = useState<Array<{ playerName: string; score: number }> | null>(null)
@@ -186,7 +186,6 @@ export const useGolfGame = ({
   const permalinkTimeoutRef = useRef<number | null>(null)
   const notificationTimeoutRef = useRef<number | null>(null)
   const reconnectTimeoutRef = useRef<number | null>(null)
-  const countdownIntervalRef = useRef<number | null>(null)
   const navigate = useNavigate()
 
   const showNotification = useCallback((message: string) => {
@@ -199,6 +198,12 @@ export const useGolfGame = ({
       notificationTimeoutRef.current = null
     }, 3000)
   }, [])
+
+  const hideCards = useCallback(() => networkAdapterRef.current?.hideCards(), [])
+  const peekCountdown = usePeekCountdown(
+    gameState?.gamePhase === 'peeking' && gameState.allPlayersPeeked,
+    hideCards
+  )
 
   // Game actions
   const createRoom = useCallback(() => {
@@ -365,10 +370,10 @@ export const useGolfGame = ({
   }, [])
 
   // The seat is shared with the lobby, which resumes in this room with
-  // the world and chat up. A table still held would pull the lobby
-  // straight back here, so the table is left first — and a leave the
-  // socket cannot carry is not a leave, so while disconnected the table
-  // keeps the player here.
+  // the world and chat up. A table still held would come up over the
+  // world there instead of the room, so the table is left first — and a
+  // leave the socket cannot carry is not a leave, so while disconnected
+  // the table keeps the player here.
   const backToLobby = useCallback(() => {
     if (!roomState?.id) return
     if (gameState) {
@@ -995,45 +1000,6 @@ export const useGolfGame = ({
       }
     }
   }, [roomState, gameState, permalinkJoinAttempt.isAttempting, permalinkJoinAttempt.error, isManualNavigation, navigate, permalinkParams])
-
-  // Handle peek countdown when all players have peeked
-  useEffect(() => {
-    if (gameState?.gamePhase === 'peeking' && gameState?.allPlayersPeeked) {
-      const startTime = Date.now()
-      countdownIntervalRef.current = window.setInterval(() => {
-        const elapsed = Date.now() - startTime
-        const secondsElapsed = Math.floor(elapsed / 1000)
-        const newCount = Math.max(0, 3 - secondsElapsed)
-
-        setPeekCountdown(newCount)
-
-        if (secondsElapsed >= 4) { // After showing 0 for a second
-          // Countdown finished
-          if (countdownIntervalRef.current) {
-            clearInterval(countdownIntervalRef.current)
-            countdownIntervalRef.current = null
-          }
-
-          // Hide the countdown overlay
-          setPeekCountdown(null)
-
-          // Send hideCards message
-          if (networkAdapterRef.current) {
-            networkAdapterRef.current.hideCards()
-          }
-        }
-      }, 100) // Update more frequently for smoother countdown
-    }
-
-    // Cleanup: clear countdown and interval when phase changes or on unmount
-    return () => {
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current)
-        countdownIntervalRef.current = null
-      }
-      setPeekCountdown(null)
-    }
-  }, [gameState?.gamePhase, gameState?.allPlayersPeeked])
 
   return {
     // State

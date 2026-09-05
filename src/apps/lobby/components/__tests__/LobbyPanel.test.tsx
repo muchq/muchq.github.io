@@ -17,7 +17,8 @@ const room = (over: Partial<HubRoom> = {}): HubRoom => ({
   games: [
     { gameId: 'G1', game: 'castle', status: 'waiting', playerCount: 1 },
     { gameId: 'G2', game: 'golf', status: 'playing', playerCount: 2 },
-    { gameId: 'G3', game: 'golf', status: 'waiting', playerCount: 4 }
+    { gameId: 'G3', game: 'golf', status: 'waiting', playerCount: 4 },
+    { gameId: 'G4', game: 'golf', status: 'waiting', playerCount: 1 }
   ],
   ...over
 })
@@ -39,8 +40,7 @@ const lobby = (over: Partial<UseLobby> = {}): UseLobby =>
     reconnect: vi.fn(),
     world: {} as UseLobby['world'],
     castle: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['castle'],
-    createGolfTable: vi.fn(),
-    openGolfTable: vi.fn(),
+    golf: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['golf'],
     ...over
   }) as UseLobby
 
@@ -70,11 +70,13 @@ describe('LobbyPanel', () => {
     expect(hook.castle.joinTable).toHaveBeenCalledWith('G1')
     expect(screen.getByRole('button', { name: 'In play golf G2' })).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: 'Full golf G3' })).toHaveProperty('disabled', true)
+    fireEvent.click(screen.getByRole('button', { name: 'Join golf G4' }))
+    expect(hook.golf.joinTable).toHaveBeenCalledWith('G4')
 
     fireEvent.click(screen.getByRole('button', { name: 'Open a castle table' }))
     expect(hook.castle.createTable).toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Open a golf table' }))
-    expect(hook.createGolfTable).toHaveBeenCalled()
+    expect(hook.golf.createTable).toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Leave room' }))
     expect(hook.leaveRoom).toHaveBeenCalled()
   })
@@ -86,5 +88,6 @@ describe('LobbyPanel', () => {
     expect(screen.getByRole('button', { name: 'Open a castle table' })).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: 'Open a golf table' })).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: 'Join castle G1' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Join golf G4' })).toHaveProperty('disabled', true)
   })
 })

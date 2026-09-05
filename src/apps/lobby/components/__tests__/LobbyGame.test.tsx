@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { UseLobby } from '@/hooks/useLobby'
 import type { CastleView } from '@/apps/castle/wire'
+import type { GameState } from '@/types/golf'
 
 // The panel's folding: open beside the world, away while a table is up,
 // back when the table goes, and always a toggle away.
@@ -22,8 +23,7 @@ const state = {
   reconnect: vi.fn(),
   world: {},
   castle: { view: null as CastleView | null, ended: null, selected: [] },
-  createGolfTable: vi.fn(),
-  openGolfTable: vi.fn()
+  golf: { view: null as GameState | null, ended: null, peekCountdown: null }
 } as unknown as UseLobby
 
 vi.mock('@/hooks/useLobby', async importOriginal => ({
@@ -32,15 +32,20 @@ vi.mock('@/hooks/useLobby', async importOriginal => ({
 }))
 vi.mock('@/apps/thoughts/components/ThoughtsGame', () => ({ default: () => <div>world</div> }))
 vi.mock('@/apps/castle/components/CastleTable', () => ({ default: () => <div>table</div> }))
+vi.mock('@/apps/golf/components/GolfTable', () => ({
+  default: ({ shareUrl }: { shareUrl: string | null }) => <div>golf table {shareUrl}</div>
+}))
 
 import LobbyGame from '../LobbyGame'
 
 const view = { gameId: 'G1', phase: 'waiting', players: [], drawPileCount: 0, pileCount: 0, run: [], finished: [] } as unknown as CastleView
+const golfView = { id: 'G2', gamePhase: 'waiting', players: [] } as unknown as GameState
 
 describe('LobbyGame', () => {
   beforeEach(() => {
     cleanup()
     state.castle.view = null
+    state.golf.view = null
   })
 
   it('folds the panel while a table is up and unfolds it when the table goes', () => {
@@ -62,6 +67,21 @@ describe('LobbyGame', () => {
     rerender(<LobbyGame />)
     expect(screen.queryByRole('complementary', { name: 'lobby' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Lobby' }))
+    expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
+  })
+
+  it('a golf table is a table too: over the world, the panel folded', () => {
+    const { rerender } = render(<LobbyGame />)
+    state.golf.view = golfView
+    state.room = { roomId: 'R1', players: [], games: [] }
+    rerender(<LobbyGame />)
+    expect(screen.getByText(`golf table ${window.location.origin}/games/room/R1/table/G2`)).toBeTruthy()
+    expect(screen.queryByText('table')).toBeNull()
+    expect(screen.queryByRole('complementary', { name: 'lobby' })).toBeNull()
+    state.golf.view = null
+    state.room = null
+    rerender(<LobbyGame />)
+    expect(screen.queryByText(/golf table/)).toBeNull()
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
   })
 })

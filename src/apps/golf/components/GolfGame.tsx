@@ -1,15 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState } from 'react'
 import styles from './GolfGame.module.css'
 import { useGolfGame } from '@/hooks/useGolfGame'
+import GolfTable from './GolfTable'
 import PermalinkDisplay from './PermalinkDisplay'
 import RoomChat from './RoomChat'
 import NewGameNotification from './NewGameNotification'
 import type { ParsedPermalinkParams } from '../../../utils/golfPermalinks'
-
-interface Card {
-  rank: string
-  suit: string
-}
 
 interface Player {
   id: string
@@ -27,8 +23,6 @@ interface GolfGameProps {
 
 const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams }: GolfGameProps) => {
   const [showRules, setShowRules] = useState(false)
-  const [showScores, setShowScores] = useState(false)
-  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   // Helper function to get display name (now just use the ID directly)
   const getDisplayName = (player: Player | null) => {
     // Since IDs are now whimsical names directly, just use the ID
@@ -43,8 +37,6 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     isInLobby,
     isInRoom,
     notification,
-    currentPlayer,
-    isMyTurn,
     peekCountdown,
     winner,
     winners,
@@ -76,86 +68,6 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     sendChat,
     isConnected
   } = useGolfGame({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConnectionChange, permalinkParams })
-
-  const isGameWinner = (player: Player | null | undefined) => {
-    if (!player) return false
-    const name = getDisplayName(player)
-    if (winners && winners.length > 0) return winners.includes(name)
-    return name === winner
-  }
-
-  const confirmLeave = useCallback(() => {
-    setShowLeaveConfirm(false)
-    leaveGame()
-  }, [leaveGame])
-
-  useEffect(() => {
-    if (gameState?.gamePhase === 'ended') {
-      const hideTimer = setTimeout(() => setShowScores(false), 0)
-      const showTimer = setTimeout(() => setShowScores(true), 3000)
-      return () => {
-        clearTimeout(hideTimer)
-        clearTimeout(showTimer)
-      }
-    }
-  }, [gameState?.gamePhase])
-
-  // Final round: from the knock until the game ends. Non-knockers get a
-  // full-screen alert (auto-dismissed so it can't block their last turn)
-  // plus a persistent red theme; the knocker just gets a calm banner.
-  const knockerId = gameState?.knockedPlayerId ?? null
-  const isFinalRound = gameState?.gamePhase === 'knocked'
-  const isKnocker = knockerId !== null && knockerId === playerId
-  const [knockAlertDismissed, setKnockAlertDismissed] = useState(false)
-  const showKnockAlert = isFinalRound && !isKnocker && !knockAlertDismissed
-  const knockAlertRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const timer = isFinalRound
-      ? setTimeout(() => setKnockAlertDismissed(true), 5000)
-      : setTimeout(() => setKnockAlertDismissed(false), 0)
-    return () => clearTimeout(timer)
-  }, [isFinalRound])
-
-  // Focus the alert while it's up so keyboard users can dismiss it —
-  // tapping is not the only input this game gets.
-  useEffect(() => {
-    if (showKnockAlert) knockAlertRef.current?.focus()
-  }, [showKnockAlert])
-
-  const renderCard = (card: Card | null, index: number, isRevealed: boolean, isPlayer: boolean) => {
-    const canInteract = isPlayer && (isMyTurn || (currentPlayer && !currentPlayer.hasPeeked && gameState?.gamePhase === 'playing'))
-
-    return (
-      <div
-        key={index}
-        className={`${styles.card} ${isRevealed ? styles.revealed : ''} ${canInteract ? styles.interactive : ''}`}
-        onClick={() => canInteract && handleCardClick(index)}
-        onTouchEnd={(e) => {
-          e.preventDefault()
-          if (canInteract) handleCardClick(index)
-        }}
-      >
-        {isRevealed && card ? (
-          <div className={styles.cardFace}>
-            <div className={`${styles.cardCorner} ${styles.topLeft} ${(card.suit === '♥' || card.suit === '♦') ? styles.red : ''}`}>
-              <span className={styles.cornerRank}>{card.rank}</span>
-              <span className={styles.cornerSuit}>{card.suit}</span>
-            </div>
-            <span className={`${styles.cardCenter} ${(card.suit === '♥' || card.suit === '♦') ? styles.red : ''}`}>
-              {card.suit}
-            </span>
-            <div className={`${styles.cardCorner} ${styles.bottomRight} ${(card.suit === '♥' || card.suit === '♦') ? styles.red : ''}`}>
-              <span className={styles.cornerRank}>{card.rank}</span>
-              <span className={styles.cornerSuit}>{card.suit}</span>
-            </div>
-          </div>
-        ) : (
-          <div className={styles.cardBack} />
-        )}
-      </div>
-    )
-  }
 
   // One element, rendered at the same tree position (first child of the
   // returned fragment) by both in-room branches, so a lobby↔game
@@ -441,311 +353,92 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     return <div className={styles.loading}>Loading...</div>
   }
 
+  // The table over this page's hook: its actions under the table's
+  // names, and the page's own additions to the scorecard.
+  const table = {
+    ended: winner === null ? null : { winner, winners: winners ?? [] },
+    peekCountdown,
+    createTable: startNewGame,
+    startTable: startGame,
+    leaveTable: leaveGame,
+    drawCard,
+    takeFromDiscard,
+    discardDrawn,
+    knock,
+    tapCard: handleCardClick
+  }
+
   return (
     <>
     {roomChat}
-    <div className={styles.gameContainer}>
-      <div className={styles.gameHeader}>
-        <div className={styles.gameHeaderTop}>
-          <div className={styles.gameHeaderInfo}>
-            <h2>Room: {gameState.id}</h2>
-            <div className={styles.playerList}>
-              {gameState.players.map((player, index) => {
-                const isActivePlayer = index === gameState.currentPlayerIndex && (gameState.gamePhase === 'playing' || gameState.gamePhase === 'knocked')
-                return (
-                  <div
-                    key={player.id}
-                    className={`${styles.playerInfo} ${isActivePlayer ? styles.active : ''}`}
-                  >
-                    <span>{getDisplayName(player)}</span>
-                    {isActivePlayer && player.id !== playerId && (
-                      <span className={styles.turnLabel}>their turn</span>
-                    )}
-                    {isActivePlayer && player.id === playerId && (
-                      <span className={styles.turnLabel}>your turn</span>
-                    )}
-                    {gameState.gamePhase === 'ended' && (
-                      <span className={styles.score}>Score: {player.score}</span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+    <GolfTable
+      playerId={playerId}
+      connected={isConnected}
+      view={gameState}
+      table={table}
+      shareUrl={currentGamePermalink}
+      links={
+        <button onClick={backToLobby} className={styles.textLink}>
+          Lobby: world & chat
+        </button>
+      }
+    >
+      {roomState && (
+        <details className={styles.roomTotalsDetails}>
+          <summary className={styles.roomTotalsSummary}>Room Totals</summary>
+          <div className={styles.cumulativeScores}>
+            {roomState.players
+              .sort((a, b) => (a.gamesPlayed > 0 ? a.totalScore / a.gamesPlayed : 0) - (b.gamesPlayed > 0 ? b.totalScore / b.gamesPlayed : 0))
+              .map((player, index) => (
+                <div key={player.id} className={`${styles.cumulativeRow} ${index === 0 && player.gamesPlayed > 0 ? styles.bestAverage : ''}`}>
+                  <span className={styles.playerName}>{getDisplayName(player)}</span>
+                  <span className={styles.playerGames}>{player.gamesPlayed} games</span>
+                  <span className={styles.playerWins}>{player.gamesWon} wins</span>
+                  <span className={styles.playerTotal}>{player.totalScore} total</span>
+                  <span className={styles.playerAverage}>
+                    {player.gamesPlayed > 0 ? (player.totalScore / player.gamesPlayed).toFixed(1) : 'N/A'} avg
+                  </span>
+                </div>
+              ))}
           </div>
-          {currentGamePermalink && (
-            <div className={gameState.gamePhase === 'waiting' ? styles.gameHeaderShareWaiting : styles.gameHeaderShare}>
-              <PermalinkDisplay
-                label="Share Game"
-                url={currentGamePermalink}
-              />
-            </div>
-          )}
-          <button onClick={() => setShowLeaveConfirm(true)} className={styles.leaveGameLink}>
-            ✕
-          </button>
-        </div>
-        {showLeaveConfirm && (
-          <div className={styles.leaveConfirm}>
-            <span>Leave this game?</span>
-            <button onClick={confirmLeave} className={styles.leaveConfirmYes}>Leave</button>
-            <button onClick={() => setShowLeaveConfirm(false)} className={styles.leaveConfirmNo}>Stay</button>
-          </div>
-        )}
-      </div>
-
-      {gameState.gamePhase === 'waiting' && (
-        <div className={styles.waitingRoom}>
-          <h3 className={styles.waitingPulse}>Waiting for players...</h3>
-          <p>{gameState.players.length}/4 players</p>
-          {gameState.players.length >= 2 && (
-            <button onClick={startGame} className={`${styles.primaryButton} ${styles.startGameButton}`}>
-              Start Game
-            </button>
-          )}
-          <button onClick={leaveGame} className={styles.textLink}>
-            Leave Game
-          </button>
-        </div>
+        </details>
       )}
 
-      {gameState.gamePhase === 'ended' && !showScores && (
-        <div className={styles.gameEndOverlay} onClick={() => setShowScores(true)}>
-          <div className={styles.celebrationStage}>
-            <div className={styles.celebrationEmoji}>
-              {isGameWinner(currentPlayer) ? '🏆' : '😤'}
-            </div>
-            <h2 className={styles.celebrationTitle}>
-              {isGameWinner(currentPlayer)
-                ? 'You won!'
-                : `${winner} wins!`}
-            </h2>
-            <p className={styles.celebrationTap}>Tap to see scores</p>
-          </div>
-        </div>
-      )}
-
-      {gameState.gamePhase === 'ended' && showScores && (
-        <div className={styles.gameEndOverlay}>
-          <div className={styles.gameEndContent}>
-            <button onClick={startNewGame} className={styles.playAgainButton}>
-              Play Again
-            </button>
-
-            <div className={styles.finalScores}>
-              <h3 className={styles.scoresTitle}>Final Scores</h3>
-              {gameState.players
-                .sort((a, b) => a.score - b.score)
-                .map((player, index) => (
-                  <div key={player.id} className={`${styles.scoreRow} ${isGameWinner(player) ? styles.winnerRow : ''}`}>
-                    <span className={styles.rank}>
-                      {isGameWinner(player) ? '👑' : `#${index + 1}`}
+      {/* New Game Join Options - keep if they exist */}
+      {roomState && newGameNotifications.filter(n => !n.dismissed).length > 0 && (
+        <div className={styles.newGameJoinSection}>
+          <h3 className={styles.newGameJoinTitle}>🎮 Join New Games</h3>
+          <div className={styles.newGameJoinList}>
+            {newGameNotifications
+              .filter(n => !n.dismissed)
+              .sort((a, b) => b.timestamp - a.timestamp)
+              .slice(0, 3)
+              .map(notification => (
+                <div key={notification.gameId} className={styles.newGameJoinItem}>
+                  <div className={styles.newGameJoinInfo}>
+                    <span className={styles.newGameJoinId}>Game: {notification.gameId}</span>
+                    <span className={styles.newGameJoinTime}>
+                      {new Date(notification.timestamp).toLocaleTimeString()}
                     </span>
-                    <span className={styles.playerName}>{getDisplayName(player)}</span>
-                    <span className={styles.finalScore}>{player.score} pts</span>
                   </div>
-                ))}
-            </div>
-
-            {roomState && (
-              <details className={styles.roomTotalsDetails}>
-                <summary className={styles.roomTotalsSummary}>Room Totals</summary>
-                <div className={styles.cumulativeScores}>
-                  {roomState.players
-                    .sort((a, b) => (a.gamesPlayed > 0 ? a.totalScore / a.gamesPlayed : 0) - (b.gamesPlayed > 0 ? b.totalScore / b.gamesPlayed : 0))
-                    .map((player, index) => (
-                      <div key={player.id} className={`${styles.cumulativeRow} ${index === 0 && player.gamesPlayed > 0 ? styles.bestAverage : ''}`}>
-                        <span className={styles.playerName}>{getDisplayName(player)}</span>
-                        <span className={styles.playerGames}>{player.gamesPlayed} games</span>
-                        <span className={styles.playerWins}>{player.gamesWon} wins</span>
-                        <span className={styles.playerTotal}>{player.totalScore} total</span>
-                        <span className={styles.playerAverage}>
-                          {player.gamesPlayed > 0 ? (player.totalScore / player.gamesPlayed).toFixed(1) : 'N/A'} avg
-                        </span>
-                      </div>
-                    ))}
-                </div>
-              </details>
-            )}
-
-            {/* New Game Join Options - keep if they exist */}
-            {roomState && newGameNotifications.filter(n => !n.dismissed).length > 0 && (
-              <div className={styles.newGameJoinSection}>
-                <h3 className={styles.newGameJoinTitle}>🎮 Join New Games</h3>
-                <div className={styles.newGameJoinList}>
-                  {newGameNotifications
-                    .filter(n => !n.dismissed)
-                    .sort((a, b) => b.timestamp - a.timestamp)
-                    .slice(0, 3)
-                    .map(notification => (
-                      <div key={notification.gameId} className={styles.newGameJoinItem}>
-                        <div className={styles.newGameJoinInfo}>
-                          <span className={styles.newGameJoinId}>Game: {notification.gameId}</span>
-                          <span className={styles.newGameJoinTime}>
-                            {new Date(notification.timestamp).toLocaleTimeString()}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => joinNewGame(notification.gameId)}
-                          className={styles.newGameJoinButton}
-                        >
-                          Join Game
-                        </button>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-
-            <div className={styles.gameEndLinks}>
-              <button onClick={leaveGame} className={styles.textLink}>
-                Back to Room
-              </button>
-              <button onClick={backToLobby} className={styles.textLink}>
-                Lobby: world & chat
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {gameState.gamePhase !== 'waiting' && currentPlayer && (
-        <div className={styles.gameArea}>
-          {isFinalRound && (
-            <div className={`${styles.finalRoundBanner} ${!isKnocker ? styles.finalRoundBannerUrgent : ''}`}>
-              {isKnocker
-                ? 'You knocked — final round!'
-                : `🚨 Final round — ${knockerId} knocked! 🚨`}
-            </div>
-          )}
-
-          {/* Turn indicator */}
-          <div className={styles.turnIndicator}>
-            {!isMyTurn ? (
-              <span className={styles.waitingText}>Waiting for {gameState.players[gameState.currentPlayerIndex]?.id}...</span>
-            ) : !currentPlayer.hasPeeked && gameState.gamePhase === 'playing' ? (
-              <span>Tap {2 - currentPlayer.revealedCards.length} cards to peek</span>
-            ) : !gameState.drawnCard ? (
-              <span>{isFinalRound ? 'Your last turn — tap a pile to draw' : 'Your turn — tap a pile to draw'}</span>
-            ) : (
-              <span>Tap a card to swap, or discard</span>
-            )}
-          </div>
-
-          <div className={styles.tableArea}>
-            <div className={styles.piles}>
-              <div className={styles.pile}>
-                <h3>Deck</h3>
-                <div
-                  className={`${styles.card} ${isMyTurn && !gameState.drawnCard ? styles.clickable : ''} ${gameState.drawnCard ? styles.pileDepleted : ''}`}
-                  onClick={() => isMyTurn && !gameState.drawnCard && drawCard()}
-                  onTouchEnd={(e) => {
-                    e.preventDefault()
-                    if (isMyTurn && !gameState.drawnCard) drawCard()
-                  }}
-                >
-                  <div className={styles.cardBack} />
-                  <span className={styles.cardCount}>{gameState.drawPile}</span>
-                </div>
-              </div>
-
-              <div className={styles.pile}>
-                <h3>Discard</h3>
-                {gameState.discardPile.length > 0 ? (
-                  <div
-                    className={`${isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0 ? styles.clickable : ''} ${gameState.drawnCard ? styles.pileDepleted : ''}`}
-                    onClick={() => isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0 && takeFromDiscard()}
-                    onTouchEnd={(e) => {
-                      e.preventDefault()
-                      if (isMyTurn && !gameState.drawnCard && gameState.discardPile.length > 0) takeFromDiscard()
-                    }}
+                  <button
+                    onClick={() => joinNewGame(notification.gameId)}
+                    className={styles.newGameJoinButton}
                   >
-                    {renderCard(gameState.discardPile[gameState.discardPile.length - 1], -1, true, false)}
-                  </div>
-                ) : (
-                  <div className={styles.emptyPile}>Empty</div>
-                )}
-              </div>
-
-              {/* Held card — inline with piles to avoid layout shift */}
-              <div className={`${styles.pile} ${styles.heldCardPile} ${gameState.drawnCard && isMyTurn ? '' : styles.heldCardEmpty}`}>
-                <h3>Held</h3>
-                {gameState.drawnCard && isMyTurn ? (
-                  renderCard(gameState.drawnCard, -2, true, false)
-                ) : (
-                  <div className={styles.emptyPile} />
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className={styles.playerArea}>
-            <h3>Your Cards</h3>
-            <div className={`${styles.cardGrid} ${!isMyTurn && currentPlayer.hasPeeked && (gameState.gamePhase === 'playing' || gameState.gamePhase === 'knocked') ? styles.cardGridDimmed : ''}`}>
-              {currentPlayer.cards.map((card, index) =>
-                renderCard(card, index, currentPlayer.revealedCards.includes(index), true)
-              )}
-            </div>
-
-            <div className={styles.actions} style={!isMyTurn ? { visibility: 'hidden' } : undefined}>
-              {gameState.drawnCard ? (
-                <>
-                  <button onClick={discardDrawn} className={styles.actionButton}>
-                    Discard
+                    Join Game
                   </button>
-                </>
-              ) : null}
-
-              {gameState.gamePhase === 'playing' && !gameState.drawnCard && (
-                <button onClick={knock} className={styles.knockButton}>
-                  Knock
-                </button>
-              )}
-            </div>
+                </div>
+              ))}
           </div>
         </div>
       )}
+    </GolfTable>
 
-      {isFinalRound && !isKnocker && (
-        <div className={styles.finalRoundBackdrop} aria-hidden="true" />
-      )}
-
-      {showKnockAlert && (
-        <div
-          className={styles.knockAlertOverlay}
-          role="alert"
-          ref={knockAlertRef}
-          tabIndex={-1}
-          onClick={() => setKnockAlertDismissed(true)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              setKnockAlertDismissed(true)
-            }
-          }}
-        >
-          <div className={styles.knockAlertContent}>
-            <div className={styles.knockAlertEmoji}>✊</div>
-            <h2 className={styles.knockAlertTitle}>{knockerId} knocked!</h2>
-            <p className={styles.knockAlertSubtitle}>This is your last turn — make it count!</p>
-            <p className={styles.knockAlertTap}>Tap to continue</p>
-          </div>
-        </div>
-      )}
-
-      {notification && (
-        <div className={styles.notification}>
-          {notification}
-        </div>
-      )}
-
-      {peekCountdown !== null && (
-        <div className={styles.peekCountdown}>
-          <div className={styles.countdownNumber}>{peekCountdown}</div>
-          <div className={styles.countdownText}>All players have peeked!</div>
-        </div>
-      )}
-
-    </div>
+    {notification && (
+      <div className={styles.notification}>
+        {notification}
+      </div>
+    )}
     </>
   )
 }

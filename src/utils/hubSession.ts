@@ -7,9 +7,9 @@
 const MINT_TIMEOUT_MS = 10_000
 
 // Where the resume token lives, for every page that dials the hub as the
-// same person: golf's page and the lobby share one seat, so a golf table
-// opened from the lobby resumes there. The name is golf's from before
-// there was a lobby; seats minted under it are still good.
+// same person: golf's page and the lobby share one seat, so a seat held
+// on either resumes on the other. The name is golf's from before there
+// was a lobby; seats minted under it are still good.
 export const HUB_RESUME_TOKEN_KEY = 'golf_v2_resume_token'
 
 // The one stream (MoonBase#1490): the room layer, the lobby's world, golf,

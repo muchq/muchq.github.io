@@ -105,7 +105,7 @@ const LobbyPanel = ({ lobby }: LobbyPanelProps) => {
                   <button
                     type="button"
                     className={styles.secondary}
-                    onClick={() => (game === 'castle' ? lobby.castle.joinTable(table.gameId) : lobby.openGolfTable(table.gameId))}
+                    onClick={() => (game === 'castle' ? lobby.castle.joinTable(table.gameId) : lobby.golf.joinTable(table.gameId))}
                     disabled={!offer.open || !connected || busy}
                     aria-label={`${offer.label} ${game} ${table.gameId}`}
                   >
@@ -120,7 +120,7 @@ const LobbyPanel = ({ lobby }: LobbyPanelProps) => {
           <button type="button" className={styles.primary} onClick={lobby.castle.createTable} disabled={!connected || busy}>
             Open a castle table
           </button>
-          <button type="button" className={styles.secondary} onClick={lobby.createGolfTable} disabled={!connected || busy}>
+          <button type="button" className={styles.secondary} onClick={lobby.golf.createTable} disabled={!connected || busy}>
             Open a golf table
           </button>
         </div>
