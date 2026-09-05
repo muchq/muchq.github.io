@@ -404,7 +404,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
 
           <div className={styles.gameEndLinks}>
             <button onClick={backToLobby} className={styles.textLink}>
-              Back to Lobby
+              Lobby: world & chat
             </button>
             <button onClick={leaveRoom} className={styles.textLink}>
               Leave Room
@@ -601,7 +601,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
                 Back to Room
               </button>
               <button onClick={backToLobby} className={styles.textLink}>
-                Back to Lobby
+                Lobby: world & chat
               </button>
             </div>
           </div>
