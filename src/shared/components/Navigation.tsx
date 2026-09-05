@@ -45,6 +45,7 @@ const MENU: MenuGroup[] = [
     name: 'games',
     label: 'Games',
     links: [
+      { label: 'Lobby', to: '/games' },
       { label: 'Thoughts', to: '/thoughts' },
       { label: 'Golf', to: '/golf' },
       { label: 'Castle', to: '/castle' },

@@ -1,0 +1,69 @@
+.lost {
+  padding: 5rem 1rem 2rem;
+  text-align: center;
+  color: white;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+.error {
+  color: #ffb4a8;
+}
+
+/* A castle table over the world: the canvas keeps ticking beneath. */
+.tableOverlay {
+  position: fixed;
+  top: 60px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  padding: 3.5rem 1rem 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  background: rgba(43, 29, 79, 0.92);
+  z-index: 10;
+}
+
+.panelToggle {
+  position: fixed;
+  top: 68px;
+  left: 0.75rem;
+  z-index: 30;
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(20, 12, 40, 0.8);
+  color: white;
+  cursor: pointer;
+}
+
+/* Above the chat drawer and the panel: the notice is the app's only
+   error channel. */
+.notice {
+  position: fixed;
+  left: 50%;
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  max-width: min(28rem, calc(100vw - 6rem));
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  z-index: 1200;
+}
+
+.noticeEmpty {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The docked chat sits over the pale world here, not golf's green. */
+.chatHost {
+  --chat-ground: rgba(20, 12, 40, 0.82);
+}

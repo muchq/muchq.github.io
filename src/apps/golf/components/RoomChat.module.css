@@ -323,7 +323,8 @@
   width: 20rem;
   z-index: 30;
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.1);
+  /* Glass over golf's dark green by default; a light host sets its own. */
+  background: var(--chat-ground, rgba(255, 255, 255, 0.1));
   animation: none;
 }
 

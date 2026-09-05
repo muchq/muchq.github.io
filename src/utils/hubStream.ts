@@ -1,7 +1,7 @@
-// The games hub's room stream, game-agnostic: the session mint, the
+// The games hub's one stream, game-agnostic: the session mint, the
 // smithy event-stream socket with its reconnect loop, the room and chat
-// commands and events, and one envelope per game (golf, castle) whose
-// contents are the game client's business.
+// commands and events, the lobby envelope (the world), and one envelope
+// per game (golf, castle) whose contents are the game client's business.
 //
 // Wire shape (smithy-cpp ADR-0018 JSON-text mode):
 //   - POST /games/v2/session {resumeToken?} -> {playerId, ticket, resumeToken}
@@ -10,12 +10,15 @@
 //   - room commands are bare: {"event":"joinRoom","payload":{"roomId":"..."}}
 //   - game moves ride their envelope: {"event":"castle","payload":{"move":{"ready":{}}}}
 //   - game updates arrive the same way: {"event":"castle","payload":{"update":{...}}}
+//   - the world rides the lobby envelope: {"event":"lobby","payload":{"action":{"move":{...}}}}
+//     up, {"event":"lobby","payload":{"update":{"playerMoved":{...}}}} down
 //   - a refusal that ends the stream: {"exception":"<shape>","payload":{"message":"..."}}
 //
 // Golf's client (networkAdapter.ts) predates this and carries its own
 // copy of the socket layer; castle is the first game on this one.
 
 import type { ChatMessage } from '@/types/golfChat'
+import type { GameStatePlayer } from '@/types/game'
 import { safeLocalStorage } from './safeLocalStorage'
 import { HUB_SUBPROTOCOL, hubPlayUrl, mintHubSession } from './hubSession'
 
@@ -27,15 +30,34 @@ const MAX_RECONNECT_ATTEMPTS = 10
 
 // --- wire shapes (mirrors model/games.smithy + model/golf.smithy) ---
 
+export type HubGameName = 'golf' | 'castle'
+
+// The table a member is at, pending or in play (MoonBase#1490); absent
+// while idle, which is how the lobby tells who is free.
+export interface HubTable {
+  game: HubGameName
+  gameId: string
+}
+
 export interface HubRoomPlayer {
   playerId: string
   connected: boolean
   gamesPlayed: number
   gamesWon: number
   totalScore: number
+  table?: HubTable
 }
 
-export type HubGameName = 'golf' | 'castle'
+// The world's updates, one key each, as the lobby envelope carries them
+// (thoughts.smithy's LobbyUpdate).
+export type LobbyUpdate =
+  | { worldState: { players: GameStatePlayer[] } }
+  | { playerJoined: { player: GameStatePlayer } }
+  | { playerMoved: { playerId: string; position: [number, number, number] } }
+  | { shapeChanged: { playerId: string; shape: number } }
+  | { playerLeft: { playerId: string } }
+
+export type LobbyActionName = 'join' | 'move' | 'shape' | 'leave'
 
 export interface HubGameSummary {
   gameId: string
@@ -70,9 +92,10 @@ type HubFrame =
   | { event: 'commandRejected'; payload: { reason: string } }
   | { event: 'golf'; payload: { update: Record<string, unknown> } }
   | { event: 'castle'; payload: { update: Record<string, unknown> } }
+  | { event: 'lobby'; payload: { update: LobbyUpdate } }
   | { event?: undefined; exception: string; payload: { message?: string } }
 
-type HubCommand = 'createRoom' | 'joinRoom' | 'leaveRoom' | 'getRoomState' | 'chat' | HubGameName
+type HubCommand = 'createRoom' | 'joinRoom' | 'leaveRoom' | 'getRoomState' | 'chat' | 'lobby' | HubGameName
 
 export interface HubStreamCallbacks {
   onConnection?: (connected: boolean) => void
@@ -88,6 +111,8 @@ export interface HubStreamCallbacks {
   onRejected?: (reason: string) => void
   // A game envelope's update, exactly one member present.
   onGame?: (game: HubGameName, update: Record<string, unknown>) => void
+  // The world's update, in the lobby envelope.
+  onLobby?: (update: LobbyUpdate) => void
   // The reconnect loop gave up, or the hub refused the stream outright.
   // A refusal still reconnects (the next dial mints fresh), so a later
   // onConnection(true) supersedes it.
@@ -242,6 +267,9 @@ export class HubStream {
       case 'castle':
         this.callbacks.onGame?.(frame.event, frame.payload.update)
         return
+      case 'lobby':
+        this.callbacks.onLobby?.(frame.payload.update)
+        return
       default:
         console.warn('hub: unknown event', frame)
     }
@@ -273,5 +301,10 @@ export class HubStream {
   // One move in a game's envelope: {"move": {"<name>": payload}}.
   move(game: HubGameName, name: string, payload: unknown = {}): void {
     this.send(game, { move: { [name]: payload } })
+  }
+
+  // One action in the lobby envelope: {"action": {"<name>": payload}}.
+  lobby(action: LobbyActionName, payload: unknown = {}): void {
+    this.send('lobby', { action: { [action]: payload } })
   }
 }

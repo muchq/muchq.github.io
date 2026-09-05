@@ -28,6 +28,7 @@ describe('HubStream', () => {
       onChatHistory: vi.fn(),
       onRejected: vi.fn(),
       onGame: vi.fn(),
+      onLobby: vi.fn(),
       onLost: vi.fn()
     }
   })
@@ -242,5 +243,20 @@ describe('HubStream', () => {
     await vi.advanceTimersByTimeAsync(5000)
     expect(FakeWebSocket.instances).toHaveLength(1)
     expect(hub.isConnected).toBe(false)
+  })
+
+  it('carries the lobby envelope both ways: actions up, updates down', async () => {
+    const [hub, ws] = await connect()
+    hub.lobby('join', { position: [10, 0, -5], color: [0.8, 0.2, 0.6], shape: 0 })
+    hub.lobby('move', { position: [11, 0, -5] })
+    hub.lobby('leave')
+    expect(ws.sentFrames()).toEqual([
+      { event: 'lobby', payload: { action: { join: { position: [10, 0, -5], color: [0.8, 0.2, 0.6], shape: 0 } } } },
+      { event: 'lobby', payload: { action: { move: { position: [11, 0, -5] } } } },
+      { event: 'lobby', payload: { action: { leave: {} } } }
+    ])
+    ws.receive('lobby', { update: { playerLeft: { playerId: 'bob' } } })
+    expect(callbacks.onLobby).toHaveBeenCalledWith({ playerLeft: { playerId: 'bob' } })
+    expect(callbacks.onGame).not.toHaveBeenCalled()
   })
 })

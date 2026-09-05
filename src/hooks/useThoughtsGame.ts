@@ -5,18 +5,43 @@ import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
 import { generateRandomColor, generateRandomSpawnPosition, createShader, createProgram } from '@/utils/gameUtils'
 import { VirtualJoystick } from '@/utils/virtualJoystick'
 import { AudioSystem } from '@/utils/audioSystem'
+import { isTypingTarget } from '@/utils/keyboard'
 import { NetworkManager, thoughtsPlayUrl } from '@/utils/networkSystem'
+import type { WorldLink } from '@/utils/worldSync'
+import type { HubWorldLink } from '@/utils/hubWorldLink'
 import { ShapeType } from '@/types/game'
 
+// The world renderer. On its own it dials the hub (NetworkManager, the
+// thoughts page); handed a HubWorldLink it rides the lobby's stream
+// instead (MoonBase#1490), attaching once the local player exists.
 export const useThoughtsGame = () => {
-  const initializeGame = useCallback((canvas: HTMLCanvasElement, onPlayerIdReceived?: (playerId: string) => void, onConnectionStateChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'failed', error?: string) => void, networkManagerRef?: MutableRefObject<{ reconnect: () => void } | null>) => {
+  const initializeGame = useCallback((canvas: HTMLCanvasElement, onPlayerIdReceived?: (playerId: string) => void, onConnectionStateChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'failed', error?: string) => void, networkManagerRef?: MutableRefObject<{ reconnect: () => void } | null>, link?: HubWorldLink) => {
     // eslint-disable-next-line no-console
     console.log('Starting game initialization...')
 
     // Initialize game systems
     const gameState = new GameState()
     const audioSystem = new AudioSystem()
-    const networkManager = new NetworkManager(gameState)
+
+    // Prepare local player data
+    const randomSpawnPosition = generateRandomSpawnPosition(GAME_CONFIG.worldBoundary)
+    const randomColor = generateRandomColor()
+
+    // Create a local player ID immediately (will be replaced by server ID if connected)
+    const localPlayerId = 'local-' + Math.random().toString(36).substr(2, 9)
+    gameState.localPlayerId = localPlayerId
+
+    // Add local player to the game immediately so it renders
+    gameState.addPlayer(
+      localPlayerId,
+      randomSpawnPosition,
+      randomColor,
+      ShapeType.SPHERE
+    )
+
+    // The way into the world, with the local player already spawned for
+    // a link's join to carry.
+    const networkManager: WorldLink = link ? link.attach(gameState) : new NetworkManager(gameState)
 
     // Set callback for when player ID is received
     if (onPlayerIdReceived) {
@@ -34,22 +59,6 @@ export const useThoughtsGame = () => {
         reconnect: () => networkManager.reconnect()
       }
     }
-
-    // Prepare local player data
-    const randomSpawnPosition = generateRandomSpawnPosition(GAME_CONFIG.worldBoundary)
-    const randomColor = generateRandomColor()
-
-    // Create a local player ID immediately (will be replaced by server ID if connected)
-    const localPlayerId = 'local-' + Math.random().toString(36).substr(2, 9)
-    gameState.localPlayerId = localPlayerId
-
-    // Add local player to the game immediately so it renders
-    gameState.addPlayer(
-      localPlayerId,
-      randomSpawnPosition,
-      randomColor,
-      ShapeType.SPHERE
-    )
 
     // Notify that we have a player ID (even if offline)
     if (onPlayerIdReceived) {
@@ -110,6 +119,7 @@ export const useThoughtsGame = () => {
 
     // Event listeners
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isTypingTarget(e.target)) return
       keys[e.key.toLowerCase()] = true
 
       // Handle spacebar for shape cycling
@@ -120,6 +130,7 @@ export const useThoughtsGame = () => {
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (isTypingTarget(e.target)) return
       keys[e.key.toLowerCase()] = false
     }
 
@@ -625,8 +636,9 @@ export const useThoughtsGame = () => {
     }
 
     // Dialled here, not from a timer: cleanup's disconnect() retires this
-    // dial, so nothing joins the world after teardown.
-    networkManager.connect(thoughtsPlayUrl())
+    // dial, so nothing joins the world after teardown. A link is already
+    // on the lobby's stream.
+    if (networkManager instanceof NetworkManager) networkManager.connect(thoughtsPlayUrl())
 
     // Handle page unload - notify server when player leaves
     const handleBeforeUnload = () => {
