@@ -65,6 +65,7 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
     setRoomCode,
     leaveGame,
     leaveRoom,
+    backToLobby,
     dismissNewGameNotification,
     joinNewGame,
     permalinkJoinAttempt,
@@ -401,9 +402,14 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
             </div>
           )}
 
-          <button onClick={leaveRoom} className={styles.textLink}>
-            Leave Room
-          </button>
+          <div className={styles.gameEndLinks}>
+            <button onClick={backToLobby} className={styles.textLink}>
+              Back to Lobby
+            </button>
+            <button onClick={leaveRoom} className={styles.textLink}>
+              Leave Room
+            </button>
+          </div>
         </div>
 
         {notification && (
@@ -593,6 +599,9 @@ const GolfGame = ({ onGameIdChange, onPlayerIdChange, onPlayerNameChange, onConn
             <div className={styles.gameEndLinks}>
               <button onClick={leaveGame} className={styles.textLink}>
                 Back to Room
+              </button>
+              <button onClick={backToLobby} className={styles.textLink}>
+                Back to Lobby
               </button>
             </div>
           </div>
