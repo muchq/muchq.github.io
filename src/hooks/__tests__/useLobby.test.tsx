@@ -9,11 +9,12 @@ import { GameState } from '@/utils/gameClasses'
 import { HUB_RESUME_TOKEN_KEY } from '@/utils/hubSession'
 import { ShapeType } from '@/types/game'
 import type { CastleView } from '@/apps/castle/wire'
+import type { GolfView } from '@/apps/golf/wire'
 import type { HubRoom } from '@/utils/hubStream'
 
 // The lobby hook against a scripted hub: the world it joins and re-joins,
-// the castle table that swaps in and out, the golf hand-off, and the
-// share links, with the URL steered alongside.
+// the tables of either game that swap in and out, and the share links,
+// with the URL steered alongside.
 
 const waitingView = (gameId = 'G1'): CastleView => ({
   gameId,
@@ -23,6 +24,15 @@ const waitingView = (gameId = 'G1'): CastleView => ({
   pileCount: 0,
   run: [],
   finished: []
+})
+
+const golfView = (gameId = 'G7'): GolfView => ({
+  gameId,
+  phase: 'waiting',
+  players: [{ playerId: 'alice', cards: [{}, {}, {}, {}], revealedIndexes: [], hasPeeked: false }],
+  drawPileCount: 0,
+  discardCount: 0,
+  allPlayersPeeked: false
 })
 
 const roomState = (roomId: string, games: HubRoom['games'] = []): HubRoom => ({
@@ -152,20 +162,39 @@ describe('useLobby', () => {
     expect(pathname()).toBe('/games/room/R1')
   })
 
-  it('a golf table is a hand-off to the golf page, opened or joined', async () => {
+  it('a golf table swaps in the same way, on its own envelope, and the world stays up', async () => {
     const { result, ws, pathname } = await open()
-    act(() => ws.receive('roomState', roomState('R1', [{ gameId: 'G7', game: 'golf', status: 'waiting', playerCount: 1 }])))
-    act(() => result.current.createGolfTable())
+    act(() => ws.receive('roomState', roomState('R1')))
+    act(() => result.current.golf.createTable())
     expect(ws.lastSent()).toEqual({ event: 'golf', payload: { move: { createGame: {} } } })
-    act(() => ws.receive('golf', { update: { gameJoined: { view: { gameId: 'G9' } } } }))
-    expect(pathname()).toBe('/golf/room/R1/game/G9')
+    act(() => ws.receive('golf', { update: { gameJoined: { view: golfView('G9') } } }))
+    expect(result.current.golf.view?.id).toBe('G9')
+    expect(result.current.castle.view).toBeNull()
+    expect(pathname()).toBe('/games/room/R1/table/G9')
+    expect(result.current.world.isConnected).toBe(true)
+
+    act(() => result.current.golf.leaveTable())
+    expect(ws.lastSent()).toEqual({ event: 'golf', payload: { move: { leaveGame: {} } } })
+    act(() => ws.receive('golf', { update: { gameLeft: { gameId: 'G9' } } }))
+    expect(result.current.golf.view).toBeNull()
+    expect(pathname()).toBe('/games/room/R1')
   })
 
-  it('opening a listed golf table goes to its page', async () => {
-    const { result, ws, pathname } = await open()
+  it('joining a listed golf table sends its join, and the table answers', async () => {
+    const { result, ws } = await open()
     act(() => ws.receive('roomState', roomState('R1', [{ gameId: 'G7', game: 'golf', status: 'waiting', playerCount: 1 }])))
-    act(() => result.current.openGolfTable('G7'))
-    expect(pathname()).toBe('/golf/room/R1/game/G7')
+    act(() => result.current.golf.joinTable('G7'))
+    expect(ws.lastSent()).toEqual({ event: 'golf', payload: { move: { joinGame: { gameId: 'G7' } } } })
+  })
+
+  it('a resume that finds a golf seat held puts the table up, and leaving the room takes it down', async () => {
+    const { result, ws, pathname } = await open({}, '/games', 'R1')
+    act(() => ws.receive('golf', { update: { gameJoined: { view: golfView('G7') } } }))
+    expect(result.current.golf.view?.id).toBe('G7')
+    expect(pathname()).toBe('/games/room/R1/table/G7')
+    act(() => ws.receive('roomLeft', { roomId: 'R1' }))
+    expect(result.current.golf.view).toBeNull()
+    expect(pathname()).toBe('/games')
   })
 
   it('a share link joins the room, then sits at its castle table', async () => {
@@ -180,10 +209,13 @@ describe('useLobby', () => {
     expect(pathname()).toBe('/games/room/R1/table/G1')
   })
 
-  it('a share link to a golf table hands off; to a table in play or gone, it stays in the room and says so', async () => {
+  it('a share link to a golf table sits at it; to a table in play or gone, it stays in the room and says so', async () => {
     const golf = await open({ permalinkRoomId: 'R1', permalinkGameId: 'G7' }, '/games/room/R1/table/G7')
     act(() => golf.ws.receive('roomState', roomState('R1', [{ gameId: 'G7', game: 'golf', status: 'waiting', playerCount: 1 }])))
-    expect(golf.pathname()).toBe('/golf/room/R1/game/G7')
+    expect(golf.ws.lastSent()).toEqual({ event: 'golf', payload: { move: { joinGame: { gameId: 'G7' } } } })
+    act(() => golf.ws.receive('golf', { update: { gameJoined: { view: golfView('G7') } } }))
+    expect(golf.result.current.golf.view?.id).toBe('G7')
+    expect(golf.pathname()).toBe('/games/room/R1/table/G7')
     golf.unmount()
 
     installFakeHub()

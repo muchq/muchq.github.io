@@ -6,17 +6,14 @@
 //   - game moves ride the golf envelope: {"event":"golf","payload":{"move":{"drawCard":{}}}}
 //   - game updates arrive as {"event":"golf","payload":{"update":{"gameState":{...}}}}
 //
-// Two translations sit between the wire and the UI's model:
-//   - GameView -> GameState (ids to indexes, slots to nullable cards).
-//     The discard renders as a one-card pile (the hub sends top + count;
-//     only the top is drawn), room game summaries carry placeholder seat
-//     players where the hub sends a playerCount, and gameHistory is
-//     empty — the wire doesn't carry it, so "Recent Games" is blank.
-//   - The UI's take-then-place discard flow is emulated locally: the
-//     discard top is public, so "taking" it reveals nothing; the hub's
-//     takeFromDiscard{cardIndex} is sent when the player places it.
+// The wire-to-UI translation lives in apps/golf/wire.ts (the lobby's
+// table shares it). The UI's take-then-place discard flow is emulated
+// here: the discard top is public, so "taking" it reveals nothing; the
+// hub's takeFromDiscard{cardIndex} is sent when the player places it.
 
-import type { Card, GameState as GolfGameState, Player, Room, FinalScore } from '@/types/golf'
+import type { GameState as GolfGameState, Player, Room, FinalScore } from '@/types/golf'
+import type { GolfMoveName, GolfUpdate, GolfView } from '@/apps/golf/wire'
+import { mapGameView, mapRoomState } from '@/apps/golf/wire'
 import type { GolfAdapterCallbacks, GolfGameAdapter } from '@/types/golfAdapter'
 import {
   JOINED_ROOM,
@@ -33,161 +30,6 @@ import type { HubRoom, HubSessionReady } from './hubStream'
 
 export type { GolfAdapterCallbacks } from '@/types/golfAdapter'
 
-// --- wire shapes (mirrors model/golf.smithy; the room's are hubStream's) ---
-
-type GamePhase = GolfGameState['gamePhase']
-
-interface V2CardSlot {
-  card?: Card
-}
-
-interface V2GamePlayer {
-  playerId: string
-  cards: V2CardSlot[]
-  revealedIndexes: number[]
-  hasPeeked: boolean
-  score?: number
-}
-
-interface V2GameView {
-  gameId: string
-  phase: GamePhase
-  players: V2GamePlayer[]
-  currentPlayerId?: string
-  drawPileCount: number
-  discardCount: number
-  discardTop?: Card
-  drawnCard?: Card
-  knockedPlayerId?: string
-  allPlayersPeeked: boolean
-}
-
-// The golf update union's JSON encoding: exactly one member present.
-interface V2GolfUpdate {
-  gameJoined?: { view: V2GameView }
-  gameState?: { view: V2GameView }
-  gameCreated?: { gameId: string; createdBy?: string }
-  gameStarted?: Record<string, never>
-  turnChanged?: { playerId: string }
-  playerKnocked?: { playerId: string }
-  gameEnded?: {
-    winner: string
-    winners: string[]
-    finalScores: { playerId: string; score: number }[]
-  }
-  gameLeft?: { gameId: string }
-}
-
-type V2MoveName =
-  | 'createGame'
-  | 'joinGame'
-  | 'startGame'
-  | 'leaveGame'
-  | 'peekCard'
-  | 'drawCard'
-  | 'takeFromDiscard'
-  | 'swapCard'
-  | 'discardDrawn'
-  | 'knock'
-  | 'hideCards'
-
-// --- wire -> UI model translation ---
-
-// The hub has no separate display names: the whimsical playerId is the
-// label, so it fills both id and name.
-function stubPlayer(id: string): Player {
-  return {
-    id,
-    name: id,
-    cards: [],
-    score: 0,
-    revealedCards: [],
-    isReady: false,
-    hasPeeked: false,
-    clientId: '',
-    totalScore: 0,
-    gamesPlayed: 0,
-    gamesWon: 0,
-    isConnected: true,
-    joinedAt: ''
-  }
-}
-
-// Placeholder seats carrying only a count — the Room shape wants Player[]
-// where the hub sends playerCount, and the lobby reads only the length.
-function stubSeats(count: number): Player[] {
-  return Array.from({ length: count }, (_, i) => stubPlayer(`seat-${i}`))
-}
-
-function mapGamePlayer(player: V2GamePlayer): Player {
-  return {
-    ...stubPlayer(player.playerId),
-    cards: player.cards.map(slot => slot.card ?? null),
-    score: player.score ?? 0,
-    revealedCards: player.revealedIndexes,
-    hasPeeked: player.hasPeeked
-  }
-}
-
-function mapGameView(view: V2GameView): GolfGameState {
-  // The UI renders only the discard top, and holding the top during the
-  // take emulation must not "reveal" a card beneath that this client was
-  // never sent — so the pile maps to at most one card.
-  const discardPile: Card[] = view.discardTop == null ? [] : [view.discardTop]
-  const currentSeat = view.currentPlayerId
-    ? view.players.findIndex(p => p.playerId === view.currentPlayerId)
-    : -1
-  return {
-    id: view.gameId,
-    players: view.players.map(mapGamePlayer),
-    // An absent or unknown current player (e.g. an ended game) shows as
-    // seat 0; nothing turn-gated renders in those phases.
-    currentPlayerIndex: currentSeat >= 0 ? currentSeat : 0,
-    drawPile: view.drawPileCount,
-    discardPile,
-    gamePhase: view.phase,
-    knockedPlayerId: view.knockedPlayerId ?? null,
-    drawnCard: view.drawnCard ?? null,
-    allPlayersPeeked: view.allPlayersPeeked
-  }
-}
-
-// A room hosts golf and castle tables on one stream (MoonBase#77); this
-// client lists only its own.
-function mapRoomState(room: HubRoom): Room {
-  const games: Record<string, GolfGameState> = {}
-  for (const summary of room.games) {
-    if ((summary.game ?? 'golf') !== 'golf') continue
-    games[summary.gameId] = {
-      id: summary.gameId,
-      players: stubSeats(summary.playerCount),
-      currentPlayerIndex: 0,
-      drawPile: 0,
-      discardPile: [],
-      gamePhase: summary.status as GamePhase,
-      knockedPlayerId: null,
-      drawnCard: null,
-      allPlayersPeeked: false
-    }
-  }
-  return {
-    id: room.roomId,
-    players: room.players.map(info => ({
-      ...stubPlayer(info.playerId),
-      isConnected: info.connected,
-      totalScore: info.totalScore,
-      gamesPlayed: info.gamesPlayed,
-      gamesWon: info.gamesWon
-    })),
-    games,
-    gameHistory: [],
-    createdAt: '',
-    lastActivity: ''
-  }
-}
-
-// --- the adapter ---
-
 export class GolfNetworkAdapter implements GolfGameAdapter {
   private callbacks: GolfAdapterCallbacks
   private readonly stream: HubStream
@@ -203,7 +45,7 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
   private pendingDiscardTake = false
   // The last authoritative server view, kept so the discard-take
   // emulation can be reverted without inventing state.
-  private lastServerView: V2GameView | null = null
+  private lastServerView: GolfView | null = null
 
   constructor(callbacks?: GolfAdapterCallbacks) {
     this.callbacks = callbacks ?? {}
@@ -231,7 +73,7 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
         // The room's other game's announcements reach every member, and
         // are not golf's to read.
         onGame: (game, update) => {
-          if (game === 'golf') this.handleUpdate(update as V2GolfUpdate)
+          if (game === 'golf') this.handleUpdate(update as GolfUpdate)
         },
         // The reconnect loop gave up, or the hub refused the stream
         // outright; either way the game is unreachable from here.
@@ -264,7 +106,7 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
     return this._roomState
   }
 
-  private sendMove(move: V2MoveName, payload: unknown = {}): void {
+  private sendMove(move: GolfMoveName, payload: unknown = {}): void {
     this.stream.move('golf', move, payload)
   }
 
@@ -288,7 +130,7 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
     }
   }
 
-  private handleUpdate(update: V2GolfUpdate): void {
+  private handleUpdate(update: GolfUpdate): void {
     if (update.gameJoined) {
       const state = this.acceptView(update.gameJoined.view)
       this.callbacks.onGameJoined?.(this.playerId ?? '', state)
@@ -340,7 +182,7 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
     console.warn('golf: unknown update', update)
   }
 
-  private acceptView(view: V2GameView): GolfGameState {
+  private acceptView(view: GolfView): GolfGameState {
     // Server state is authoritative: any update ends the local
     // take-from-discard emulation.
     this.lastServerView = view

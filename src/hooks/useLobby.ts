@@ -6,17 +6,19 @@ import { HubStream, hubPlayUrl } from '@/utils/hubStream'
 import type { HubRoom, HubSessionReady } from '@/utils/hubStream'
 import { HubWorldLink } from '@/utils/hubWorldLink'
 import type { CastleMoveName, CastleUpdate } from '@/apps/castle/wire'
+import type { GolfMoveName, GolfUpdate } from '@/apps/golf/wire'
 import type { CastleChat } from './useCastleGame'
 import { useCastleTable } from './useCastleTable'
 import type { UseCastleTable } from './useCastleTable'
+import { useGolfTable } from './useGolfTable'
+import type { UseGolfTable } from './useGolfTable'
 
 // The lobby (MoonBase#1490 phase 4): one stream carrying the room, its
 // chat, the world, and the tables. The world is always up — the hub puts
-// this session in its room's world, or the plaza's — and a castle table
-// swaps the main view while the world keeps ticking. A golf table is a
-// hand-off to golf's own page: it dials with the identity this hook
-// holds (the same resume token), so the seat parks here and resumes
-// there, at the table.
+// this session in its room's world, or the plaza's — and a table of
+// either game swaps the main view while the world keeps ticking
+// (MoonBase#1502). A seat is at one table at most, so at most one of
+// the two hooks holds a view.
 //
 // The world follows the hub's room. The hub leaves a world for this
 // session on every room change and at every close, and refuses a second
@@ -25,10 +27,8 @@ import type { UseCastleTable } from './useCastleTable'
 // room is not a change.
 
 export const lobbyRoomPath = (roomId: string) => `/games/room/${encodeURIComponent(roomId)}`
-const lobbyTablePath = (roomId: string, gameId: string) =>
+export const lobbyTablePath = (roomId: string, gameId: string) =>
   `${lobbyRoomPath(roomId)}/table/${encodeURIComponent(gameId)}`
-const golfTablePath = (roomId: string, gameId: string) =>
-  `/golf/room/${encodeURIComponent(roomId)}/game/${encodeURIComponent(gameId)}`
 
 const NOTICE_MS = 3000
 
@@ -56,9 +56,7 @@ export interface UseLobby {
   sendChat: (text: string) => void
   world: HubWorldLink
   castle: UseCastleTable
-  // Golf tables live on golf's page: open one there, or go to one.
-  createGolfTable: () => void
-  openGolfTable: (gameId: string) => void
+  golf: UseGolfTable
 }
 
 // A share link's room the session is on its way to: left the resumed
@@ -141,19 +139,29 @@ export const useLobby = ({
     world.dropped()
   }, [world])
 
-  const move = useCallback((name: CastleMoveName, payload: unknown = {}) => {
+  const castleMove = useCallback((name: CastleMoveName, payload: unknown = {}) => {
     streamRef.current?.move('castle', name, payload)
+  }, [])
+  const golfMove = useCallback((name: GolfMoveName, payload: unknown = {}) => {
+    streamRef.current?.move('golf', name, payload)
   }, [])
   const onTableLeft = useCallback(() => {
     if (roomIdRef.current !== null) navigate(lobbyRoomPath(roomIdRef.current), { replace: true })
   }, [navigate])
-  const castle = useCastleTable({ playerId, move, showNotice, onLeft: onTableLeft })
+  const castle = useCastleTable({ playerId, move: castleMove, showNotice, onLeft: onTableLeft })
   const castleRef = useRef(castle)
   castleRef.current = castle
+  const golf = useGolfTable({ playerId, move: golfMove, showNotice, onLeft: onTableLeft })
+  const golfRef = useRef(golf)
+  golfRef.current = golf
+  const clearTables = useCallback(() => {
+    castleRef.current.clear()
+    golfRef.current.clear()
+  }, [])
 
-  // The share link's table, once its room is in hand: a castle table
-  // still waiting is joined here; a golf table is golf's page's; anything
-  // else is reported, and the room stays.
+  // The share link's table, once its room is in hand: a table still
+  // waiting is joined here; anything else is reported, and the room
+  // stays.
   const sitAtPendingTable = useCallback(
     (next: HubRoom) => {
       const gameId = tablePendingRef.current
@@ -168,17 +176,14 @@ export const useLobby = ({
         showNotice(`Table ${gameId} is gone`)
         return
       }
-      if (table.game === 'golf') {
-        navigate(golfTablePath(next.roomId, gameId), { replace: true })
-        return
-      }
       if (table.status !== 'waiting') {
         showNotice(`Table ${gameId} is in play`)
         return
       }
-      castleRef.current.joinTable(gameId)
+      if (table.game === 'golf') golfRef.current.joinTable(gameId)
+      else castleRef.current.joinTable(gameId)
     },
-    [navigate, showNotice]
+    [showNotice]
   )
 
   const handleSessionReady = useCallback(
@@ -188,7 +193,7 @@ export const useLobby = ({
       // A seat that survived the disconnect comes back as a gameJoined
       // after this; one that did not sends nothing, and the old table
       // must not linger.
-      castleRef.current.clear()
+      clearTables()
       world.sessionReady(ready.playerId)
       // A fresh seat, or one whose close left the world: in none yet.
       worldRoomRef.current = undefined
@@ -210,7 +215,7 @@ export const useLobby = ({
       if (here !== null && !wanted.roomId) navigate(lobbyRoomPath(here), { replace: true })
       enterWorld(here)
     },
-    [enterWorld, navigate, onPlayerIdChange, world]
+    [clearTables, enterWorld, navigate, onPlayerIdChange, world]
   )
 
   const handleRoom = useCallback(
@@ -242,7 +247,7 @@ export const useLobby = ({
   const handleRoomLeft = useCallback(() => {
     roomIdRef.current = null
     setRoom(null)
-    castleRef.current.clear()
+    clearTables()
     resetChat()
     const pending = switchRef.current
     if (pending !== null) {
@@ -251,7 +256,7 @@ export const useLobby = ({
     }
     navigate('/games', { replace: true })
     enterWorld(null)
-  }, [enterWorld, navigate, resetChat])
+  }, [clearTables, enterWorld, navigate, resetChat])
 
   const handleRejected = useCallback(
     (reason: string) => {
@@ -269,21 +274,22 @@ export const useLobby = ({
     [enterWorld, navigate, showNotice]
   )
 
+  // Each game's envelope to its table; a gameJoined — sat at from here,
+  // or the seat a resume found still held — names the table in the URL.
   const handleGame = useCallback(
     (game: string, update: Record<string, unknown>) => {
+      let joined: string | undefined
       if (game === 'castle') {
         const castleUpdate = update as CastleUpdate
         castleRef.current.handleUpdate(castleUpdate)
-        if (castleUpdate.gameJoined && roomIdRef.current !== null) {
-          navigate(lobbyTablePath(roomIdRef.current, castleUpdate.gameJoined.view.gameId), { replace: true })
-        }
-        return
+        joined = castleUpdate.gameJoined?.view.gameId
+      } else if (game === 'golf') {
+        const golfUpdate = update as GolfUpdate
+        golfRef.current.handleUpdate(golfUpdate)
+        joined = golfUpdate.gameJoined?.view.gameId
       }
-      // A golf seat — sat at from here, or one the resume found still
-      // held — is golf's page's from now on; it resumes this seat there.
-      const joined = update.gameJoined as { view?: { gameId?: string } } | undefined
-      if (joined?.view?.gameId !== undefined && roomIdRef.current !== null) {
-        navigate(golfTablePath(roomIdRef.current, joined.view.gameId))
+      if (joined !== undefined && roomIdRef.current !== null) {
+        navigate(lobbyTablePath(roomIdRef.current, joined), { replace: true })
       }
     },
     [navigate]
@@ -344,14 +350,6 @@ export const useLobby = ({
   const leaveRoom = useCallback(() => streamRef.current?.leaveRoom(), [])
   const sendChat = useCallback((text: string) => streamRef.current?.chat(text), [])
 
-  const createGolfTable = useCallback(() => streamRef.current?.move('golf', 'createGame'), [])
-  const openGolfTable = useCallback(
-    (gameId: string) => {
-      if (roomIdRef.current !== null) navigate(golfTablePath(roomIdRef.current, gameId))
-    },
-    [navigate]
-  )
-
   return {
     playerId,
     connected,
@@ -367,7 +365,6 @@ export const useLobby = ({
     sendChat,
     world,
     castle,
-    createGolfTable,
-    openGolfTable
+    golf
   }
 }
