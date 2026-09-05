@@ -499,7 +499,7 @@ describe('GolfNetworkAdapter', () => {
       for (let i = 0; i < 10; i++) {
         await vi.advanceTimersByTimeAsync(2000)
       }
-      expect(callbacks.onGameError).toHaveBeenCalledWith('Lost connection to the golf server')
+      expect(callbacks.onGameError).toHaveBeenCalledWith('Lost connection to the games hub')
       expect(fetchMock).toHaveBeenCalledTimes(11)
       adapter.disconnect()
     } finally {
@@ -508,23 +508,22 @@ describe('GolfNetworkAdapter', () => {
   })
 
 
-  // Where golf's socket layer diverges from hubStream's (muchq.github.io#297),
-  // pinned as it is before the move.
-  it('a deliberate disconnect before admission drops the resume token', async () => {
+  // What riding hubStream bought (muchq.github.io#297): the identity
+  // survives a deliberate disconnect before admission, and a terminal
+  // refusal reaches the UI instead of the console.
+  it('a deliberate disconnect before admission keeps the resume token', async () => {
     const adapter = new GolfNetworkAdapter(callbacks)
     adapter.connect()
     await flushAsync()
     expect(localStorage.getItem('golf_v2_resume_token')).toBe('rt-456')
     adapter.disconnect()
-    expect(localStorage.getItem('golf_v2_resume_token')).toBeNull()
+    expect(localStorage.getItem('golf_v2_resume_token')).toBe('rt-456')
   })
 
-  it('a terminal refusal frame is ignored', async () => {
+  it('a terminal refusal frame is an error the UI hears', async () => {
     const [, ws] = await connect()
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     ws.receiveRaw({ exception: 'AccessDenied', payload: { message: 'origin not allowed' } })
-    expect(warn).toHaveBeenCalled()
-    expect(callbacks.onGameError).not.toHaveBeenCalled()
+    expect(callbacks.onGameError).toHaveBeenCalledWith('origin not allowed')
     expect(callbacks.onNotification).not.toHaveBeenCalled()
   })
 })
