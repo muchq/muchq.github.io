@@ -3,6 +3,7 @@ import type { Mock } from 'vitest'
 import { GolfNetworkAdapter, golfSessionUrl } from '../networkAdapter'
 import type { GolfAdapterCallbacks } from '../networkAdapter'
 import type { GameState } from '@/types/golf'
+import { FakeWebSocket, flushAsync } from '@/test/fakeHub'
 
 type MockedCallbacks = {
   [K in keyof Required<GolfAdapterCallbacks>]: Mock<Required<GolfAdapterCallbacks>[K]>
@@ -12,49 +13,6 @@ type MockedCallbacks = {
 // JSON-text envelopes, wire-to-UI shape translation, and the local
 // take-from-discard emulation.
 
-class FakeWebSocket {
-  static instances: FakeWebSocket[] = []
-  static OPEN = 1
-  readonly OPEN = 1
-  url: string
-  protocol: string
-  readyState = 0
-  sent: string[] = []
-  onopen: (() => void) | null = null
-  onmessage: ((event: { data: string }) => void) | null = null
-  onclose: (() => void) | null = null
-  onerror: (() => void) | null = null
-
-  constructor(url: string, protocol: string) {
-    this.url = url
-    this.protocol = protocol
-    FakeWebSocket.instances.push(this)
-  }
-
-  send(data: string): void {
-    this.sent.push(data)
-  }
-
-  close(): void {
-    this.readyState = 3
-    this.onclose?.()
-  }
-
-  open(): void {
-    this.readyState = 1
-    this.onopen?.()
-  }
-
-  receive(event: string, payload: unknown): void {
-    this.onmessage?.({ data: JSON.stringify({ event, payload }) })
-  }
-
-  lastSent(): { event: string; payload: Record<string, unknown> } {
-    return JSON.parse(this.sent[this.sent.length - 1])
-  }
-}
-
-const flushAsync = () => new Promise(resolve => setTimeout(resolve, 0))
 
 describe('GolfNetworkAdapter', () => {
   it('derives the session url from the play url', () => {
