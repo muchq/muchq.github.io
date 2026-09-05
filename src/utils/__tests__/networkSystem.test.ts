@@ -46,6 +46,11 @@ class FakeWebSocket {
     this.onmessage?.({ data: JSON.stringify({ event, payload }) })
   }
 
+  // A world update in the lobby envelope, as the hub sends it.
+  update(name: string, payload: unknown): void {
+    this.receive('lobby', { update: { [name]: payload } })
+  }
+
   frames(): { event: string; payload: Record<string, unknown> }[] {
     return this.sent.map(raw => JSON.parse(raw))
   }
@@ -53,7 +58,7 @@ class FakeWebSocket {
 
 const flushAsync = () => new Promise(resolve => setTimeout(resolve, 0))
 
-const PLAY_URL = 'wss://api.muchq.com/games/v2/thoughts/play'
+const PLAY_URL = 'wss://api.muchq.com/games/v2/play'
 const PLAYER = 'bouncy-coral-quokka-x9k2'
 
 describe('thoughts on the hub wire', () => {
@@ -102,8 +107,8 @@ describe('thoughts on the hub wire', () => {
 
   it('defaults to the production play url and follows the override', () => {
     expect(thoughtsPlayUrl()).toBe(PLAY_URL)
-    vi.stubEnv('VITE_THOUGHTS_WEBSOCKET_URL', 'ws://localhost:2015/games/v2/thoughts/play')
-    expect(thoughtsPlayUrl()).toBe('ws://localhost:2015/games/v2/thoughts/play')
+    vi.stubEnv('VITE_HUB_WEBSOCKET_URL', 'ws://localhost:2015/games/v2/play')
+    expect(thoughtsPlayUrl()).toBe('ws://localhost:2015/games/v2/play')
     expect(hubSessionUrl(thoughtsPlayUrl())).toBe('http://localhost:2015/games/v2/session')
   })
 
@@ -146,17 +151,21 @@ describe('thoughts on the hub wire', () => {
     expect(ids).toEqual([PLAYER])
     expect(manager.isConnected).toBe(true)
     expect(statuses).toEqual(['connecting', 'connected'])
-    // The join, byte for byte what thoughts.smithy's JoinWorld wants — and
-    // no v1 timestamp.
+    // The join, byte for byte what thoughts.smithy's JoinWorld wants in
+    // the lobby envelope — no roomId (this page is the plaza's), and no
+    // v1 timestamp.
     expect(ws.frames()).toEqual([
-      { event: 'join', payload: { position: [10, 0, -5], color: [0.8, 0.2, 0.6], shape: 0 } }
+      {
+        event: 'lobby',
+        payload: { action: { join: { position: [10, 0, -5], color: [0.8, 0.2, 0.6], shape: 0 } } }
+      }
     ])
   })
 
   it('applies the world and its changes to everyone but the local player', async () => {
     const ws = await connectReady()
 
-    ws.receive('worldState', {
+    ws.update('worldState', {
       players: [
         { playerId: 'zesty-mint-wombat-ab12', position: [20, 0, 15], color: [0.3, 0.9, 0.4], shape: 1 },
         // The hub never lists the joiner; if it did, the local player must
@@ -168,41 +177,41 @@ describe('thoughts on the hub wire', () => {
     expect(gameState.players.get('zesty-mint-wombat-ab12')?.shape).toBe(ShapeType.CUBE)
     expect(gameState.getLocalPlayer()?.position).toEqual([10, 0, -5])
 
-    ws.receive('playerJoined', {
+    ws.update('playerJoined', {
       player: { playerId: 'jolly-teal-bilby-cd34', position: [-3, 0, 4], color: [1, 1, 1], shape: 0 }
     })
     expect(gameState.players.get('jolly-teal-bilby-cd34')?.position).toEqual([-3, 0, 4])
 
-    ws.receive('playerMoved', { playerId: 'zesty-mint-wombat-ab12', position: [21, 0, 16] })
+    ws.update('playerMoved', { playerId: 'zesty-mint-wombat-ab12', position: [21, 0, 16] })
     expect(gameState.players.get('zesty-mint-wombat-ab12')?.position).toEqual([21, 0, 16])
-    ws.receive('playerMoved', { playerId: PLAYER, position: [0, 0, 0] })
+    ws.update('playerMoved', { playerId: PLAYER, position: [0, 0, 0] })
     expect(gameState.getLocalPlayer()?.position).toEqual([10, 0, -5])
 
-    ws.receive('shapeChanged', { playerId: 'zesty-mint-wombat-ab12', shape: 2 })
+    ws.update('shapeChanged', { playerId: 'zesty-mint-wombat-ab12', shape: 2 })
     expect(gameState.players.get('zesty-mint-wombat-ab12')?.shape).toBe(ShapeType.PYRAMID)
-    ws.receive('shapeChanged', { playerId: PLAYER, shape: 2 })
+    ws.update('shapeChanged', { playerId: PLAYER, shape: 2 })
     expect(gameState.getLocalPlayer()?.shape).toBe(ShapeType.SPHERE)
 
-    ws.receive('playerLeft', { playerId: 'zesty-mint-wombat-ab12' })
+    ws.update('playerLeft', { playerId: 'zesty-mint-wombat-ab12' })
     expect(gameState.players.has('zesty-mint-wombat-ab12')).toBe(false)
-    ws.receive('playerLeft', { playerId: PLAYER })
+    ws.update('playerLeft', { playerId: PLAYER })
     expect(gameState.getLocalPlayer()).toBeDefined()
     // A leave for someone never seen is a no-op, not an error.
-    ws.receive('playerLeft', { playerId: 'nobody' })
+    ws.update('playerLeft', { playerId: 'nobody' })
     expect(gameState.players.size).toBe(2)
   })
 
   it('worldState is a snapshot: players it no longer lists are gone', async () => {
     const ws = await connectReady()
-    ws.receive('playerJoined', {
+    ws.update('playerJoined', {
       player: { playerId: 'zesty-mint-wombat-ab12', position: [1, 0, 1], color: [1, 0, 0], shape: 0 }
     })
-    ws.receive('playerJoined', {
+    ws.update('playerJoined', {
       player: { playerId: 'jolly-teal-bilby-cd34', position: [2, 0, 2], color: [0, 1, 0], shape: 0 }
     })
     // Their playerLeft went out while we were off the wire; the next
     // snapshot (a rejoin's) is the truth.
-    ws.receive('worldState', {
+    ws.update('worldState', {
       players: [{ playerId: 'jolly-teal-bilby-cd34', position: [3, 0, 3], color: [0, 1, 0], shape: 1 }]
     })
     expect([...gameState.players.keys()].sort()).toEqual([PLAYER, 'jolly-teal-bilby-cd34'])
@@ -210,11 +219,15 @@ describe('thoughts on the hub wire', () => {
     expect(gameState.getLocalPlayer()?.position).toEqual([10, 0, -5])
   })
 
-  it('a rejection and a malformed frame change nothing and keep the socket', async () => {
+  it('a rejection, a malformed frame, and a stray bare world event change nothing', async () => {
     const ws = await connectReady()
     const before = gameState.players.size
     ws.receive('commandRejected', { reason: 'position out of bounds (±50)' })
     ws.onmessage?.({ data: 'not json' })
+    // The pre-lobby wire's bare event: unknown here, and dropped.
+    ws.receive('playerJoined', {
+      player: { playerId: 'stray-bare-event', position: [2, 0, 2], color: [0, 1, 0], shape: 0 }
+    })
     expect(gameState.players.size).toBe(before)
     expect(manager.isConnected).toBe(true)
     expect(statuses).toEqual(['connecting', 'connected'])
@@ -241,10 +254,10 @@ describe('thoughts on the hub wire', () => {
       manager.sendLeave()
 
       expect(ws.frames()).toEqual([
-        { event: 'move', payload: { position: [11, 0, -5] } },
-        { event: 'move', payload: { position: [13, 0, -5] } },
-        { event: 'shape', payload: { shape: 1 } },
-        { event: 'leave', payload: {} }
+        { event: 'lobby', payload: { action: { move: { position: [11, 0, -5] } } } },
+        { event: 'lobby', payload: { action: { move: { position: [13, 0, -5] } } } },
+        { event: 'lobby', payload: { action: { shape: { shape: 1 } } } },
+        { event: 'lobby', payload: { action: { leave: {} } } }
       ])
     } finally {
       vi.useRealTimers()
@@ -262,7 +275,7 @@ describe('thoughts on the hub wire', () => {
 
     statuses = []
     const ws = await connectReady()
-    ws.receive('playerJoined', {
+    ws.update('playerJoined', {
       player: { playerId: 'jolly-teal-bilby-cd34', position: [2, 0, 2], color: [0, 1, 0], shape: 0 }
     })
     expect(gameState.players.has('jolly-teal-bilby-cd34')).toBe(true)
@@ -276,7 +289,7 @@ describe('thoughts on the hub wire', () => {
 
   it('disconnect forgets the peers and keeps the local player', async () => {
     const ws = await connectReady()
-    ws.receive('playerJoined', {
+    ws.update('playerJoined', {
       player: { playerId: 'jolly-teal-bilby-cd34', position: [2, 0, 2], color: [0, 1, 0], shape: 0 }
     })
     expect(gameState.players.has('jolly-teal-bilby-cd34')).toBe(true)
@@ -345,7 +358,7 @@ describe('thoughts on the hub wire', () => {
       // afresh under whatever id it minted.
       second.receive('sessionReady', { playerId: 'peppy-jade-galah-ef56', resumed: false })
       expect(gameState.localPlayerId).toBe('peppy-jade-galah-ef56')
-      expect(second.frames()[0].event).toBe('join')
+      expect(second.frames()[0]).toMatchObject({ event: 'lobby', payload: { action: { join: {} } } })
       expect(manager.connectionStatus).toBe('connected')
     } finally {
       vi.useRealTimers()

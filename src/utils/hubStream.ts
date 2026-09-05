@@ -17,13 +17,9 @@
 
 import type { ChatMessage } from '@/types/golfChat'
 import { safeLocalStorage } from './safeLocalStorage'
-import { HUB_SUBPROTOCOL, mintHubSession } from './hubSession'
+import { HUB_SUBPROTOCOL, hubPlayUrl, mintHubSession } from './hubSession'
 
-// One stream serves every game in a room (MoonBase#1490): castle rides
-// golf's path, so the golf override names the hub for both.
-export function hubPlayUrl(): string {
-  return import.meta.env.VITE_GOLF_WEBSOCKET_URL || 'wss://api.muchq.com/games/v2/golf/play'
-}
+export { hubPlayUrl }
 
 // 2s x 10 sits well inside the hub's 5-minute reconnect grace.
 const RECONNECT_DELAY_MS = 2000

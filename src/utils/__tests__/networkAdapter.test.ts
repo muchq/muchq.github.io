@@ -62,7 +62,7 @@ describe('GolfNetworkAdapter', () => {
   })
 
   it('follows the play url override, plain http for a plain ws', () => {
-    vi.stubEnv('VITE_GOLF_WEBSOCKET_URL', 'ws://localhost:2015/games/v2/golf/play')
+    vi.stubEnv('VITE_HUB_WEBSOCKET_URL', 'ws://localhost:2015/games/v2/play')
     try {
       expect(golfSessionUrl()).toBe('http://localhost:2015/games/v2/session')
     } finally {
