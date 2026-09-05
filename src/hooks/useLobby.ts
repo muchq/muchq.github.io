@@ -170,10 +170,16 @@ export const useLobby = ({
         return
       }
       if (wanted.roomId && wanted.gameId) tablePendingRef.current = wanted.gameId
-      // The world is the session's — its room's, or the plaza's.
+      // The world is the session's — its room's, or the plaza's. A room
+      // the seat resumed into is already this session's: the roomState
+      // that follows is not a room change, and the world is joined once.
+      if (ready.roomId) {
+        roomIdRef.current = ready.roomId
+        navigate(lobbyRoomPath(ready.roomId), { replace: true })
+      }
       world.sessionReady(ready.playerId)
     },
-    [onPlayerIdChange, world]
+    [navigate, onPlayerIdChange, world]
   )
 
   const handleRoom = useCallback(

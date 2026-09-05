@@ -100,6 +100,18 @@ describe('useLobby', () => {
     expect(result.current.room).toBeNull()
   })
 
+  it("a seat resumed in a room joins that room's world once, and the URL names the room", async () => {
+    const { result, ws, pathname } = await open({}, '/games', 'R1')
+    expect(lobbyFrames(ws)).toHaveLength(1)
+    act(() => ws.receive('roomState', roomState('R1')))
+    expect(result.current.room?.roomId).toBe('R1')
+    expect(pathname()).toBe('/games/room/R1')
+    // The roomState that follows a resume is not a room change: the hub
+    // would refuse a second join as already in the world.
+    expect(lobbyFrames(ws)).toHaveLength(1)
+    expect(result.current.notice).toBe('')
+  })
+
   it('a room change re-joins the world, and the URL follows the room', async () => {
     const { result, ws, pathname } = await open()
     act(() => result.current.createRoom())
