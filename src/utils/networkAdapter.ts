@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 // The golf client: the golf envelope on the hub's one stream
 // (hubStream.ts, which owns the mint, the socket, the reconnect loop,
 // and the room and chat frames), presented through the GolfGameAdapter
@@ -28,19 +27,11 @@ import {
   knockedMessage,
   gameOverMessage
 } from './golfNotifications'
-import { HUB_RESUME_TOKEN_KEY, hubPlayUrl, hubSessionUrl } from './hubSession'
-import { HubStream } from './hubStream'
-import type { HubGameSummary, HubRoom, HubRoomPlayer, HubSessionReady } from './hubStream'
+import { HUB_RESUME_TOKEN_KEY } from './hubSession'
+import { HubStream, hubPlayUrl } from './hubStream'
+import type { HubRoom, HubSessionReady } from './hubStream'
 
 export type { GolfAdapterCallbacks } from '@/types/golfAdapter'
-
-export function golfPlayUrl(): string {
-  return hubPlayUrl()
-}
-
-export function golfSessionUrl(): string {
-  return hubSessionUrl(golfPlayUrl())
-}
 
 // --- wire shapes (mirrors model/golf.smithy; the room's are hubStream's) ---
 
@@ -165,7 +156,7 @@ function mapGameView(view: V2GameView): GolfGameState {
 // client lists only its own.
 function mapRoomState(room: HubRoom): Room {
   const games: Record<string, GolfGameState> = {}
-  for (const summary of room.games as HubGameSummary[]) {
+  for (const summary of room.games) {
     if ((summary.game ?? 'golf') !== 'golf') continue
     games[summary.gameId] = {
       id: summary.gameId,
@@ -181,7 +172,7 @@ function mapRoomState(room: HubRoom): Room {
   }
   return {
     id: room.roomId,
-    players: room.players.map((info: HubRoomPlayer) => ({
+    players: room.players.map(info => ({
       ...stubPlayer(info.playerId),
       isConnected: info.connected,
       totalScore: info.totalScore,
@@ -217,7 +208,7 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
   constructor(callbacks?: GolfAdapterCallbacks) {
     this.callbacks = callbacks ?? {}
     this.stream = new HubStream({
-      playUrl: golfPlayUrl(),
+      playUrl: hubPlayUrl(),
       resumeTokenKey: HUB_RESUME_TOKEN_KEY,
       callbacks: {
         onConnection: up => this.callbacks.onConnectionChange?.(up),
@@ -281,7 +272,6 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
 
   private handleSessionReady(ready: HubSessionReady): void {
     if (ready.resumed && ready.roomId) {
-      console.log('♻️ golf v2 session resumed')
       this.callbacks.onReconnecting?.()
     }
   }
@@ -344,11 +334,10 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
     }
     if (update.gameLeft) {
       this._gameState = null
-      this.lastServerView = null
       this.pendingDiscardTake = false
       return
     }
-    console.warn('golf v2: unknown update', update)
+    console.warn('golf: unknown update', update)
   }
 
   private acceptView(view: V2GameView): GolfGameState {

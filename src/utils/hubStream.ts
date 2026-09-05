@@ -14,9 +14,6 @@
 //     up, {"event":"lobby","payload":{"update":{"playerMoved":{...}}}} down
 //   - a refusal that ends the stream: {"exception":"<shape>","payload":{"message":"..."}}
 //
-// Every game's client rides this: castle's hook and the lobby directly,
-// golf's through GolfNetworkAdapter (networkAdapter.ts), which keeps
-// only golf's view translation on top.
 
 import type { ChatMessage } from '@/types/golfChat'
 import type { GameStatePlayer } from '@/types/game'
@@ -122,8 +119,7 @@ export interface HubStreamCallbacks {
 
 export interface HubStreamOptions {
   playUrl: string
-  // Where the identity lives: HUB_RESUME_TOKEN_KEY for the pages that
-  // share one seat (the lobby and golf), castle's own for its tab.
+  // One identity per key: pages that should share a seat pass the same key.
   resumeTokenKey: string
   callbacks?: HubStreamCallbacks
 }

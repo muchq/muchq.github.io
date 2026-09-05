@@ -67,6 +67,39 @@ describe('HubStream', () => {
     expect(callbacks.onSessionReady).toHaveBeenCalledWith({ playerId: 'alice', resumed: false })
   })
 
+  it('abandons a hung mint after ten seconds', async () => {
+    // A hung mint counts as a failed attempt; without the budget the
+    // reconnect loop would stall on it forever.
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout')
+    await connect()
+    expect(timeoutSpy).toHaveBeenCalledWith(10_000)
+    expect(fetchMock.mock.calls[0][1].signal).toBe(timeoutSpy.mock.results[0].value)
+  })
+
+  it('a refused mint retries on the reconnect cadence and spends its budget', async () => {
+    vi.useFakeTimers()
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 503 })
+    const hub = stream()
+    hub.connect()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(FakeWebSocket.instances).toHaveLength(0)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(FakeWebSocket.instances).toHaveLength(1)
+    hub.disconnect()
+
+    fetchMock.mockRejectedValue(new Error('down'))
+    const down = stream()
+    down.connect()
+    await vi.advanceTimersByTimeAsync(0)
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await vi.advanceTimersByTimeAsync(2000)
+    }
+    expect(callbacks.onLost).toHaveBeenCalledWith('Lost connection to the games hub')
+    expect(fetchMock).toHaveBeenCalledTimes(2 + 11)
+    down.disconnect()
+  })
+
   it('offers its own resume token, under its own key, and writes only there', async () => {
     localStorage.setItem(TOKEN_KEY, 'rt-old')
     localStorage.setItem('golf_v2_resume_token', 'rt-golf')
