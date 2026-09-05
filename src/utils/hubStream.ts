@@ -14,8 +14,6 @@
 //     up, {"event":"lobby","payload":{"update":{"playerMoved":{...}}}} down
 //   - a refusal that ends the stream: {"exception":"<shape>","payload":{"message":"..."}}
 //
-// Golf's client (networkAdapter.ts) predates this and carries its own
-// copy of the socket layer; castle is the first game on this one.
 
 import type { ChatMessage } from '@/types/golfChat'
 import type { GameStatePlayer } from '@/types/game'
@@ -121,8 +119,7 @@ export interface HubStreamCallbacks {
 
 export interface HubStreamOptions {
   playUrl: string
-  // Each app keeps its own token: one identity per app, so a castle tab
-  // and a golf tab never fight over one seat.
+  // One identity per key: pages that should share a seat pass the same key.
   resumeTokenKey: string
   callbacks?: HubStreamCallbacks
 }

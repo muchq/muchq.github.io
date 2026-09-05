@@ -1,11 +1,8 @@
-/* eslint-disable no-console */
-// The golf client: the golf_hub smithy event-stream wire, presented
-// through the GolfGameAdapter surface useGolfGame consumes.
+// The golf client: the golf envelope on the hub's one stream
+// (hubStream.ts, which owns the mint, the socket, the reconnect loop,
+// and the room and chat frames), presented through the GolfGameAdapter
+// surface useGolfGame consumes.
 //
-// Wire shape (smithy-cpp ADR-0018 JSON-text mode):
-//   - POST /games/v2/session {resumeToken?} -> {playerId, ticket, resumeToken}
-//   - new WebSocket(playUrl + "?ticket=...", "smithy.eventstream.v1+json")
-//   - frames both ways: {"event": "<member>", "payload": {...}}
 //   - game moves ride the golf envelope: {"event":"golf","payload":{"move":{"drawCard":{}}}}
 //   - game updates arrive as {"event":"golf","payload":{"update":{"gameState":{...}}}}
 //
@@ -21,7 +18,6 @@
 
 import type { Card, GameState as GolfGameState, Player, Room, FinalScore } from '@/types/golf'
 import type { GolfAdapterCallbacks, GolfGameAdapter } from '@/types/golfAdapter'
-import type { ChatMessage } from '@/types/golfChat'
 import {
   JOINED_ROOM,
   JOINED_GAME,
@@ -31,24 +27,13 @@ import {
   knockedMessage,
   gameOverMessage
 } from './golfNotifications'
-import { safeLocalStorage } from './safeLocalStorage'
-import { HUB_RESUME_TOKEN_KEY, HUB_SUBPROTOCOL, hubPlayUrl, hubSessionUrl, mintHubSession } from './hubSession'
+import { HUB_RESUME_TOKEN_KEY } from './hubSession'
+import { HubStream, hubPlayUrl } from './hubStream'
+import type { HubRoom, HubSessionReady } from './hubStream'
 
 export type { GolfAdapterCallbacks } from '@/types/golfAdapter'
 
-export function golfPlayUrl(): string {
-  return hubPlayUrl()
-}
-
-export function golfSessionUrl(): string {
-  return hubSessionUrl(golfPlayUrl())
-}
-
-// 2s x 10 sits well inside the hub's 5-minute reconnect grace.
-const RECONNECT_DELAY_MS = 2000
-const MAX_RECONNECT_ATTEMPTS = 10
-
-// --- wire shapes (mirrors model/games.smithy + model/golf_hub.smithy) ---
+// --- wire shapes (mirrors model/golf.smithy; the room's are hubStream's) ---
 
 type GamePhase = GolfGameState['gamePhase']
 
@@ -77,35 +62,6 @@ interface V2GameView {
   allPlayersPeeked: boolean
 }
 
-interface V2PlayerInfo {
-  playerId: string
-  connected: boolean
-  gamesPlayed: number
-  gamesWon: number
-  totalScore: number
-}
-
-interface V2GameSummary {
-  gameId: string
-  // Which game the table plays: a room hosts golf and castle tables on
-  // one stream (MoonBase#77), and this client lists only its own.
-  game?: 'golf' | 'castle'
-  status: GamePhase
-  playerCount: number
-}
-
-interface V2RoomState {
-  roomId: string
-  players: V2PlayerInfo[]
-  games: V2GameSummary[]
-}
-
-interface V2SessionReady {
-  playerId: string
-  resumed: boolean
-  roomId?: string
-}
-
 // The golf update union's JSON encoding: exactly one member present.
 interface V2GolfUpdate {
   gameJoined?: { view: V2GameView }
@@ -122,21 +78,6 @@ interface V2GolfUpdate {
   gameLeft?: { gameId: string }
 }
 
-// Inbound frames as a discriminated union: the switch narrows each case,
-// and a new event is a compile-time hole instead of a silent cast.
-type V2Frame =
-  | { event: 'sessionReady'; payload: V2SessionReady }
-  | { event: 'roomState'; payload: V2RoomState }
-  | { event: 'roomLeft'; payload: { roomId: string } }
-  | { event: 'roomChat'; payload: ChatMessage }
-  | { event: 'roomChatHistory'; payload: { messages: ChatMessage[] } }
-  | { event: 'commandRejected'; payload: { reason: string } }
-  | { event: 'golf'; payload: { update: V2GolfUpdate } }
-  // The room's other game (MoonBase#77): its announcements reach every
-  // member, and are not golf's to read.
-  | { event: 'castle'; payload: { update: unknown } }
-
-type V2CommandEvent = 'createRoom' | 'joinRoom' | 'leaveRoom' | 'getRoomState' | 'chat' | 'golf'
 type V2MoveName =
   | 'createGame'
   | 'joinGame'
@@ -211,7 +152,9 @@ function mapGameView(view: V2GameView): GolfGameState {
   }
 }
 
-function mapRoomState(room: V2RoomState): Room {
+// A room hosts golf and castle tables on one stream (MoonBase#77); this
+// client lists only its own.
+function mapRoomState(room: HubRoom): Room {
   const games: Record<string, GolfGameState> = {}
   for (const summary of room.games) {
     if ((summary.game ?? 'golf') !== 'golf') continue
@@ -221,7 +164,7 @@ function mapRoomState(room: V2RoomState): Room {
       currentPlayerIndex: 0,
       drawPile: 0,
       discardPile: [],
-      gamePhase: summary.status,
+      gamePhase: summary.status as GamePhase,
       knockedPlayerId: null,
       drawnCard: null,
       allPlayersPeeked: false
@@ -247,14 +190,9 @@ function mapRoomState(room: V2RoomState): Room {
 
 export class GolfNetworkAdapter implements GolfGameAdapter {
   private callbacks: GolfAdapterCallbacks
-  private ws: WebSocket | null = null
-  private _playerId: string | null = null
+  private readonly stream: HubStream
   private _gameState: GolfGameState | null = null
   private _roomState: Room | null = null
-  private closed = false
-  private reconnectAttempts = 0
-  private reconnectTimeout: number | null = null
-  private sawSessionReady = false
 
   // The room the UI has been told it joined; the next different
   // roomState fires onRoomJoined, same-room ones fire onRoomStateUpdate.
@@ -269,29 +207,53 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
 
   constructor(callbacks?: GolfAdapterCallbacks) {
     this.callbacks = callbacks ?? {}
+    this.stream = new HubStream({
+      playUrl: hubPlayUrl(),
+      resumeTokenKey: HUB_RESUME_TOKEN_KEY,
+      callbacks: {
+        onConnection: up => this.callbacks.onConnectionChange?.(up),
+        onSessionReady: ready => this.handleSessionReady(ready),
+        onRoom: room => this.handleRoomState(room),
+        onRoomLeft: roomId => {
+          this.announcedRoomId = null
+          this._roomState = null
+          this.callbacks.onRoomLeft?.(roomId)
+        },
+        // Typed chat state, not a toast (MoonBase#1226): the UI owns
+        // presentation, and a transient notification would drop the
+        // message the server just committed durably.
+        onChat: message => this.callbacks.onChatMessage?.(message),
+        onChatHistory: messages => this.callbacks.onChatHistory?.(messages),
+        onRejected: reason => {
+          this.callbacks.onGameError?.(reason)
+          this.callbacks.onNotification?.(reason)
+        },
+        // The room's other game's announcements reach every member, and
+        // are not golf's to read.
+        onGame: (game, update) => {
+          if (game === 'golf') this.handleUpdate(update as V2GolfUpdate)
+        },
+        // The reconnect loop gave up, or the hub refused the stream
+        // outright; either way the game is unreachable from here.
+        onLost: reason => this.callbacks.onGameError?.(reason)
+      }
+    })
   }
 
   connect(): void {
-    this.closed = false
-    void this.dial()
+    this.stream.connect()
   }
 
   disconnect(): void {
-    this.closed = true
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout)
-      this.reconnectTimeout = null
-    }
-    this.ws?.close()
-    this.ws = null
+    this.stream.disconnect()
   }
 
   get isConnected(): boolean {
-    return this.ws?.readyState === WebSocket.OPEN
+    return this.stream.isConnected
   }
 
   get playerId(): string | null {
-    return this._playerId
+    return this.stream.playerId
   }
 
   get gameState(): GolfGameState | null {
@@ -302,130 +264,24 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
     return this._roomState
   }
 
-  // --- session + socket lifecycle ---
-
-  private async dial(): Promise<void> {
-    try {
-      const session = await mintHubSession(golfPlayUrl(), safeLocalStorage.get(HUB_RESUME_TOKEN_KEY))
-      // Disconnected during the mint: no socket, or a torn-down adapter
-      // would hold a seat under the live one's playerId.
-      if (this.closed) return
-      this._playerId = session.playerId
-      safeLocalStorage.set(HUB_RESUME_TOKEN_KEY, session.resumeToken)
-
-      const url = `${golfPlayUrl()}?ticket=${encodeURIComponent(session.ticket)}`
-      const ws = new WebSocket(url, HUB_SUBPROTOCOL)
-      this.ws = ws
-      this.sawSessionReady = false
-
-      ws.onopen = () => {
-        console.log('🎮 golf v2 connected')
-        this.reconnectAttempts = 0
-        this.callbacks.onConnectionChange?.(true)
-      }
-      ws.onmessage = event => {
-        try {
-          // The one boundary cast: frames are validated by shape of use,
-          // not a runtime schema — unknown events fall through the switch.
-          this.handleFrame(JSON.parse(event.data as string) as V2Frame)
-        } catch (error) {
-          console.error('golf v2: bad frame', error)
-        }
-      }
-      ws.onclose = () => {
-        this.callbacks.onConnectionChange?.(false)
-        if (!this.sawSessionReady) {
-          // Refused before admission (spent ticket, seat conflict, bad
-          // resume token): drop the token so the next dial mints fresh.
-          safeLocalStorage.remove(HUB_RESUME_TOKEN_KEY)
-        }
-        this.scheduleReconnect()
-      }
-      ws.onerror = () => {
-        // onclose follows; nothing useful in the browser error event.
-      }
-    } catch (error) {
-      console.error('golf v2: dial failed', error)
-      this.scheduleReconnect()
-    }
-  }
-
-  private scheduleReconnect(): void {
-    if (this.closed) return
-    if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      this.callbacks.onGameError?.('Lost connection to the golf server')
-      return
-    }
-    this.reconnectAttempts++
-    console.log(`🔄 golf v2 reconnecting (${this.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`)
-    this.reconnectTimeout = window.setTimeout(() => void this.dial(), RECONNECT_DELAY_MS)
-  }
-
-  private sendEvent(event: V2CommandEvent, payload: unknown): void {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.warn('golf v2: cannot send, not connected')
-      return
-    }
-    this.ws.send(JSON.stringify({ event, payload }))
-  }
-
   private sendMove(move: V2MoveName, payload: unknown = {}): void {
-    this.sendEvent('golf', { move: { [move]: payload } })
+    this.stream.move('golf', move, payload)
   }
 
   // --- inbound events ---
 
-  private handleFrame(frame: V2Frame): void {
-    switch (frame.event) {
-      case 'sessionReady':
-        this.handleSessionReady(frame.payload)
-        return
-      case 'roomState':
-        this.handleRoomState(frame.payload)
-        return
-      case 'roomLeft':
-        this.announcedRoomId = null
-        this._roomState = null
-        this.callbacks.onRoomLeft?.(frame.payload.roomId)
-        return
-      case 'roomChat':
-        // Typed chat state, not a toast (MoonBase#1226): the UI owns
-        // presentation, and a transient notification would drop the
-        // message the server just committed durably.
-        this.callbacks.onChatMessage?.(frame.payload)
-        return
-      case 'roomChatHistory':
-        this.callbacks.onChatHistory?.(frame.payload.messages)
-        return
-      case 'commandRejected':
-        this.callbacks.onGameError?.(frame.payload.reason)
-        this.callbacks.onNotification?.(frame.payload.reason)
-        return
-      case 'golf':
-        this.handleUpdate(frame.payload.update)
-        return
-      case 'castle':
-        return
-      default:
-        console.warn('golf v2: unknown event', frame)
-    }
-  }
-
-  private handleSessionReady(ready: V2SessionReady): void {
-    this._playerId = ready.playerId
-    this.sawSessionReady = true
+  private handleSessionReady(ready: HubSessionReady): void {
     if (ready.resumed && ready.roomId) {
-      console.log('♻️ golf v2 session resumed')
       this.callbacks.onReconnecting?.()
     }
   }
 
-  private handleRoomState(room: V2RoomState): void {
+  private handleRoomState(room: HubRoom): void {
     const mapped = mapRoomState(room)
     this._roomState = mapped
     if (this.announcedRoomId !== room.roomId) {
       this.announcedRoomId = room.roomId
-      this.callbacks.onRoomJoined?.(this._playerId ?? '', mapped)
+      this.callbacks.onRoomJoined?.(this.playerId ?? '', mapped)
       this.callbacks.onNotification?.(JOINED_ROOM)
     } else {
       this.callbacks.onRoomStateUpdate?.(mapped)
@@ -435,7 +291,7 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
   private handleUpdate(update: V2GolfUpdate): void {
     if (update.gameJoined) {
       const state = this.acceptView(update.gameJoined.view)
-      this.callbacks.onGameJoined?.(this._playerId ?? '', state)
+      this.callbacks.onGameJoined?.(this.playerId ?? '', state)
       this.callbacks.onNotification?.(JOINED_GAME)
       return
     }
@@ -445,7 +301,7 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
       return
     }
     if (update.gameCreated) {
-      if (update.gameCreated.createdBy === this._playerId) {
+      if (update.gameCreated.createdBy === this.playerId) {
         // Our own create: the gameJoined we also receive carries the
         // state, and announcing it would make the hook double-join.
         return
@@ -478,11 +334,10 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
     }
     if (update.gameLeft) {
       this._gameState = null
-      this.lastServerView = null
       this.pendingDiscardTake = false
       return
     }
-    console.warn('golf v2: unknown update', update)
+    console.warn('golf: unknown update', update)
   }
 
   private acceptView(view: V2GameView): GolfGameState {
@@ -497,16 +352,16 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
   // --- actions (the shared GolfGameAdapter surface) ---
 
   createRoom(): void {
-    this.sendEvent('createRoom', {})
+    this.stream.createRoom()
   }
 
   joinRoom(roomId: string): void {
-    this.sendEvent('joinRoom', { roomId })
+    this.stream.joinRoom(roomId)
   }
 
   leaveRoom(_roomId: string): void {
     this.announcedRoomId = null
-    this.sendEvent('leaveRoom', {})
+    this.stream.leaveRoom()
   }
 
   createGame(_roomId: string): void {
@@ -587,16 +442,18 @@ export class GolfNetworkAdapter implements GolfGameAdapter {
   }
 
   sendChat(text: string): void {
-    this.sendEvent('chat', { text })
+    this.stream.chat(text)
   }
 
   isMyTurn(): boolean {
-    if (!this._gameState || !this._playerId) return false
-    return this._gameState.players[this._gameState.currentPlayerIndex]?.id === this._playerId
+    const me = this.playerId
+    if (!this._gameState || !me) return false
+    return this._gameState.players[this._gameState.currentPlayerIndex]?.id === me
   }
 
   getCurrentPlayer(): Player | null {
-    if (!this._gameState || !this._playerId) return null
-    return this._gameState.players.find(p => p.id === this._playerId) ?? null
+    const me = this.playerId
+    if (!this._gameState || !me) return null
+    return this._gameState.players.find(p => p.id === me) ?? null
   }
 }

@@ -1,75 +1,20 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { Mock } from 'vitest'
-import { GolfNetworkAdapter, golfSessionUrl } from '../networkAdapter'
+import { GolfNetworkAdapter } from '../networkAdapter'
 import type { GolfAdapterCallbacks } from '../networkAdapter'
 import type { GameState } from '@/types/golf'
+import { FakeWebSocket, flushAsync, installFakeHub } from '@/test/fakeHub'
 
 type MockedCallbacks = {
   [K in keyof Required<GolfAdapterCallbacks>]: Mock<Required<GolfAdapterCallbacks>[K]>
 }
 
-// The adapter against a scripted wire: session mint, the smithy
-// JSON-text envelopes, wire-to-UI shape translation, and the local
+// Golf's client against a scripted wire: what it adds on top of
+// hubStream (whose own suite pins the mint, the socket and the reconnect
+// loop): the golf envelope, wire-to-UI shape translation, and the local
 // take-from-discard emulation.
 
-class FakeWebSocket {
-  static instances: FakeWebSocket[] = []
-  static OPEN = 1
-  readonly OPEN = 1
-  url: string
-  protocol: string
-  readyState = 0
-  sent: string[] = []
-  onopen: (() => void) | null = null
-  onmessage: ((event: { data: string }) => void) | null = null
-  onclose: (() => void) | null = null
-  onerror: (() => void) | null = null
-
-  constructor(url: string, protocol: string) {
-    this.url = url
-    this.protocol = protocol
-    FakeWebSocket.instances.push(this)
-  }
-
-  send(data: string): void {
-    this.sent.push(data)
-  }
-
-  close(): void {
-    this.readyState = 3
-    this.onclose?.()
-  }
-
-  open(): void {
-    this.readyState = 1
-    this.onopen?.()
-  }
-
-  receive(event: string, payload: unknown): void {
-    this.onmessage?.({ data: JSON.stringify({ event, payload }) })
-  }
-
-  lastSent(): { event: string; payload: Record<string, unknown> } {
-    return JSON.parse(this.sent[this.sent.length - 1])
-  }
-}
-
-const flushAsync = () => new Promise(resolve => setTimeout(resolve, 0))
-
 describe('GolfNetworkAdapter', () => {
-  it('derives the session url from the play url', () => {
-    expect(golfSessionUrl()).toBe('https://api.muchq.com/games/v2/session')
-  })
-
-  it('follows the play url override, plain http for a plain ws', () => {
-    vi.stubEnv('VITE_HUB_WEBSOCKET_URL', 'ws://localhost:2015/games/v2/play')
-    try {
-      expect(golfSessionUrl()).toBe('http://localhost:2015/games/v2/session')
-    } finally {
-      vi.unstubAllEnvs()
-    }
-  })
-
   let fetchMock: ReturnType<typeof vi.fn>
   let callbacks: MockedCallbacks
 
@@ -93,15 +38,7 @@ describe('GolfNetworkAdapter', () => {
   }
 
   beforeEach(() => {
-    FakeWebSocket.instances = []
-    vi.stubGlobal('WebSocket', FakeWebSocket)
-    fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({ playerId: 'alice', ticket: 't-123', resumeToken: 'rt-456' })
-    })
-    vi.stubGlobal('fetch', fetchMock)
-    localStorage.clear()
+    fetchMock = installFakeHub()
     callbacks = {
       onRoomJoined: vi.fn(),
       onRoomLeft: vi.fn(),
@@ -134,42 +71,13 @@ describe('GolfNetworkAdapter', () => {
     return [adapter, ws]
   }
 
-  it('a disconnect during the mint creates no socket', async () => {
-    const adapter = new GolfNetworkAdapter(callbacks)
-    adapter.connect()
-    // Torn down (a StrictMode remount, a fast navigation) before the mint
-    // resolves: nothing may dial afterwards, or a seat nobody can close
-    // would be held under the live adapter's playerId.
-    adapter.disconnect()
-    await flushAsync()
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(FakeWebSocket.instances).toHaveLength(0)
-    expect(adapter.playerId).toBeNull()
-  })
-
-  it('mints a session, stores the resume token, and dials with the ticket', async () => {
-    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout')
-    const [, ws] = await connect()
-
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    const [url, init] = fetchMock.mock.calls[0]
-    // A hung mint must time out rather than stall the reconnect loop;
-    // the budget is pinned, not just the wiring.
-    expect(timeoutSpy).toHaveBeenCalledWith(10_000)
-    expect(init.signal).toBe(timeoutSpy.mock.results[0].value)
-    expect(url).toContain('/games/v2/session')
-    expect(JSON.parse((init as { body: string }).body)).toEqual({})
-
-    expect(ws.url).toContain('?ticket=t-123')
-    expect(ws.protocol).toBe('smithy.eventstream.v1+json')
-    expect(localStorage.getItem('golf_v2_resume_token')).toBe('rt-456')
-  })
-
-  it('re-mints with the stored resume token', async () => {
+  it('keeps its seat under the identity key the lobby shares', async () => {
     localStorage.setItem('golf_v2_resume_token', 'rt-old')
     await connect()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
     const [, init] = fetchMock.mock.calls[0]
     expect(JSON.parse((init as { body: string }).body)).toEqual({ resumeToken: 'rt-old' })
+    expect(localStorage.getItem('golf_v2_resume_token')).toBe('rt-456')
   })
 
   it('announces a room once, then streams updates', async () => {
@@ -290,7 +198,9 @@ describe('GolfNetworkAdapter', () => {
       payload: { move: { takeFromDiscard: { cardIndex: 2 } } }
     })
 
-    // A fresh server view ends any emulation; a plain swap goes out as-is.
+    // Server state is authoritative: a fresh view ends a take that was
+    // still pending, and the placement goes out as a plain swap.
+    adapter.takeFromDiscard()
     ws.receive('golf', { update: { gameState: { view: sampleView } } })
     adapter.swapCard(1)
     expect(ws.lastSent()).toEqual({
@@ -309,6 +219,9 @@ describe('GolfNetworkAdapter', () => {
     expect(ws.sent.length).toBe(sentBefore)
     expect(adapter.gameState?.drawnCard).toBeNull()
     expect(adapter.gameState?.discardPile).toEqual([{ rank: 'Q', suit: '♥' }])
+    // The UI drew the take; it must draw the put-back too.
+    expect(callbacks.onGameStateUpdate).toHaveBeenLastCalledWith(adapter.gameState)
+    expect(callbacks.onGameStateUpdate).toHaveBeenCalledTimes(3)
   })
 
   it('swallows its own gameCreated echo by creator id, announces others', async () => {
@@ -347,37 +260,38 @@ describe('GolfNetworkAdapter', () => {
     )
   })
 
-  it('surfaces rejections in-band and keeps the session', async () => {
+  it('a rejection is an error first and a toast second, and keeps the session', async () => {
+    // useGolfGame's error handler settles a permalink join attempt on the
+    // refusal, and its toast handler then decides whether the same
+    // reason is news; in the other order the toast would be swallowed.
+    const order: string[] = []
+    callbacks.onGameError.mockImplementation(() => order.push('error'))
+    callbacks.onNotification.mockImplementation(() => order.push('toast'))
     const [, ws] = await connect()
     ws.receive('commandRejected', { reason: 'not your turn' })
+    expect(order).toEqual(['error', 'toast'])
     expect(callbacks.onGameError).toHaveBeenCalledWith('not your turn')
     expect(localStorage.getItem('golf_v2_resume_token')).toBe('rt-456')
   })
 
-  it('signals a resumed session', async () => {
-    const adapter = new GolfNetworkAdapter(callbacks)
-    adapter.connect()
-    await flushAsync()
-    const ws = FakeWebSocket.instances[0]
-    ws.open()
-    ws.receive('sessionReady', { playerId: 'alice', resumed: true, roomId: 'ROOM01' })
+  it('signals a resume only when the seat lands back in a room', async () => {
+    const resume = async (ready: Record<string, unknown>) => {
+      const adapter = new GolfNetworkAdapter(callbacks)
+      adapter.connect()
+      await flushAsync()
+      const ws = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
+      ws.open()
+      ws.receive('sessionReady', { playerId: 'alice', ...ready })
+      adapter.disconnect()
+    }
+    await resume({ resumed: true, roomId: 'ROOM01' })
     expect(callbacks.onReconnecting).toHaveBeenCalledTimes(1)
-    adapter.disconnect()
-  })
-
-  it('drops the resume token when refused before admission', async () => {
-    const adapter = new GolfNetworkAdapter(callbacks)
-    adapter.connect()
-    await flushAsync()
-    expect(localStorage.getItem('golf_v2_resume_token')).toBe('rt-456')
-
-    // Closed without ever seeing sessionReady: spent ticket or seat
-    // conflict — the next dial must mint fresh.
-    const ws = FakeWebSocket.instances[0]
-    ws.open()
-    ws.close()
-    expect(localStorage.getItem('golf_v2_resume_token')).toBeNull()
-    adapter.disconnect()
+    // A resumed identity that is nowhere, and a fresh one already seated
+    // (the hub's roomId on a first sessionReady): neither is a reconnect
+    // the UI should announce.
+    await resume({ resumed: true })
+    await resume({ resumed: false, roomId: 'ROOM01' })
+    expect(callbacks.onReconnecting).toHaveBeenCalledTimes(1)
   })
 
   it('sends room commands as bare envelopes and moves inside golf', async () => {
@@ -433,11 +347,18 @@ describe('GolfNetworkAdapter', () => {
     expect(adapter.gameState?.id).toBe('GAME01')
   })
 
-  it('gameLeft clears the held game state', async () => {
+  it('gameLeft clears the held game state and any pending take', async () => {
     const [adapter, ws] = await connect()
     ws.receive('golf', { update: { gameState: { view: sampleView } } })
     expect(adapter.gameState).not.toBeNull()
+    adapter.takeFromDiscard()
     ws.receive('golf', { update: { gameLeft: { gameId: 'GAME01' } } })
+    expect(adapter.gameState).toBeNull()
+    // The take left with the table: a placement now is a plain swap, and
+    // a put-back has no old view to resurrect.
+    adapter.swapCard(1)
+    expect(ws.lastSent()).toEqual({ event: 'golf', payload: { move: { swapCard: { cardIndex: 1 } } } })
+    adapter.discardDrawn()
     expect(adapter.gameState).toBeNull()
   })
 
@@ -465,88 +386,25 @@ describe('GolfNetworkAdapter', () => {
     expect(callbacks.onRoomJoined).toHaveBeenCalledTimes(2)
   })
 
-  it('signals connection state on open and close', async () => {
+  it('the leave ack drops the room state before the UI hears of it', async () => {
+    // useGolfGame clears its room and game on onRoomLeft only when the
+    // adapter no longer holds a room, so the order is load-bearing.
+    const [adapter, ws] = await connect()
+    ws.receive('roomState', { roomId: 'ROOM01', players: [], games: [] })
+    callbacks.onRoomLeft.mockImplementation(() => {
+      expect(adapter.roomState).toBeNull()
+    })
+    ws.receive('roomLeft', { roomId: 'ROOM01' })
+    expect(callbacks.onRoomLeft).toHaveBeenCalledWith('ROOM01')
+    expect(adapter.roomState).toBeNull()
+  })
+
+  // What riding hubStream bought (muchq.github.io#297): a terminal
+  // refusal reaches the UI instead of the console.
+  it('a terminal refusal frame is an error the UI hears', async () => {
     const [, ws] = await connect()
-    expect(callbacks.onConnectionChange).toHaveBeenCalledWith(true)
-    ws.close()
-    expect(callbacks.onConnectionChange).toHaveBeenLastCalledWith(false)
+    ws.receiveRaw({ exception: 'AccessDenied', payload: { message: 'origin not allowed' } })
+    expect(callbacks.onGameError).toHaveBeenCalledWith('origin not allowed')
+    expect(callbacks.onNotification).not.toHaveBeenCalled()
   })
-
-  it('re-dials with a fresh mint after an abrupt close', async () => {
-    vi.useFakeTimers()
-    try {
-      const adapter = new GolfNetworkAdapter(callbacks)
-      adapter.connect()
-      await vi.advanceTimersByTimeAsync(0)
-      const first = FakeWebSocket.instances[0]
-      first.open()
-      first.receive('sessionReady', { playerId: 'alice', resumed: false })
-
-      first.close() // abrupt loss
-      await vi.advanceTimersByTimeAsync(2000)
-
-      expect(fetchMock).toHaveBeenCalledTimes(2)
-      // The re-mint rides the stored resume token, so the seat resumes.
-      const [, init] = fetchMock.mock.calls[1]
-      expect(JSON.parse((init as { body: string }).body)).toEqual({ resumeToken: 'rt-456' })
-      expect(FakeWebSocket.instances).toHaveLength(2)
-      adapter.disconnect()
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('a failed mint schedules a retry', async () => {
-    vi.useFakeTimers()
-    try {
-      fetchMock.mockResolvedValueOnce({ ok: false, status: 503 })
-      const adapter = new GolfNetworkAdapter(callbacks)
-      adapter.connect()
-      await vi.advanceTimersByTimeAsync(0)
-      expect(FakeWebSocket.instances).toHaveLength(0)
-
-      await vi.advanceTimersByTimeAsync(2000)
-      expect(fetchMock).toHaveBeenCalledTimes(2)
-      expect(FakeWebSocket.instances).toHaveLength(1)
-      adapter.disconnect()
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('disconnect stops the reconnect loop', async () => {
-    vi.useFakeTimers()
-    try {
-      const adapter = new GolfNetworkAdapter(callbacks)
-      adapter.connect()
-      await vi.advanceTimersByTimeAsync(0)
-      FakeWebSocket.instances[0].open()
-
-      adapter.disconnect()
-      await vi.advanceTimersByTimeAsync(10_000)
-      expect(fetchMock).toHaveBeenCalledTimes(1)
-      expect(FakeWebSocket.instances).toHaveLength(1)
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('gives up with an error after the reconnect budget', async () => {
-    vi.useFakeTimers()
-    try {
-      fetchMock.mockRejectedValue(new Error('down'))
-      const adapter = new GolfNetworkAdapter(callbacks)
-      adapter.connect()
-      await vi.advanceTimersByTimeAsync(0)
-      for (let i = 0; i < 10; i++) {
-        await vi.advanceTimersByTimeAsync(2000)
-      }
-      expect(callbacks.onGameError).toHaveBeenCalledWith('Lost connection to the golf server')
-      expect(fetchMock).toHaveBeenCalledTimes(11)
-      adapter.disconnect()
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
 })

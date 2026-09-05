@@ -69,12 +69,12 @@ the world; a golf table hands off to golf's own page under the same identity. Sh
 All three speak the games hub's one stream (`/games/v2/play` on api.muchq.com; the models
 and the protocol are documented with the service in MoonBase, `domains/games/apis/games_hub`).
 `VITE_HUB_WEBSOCKET_URL` overrides the play socket at build time; the session mint is
-derived from it (`src/utils/hubSession.ts`). Golf keeps a resume token so a reconnect
-reclaims its seat; thoughts mints a fresh identity per dial (`src/utils/networkSystem.ts`
-says why) and speaks the stream's `lobby` envelope. Castle rides the same socket (a room
-hosts tables of either game) through `src/utils/hubStream.ts`, the game-agnostic room
-stream, and keeps a resume token of its own. The golf and castle UIs reveal room chat only once the
-server actually delivers chat on the wire.
+derived from it (`src/utils/hubSession.ts`). Golf, castle and the lobby ride
+`src/utils/hubStream.ts`, the game-agnostic room stream, which keeps a resume token so a
+reconnect reclaims its seat (golf and the lobby share one; castle keeps its own). Thoughts is
+the exception: it dials its own socket and mints a fresh identity per dial
+(`src/utils/networkSystem.ts` says why). The golf and castle UIs reveal room chat only once
+the server actually delivers chat on the wire.
 
 ## 🏗️ Project Structure
 
