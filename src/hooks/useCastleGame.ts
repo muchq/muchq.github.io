@@ -5,7 +5,8 @@ import { mergeChatMessages } from '@/types/golfChat'
 import { HubStream, hubPlayUrl } from '@/utils/hubStream'
 import type { HubRoom, HubSessionReady } from '@/utils/hubStream'
 import type { CastleGameEnded, CastleMoveName, CastleUpdate, CastleView } from '@/apps/castle/wire'
-import { cardsOf, rowInPlay, seatOf, toggleSelection } from '@/apps/castle/rules'
+import { useCastleTable } from './useCastleTable'
+import type { CastleTableActions } from './useCastleTable'
 
 // The castle app's one hook: the hub stream in castle's envelope, the
 // room and the table as the wire sends them, and the viewer's selection
@@ -32,7 +33,7 @@ export interface UseCastleGameProps {
   onPlayerIdChange?: (id: string | null) => void
 }
 
-export interface UseCastleGame {
+export interface UseCastleGame extends CastleTableActions {
   playerId: string
   connected: boolean
   lost: string | null
@@ -47,16 +48,6 @@ export interface UseCastleGame {
   createRoom: () => void
   joinRoom: () => void
   leaveRoom: () => void
-  createTable: () => void
-  joinTable: (gameId: string) => void
-  startTable: () => void
-  leaveTable: () => void
-  swapForSetup: (handIndex: number, faceUpIndex: number) => void
-  ready: () => void
-  toggleCard: (index: number) => void
-  playSelected: () => void
-  playFaceDown: (index: number) => void
-  pickUp: () => void
   sendChat: (text: string) => void
 }
 
@@ -69,10 +60,7 @@ export const useCastleGame = ({
   const [connected, setConnected] = useState(false)
   const [lost, setLost] = useState<string | null>(null)
   const [room, setRoom] = useState<HubRoom | null>(null)
-  const [view, setView] = useState<CastleView | null>(null)
-  const [ended, setEnded] = useState<CastleGameEnded | null>(null)
   const [notice, setNotice] = useState('')
-  const [selected, setSelected] = useState<number[]>([])
   const [roomCode, setRoomCode] = useState('')
   const [chat, setChat] = useState<CastleChat>({ messages: [], available: false, replayUpTo: 0, rejection: null })
 
@@ -105,6 +93,15 @@ export const useCastleGame = ({
     setChat({ messages: [], available: false, replayUpTo: 0, rejection: null })
   }, [])
 
+  const move = useCallback((name: CastleMoveName, payload: unknown = {}) => {
+    streamRef.current?.move('castle', name, payload)
+  }, [])
+  const table = useCastleTable({ playerId, move, showNotice })
+  // The stream's callbacks are created once; the table's handlers ride
+  // a ref so they never go stale either.
+  const tableRef = useRef(table)
+  tableRef.current = table
+
   const handleSessionReady = useCallback(
     (ready: HubSessionReady) => {
       playerIdRef.current = ready.playerId
@@ -113,9 +110,7 @@ export const useCastleGame = ({
       // A seat that survived the disconnect comes back as a gameJoined
       // after this; one that did not (grace expired, identity gone)
       // sends nothing, and the old table must not linger.
-      setView(null)
-      setEnded(null)
-      setSelected([])
+      tableRef.current.clear()
       const wanted = permalinkRef.current
       if (!wanted || wanted === ready.roomId) return
       // The link names another room: leave the resumed one first, and
@@ -145,9 +140,7 @@ export const useCastleGame = ({
   const handleRoomLeft = useCallback(() => {
     roomIdRef.current = null
     setRoom(null)
-    setView(null)
-    setEnded(null)
-    setSelected([])
+    tableRef.current.clear()
     resetChat()
     const wanted = permalinkRef.current
     if (permalinkPendingRef.current && wanted) {
@@ -157,45 +150,6 @@ export const useCastleGame = ({
     }
     navigate('/castle', { replace: true })
   }, [navigate, resetChat])
-
-  const handleUpdate = useCallback(
-    (update: CastleUpdate) => {
-      const me = playerIdRef.current
-      if (update.gameJoined) {
-        setView(update.gameJoined.view)
-        setEnded(null)
-        setSelected([])
-        return
-      }
-      if (update.gameState) {
-        setView(update.gameState.view)
-        setSelected([])
-        return
-      }
-      if (update.gameCreated) {
-        if (update.gameCreated.createdBy !== me) showNotice(`${update.gameCreated.createdBy} opened table ${update.gameCreated.gameId}`)
-        return
-      }
-      if (update.gameStarted) {
-        showNotice('Dealt. Arrange your face-up row, then ready up.')
-        return
-      }
-      if (update.turnChanged) {
-        showNotice(update.turnChanged.playerId === me ? 'Your turn' : `${update.turnChanged.playerId} to play`)
-        return
-      }
-      if (update.gameEnded) {
-        setEnded(update.gameEnded)
-        return
-      }
-      if (update.gameLeft) {
-        setView(null)
-        setEnded(null)
-        setSelected([])
-      }
-    },
-    [showNotice]
-  )
 
   useEffect(() => {
     const stream = new HubStream({
@@ -226,7 +180,7 @@ export const useCastleGame = ({
           showNotice(reason)
         },
         onGame: (game, update) => {
-          if (game === 'castle') handleUpdate(update as CastleUpdate)
+          if (game === 'castle') tableRef.current.handleUpdate(update as CastleUpdate)
         },
         onLost: reason => setLost(reason)
       }
@@ -242,10 +196,6 @@ export const useCastleGame = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const move = useCallback((name: CastleMoveName, payload: unknown = {}) => {
-    streamRef.current?.move('castle', name, payload)
-  }, [])
-
   const createRoom = useCallback(() => streamRef.current?.createRoom(), [])
   const joinRoom = useCallback(() => {
     const code = roomCode.trim()
@@ -257,46 +207,9 @@ export const useCastleGame = ({
   }, [roomCode, showNotice])
   const leaveRoom = useCallback(() => streamRef.current?.leaveRoom(), [])
 
-  const createTable = useCallback(() => move('createGame'), [move])
-  const joinTable = useCallback((gameId: string) => move('joinGame', { gameId }), [move])
-  const startTable = useCallback(() => move('startGame'), [move])
-  const leaveTable = useCallback(() => {
-    if (view !== null && view.phase !== 'ended') {
-      move('leaveGame')
-      return
-    }
-    // An ended table is already gone from the hub: only the view lingers.
-    setView(null)
-    setEnded(null)
-    setSelected([])
-  }, [move, view])
-
-  const swapForSetup = useCallback(
-    (handIndex: number, faceUpIndex: number) => move('swapForSetup', { handIndex, faceUpIndex }),
-    [move]
-  )
-  const ready = useCallback(() => move('ready'), [move])
-
-  const toggleCard = useCallback(
-    (index: number) => {
-      const me = view === null ? undefined : seatOf(view, playerId)
-      if (me === undefined) return
-      setSelected(prev => toggleSelection(prev, cardsOf(me, rowInPlay(me)), index))
-    },
-    [playerId, view]
-  )
-
-  const playSelected = useCallback(() => {
-    const me = view === null ? undefined : seatOf(view, playerId)
-    if (me === undefined || selected.length === 0) return
-    move(rowInPlay(me) === 'hand' ? 'playFromHand' : 'playFaceUp', { indexes: selected })
-    setSelected([])
-  }, [move, playerId, selected, view])
-
-  const playFaceDown = useCallback((index: number) => move('playFaceDown', { index }), [move])
-  const pickUp = useCallback(() => move('pickUp'), [move])
   const sendChat = useCallback((text: string) => streamRef.current?.chat(text), [])
 
+  const { view, ended, selected, handleUpdate: _handleUpdate, clear: _clear, ...actions } = table
   return {
     playerId,
     connected,
@@ -312,16 +225,7 @@ export const useCastleGame = ({
     createRoom,
     joinRoom,
     leaveRoom,
-    createTable,
-    joinTable,
-    startTable,
-    leaveTable,
-    swapForSetup,
-    ready,
-    toggleCard,
-    playSelected,
-    playFaceDown,
-    pickUp,
+    ...actions,
     sendChat
   }
 }

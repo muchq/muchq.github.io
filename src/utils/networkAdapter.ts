@@ -44,7 +44,10 @@ export function golfSessionUrl(): string {
   return hubSessionUrl(golfPlayUrl())
 }
 
-const RESUME_TOKEN_KEY = 'golf_v2_resume_token'
+// Shared with the lobby (MoonBase#1490): a golf table opened from the
+// lobby hands the same identity to golf's page.
+export const GOLF_RESUME_TOKEN_KEY = 'golf_v2_resume_token'
+const RESUME_TOKEN_KEY = GOLF_RESUME_TOKEN_KEY
 // 2s x 10 sits well inside the hub's 5-minute reconnect grace.
 const RECONNECT_DELAY_MS = 2000
 const MAX_RECONNECT_ATTEMPTS = 10

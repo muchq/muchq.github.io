@@ -59,7 +59,12 @@ The nav's **Elsewhere** menu links to apps hosted off muchq.com (see the
 list). Those are external links, not routes — their code lives in their own
 repos, not here.
 
-### Golf, castle and thoughts
+### Golf, castle, thoughts, and the lobby
+
+`/games` is the lobby (MoonBase#1490): the thoughts world with a panel for the room, its
+players and their tables, and the room's chat, all on one stream. A castle table opens over
+the world; a golf table hands off to golf's own page under the same identity. Share links are
+`/games/room/:roomId` and `/games/room/:roomId/table/:gameId`.
 
 All three speak the games hub's one stream (`/games/v2/play` on api.muchq.com; the models
 and the protocol are documented with the service in MoonBase, `domains/games/apis/games_hub`).

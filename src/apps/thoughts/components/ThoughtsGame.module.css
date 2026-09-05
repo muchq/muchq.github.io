@@ -239,3 +239,30 @@
     padding: 2px 6px;
   }
 }
+/* The lobby takes the left for its panel: the HUD moves right, under the
+   nav, and the FPS counter clears the chat button. */
+.hudRight .miniMap,
+.hudRight .soundToggle {
+  left: auto;
+  right: 20px;
+}
+
+.hudRight .soundToggle {
+  top: 240px;
+}
+
+.hudRight .fpsCounter {
+  right: auto;
+  left: 10px;
+}
+
+@media (max-width: 1024px) {
+  .hudRight .miniMap,
+  .hudRight .soundToggle {
+    right: 10px;
+  }
+
+  .hudRight .soundToggle {
+    top: 160px;
+  }
+}
