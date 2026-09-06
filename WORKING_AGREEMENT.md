@@ -156,9 +156,9 @@ observable behavior worth keeping gets a test, at every level that fits:
 - **the consumer's boundary** — this repo is itself a consumer: the golf and
   thoughts backends live in MoonBase, and their smithy models (games_hub's
   `golf.smithy` and `thoughts.smithy`) are the contracts. Prove wire
-  behavior by feeding raw JSON messages to the real adapter (as
-  `src/utils/__tests__/networkAdapter.test.ts` does), not through helpers
-  that mirror the adapter's own assumptions back at it.
+  behavior by feeding raw JSON frames to the real stream (as
+  `src/utils/__tests__/hubStream.test.ts` does), not through helpers
+  that mirror the client's own assumptions back at it.
 
 An untested observable behavior is not a guarantee; it is a coincidence that
 currently holds.
@@ -217,7 +217,7 @@ preview. Chromium and Playwright are available in the sandbox.
 ## Docs
 
 - Update docs in the same PR as the code: [README.md](README.md), and the
-  header comments of the wire clients (`src/utils/networkAdapter.ts`,
+  header comments of the wire clients (`src/utils/hubStream.ts`,
   `src/utils/networkSystem.ts`) that read the games_hub models in MoonBase.
 - **When behavior changes, fix the doc that describes it in the same commit.**
   A doc left contradicting the code is a defect in its own right.

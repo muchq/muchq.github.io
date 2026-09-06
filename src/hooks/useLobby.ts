@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import type { ChatMessage } from '@/types/golfChat'
 import { mergeChatMessages } from '@/types/golfChat'
 import { HUB_RESUME_TOKEN_KEY } from '@/utils/hubSession'
 import { HubStream, hubPlayUrl } from '@/utils/hubStream'
@@ -7,18 +8,17 @@ import type { HubRoom, HubSessionReady } from '@/utils/hubStream'
 import { HubWorldLink } from '@/utils/hubWorldLink'
 import type { CastleMoveName, CastleUpdate } from '@/apps/castle/wire'
 import type { GolfMoveName, GolfUpdate } from '@/apps/golf/wire'
-import type { CastleChat } from './useCastleGame'
 import { useCastleTable } from './useCastleTable'
 import type { UseCastleTable } from './useCastleTable'
 import { useGolfTable } from './useGolfTable'
 import type { UseGolfTable } from './useGolfTable'
 
-// The lobby (MoonBase#1490 phase 4): one stream carrying the room, its
-// chat, the world, and the tables. The world is always up — the hub puts
-// this session in its room's world, or the plaza's — and a table of
-// either game swaps the main view while the world keeps ticking
-// (MoonBase#1502). A seat is at one table at most, so at most one of
-// the two hooks holds a view.
+// The lobby (MoonBase#1490): the one page for the games hub. One stream
+// carries the room, its chat, the world, and the tables. The world is
+// always up — the hub puts this session in its room's world, or the
+// plaza's — and a table of either game swaps the main view while the
+// world keeps ticking (MoonBase#1502). A seat is at one table at most,
+// so at most one of the two hooks holds a view.
 //
 // The world follows the hub's room. The hub leaves a world for this
 // session on every room change and at every close, and refuses a second
@@ -31,6 +31,15 @@ export const lobbyTablePath = (roomId: string, gameId: string) =>
   `${lobbyRoomPath(roomId)}/table/${encodeURIComponent(gameId)}`
 
 const NOTICE_MS = 3000
+
+export interface LobbyChat {
+  messages: ChatMessage[]
+  // True once the room's wire has delivered chat (the join replay or a
+  // live message); a UI ahead of its server renders no composer.
+  available: boolean
+  replayUpTo: number
+  rejection: { seq: number; reason: string } | null
+}
 
 export interface UseLobbyProps {
   // The share link's room, joined once the session is ready, and the
@@ -46,7 +55,7 @@ export interface UseLobby {
   connected: boolean
   lost: string | null
   room: HubRoom | null
-  chat: CastleChat
+  chat: LobbyChat
   notice: string
   roomCode: string
   setRoomCode: (code: string) => void
@@ -78,7 +87,7 @@ export const useLobby = ({
   const [room, setRoom] = useState<HubRoom | null>(null)
   const [notice, setNotice] = useState('')
   const [roomCode, setRoomCode] = useState('')
-  const [chat, setChat] = useState<CastleChat>({ messages: [], available: false, replayUpTo: 0, rejection: null })
+  const [chat, setChat] = useState<LobbyChat>({ messages: [], available: false, replayUpTo: 0, rejection: null })
 
   const streamRef = useRef<HubStream | null>(null)
   const noticeTimeoutRef = useRef<number | null>(null)
@@ -260,16 +269,21 @@ export const useLobby = ({
 
   const handleRejected = useCallback(
     (reason: string) => {
-      if (switchRef.current !== null) {
-        // The switch failed; the hub has this session where it is.
-        switchRef.current = null
-        const here = roomIdRef.current
-        navigate(here === null ? '/games' : lobbyRoomPath(here), { replace: true })
-        enterWorld(here)
-      }
       chatSeqRef.current += 1
       setChat(prev => ({ ...prev, rejection: { seq: chatSeqRef.current, reason } }))
-      showNotice(reason)
+      const pending = switchRef.current
+      if (pending === null) {
+        showNotice(reason)
+        return
+      }
+      // The switch failed; the hub has this session where it is. The
+      // hub's reason covers a seat still in a room, which this one is
+      // not: the link's room is what is missing.
+      switchRef.current = null
+      const here = roomIdRef.current
+      navigate(here === null ? '/games' : lobbyRoomPath(here), { replace: true })
+      enterWorld(here)
+      showNotice(`Room ${pending.roomId} is gone`)
     },
     [enterWorld, navigate, showNotice]
   )
@@ -340,7 +354,8 @@ export const useLobby = ({
 
   const createRoom = useCallback(() => streamRef.current?.createRoom(), [])
   const joinRoom = useCallback(() => {
-    const code = roomCode.trim()
+    // Codes are minted upper-case and looked up exactly.
+    const code = roomCode.trim().toUpperCase()
     if (!code) {
       showNotice('Enter a room code')
       return

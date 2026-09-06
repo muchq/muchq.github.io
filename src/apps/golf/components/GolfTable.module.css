@@ -1,64 +1,4 @@
-.lobby {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  padding: 1.5rem;
-}
-
-.title {
-  font-family: 'Lexend', sans-serif;
-  font-size: 2.5rem;
-  font-weight: 300;
-  margin-bottom: 1.5rem;
-  color: white;
-}
-
-.lobbyContent {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  padding: 2rem;
-  border-radius: 1rem;
-  width: 100%;
-  max-width: 400px;
-}
-
-.input {
-  width: 100%;
-  padding: 0.75rem;
-  font-size: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 0.5rem;
-  background: rgba(255, 255, 255, 0.05);
-  color: white;
-  font-family: 'Lexend', sans-serif;
-}
-
-.input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.input:focus {
-  outline: none;
-  border-color: #90ee90;
-}
-
-.lobbyActions {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.permalinkError {
-  color: #ff6b6b;
-  text-align: center;
-  font-size: 1.1rem;
-  margin: 0;
-}
-
-.primaryButton,
-.secondaryButton {
+.primaryButton {
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
   font-family: 'Lexend', sans-serif;
@@ -86,49 +26,6 @@
   transform: scale(0.95);
   background: #6cc76c;
   transition: transform 0.1s ease;
-}
-
-.secondaryButton {
-  background: transparent;
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-.secondaryButton:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.5);
-}
-
-.secondaryButton:active {
-  transform: scale(0.95);
-  background: rgba(255, 255, 255, 0.15);
-  transition: transform 0.1s ease;
-}
-
-.divider {
-  text-align: center;
-  color: rgba(255, 255, 255, 0.5);
-  margin: 1rem 0;
-}
-
-.joinSection {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.joinSection .input {
-  flex: 1;
-}
-
-.loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  font-size: 1.5rem;
-  color: rgba(255, 255, 255, 0.7);
 }
 
 .gameContainer {
@@ -417,21 +314,21 @@
   inset: 0;
   border-radius: 0.75rem;
   background:
-    repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 8px,
-      rgba(144, 238, 144, 0.12) 8px,
-      rgba(144, 238, 144, 0.12) 9px
-    ),
-    repeating-linear-gradient(
-      -45deg,
-      transparent,
-      transparent 8px,
-      rgba(144, 238, 144, 0.12) 8px,
-      rgba(144, 238, 144, 0.12) 9px
-    ),
-    linear-gradient(135deg, #1a5c2a, #0d3f18);
+  repeating-linear-gradient(
+  45deg,
+  transparent,
+  transparent 8px,
+  rgba(144, 238, 144, 0.12) 8px,
+  rgba(144, 238, 144, 0.12) 9px
+  ),
+  repeating-linear-gradient(
+  -45deg,
+  transparent,
+  transparent 8px,
+  rgba(144, 238, 144, 0.12) 8px,
+  rgba(144, 238, 144, 0.12) 9px
+  ),
+  linear-gradient(135deg, #1a5c2a, #0d3f18);
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
   border: 2px solid rgba(144, 238, 144, 0.2);
 }
@@ -590,22 +487,6 @@
   transition: transform 0.1s ease;
 }
 
-.notification {
-  position: fixed;
-  bottom: 2rem;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 1rem 2rem;
-  border-radius: 0.5rem;
-  font-family: 'Lexend', sans-serif;
-  animation: slideUp 0.3s ease;
-  /* Above the knock alert (1100): error toasts must stay visible on a
-     player's last turn. */
-  z-index: 1200;
-}
-
 /* Final round (knocked) styles */
 .finalRoundBanner {
   width: 100%;
@@ -631,7 +512,7 @@
 @keyframes knockBannerPulse {
   0%, 100% { background: #b91c1c; }
   /* #dc2626, not brighter: white text must hold AA contrast at the
-     pulse's bright phase too. */
+  pulse's bright phase too. */
   50% { background: #dc2626; }
 }
 
@@ -640,7 +521,7 @@
   inset: 0;
   pointer-events: none;
   /* Below the room chat surfaces (z 30-50): the vignette themes the
-     table, it must not wash over the chat panel or toasts. */
+  table, it must not wash over the chat panel or toasts. */
   z-index: 20;
   background: radial-gradient(ellipse at center, rgba(220, 38, 38, 0) 35%, rgba(153, 27, 27, 0.55) 100%);
   box-shadow: inset 0 0 0 5px rgba(239, 68, 68, 0.9), inset 0 0 90px rgba(185, 28, 28, 0.6);
@@ -766,15 +647,6 @@
   }
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 @keyframes slideDown {
   from {
     opacity: 0;
@@ -786,41 +658,7 @@
   }
 }
 
-@keyframes slideUp {
-  from {
-    transform: translate(-50%, 100%);
-    opacity: 0;
-  }
-  to {
-    transform: translate(-50%, 0);
-    opacity: 1;
-  }
-}
-
 @media (max-width: 768px) {
-  .lobby {
-    padding: 1rem;
-  }
-
-  .title {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-  }
-
-  .lobbyContent {
-    min-width: auto;
-    width: 100%;
-    padding: 1.5rem;
-  }
-
-  .joinSection {
-    flex-direction: column;
-  }
-
-  .joinSection .input {
-    width: 100%;
-  }
-
   .gameContainer {
     padding: 0.5rem;
   }
@@ -926,9 +764,13 @@
   }
 
   .cornerRank { font-size: 0.85rem; }
+
   .cornerSuit { font-size: 0.6rem; }
+
   .cardCenter { font-size: 1.8rem; }
+
   .topLeft { top: 4px; left: 4px; }
+
   .bottomRight { bottom: 4px; right: 4px; }
 
   .cardGrid {
@@ -975,8 +817,8 @@
   }
 
   /* Softer vignette on small screens: the deck pile and full-width
-     action buttons sit near the viewport edge where the glow is
-     strongest, and they must stay legible for the whole final round. */
+  action buttons sit near the viewport edge where the glow is
+  strongest, and they must stay legible for the whole final round. */
   .finalRoundBackdrop {
     background: radial-gradient(ellipse at center, rgba(220, 38, 38, 0) 45%, rgba(153, 27, 27, 0.35) 100%);
     box-shadow: inset 0 0 0 3px rgba(239, 68, 68, 0.9), inset 0 0 45px rgba(185, 28, 28, 0.4);
@@ -1026,16 +868,6 @@
     grid-column: span 2;
   }
 
-  .notification {
-    font-size: 0.9rem;
-    padding: 0.75rem 1rem;
-    bottom: 1rem;
-    left: 1rem;
-    right: 1rem;
-    transform: none;
-    width: auto;
-  }
-
   .waitingRoom h3 {
     font-size: 1.2rem;
   }
@@ -1061,59 +893,9 @@
     font-size: 0.85rem;
     padding: 0.4rem;
   }
-
-  .rulesContent {
-    padding: 1.5rem;
-    max-width: 95%;
-    margin: 0 auto;
-  }
-
-  .rulesContent h2 {
-    font-size: 1.5rem;
-  }
-
-  .rulesSection h3 {
-    font-size: 1rem;
-  }
-
-  .rulesSection p,
-  .rulesSection ul {
-    font-size: 0.85rem;
-  }
-
-  .closeButton {
-    font-size: 1.5rem;
-    width: 1.5rem;
-    height: 1.5rem;
-  }
-
-  .cumulativeScores {
-    padding: 1rem;
-    margin: 1rem 0;
-  }
-
-  .cumulativeRow {
-    grid-template-columns: 1.5fr 0.8fr 0.8fr 0.8fr 0.9fr;
-    gap: 0.3rem;
-    padding: 0.5rem 0.4rem;
-    font-size: 0.75rem;
-  }
-
-  .cumulativeRow .playerName {
-    font-size: 0.75rem;
-    word-break: break-word;
-  }
 }
 
 @media (max-width: 480px) {
-  .title {
-    font-size: 1.75rem;
-  }
-
-  .lobbyContent {
-    padding: 1rem;
-  }
-
   .gameContainer {
     padding: 0.5rem;
   }
@@ -1153,9 +935,13 @@
   }
 
   .cornerRank { font-size: 0.75rem; }
+
   .cornerSuit { font-size: 0.5rem; }
+
   .cardCenter { font-size: 1.4rem; }
+
   .topLeft { top: 3px; left: 3px; }
+
   .bottomRight { bottom: 3px; right: 3px; }
 
   .piles {
@@ -1176,9 +962,7 @@
     gap: 0.75rem;
   }
 
-  .primaryButton,
-  .secondaryButton,
-  .rulesButton {
+  .primaryButton {
     padding: 0.75rem 0.9rem;
     font-size: 0.85rem;
     min-height: 44px;
@@ -1230,22 +1014,6 @@
   .knockButton {
     width: 100%;
     padding: 0.85rem;
-  }
-
-  .cumulativeScores {
-    padding: 0.75rem;
-    margin: 0.75rem 0;
-  }
-
-  .cumulativeRow {
-    grid-template-columns: 1.2fr 0.7fr 0.7fr 0.8fr 0.9fr;
-    gap: 0.25rem;
-    padding: 0.4rem 0.3rem;
-    font-size: 0.7rem;
-  }
-
-  .cumulativeRow .playerName {
-    font-size: 0.7rem;
   }
 }
 
@@ -1406,28 +1174,6 @@
   transform: scale(0.97);
 }
 
-.roomTotalsDetails {
-  margin: 0.75rem 0;
-}
-
-.roomTotalsSummary {
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 0.9rem;
-  font-family: 'Lexend', sans-serif;
-  cursor: pointer;
-  padding: 0.5rem;
-  text-align: center;
-  list-style: none;
-}
-
-.roomTotalsSummary::-webkit-details-marker {
-  display: none;
-}
-
-.roomTotalsSummary:hover {
-  color: white;
-}
-
 .textLink {
   background: none;
   border: none;
@@ -1451,523 +1197,9 @@
   margin-top: 0.75rem;
 }
 
-/* Rules Modal Styles */
-.rulesButton {
-  margin-top: 1.5rem;
-  padding: 0.75rem 1.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.5rem;
-  font-size: 1rem;
-  font-family: 'Lexend', sans-serif;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.rulesButton:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(-2px);
-}
-
-.rulesModal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(5px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.rulesContent {
-  background: linear-gradient(135deg, #1a1a2e 0%, #0a0a15 100%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  padding: 2rem;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow-y: auto;
-  position: relative;
-  animation: slideUpModal 0.3s ease;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-}
-
-@keyframes slideUpModal {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.rulesContent h2 {
-  color: white;
-  font-family: 'Lexend', sans-serif;
-  font-size: 1.8rem;
-  margin: 0 0 1.5rem 0;
-  text-align: center;
-}
-
-.rulesSection {
-  margin-bottom: 1.5rem;
-}
-
-.rulesSection h3 {
-  color: #90ee90;
-  font-family: 'Lexend', sans-serif;
-  font-size: 1.2rem;
-  margin: 0 0 0.5rem 0;
-}
-
-.rulesSection p,
-.rulesSection ul {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.95rem;
-  line-height: 1.6;
-  margin: 0;
-}
-
-.rulesSection ul {
-  padding-left: 1.5rem;
-}
-
-.rulesSection li {
-  margin-bottom: 0.25rem;
-}
-
-.closeButton {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 2rem;
-  cursor: pointer;
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: all 0.3s ease;
-}
-
-.closeButton:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  transform: rotate(90deg);
-}
-
-/* Room Lobby Styles */
-.roomLobby {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 400px;
-  padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.roomHeader {
-  margin-bottom: 2rem;
-}
-
-.roomHeaderTop {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 2rem;
-}
-
-.roomHeaderInfo {
-  text-align: center;
-  flex: 1;
-}
-
-.roomHeaderShare {
-  flex-shrink: 0;
-}
-
-.roomInfo {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 1.1rem;
-  margin-top: 0.5rem;
-}
-
-.roomContent {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-}
-
-@media (max-width: 768px) {
-  .roomContent {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-  
-  .roomHeaderTop {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
-  }
-  
-  .roomHeaderInfo {
-    text-align: center;
-  }
-}
-
-.playersSection,
-.gamesSection,
-.gameCreationSection,
-.gameHistorySection {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  padding: 1.5rem;
-  border-radius: 1rem;
-}
-
-.playersSection h3,
-.gamesSection h3,
-.gameCreationSection h3,
-.gameHistorySection h3 {
-  color: #90ee90;
-  font-family: 'Lexend', sans-serif;
-  font-size: 1.2rem;
-  margin: 0 0 1rem 0;
-}
-
-.roomPlayerList {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.roomPlayer {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
 .playerName {
   color: white;
   font-weight: 500;
   font-size: 1.1rem;
   margin-bottom: 0.5rem;
-}
-
-.playerStats {
-  display: flex;
-  gap: 1rem;
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.activeGamesList {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.gameCard {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.gameInfo h4 {
-  color: white;
-  font-size: 1.1rem;
-  margin: 0 0 0.5rem 0;
-}
-
-.gameInfo p {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.9rem;
-  margin: 0.25rem 0;
-}
-
-.joinGameButton {
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-  font-family: 'Lexend', sans-serif;
-  background: #90ee90;
-  color: #0d5016;
-  border: none;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.joinGameButton:hover:not(:disabled) {
-  background: #7dd87d;
-}
-
-.joinGameButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.noGames {
-  color: rgba(255, 255, 255, 0.5);
-  font-style: italic;
-  text-align: center;
-  padding: 1rem;
-}
-
-.gameCreationForm {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-
-.gameCreationForm input {
-  flex: 1;
-}
-
-.gameHistory {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.historyItem {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.gameId {
-  color: #90ee90;
-  font-weight: 500;
-}
-
-.winner {
-  color: white;
-}
-
-.completedAt {
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 0.8rem;
-}
-
-/* Game End Enhancements */
-.cumulativeScores {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  margin: 1.5rem 0;
-}
-
-.cumulativeRow {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-  gap: 1rem;
-  padding: 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  align-items: center;
-  font-size: 0.9rem;
-}
-
-.cumulativeRow:last-child {
-  border-bottom: none;
-}
-
-.bestAverage {
-  background: rgba(144, 238, 144, 0.1);
-  border-radius: 0.5rem;
-}
-
-.cumulativeRow .playerName {
-  color: white;
-  font-weight: 500;
-}
-
-.cumulativeRow .playerGames,
-.cumulativeRow .playerWins,
-.cumulativeRow .playerTotal,
-.cumulativeRow .playerAverage {
-  color: rgba(255, 255, 255, 0.8);
-  text-align: center;
-}
-
-/* Permalink Display Sections */
-.permalinkSection {
-  margin-bottom: 1.5rem;
-}
-
-/* New Game Notifications */
-.newGameNotificationsSection {
-  background: rgba(144, 238, 144, 0.05);
-  backdrop-filter: blur(10px);
-  padding: 1.5rem;
-  border-radius: 1rem;
-  border: 1px solid rgba(144, 238, 144, 0.2);
-  margin-bottom: 1.5rem;
-  grid-column: span 2;
-}
-
-.newGameNotificationsSection h3 {
-  color: #90ee90;
-  font-family: 'Lexend', sans-serif;
-  font-size: 1.2rem;
-  margin: 0 0 1rem 0;
-  text-align: center;
-}
-
-.notificationsList {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-/* New Game Join Section in Game End Overlay */
-.newGameJoinSection {
-  background: rgba(144, 238, 144, 0.1);
-  border-radius: 0.75rem;
-  padding: 1rem;
-  margin: 1rem 0;
-  border: 1px solid rgba(144, 238, 144, 0.2);
-}
-
-.newGameJoinTitle {
-  color: #90ee90;
-  font-family: 'Lexend', sans-serif;
-  font-size: 1.1rem;
-  margin: 0 0 0.75rem 0;
-  text-align: center;
-}
-
-.newGameJoinList {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.newGameJoinItem {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 0.5rem;
-  padding: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.newGameJoinInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.newGameJoinId {
-  color: white;
-  font-weight: 500;
-  font-size: 0.9rem;
-  font-family: 'Lexend', sans-serif;
-}
-
-.newGameJoinTime {
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 0.8rem;
-  font-family: 'Lexend', sans-serif;
-}
-
-.newGameJoinButton {
-  background: #90ee90;
-  color: #0d5016;
-  border: none;
-  border-radius: 0.4rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.85rem;
-  font-family: 'Lexend', sans-serif;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-.newGameJoinButton:hover {
-  background: #7dd87d;
-  transform: translateY(-1px);
-}
-
-.newGameJoinButton:active {
-  transform: scale(0.95);
-  transition: transform 0.1s ease;
-}
-
-@media (max-width: 768px) {
-  .permalinkSection {
-    margin-bottom: 1rem;
-  }
-  
-  .newGameNotificationsSection {
-    grid-column: span 1;
-    padding: 1rem;
-    margin-bottom: 1rem;
-  }
-  
-  .newGameNotificationsSection h3 {
-    font-size: 1rem;
-  }
-  
-  .newGameJoinItem {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.5rem;
-  }
-  
-  .newGameJoinButton {
-    width: 100%;
-    padding: 0.75rem;
-    font-size: 0.9rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .newGameNotificationsSection {
-    padding: 0.75rem;
-  }
-  
-  .newGameJoinSection {
-    padding: 0.75rem;
-  }
-  
-  .newGameJoinTitle {
-    font-size: 1rem;
-  }
 }

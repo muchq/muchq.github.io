@@ -70,6 +70,14 @@ describe('LobbyGame', () => {
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
   })
 
+  it('a lost hub is said, not hidden', () => {
+    state.lost = 'Lost connection to the games hub'
+    render(<LobbyGame />)
+    expect(screen.getByText('Lost connection to the games hub')).toBeTruthy()
+    expect(screen.queryByText('world')).toBeNull()
+    state.lost = null
+  })
+
   it('a golf table is a table too: over the world, the panel folded', () => {
     const { rerender } = render(<LobbyGame />)
     state.golf.view = golfView

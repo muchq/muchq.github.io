@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
 import type { GolfTableActions, GolfTableEnded } from '@/hooks/useGolfTable'
 import type { Card, GameState, Player } from '@/types/golf'
 import PermalinkDisplay from './PermalinkDisplay'
-import styles from './GolfGame.module.css'
+import styles from './GolfTable.module.css'
 
-// The table from the viewer's chair, over whatever hook holds it: the
-// golf page's (GolfGame) or the lobby's. The buttons offer what the
-// phase allows, and nothing while the socket is down (a move it cannot
-// carry is not a move); the hub refuses in band, and the owner's notice
-// says why.
+// The table from the viewer's chair, over useGolfTable. The buttons offer
+// what the phase allows, and nothing while the socket is down (a move it
+// cannot carry is not a move); the hub refuses in band, and the lobby's
+// notice says why.
 
 export interface GolfTableProps {
   playerId: string
@@ -17,15 +15,11 @@ export interface GolfTableProps {
   view: GameState
   table: GolfTableActions & { ended: GolfTableEnded | null; peekCountdown: number | null }
   shareUrl?: string | null
-  // The owner's additions to the scorecard: room totals above the
-  // links, more links beside "Back to Room".
-  children?: ReactNode
-  links?: ReactNode
 }
 
 const isRed = (card: Card) => card.suit === '♥' || card.suit === '♦'
 
-const GolfTable = ({ playerId, connected, view, table, shareUrl = null, children, links }: GolfTableProps) => {
+const GolfTable = ({ playerId, connected, view, table, shareUrl = null }: GolfTableProps) => {
   const { ended, peekCountdown } = table
   const [showScores, setShowScores] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
@@ -206,13 +200,10 @@ const GolfTable = ({ playerId, connected, view, table, shareUrl = null, children
                 ))}
             </div>
 
-            {children}
-
             <div className={styles.gameEndLinks}>
               <button onClick={table.leaveTable} className={styles.textLink}>
                 Back to Room
               </button>
-              {links}
             </div>
           </div>
         </div>

@@ -3,9 +3,8 @@ import HomePage from './core/pages/HomePage'
 import ThoughtsPage from './apps/thoughts/pages/ThoughtsPage'
 import GroupsPage from './apps/math-learning/pages/GroupsPage'
 import SetsPage from './apps/math-learning/pages/SetsPage'
-import GolfPage from './apps/golf/pages/GolfPage'
-import CastlePage from './apps/castle/pages/CastlePage'
 import LobbyPage from './apps/lobby/pages/LobbyPage'
+import LobbyRedirect from './apps/lobby/pages/LobbyRedirect'
 import PartyPage from './apps/party/pages/PartyPage'
 import QuestPage from './apps/quest/pages/QuestPage'
 import LearningPage from './apps/math-learning/pages/LearningPage'
@@ -26,14 +25,14 @@ function App() {
       <Route path="/thoughts" element={<ThoughtsPage />} />
       <Route path="/groups" element={<GroupsPage />} />
       <Route path="/sets" element={<SetsPage />} />
-      <Route path="/golf" element={<GolfPage />} />
-      <Route path="/golf/room/:roomId" element={<GolfPage />} />
-      <Route path="/golf/room/:roomId/game/:gameId" element={<GolfPage />} />
-      <Route path="/castle" element={<CastlePage />} />
-      <Route path="/castle/room/:roomId" element={<CastlePage />} />
       <Route path="/games" element={<LobbyPage />} />
       <Route path="/games/room/:roomId" element={<LobbyPage />} />
       <Route path="/games/room/:roomId/table/:gameId" element={<LobbyPage />} />
+      <Route path="/golf" element={<LobbyRedirect />} />
+      <Route path="/golf/room/:roomId" element={<LobbyRedirect />} />
+      <Route path="/golf/room/:roomId/game/:gameId" element={<LobbyRedirect />} />
+      <Route path="/castle" element={<LobbyRedirect />} />
+      <Route path="/castle/room/:roomId" element={<LobbyRedirect />} />
       <Route path="/party" element={<PartyPage />} />
       <Route path="/quest" element={<QuestPage />} />
       <Route path="/tracy" element={<TracyPage />} />

@@ -6,8 +6,8 @@ import { GAME_STARTED, gameOverMessage, knockedMessage, turnMessage } from '@/ut
 import { usePeekCountdown } from './usePeekCountdown'
 
 // A golf table as the wire sends it, in the UI's model, over the lobby's
-// stream (useLobby; golf's own page still rides useGolfGame). The owner
-// feeds handleUpdate every golf update and clears the table on a resume.
+// stream (useLobby). The owner feeds handleUpdate every golf update and
+// clears the table on a resume.
 //
 // The UI's take-then-place discard flow is emulated here: the discard
 // top is public, so "taking" it reveals nothing, and the hub's one
@@ -18,7 +18,7 @@ export interface GolfTableEnded {
   winners: string[]
 }
 
-// What the table's chrome calls; the room screen adds joinTable.
+// What the table's chrome calls; the lobby panel adds joinTable.
 export interface GolfTableActions {
   // Also an ended table's "again": the hub seats the creator at a new one.
   createTable: () => void

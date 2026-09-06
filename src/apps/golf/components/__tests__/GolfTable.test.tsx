@@ -112,18 +112,14 @@ describe('GolfTable', () => {
     expect(t.leaveTable).toHaveBeenCalledTimes(1)
   })
 
-  it('an ended table celebrates, then scores it with the winners crowned and the owner\'s extras', () => {
+  it('an ended table celebrates, then scores it with the winners crowned', () => {
     vi.useFakeTimers()
     const t = table({ ended: { winner: 'bob', winners: ['bob']} })
     const ended = view({
       gamePhase: 'ended',
       players: [player('alice', { score: 9 }), player('bob', { score: 4 })]
     })
-    const { container } = render(
-      <GolfTable playerId="alice" connected view={ended} table={t} shareUrl="https://muchq.com/games/room/R1/table/G1" links={<button>more</button>}>
-        <p>room totals</p>
-      </GolfTable>
-    )
+    const { container } = render(<GolfTable playerId="alice" connected view={ended} table={t} shareUrl="https://muchq.com/games/room/R1/table/G1" />)
     expect(screen.getByText('bob wins!')).toBeTruthy()
     expect(screen.getByText('😤')).toBeTruthy()
     // A tap skips the wait.
@@ -131,14 +127,11 @@ describe('GolfTable', () => {
     expect(screen.getByText('Final Scores')).toBeTruthy()
     expect(screen.getByText('👑')).toBeTruthy()
     expect(screen.getByText('#2')).toBeTruthy()
-    expect(screen.getByText('room totals')).toBeTruthy()
     // Scored low to high, while the header keeps the seats in order.
     const scoreRows = container.querySelectorAll('[class*="scoreRow"] [class*="playerName"]')
     expect([...scoreRows].map(row => row.textContent)).toEqual(['bob', 'alice'])
     const seats = container.querySelectorAll('[class*="playerInfo"] > span:first-child')
     expect([...seats].map(seat => seat.textContent)).toEqual(['alice', 'bob'])
-    // The owner's links sit beside "Back to Room".
-    expect(screen.getByRole('button', { name: 'Back to Room' }).parentElement).toBe(screen.getByRole('button', { name: 'more' }).parentElement)
     fireEvent.click(screen.getByRole('button', { name: 'Play Again' }))
     expect(t.createTable).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole('button', { name: 'Back to Room' }))

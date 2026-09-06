@@ -11,7 +11,7 @@ const room = (over: Partial<HubRoom> = {}): HubRoom => ({
   roomId: 'R1',
   players: [
     { playerId: 'alice', connected: true, gamesPlayed: 0, gamesWon: 0, totalScore: 0 },
-    { playerId: 'bob', connected: true, gamesPlayed: 1, gamesWon: 0, totalScore: 0, table: { game: 'castle', gameId: 'G1' } },
+    { playerId: 'bob', connected: true, gamesPlayed: 3, gamesWon: 1, totalScore: 0, table: { game: 'castle', gameId: 'G1' } },
     { playerId: 'carol', connected: false, gamesPlayed: 0, gamesWon: 0, totalScore: 0 }
   ],
   games: [
@@ -62,9 +62,11 @@ describe('LobbyPanel', () => {
     const hook = lobby({ room: room() })
     render(<LobbyPanel lobby={hook} />)
     const players = within(screen.getByRole('region', { name: 'Players' }))
-    expect(players.getByText('free')).toBeTruthy()
-    expect(players.getByText('at castle G1')).toBeTruthy()
-    expect(players.getByText('away')).toBeTruthy()
+    expect(players.getByText('free · 0/0 won')).toBeTruthy()
+    expect(players.getByText('at castle G1 · 1/3 won')).toBeTruthy()
+    expect(players.getByText('away · 0/0 won')).toBeTruthy()
+    expect(screen.getByText(/Shed every card first/)).toBeTruthy()
+    expect(screen.getByText(/Lowest hand wins/)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Join castle G1' }))
     expect(hook.castle.joinTable).toHaveBeenCalledWith('G1')

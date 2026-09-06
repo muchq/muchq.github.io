@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../App'
@@ -35,11 +35,11 @@ describe('App routes', () => {
     expect(within(screen.getByRole('navigation')).getByText('MuchQ : iili')).toBeDefined()
   })
 
-  it('serves castle at /castle and its room share link', async () => {
+  it('the old game pages redirect into the lobby, a share link joining its room', async () => {
     at('/castle')
-    expect(navOf(0).getByText('MuchQ : Castle')).toBeDefined()
-    at('/castle/room/ROOM01')
-    expect(navOf(1).getByText('MuchQ : Castle')).toBeDefined()
+    expect(navOf(0).getByText('MuchQ : Lobby')).toBeDefined()
+    at('/golf/room/ROOM01/game/GAME01')
+    expect(navOf(1).getByText('MuchQ : Lobby')).toBeDefined()
     // The share link's room is joined once the hub admits the session.
     let ws!: FakeWebSocket
     await act(async () => {
@@ -48,13 +48,22 @@ describe('App routes', () => {
     expect(ws.lastSent()).toEqual({ event: 'joinRoom', payload: { roomId: 'ROOM01' } })
   })
 
-  it('a malformed castle share link joins nothing', async () => {
+  it('a malformed share link joins nothing; a malformed table keeps its room', async () => {
     at('/castle/room/not%20a%20room')
     let ws!: FakeWebSocket
     await act(async () => {
       ws = await admitted()
     })
-    expect(ws.sent).toEqual([])
+    expect(ws.sentFrames().some(frame => frame.event === 'joinRoom')).toBe(false)
+    cleanup()
+    installFakeHub()
+    at('/games/room/ROOM01/table/bad_id')
+    await act(async () => {
+      ws = await admitted()
+    })
+    expect(ws.lastSent()).toEqual({ event: 'joinRoom', payload: { roomId: 'ROOM01' } })
+    act(() => ws.receive('roomState', { roomId: 'ROOM01', players: [], games: [] }))
+    expect(ws.sentFrames().some(frame => frame.event === 'golf' || frame.event === 'castle')).toBe(false)
   })
 
   it('serves the traffic stats at /stats', () => {

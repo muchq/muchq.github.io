@@ -3,13 +3,11 @@ import type { CastleGameEnded, CastleMoveName, CastleUpdate, CastleView } from '
 import { cardsOf, rowInPlay, seatOf, toggleSelection } from '@/apps/castle/rules'
 
 // A castle table as the wire sends it, plus the viewer's selection on
-// top, over whatever stream carries the castle envelope: the castle
-// app's own (useCastleGame) or the lobby's (useLobby). The owner feeds
-// handleUpdate every castle update and clears the table on a resume.
+// top, over the lobby's stream (useLobby). The owner feeds handleUpdate
+// every castle update and clears the table on a resume.
 
+// What the table's chrome calls; the lobby panel adds create and join.
 export interface CastleTableActions {
-  createTable: () => void
-  joinTable: (gameId: string) => void
   startTable: () => void
   leaveTable: () => void
   swapForSetup: (handIndex: number, faceUpIndex: number) => void
@@ -21,6 +19,8 @@ export interface CastleTableActions {
 }
 
 export interface UseCastleTable extends CastleTableActions {
+  createTable: () => void
+  joinTable: (gameId: string) => void
   view: CastleView | null
   ended: CastleGameEnded | null
   selected: number[]

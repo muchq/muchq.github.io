@@ -14,7 +14,7 @@
   color: #ffb4a8;
 }
 
-/* A castle table over the world: the canvas keeps ticking beneath. */
+/* A table over the world: the canvas keeps ticking beneath. */
 .tableOverlay {
   position: fixed;
   top: 60px;
