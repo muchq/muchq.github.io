@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties, KeyboardEvent, ReactNode } from 'react'
 import type { Standing } from '../rules'
 import type { CastleTableActions } from '@/hooks/useCastleTable'
 import type { Card, CastleGameEnded, CastlePlayer, CastleView } from '../wire'
@@ -91,10 +91,28 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
   // read as the first having failed.
   const [opening, setOpening] = useState<string | null>(null)
   const playAgainRef = useRef<HTMLButtonElement>(null)
+  const endingRef = useRef<HTMLDivElement>(null)
 
   // gameEnded lands right behind the final view; without it there is
   // no result to show yet.
   const showEnding = view.phase === 'ended' && ended !== null && endingRead !== view.gameId
+  // aria-modal does not take the page behind out of the tab order, and
+  // what is back there opens underneath the dim. Tab stays in the card.
+  const keepFocusIn = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return
+    const focusable = endingRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled)')
+    if (focusable === undefined || focusable.length === 0) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
+
   const askForAnother = () => {
     setOpening(view.gameId)
     table.playAgain()
@@ -172,11 +190,16 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
     if (view.phase === 'ended' && !showEnding) {
       // The overlay's two ways on, for once it has been waved away —
       // never behind it, where they would be tab stops nobody can see.
+      // Another table waits on the result the same way the overlay does:
+      // until gameEnded lands, nobody has been told who won. Back is the
+      // way out in the meantime.
       return (
         <>
-          <button type="button" className={styles.primary} onClick={askForAnother} disabled={!connected || opened}>
-            {opened ? 'Opening…' : 'Play again'}
-          </button>
+          {ended !== null && (
+            <button type="button" className={styles.primary} onClick={askForAnother} disabled={!connected || opened}>
+              {opened ? 'Opening…' : 'Play again'}
+            </button>
+          )}
           <button type="button" className={styles.secondary} onClick={table.leaveTable}>
             Back to the room
           </button>
@@ -321,12 +344,14 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
           // Out of the lobby's own stacking context, where the panel
           // toggle would sit on top of the dim and open behind it.
           <div
+            ref={endingRef}
             className={styles.endingOverlay}
             role="dialog"
             aria-modal="true"
             aria-labelledby="castle-ending"
             onKeyDown={event => {
               if (event.key === 'Escape') dismissEnding()
+              keepFocusIn(event)
             }}
           >
             <div className={styles.endingCard}>

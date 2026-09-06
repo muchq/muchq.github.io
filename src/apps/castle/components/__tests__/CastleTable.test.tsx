@@ -304,6 +304,25 @@ describe('CastleTable', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
+  it('tab stays in the ending, since what is behind it opens underneath', () => {
+    const t = table({ ended: { finished: ['bob'], loser: 'alice' } })
+    render(<CastleTable playerId="alice" connected view={view({ phase: 'ended', currentPlayerId: undefined })} table={t} />)
+    const dialog = screen.getByRole('dialog')
+    const ending = within(dialog)
+    const first = ending.getByRole('button', { name: 'Play again' })
+    const last = ending.getByRole('button', { name: 'See the final hands' })
+
+    last.focus()
+    fireEvent.keyDown(dialog, { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+    fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+    // In the middle it is the browser's job, not ours.
+    ending.getByRole('button', { name: 'Back to the room' }).focus()
+    fireEvent.keyDown(dialog, { key: 'Tab' })
+    expect(document.activeElement).toBe(ending.getByRole('button', { name: 'Back to the room' }))
+  })
+
   it('the ending headline is the viewer\u2019s own, and an abandoned table has none', () => {
     const over = view({ phase: 'ended', currentPlayerId: undefined, finished: ['alice'] })
     mountWith(over, { ended: { finished: ['alice'], loser: 'bob' } })
@@ -330,6 +349,8 @@ describe('CastleTable', () => {
   it('no result yet, no ending: the table stands until gameEnded lands', () => {
     mountWith(view({ phase: 'ended', currentPlayerId: undefined }), { ended: null })
     expect(screen.queryByRole('dialog')).toBeNull()
+    // Nobody has been told who won, so nobody is offered the next game.
+    expect(screen.queryByRole('button', { name: 'Play again' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Back to the room' })).toBeDefined()
   })
 })
