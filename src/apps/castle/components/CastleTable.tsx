@@ -131,7 +131,7 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
       return (
         <>
           <button type="button" className={styles.primary} onClick={table.playSelected} disabled={selected.length === 0 || !connected}>
-            Play {selected.length > 0 ? selected.map(i => face(inPlay[i])).join(' ') : ''}
+            Play {inPlay.filter((_, i) => selected.includes(i)).map(face).join(' ')}
           </button>
           {pickUp}
         </>

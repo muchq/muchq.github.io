@@ -27,11 +27,13 @@ const seat = (over: Partial<CastlePlayer> = {}): CastlePlayer => ({
   ...over
 })
 
+// alice is neither the first seat nor the seat named on turn, so a
+// payload built from the wrong seat cannot pass by coincidence.
 const view = (over: Partial<CastleView> = {}): CastleView => ({
   gameId: 'GAME01',
   phase: 'playing',
-  players: [seat(), seat({ playerId: 'bob', hand: [], faceUp: [{ rank: 'J', suit: '♠' }] })],
-  currentPlayerId: 'alice',
+  players: [seat({ playerId: 'bob', hand: [], faceUp: [{ rank: 'J', suit: '♠' }] }), seat()],
+  currentPlayerId: 'bob',
   drawPileCount: 34,
   pileCount: 0,
   run: [],
@@ -56,10 +58,9 @@ describe('useCastleTable', () => {
     // Two different slots, so a swap that sent the firsts of each row
     // would name other cards.
     act(() => result.current.swapForSetup(0, 2))
-    expect(move).toHaveBeenCalledWith('swapForSetup', {
-      handCard: { rank: 'Q', suit: '♠' },
-      faceUpCard: { rank: 'K', suit: '♥' }
-    })
+    expect(move.mock.calls).toEqual([
+      ['swapForSetup', { handCard: { rank: 'Q', suit: '♠' }, faceUpCard: { rank: 'K', suit: '♥' } }]
+    ])
   })
 
   it('a swap against a row that no longer has the card sends nothing', () => {
@@ -77,18 +78,16 @@ describe('useCastleTable', () => {
     act(() => result.current.toggleCard(2))
     expect(result.current.selected).toEqual([1, 2])
     act(() => result.current.playSelected())
-    expect(move).toHaveBeenCalledWith('playFromHand', {
-      cards: [
-        { rank: 'K', suit: '♣' },
-        { rank: 'K', suit: '♦' }
-      ]
-    })
+    // The whole transcript: one move, no legacy shape beside it.
+    expect(move.mock.calls).toEqual([
+      ['playFromHand', { cards: [{ rank: 'K', suit: '♣' }, { rank: 'K', suit: '♦' }] }]
+    ])
     expect(result.current.selected).toEqual([])
   })
 
   it('an empty hand plays the face-up row, named the same way', () => {
     const { result, receive, move } = mount()
-    receive({ gameJoined: { view: view({ players: [seat({ handCount: 0, hand: [] })] }) } })
+    receive({ gameJoined: { view: view({ players: [seat({ playerId: 'bob' }), seat({ handCount: 0, hand: [] })] }) } })
     act(() => result.current.toggleCard(1))
     act(() => result.current.playSelected())
     expect(move).toHaveBeenCalledWith('playFaceUp', { cards: [{ rank: 'K', suit: '♠' }] })
@@ -103,11 +102,34 @@ describe('useCastleTable', () => {
     expect(move).toHaveBeenCalledWith('playFaceDown', { index: 2 })
   })
 
+  it('a selection pointing past its row plays nothing, not the part that is left', () => {
+    const { result, receive, move } = mount()
+    receive({ gameJoined: { view: view() } })
+    // A shorter hand and a tap in one batch: the selection outlives the
+    // row it was made against, which is the one way it can.
+    act(() => {
+      result.current.handleUpdate({
+        gameState: {
+          view: view({
+            players: [seat({ playerId: 'bob' }), seat({ handCount: 2, hand: [{ rank: 'K', suit: '♣' }, { rank: 'Q', suit: '♠' }] })]
+          })
+        }
+      })
+      result.current.toggleCard(1)
+      result.current.toggleCard(2)
+    })
+    expect(result.current.selected).toEqual([1, 2])
+    act(() => result.current.playSelected())
+    expect(move).not.toHaveBeenCalled()
+  })
+
   it('a new view clears the selection, so no move reads a stale one', () => {
     const { result, receive, move } = mount()
     receive({ gameJoined: { view: view() } })
     act(() => result.current.toggleCard(2))
-    receive({ gameState: { view: view({ players: [seat({ hand: [{ rank: 'K', suit: '♣' }], handCount: 1 })] }) } })
+    receive({
+      gameState: { view: view({ players: [seat({ playerId: 'bob' }), seat({ hand: [{ rank: 'K', suit: '♣' }], handCount: 1 })] }) }
+    })
     expect(result.current.selected).toEqual([])
     act(() => result.current.playSelected())
     expect(move).not.toHaveBeenCalled()

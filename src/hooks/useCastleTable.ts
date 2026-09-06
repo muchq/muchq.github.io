@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import type { CastleGameEnded, CastleMoveName, CastleUpdate, CastleView } from '@/apps/castle/wire'
+import type { CastleGameEnded, CastleMoveName, CastleMovePayloads, CastleUpdate, CastleView } from '@/apps/castle/wire'
 import { cardsOf, rowInPlay, seatOf, toggleSelection } from '@/apps/castle/rules'
 
 // A castle table as the wire sends it, plus the viewer's selection on
@@ -30,7 +30,9 @@ export interface UseCastleTable extends CastleTableActions {
 
 export interface UseCastleTableProps {
   playerId: string
-  move: (name: CastleMoveName, payload?: unknown) => void
+  // Typed per move, so a misspelled member is a compile error rather
+  // than a frame the hub cannot decode.
+  move: <N extends CastleMoveName>(name: N, payload?: CastleMovePayloads[N]) => void
   showNotice: (message: string) => void
   // The table is gone from the hub: gameLeft, or a "Back" from an ended
   // table. The owner may steer the URL.
@@ -98,10 +100,8 @@ export const useCastleTable = ({ playerId, move, showNotice, onLeft }: UseCastle
     onLeft?.()
   }, [clear, move, onLeft, view])
 
-  // The wire names cards, not slots (MoonBase #1505). An index is how
-  // the UI points at a card it is drawing; it goes no further than here,
-  // and it is read against the same view that rendered it — every
-  // gameState clears the selection, so there is no older one to read.
+  // Cards, not slots (MoonBase #1505): the two the player picked, read
+  // out of the view those picks were made against.
   const swapForSetup = useCallback(
     (handIndex: number, faceUpIndex: number) => {
       const me = view === null ? undefined : seatOf(view, playerId)
@@ -128,7 +128,11 @@ export const useCastleTable = ({ playerId, move, showNotice, onLeft }: UseCastle
     if (me === undefined || selected.length === 0) return
     const row = rowInPlay(me)
     const inPlay = cardsOf(me, row)
-    const cards = selected.flatMap(i => (inPlay[i] === undefined ? [] : [inPlay[i]]))
+    // A selection is indexes into the row that was on screen when it was
+    // made, and a new view clears it — but a view landing in the same
+    // batch as a tap can leave one pointing past the row. Half a play is
+    // not the play anyone chose, so send none of it.
+    const cards = selected.map(i => inPlay[i]).filter(card => card !== undefined)
     if (cards.length !== selected.length) return
     move(row === 'hand' ? 'playFromHand' : 'playFaceUp', { cards })
     setSelected([])
