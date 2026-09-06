@@ -121,6 +121,8 @@ describe('useCastleTable', () => {
     expect(result.current.selected).toEqual([1, 2])
     act(() => result.current.playSelected())
     expect(move).not.toHaveBeenCalled()
+    // Cleared, so the table stops offering a play it will not send.
+    expect(result.current.selected).toEqual([])
   })
 
   it('a new view clears the selection, so no move reads a stale one', () => {

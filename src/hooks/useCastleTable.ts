@@ -133,7 +133,12 @@ export const useCastleTable = ({ playerId, move, showNotice, onLeft }: UseCastle
     // batch as a tap can leave one pointing past the row. Half a play is
     // not the play anyone chose, so send none of it.
     const cards = selected.map(i => inPlay[i]).filter(card => card !== undefined)
-    if (cards.length !== selected.length) return
+    if (cards.length !== selected.length) {
+      // And the picks go with it: they point at a row that is gone, so
+      // leaving them would arm a Play button that does nothing.
+      setSelected([])
+      return
+    }
     move(row === 'hand' ? 'playFromHand' : 'playFaceUp', { cards })
     setSelected([])
   }, [move, playerId, selected, view])
