@@ -170,6 +170,60 @@ describe('CastleTable', () => {
     expect(t.pickUp).toHaveBeenCalled()
   })
 
+  it('seats the table around the viewer: 6 o\'clock, then clockwise in turn order', () => {
+    const four = view({ players: [seat('bob'), seat('alice', { hand: myHand }), seat('carol'), seat('dave')], currentPlayerId: 'bob' })
+    mountWith(four)
+    const clockOf = (name: RegExp) => screen.getByRole('region', { name }).getAttribute('data-clock')
+    expect(clockOf(/^alice \(you\)/)).toBe('6')
+    expect(clockOf(/^carol/)).toBe('9')
+    expect(clockOf(/^dave/)).toBe('12')
+    expect(clockOf(/^bob/)).toBe('3')
+    cleanup()
+    mountWith(view({ players: [seat('alice', { hand: myHand }), seat('bob'), seat('carol')] }))
+    expect(clockOf(/^bob/)).toBe('10')
+    expect(clockOf(/^carol/)).toBe('2')
+    // The count is another seat's, never the viewer's own.
+    expect(screen.getByRole('region', { name: /^bob/ })).toHaveTextContent('3 in hand')
+    expect(screen.getByRole('region', { name: /^alice/ })).not.toHaveTextContent('in hand')
+    // The viewer's moves sit under their hand.
+    expect(within(screen.getByRole('region', { name: /^alice/ })).getByRole('button', { name: 'Pick up the pile' })).toBeDefined()
+  })
+
+  it("another seat's hand is capped at six backs, and the count says the rest", () => {
+    const big = view()
+    big.players[1] = { ...big.players[1], handCount: 9, hand: [] }
+    mountWith(big)
+    const bob = within(screen.getByRole('region', { name: /^bob/ }))
+    expect(bob.getAllByRole('img', { name: 'hand card' })).toHaveLength(6)
+    // Only a capped hand needs the count beside the fan; a short one reads
+    // off the fan itself, and the stylesheet keeps that count out of the way.
+    expect(screen.getByRole('region', { name: /^bob/ }).querySelector('[class*="handCountShown"]')).not.toBeNull()
+    cleanup()
+    mountWith(view())
+    expect(within(screen.getByRole('region', { name: /^bob/ })).getAllByRole('img', { name: 'hand card' })).toHaveLength(3)
+    expect(screen.getByRole('region', { name: /^bob/ }).querySelector('[class*="handCountShown"]')).toBeNull()
+  })
+
+  it('the showdown is every hand face up, so the table says it is ended', () => {
+    // The fold that hides other hands on a short screen is scoped to a
+    // table still in play; the root's phase is what scopes it.
+    const over = view({ phase: 'ended', currentPlayerId: undefined, finished: ['bob'] })
+    const { container } = mountWith(over, { ended: { finished: ['bob'], loser: 'alice' } })
+    expect(container.querySelector('[data-phase="ended"]')).not.toBeNull()
+    cleanup()
+    const live = mountWith(view())
+    expect(live.container.querySelector('[data-phase="playing"]')).not.toBeNull()
+  })
+
+  it('a hand that grew fans tighter', () => {
+    const big = view()
+    big.players[0] = { ...big.players[0], handCount: 10, hand: Array.from({ length: 10 }, (_, i) => ({ rank: String(i + 2), suit: '♣' })) }
+    mountWith(big)
+    const overlap = (name: RegExp) => screen.getByRole('group', { name }).style.getPropertyValue('--overlap')
+    expect(overlap(/Your hand/)).toBe('1.8rem')
+    expect(overlap(/bob's hand/)).toBe('1rem')
+  })
+
   it('the ending reads from this chair, with every hand face up', () => {
     const over = view({ phase: 'ended', currentPlayerId: undefined, finished: ['bob'] })
     over.players[1] = { ...over.players[1], hand: [{ rank: '3', suit: '♣' }], handCount: 1, out: true }

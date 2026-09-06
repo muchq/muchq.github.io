@@ -15,7 +15,7 @@
 //   - a refusal that ends the stream: {"exception":"<shape>","payload":{"message":"..."}}
 //
 
-import type { ChatMessage } from '@/types/golfChat'
+import type { ChatMessage } from '@/types/roomChat'
 import type { GameStatePlayer } from '@/types/game'
 import { safeLocalStorage } from './safeLocalStorage'
 import { HUB_SUBPROTOCOL, hubPlayUrl, mintHubSession } from './hubSession'

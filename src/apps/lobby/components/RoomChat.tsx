@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import styles from './RoomChat.module.css'
-import type { ChatMessage, ChatSendBudget } from '@/types/golfChat'
+import type { ChatMessage, ChatSendBudget } from '@/types/roomChat'
 import {
   CHAT_SLOW_DOWN_REASON,
   CHAT_TEXT_BYTE_LIMIT,
@@ -9,7 +9,7 @@ import {
   drainChatBudget,
   newChatSendBudget,
   spendChatToken
-} from '@/types/golfChat'
+} from '@/types/roomChat'
 
 // Room chat (MoonBase#1226): one stable instance for both the room
 // lobby and in-game views. Wide viewports dock it as a side panel;

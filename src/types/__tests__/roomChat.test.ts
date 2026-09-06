@@ -10,7 +10,7 @@ import {
   newChatSendBudget,
   spendChatToken,
   type ChatMessage
-} from '../golfChat'
+} from '../roomChat'
 
 // The merge rule every chat consumer applies (MoonBase#1226): messageId
 // is the only identity and the only order; arrival order and timestamps

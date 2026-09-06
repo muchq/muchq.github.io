@@ -95,16 +95,43 @@
   color: rgba(255, 255, 255, 0.85);
 }
 
+/* The table from above: a round felt, the pile in the middle, the chairs
+   on the rim by clock. The felt fits the viewport, so the viewer's own
+   hand and moves are on screen without a scroll — down to the size the
+   chairs and the pile need, under which the overlay scrolls instead of
+   folding them onto each other (a phone on its side has no room for a
+   table this shape, and scrolling beats a pile of chairs). */
+.ring {
+  --felt-min: 30rem;
+  position: relative;
+  width: min(100%, 52rem, max(var(--felt-min), calc(100dvh - 11rem)));
+  aspect-ratio: 1;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 45%, #2f7d57 0%, #1e5c3e 60%, #16452e 100%);
+  box-shadow:
+    inset 0 0 0 0.75rem #5b3d20,
+    inset 0 0 0 0.9rem #3f2914,
+    0 0.75rem 2rem rgba(0, 0, 0, 0.45);
+}
+
 .pile {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   padding: 0.75rem;
   border-radius: 0.75rem;
   background: rgba(0, 0, 0, 0.25);
+  max-width: 16rem;
 }
 
 .pileCards {
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
   align-items: center;
+  text-align: center;
 }
 
 .pileText {
@@ -148,17 +175,109 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
-.seats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-  gap: 1rem;
+/* A chair on the rim: hand against the rim, castle toward the pile, the
+   viewer's moves under their hand. 12 (and 10, 2) is upside-down; 9 and
+   3 are turned a quarter. */
+.seat {
+  /* Three stacks across; a castle, a gap and a hand down. */
+  --cards-w: 12.9rem;
+  --cards-h: 11.1rem;
+  --turn: 0deg;
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  background: rgba(0, 0, 0, 0.25);
+  border: 2px solid transparent;
 }
 
-.seat {
-  padding: 0.75rem;
-  border-radius: 0.75rem;
-  background: rgba(0, 0, 0, 0.2);
-  border: 2px solid transparent;
+.seatFrame {
+  position: relative;
+}
+
+.seatCards {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.seat[data-clock='12'],
+.seat[data-clock='10'],
+.seat[data-clock='2'],
+.seat[data-clock='12'] .seatCards,
+.seat[data-clock='10'] .seatCards,
+.seat[data-clock='2'] .seatCards {
+  flex-direction: column-reverse;
+}
+
+/* Turned: the frame takes the cards' size the other way round, and the
+   cards rotate about their own centre, absolute so the frame's cell
+   cannot start-align them first. */
+.seat[data-clock='9'] .seatFrame,
+.seat[data-clock='3'] .seatFrame {
+  width: var(--cards-h);
+  height: var(--cards-w);
+}
+
+.seat[data-clock='9'] .seatCards,
+.seat[data-clock='3'] .seatCards {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(var(--turn));
+}
+
+.seat[data-clock='9'] {
+  --turn: 90deg;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.seat[data-clock='3'] {
+  --turn: -90deg;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.seat[data-clock='6'] {
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+}
+
+.seat[data-clock='12'] {
+  left: 50%;
+  top: 1rem;
+  transform: translateX(-50%);
+}
+
+/* Out as far as the felt reaches at that height, so the chair clears
+   the pile in the middle. */
+.seat[data-clock='10'] {
+  left: 18%;
+  top: 32%;
+  transform: translate(-50%, -50%);
+}
+
+.seat[data-clock='2'] {
+  left: 82%;
+  top: 32%;
+  transform: translate(-50%, -50%);
+}
+
+.handCount {
+  display: none;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.handCountShown {
+  display: inline;
 }
 
 .onTurn {
@@ -186,7 +305,6 @@ down and to the right so the back's corner shows under it. */
   display: flex;
   gap: 0.75rem;
   min-height: 5.4rem;
-  margin-bottom: 0.5rem;
 }
 
 .stack {
@@ -214,15 +332,17 @@ down and to the right so the back's corner shows under it. */
 /* The hand, fanned around a point below the cards. */
 .hand {
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   align-items: flex-end;
   min-height: 5.2rem;
-  padding: 0.5rem 0 0 0.75rem;
+  padding: 0.5rem 0.75rem 0;
 }
 
+/* Overlap grows with the hand (the seat sets --overlap), but never past
+   what leaves a card an edge to tap. */
 .fanSlot {
   display: block;
-  margin-left: -1rem;
+  margin-left: calc(-1 * min(var(--overlap, 1rem), var(--overlap-max, 2.2rem)));
   transform-origin: 50% 160%;
 }
 
@@ -287,17 +407,103 @@ down and to the right so the back's corner shows under it. */
   gap: 0.75rem;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
+}
+
+.actions:empty {
+  display: none;
 }
 
 .actions p {
   margin: 0;
 }
 
-@media (max-width: 600px) {
+/* Small or short screens: smaller cards, and the other seats fold their
+   fan away for the count — except at the showdown, which is every hand
+   face up and nothing to fold. */
+@media (max-width: 600px), (max-height: 900px) {
+  .table:not([data-phase='ended']) .seat:not(.mine) .hand {
+    display: none;
+  }
+
+  .table:not([data-phase='ended']) .seat:not(.mine) .handCount {
+    display: inline;
+  }
+
+  .seat {
+    --cards-w: 11.1rem;
+    --cards-h: 4.5rem;
+    padding: 0.35rem 0.5rem;
+  }
+
+  /* No room on the rim beside the pile: 10 and 2 turn in and sit at the
+     edge like 9 and 3, so every chair but the viewer's is out of the
+     middle. Only one of the two pairs is ever at the table. */
+  .seat[data-clock='9'] .seatName,
+  .seat[data-clock='3'] .seatName,
+  .seat[data-clock='10'] .seatName,
+  .seat[data-clock='2'] .seatName {
+    max-width: 4.5rem;
+    text-align: center;
+  }
+
+  .seat[data-clock='10'],
+  .seat[data-clock='2'],
+  .seat[data-clock='10'] .seatCards,
+  .seat[data-clock='2'] .seatCards {
+    flex-direction: column;
+  }
+
+  .seat[data-clock='10'] .seatFrame,
+  .seat[data-clock='2'] .seatFrame {
+    width: var(--cards-h);
+    height: var(--cards-w);
+  }
+
+  .seat[data-clock='10'] .seatCards,
+  .seat[data-clock='2'] .seatCards {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(var(--turn));
+  }
+
+  .seat[data-clock='9'],
+  .seat[data-clock='10'] {
+    --turn: 90deg;
+    left: 0;
+    top: 42%;
+    transform: translateY(-50%);
+  }
+
+  .seat[data-clock='3'],
+  .seat[data-clock='2'] {
+    --turn: -90deg;
+    left: auto;
+    right: 0;
+    top: 42%;
+    transform: translateY(-50%);
+  }
+
+  .seatName {
+    font-size: 0.85rem;
+  }
+
+  .pile {
+    top: 45%;
+    padding: 0.5rem;
+    max-width: 11rem;
+    font-size: 0.85rem;
+  }
+
   .card {
     width: 2.6rem;
     height: 3.8rem;
     font-size: 0.95rem;
+  }
+
+  .fanSlot {
+    --overlap-max: 1.8rem;
   }
 
   .emptyPile {
@@ -319,9 +525,35 @@ down and to the right so the back's corner shows under it. */
   .hand {
     min-height: 4.5rem;
   }
+}
 
-  .seats {
-    grid-template-columns: 1fr;
+/* A phone is taller than wide: so is the table. 10 and 2 turn in like 9
+   and 3, up in the empty corners, so two fit across; the viewer's chair
+   spans the felt so their moves share a row. */
+@media (max-width: 600px) {
+  /* The felt takes the width and the oval takes its height from that:
+     four chairs and a pile need more height than a phone shorter than
+     about 800px has, and on those the overlay scrolls — the alternative
+     is a felt too small to seat them apart. */
+  .ring {
+    width: 100%;
+    aspect-ratio: 5 / 9;
   }
 
+  /* The tall oval has empty corners; 10 and 2 ride up into them. */
+  .seat[data-clock='10'],
+  .seat[data-clock='2'] {
+    top: 24%;
+  }
+
+  .seat[data-clock='6'] {
+    width: calc(100% - 1rem);
+  }
+
+  .pile {
+    top: 38%;
+    padding: 0.4rem;
+    max-width: 9rem;
+    font-size: 0.8rem;
+  }
 }

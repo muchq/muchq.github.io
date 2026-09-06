@@ -1,4 +1,4 @@
-import PermalinkDisplay from '@/apps/golf/components/PermalinkDisplay'
+import PermalinkDisplay from './PermalinkDisplay'
 import type { UseLobby } from '@/hooks/useLobby'
 import { lobbyRoomPath } from '@/hooks/useLobby'
 import type { HubGameSummary, HubRoomPlayer } from '@/utils/hubStream'
