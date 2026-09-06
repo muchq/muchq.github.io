@@ -269,16 +269,21 @@ export const useLobby = ({
 
   const handleRejected = useCallback(
     (reason: string) => {
-      if (switchRef.current !== null) {
-        // The switch failed; the hub has this session where it is.
-        switchRef.current = null
-        const here = roomIdRef.current
-        navigate(here === null ? '/games' : lobbyRoomPath(here), { replace: true })
-        enterWorld(here)
-      }
       chatSeqRef.current += 1
       setChat(prev => ({ ...prev, rejection: { seq: chatSeqRef.current, reason } }))
-      showNotice(reason)
+      const pending = switchRef.current
+      if (pending === null) {
+        showNotice(reason)
+        return
+      }
+      // The switch failed; the hub has this session where it is. The
+      // hub's reason covers a seat still in a room, which this one is
+      // not: the link's room is what is missing.
+      switchRef.current = null
+      const here = roomIdRef.current
+      navigate(here === null ? '/games' : lobbyRoomPath(here), { replace: true })
+      enterWorld(here)
+      showNotice(`Room ${pending.roomId} is gone`)
     },
     [enterWorld, navigate, showNotice]
   )
@@ -349,7 +354,8 @@ export const useLobby = ({
 
   const createRoom = useCallback(() => streamRef.current?.createRoom(), [])
   const joinRoom = useCallback(() => {
-    const code = roomCode.trim()
+    // Codes are minted upper-case and looked up exactly.
+    const code = roomCode.trim().toUpperCase()
     if (!code) {
       showNotice('Enter a room code')
       return

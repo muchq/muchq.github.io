@@ -47,8 +47,6 @@ const view = (over: Partial<CastleView> = {}): CastleView => ({
 const table = (over: Partial<CastleTableProps['table']> = {}): CastleTableProps['table'] => ({
   ended: null,
   selected: [],
-  createTable: vi.fn(),
-  joinTable: vi.fn(),
   startTable: vi.fn(),
   leaveTable: vi.fn(),
   swapForSetup: vi.fn(),

@@ -11,8 +11,7 @@ const MINT_TIMEOUT_MS = 10_000
 export const HUB_RESUME_TOKEN_KEY = 'golf_v2_resume_token'
 
 // The one stream (MoonBase#1490): the room layer, the lobby's world, golf,
-// and castle all ride /games/v2/play, so one override names the hub for
-// every page.
+// and castle all ride /games/v2/play, so one override names the hub.
 export function hubPlayUrl(): string {
   return import.meta.env.VITE_HUB_WEBSOCKET_URL || 'wss://api.muchq.com/games/v2/play'
 }

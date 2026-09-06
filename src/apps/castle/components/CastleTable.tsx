@@ -5,10 +5,9 @@ import type { Card, CastleGameEnded, CastlePlayer, CastleView } from '../wire'
 import { cardsOf, describeEnding, describeLastPlay, describePile, face, isRed, rowInPlay, seatOf } from '../rules'
 import styles from './CastleTable.module.css'
 
-// The table from the viewer's chair, over whatever hook holds it: the
-// castle app's own (CastleGame) or the lobby's. Every rule the UI
-// enforces is the engine's too — the buttons offer, the hub refuses in
-// band, and the owner's notice says why.
+// The table from the viewer's chair, over useCastleTable. Every rule the
+// UI enforces is the engine's too — the buttons offer, the hub refuses in
+// band, and the lobby's notice says why.
 
 interface CardFaceProps {
   card: Card

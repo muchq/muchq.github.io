@@ -119,7 +119,7 @@ export interface HubStreamCallbacks {
 
 export interface HubStreamOptions {
   playUrl: string
-  // One identity per key: pages that should share a seat pass the same key.
+  // Where the identity lives; one seat per key.
   resumeTokenKey: string
   callbacks?: HubStreamCallbacks
 }

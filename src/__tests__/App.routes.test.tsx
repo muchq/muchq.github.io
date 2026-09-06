@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../App'
@@ -48,13 +48,22 @@ describe('App routes', () => {
     expect(ws.lastSent()).toEqual({ event: 'joinRoom', payload: { roomId: 'ROOM01' } })
   })
 
-  it('a malformed share link joins nothing', async () => {
+  it('a malformed share link joins nothing; a malformed table keeps its room', async () => {
     at('/castle/room/not%20a%20room')
     let ws!: FakeWebSocket
     await act(async () => {
       ws = await admitted()
     })
     expect(ws.sentFrames().some(frame => frame.event === 'joinRoom')).toBe(false)
+    cleanup()
+    installFakeHub()
+    at('/games/room/ROOM01/table/bad_id')
+    await act(async () => {
+      ws = await admitted()
+    })
+    expect(ws.lastSent()).toEqual({ event: 'joinRoom', payload: { roomId: 'ROOM01' } })
+    act(() => ws.receive('roomState', { roomId: 'ROOM01', players: [], games: [] }))
+    expect(ws.sentFrames().some(frame => frame.event === 'golf' || frame.event === 'castle')).toBe(false)
   })
 
   it('serves the traffic stats at /stats', () => {

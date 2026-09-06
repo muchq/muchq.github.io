@@ -41,6 +41,7 @@ npm run deploy
 
 | Route | App |
 |---|---|
+| `/games` | The lobby: a room, its tables, and chat over the thoughts world |
 | `/golf`, `/castle` | Redirect into the lobby; old share links land on the same room and table |
 | `/thoughts` | 3D multiplayer thoughts game |
 | `/party` | Rescue Party |
@@ -69,9 +70,9 @@ links redirect to them.
 
 The lobby speaks the games hub's one stream (`/games/v2/play` on api.muchq.com; the models
 and the protocol are documented with the service in MoonBase, `domains/games/apis/games_hub`)
-through `src/utils/hubStream.ts`, which owns the session mint, the socket, the reconnect loop,
-and the resume token that reclaims the seat. `VITE_HUB_WEBSOCKET_URL` overrides the play
-socket at build time; the session mint is derived from it (`src/utils/hubSession.ts`).
+through `src/utils/hubStream.ts`, which drives the session mint (`src/utils/hubSession.ts`),
+the socket, the reconnect loop, and the resume token that reclaims the seat.
+`VITE_HUB_WEBSOCKET_URL` overrides the play socket at build time; the mint is derived from it.
 Thoughts on its own page dials its own socket and mints a fresh identity per dial
 (`src/utils/networkSystem.ts` says why). Room chat appears only once the server actually
 delivers chat on the wire.
@@ -86,8 +87,8 @@ src/
 ├── shared/     # Components shared across apps (navigation, backgrounds, …)
 ├── hooks/      # Cross-app React hooks (useLobby, useThoughtsGame, …)
 ├── plugins/    # Network plugins for the multiplayer games
-├── types/      # Shared TypeScript contracts (adapter interfaces, wire shapes)
-├── utils/      # Adapters, permalinks, feature flags, helpers
+├── types/      # Shared TypeScript contracts (game models, chat rules)
+├── utils/      # Hub stream and session, feature flags, helpers
 └── test/       # Vitest setup
 ```
 

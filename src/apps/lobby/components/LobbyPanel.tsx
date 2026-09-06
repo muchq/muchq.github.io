@@ -21,6 +21,14 @@ const presence = (player: HubRoomPlayer): string => {
   return player.connected ? 'free' : 'away'
 }
 
+// The room's running record, kept by the hub across its tables.
+const record = (player: HubRoomPlayer): string => `${player.gamesWon}/${player.gamesPlayed} won`
+
+const GAME_BLURB = {
+  castle: 'Shed every card first. 2s reset the deck, 10s clear it, four of a kind counts as a 10.',
+  golf: 'Lowest hand wins. Peek at two, then draw and swap; knock to call the last round.'
+}
+
 export interface LobbyPanelProps {
   lobby: UseLobby
 }
@@ -83,7 +91,9 @@ const LobbyPanel = ({ lobby }: LobbyPanelProps) => {
                   {player.connected ? '🟢' : '🔴'}
                 </span>
               </span>
-              <span className={styles.muted}>{presence(player)}</span>
+              <span className={styles.muted}>
+                {presence(player)} · {record(player)}
+              </span>
             </li>
           ))}
         </ul>
@@ -96,7 +106,7 @@ const LobbyPanel = ({ lobby }: LobbyPanelProps) => {
           <ul className={styles.list}>
             {room.games.map(table => {
               const offer = tableOffer(table)
-              const game = table.game ?? 'golf'
+              const game = table.game
               return (
                 <li key={table.gameId} className={styles.row}>
                   <span>
@@ -120,9 +130,11 @@ const LobbyPanel = ({ lobby }: LobbyPanelProps) => {
           <button type="button" className={styles.primary} onClick={lobby.castle.createTable} disabled={!connected || busy}>
             Open a castle table
           </button>
+          <p className={styles.muted}>{GAME_BLURB.castle}</p>
           <button type="button" className={styles.secondary} onClick={lobby.golf.createTable} disabled={!connected || busy}>
             Open a golf table
           </button>
+          <p className={styles.muted}>{GAME_BLURB.golf}</p>
         </div>
       </section>
     </aside>

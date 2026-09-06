@@ -603,7 +603,6 @@
   .knockAlertTap {
     animation: none;
   }
-
 }
 
 .peekCountdown {
@@ -648,15 +647,6 @@
   }
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 @keyframes slideDown {
   from {
     opacity: 0;
@@ -665,17 +655,6 @@
   to {
     opacity: 1;
     transform: translate(-50%, 0);
-  }
-}
-
-@keyframes slideUp {
-  from {
-    transform: translate(-50%, 100%);
-    opacity: 0;
-  }
-  to {
-    transform: translate(-50%, 0);
-    opacity: 1;
   }
 }
 
@@ -914,7 +893,6 @@
     font-size: 0.85rem;
     padding: 0.4rem;
   }
-
 }
 
 @media (max-width: 480px) {
@@ -1037,7 +1015,6 @@
     width: 100%;
     padding: 0.85rem;
   }
-
 }
 
 /* Game End Overlay Styles */
@@ -1218,26 +1195,6 @@
   justify-content: center;
   gap: 1.5rem;
   margin-top: 0.75rem;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slideUpModal {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
 }
 
 .playerName {

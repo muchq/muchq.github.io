@@ -2,7 +2,7 @@ import { vi } from 'vitest'
 
 // A scripted games hub for client tests: the session mint as a mocked
 // fetch, and the play socket as a FakeWebSocket the test drives frame by
-// frame with raw JSON, the way networkAdapter.test.ts does for golf.
+// frame with raw JSON.
 
 export class FakeWebSocket {
   static instances: FakeWebSocket[] = []
