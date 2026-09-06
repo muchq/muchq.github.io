@@ -10,6 +10,9 @@ import { cardsOf, rowInPlay, seatOf, toggleSelection } from '@/apps/castle/rules
 export interface CastleTableActions {
   startTable: () => void
   leaveTable: () => void
+  // Another table, from the one that just ended. The finished game is
+  // already gone from the hub, so this is a create, not a rematch.
+  playAgain: () => void
   swapForSetup: (handIndex: number, faceUpIndex: number) => void
   ready: () => void
   toggleCard: (index: number) => void
@@ -102,6 +105,8 @@ export const useCastleTable = ({ playerId, move, showNotice, onLeft }: UseCastle
 
   // Cards, not slots (MoonBase #1505): the two the player picked, read
   // out of the view those picks were made against.
+  const playAgain = useCallback(() => move('createGame'), [move])
+
   const swapForSetup = useCallback(
     (handIndex: number, faceUpIndex: number) => {
       const me = view === null ? undefined : seatOf(view, playerId)
@@ -156,6 +161,7 @@ export const useCastleTable = ({ playerId, move, showNotice, onLeft }: UseCastle
     joinTable,
     startTable,
     leaveTable,
+    playAgain,
     swapForSetup,
     ready,
     toggleCard,

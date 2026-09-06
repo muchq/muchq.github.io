@@ -49,6 +49,7 @@ const table = (over: Partial<CastleTableProps['table']> = {}): CastleTableProps[
   selected: [],
   startTable: vi.fn(),
   leaveTable: vi.fn(),
+  playAgain: vi.fn(),
   swapForSetup: vi.fn(),
   ready: vi.fn(),
   toggleCard: vi.fn(),
@@ -261,13 +262,41 @@ describe('CastleTable', () => {
     expect(overlap(/bob's hand/)).toBe('1rem')
   })
 
-  it('the ending reads from this chair, with every hand face up', () => {
+  it('the ending arrives in front, and waves away to the final hands', () => {
     const over = view({ phase: 'ended', currentPlayerId: undefined, finished: ['bob'] })
     over.players[1] = { ...over.players[1], hand: [{ rank: '3', suit: '♣' }], handCount: 1, out: true }
     const { t } = mountWith(over, { ended: { finished: ['bob'], loser: 'alice' } })
-    expect(screen.getByText('bob went out first and wins; you are the loser.')).toBeDefined()
+    const ending = within(screen.getByRole('dialog'))
+    expect(ending.getByRole('heading', { name: 'You lost' })).toBeDefined()
+    expect(ending.getByText('bob went out first and wins; you are the loser.')).toBeDefined()
+    fireEvent.click(ending.getByRole('button', { name: 'Play again' }))
+    expect(t.playAgain).toHaveBeenCalled()
+
+    fireEvent.click(ending.getByRole('button', { name: 'See the final hands' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
     expect(within(screen.getByRole('region', { name: 'bob, out' })).getByRole('img', { name: '3♣' })).toBeDefined()
+    // Both ways on are still under it.
+    fireEvent.click(screen.getByRole('button', { name: 'Play again' }))
+    expect(t.playAgain).toHaveBeenCalledTimes(2)
     fireEvent.click(screen.getByRole('button', { name: 'Back to the room' }))
     expect(t.leaveTable).toHaveBeenCalled()
+  })
+
+  it('the ending headline is the viewer\u2019s own, and an abandoned table has none', () => {
+    const over = view({ phase: 'ended', currentPlayerId: undefined, finished: ['alice'] })
+    mountWith(over, { ended: { finished: ['alice'], loser: 'bob' } })
+    expect(within(screen.getByRole('dialog')).getByRole('heading', { name: 'You won!' })).toBeDefined()
+    cleanup()
+
+    mountWith(view({ phase: 'ended', currentPlayerId: undefined }), { ended: { finished: [] } })
+    const abandoned = within(screen.getByRole('dialog'))
+    expect(abandoned.getByRole('heading', { name: 'The table broke up' })).toBeDefined()
+    expect(abandoned.getByText('The table broke up: nobody went out')).toBeDefined()
+  })
+
+  it('no result yet, no ending: the table stands until gameEnded lands', () => {
+    mountWith(view({ phase: 'ended', currentPlayerId: undefined }), { ended: null })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Back to the room' })).toBeDefined()
   })
 })

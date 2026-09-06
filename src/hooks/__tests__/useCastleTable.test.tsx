@@ -125,6 +125,20 @@ describe('useCastleTable', () => {
     expect(result.current.selected).toEqual([])
   })
 
+  it('play again opens another table, and the ending goes with the old one', () => {
+    const { result, receive, move } = mount()
+    receive({ gameState: { view: view({ phase: 'ended' }) } })
+    receive({ gameEnded: { finished: ['alice'], loser: 'bob' } })
+    expect(result.current.ended).not.toBeNull()
+    // The finished table is already gone from the hub, so this is a
+    // create — no leave first.
+    act(() => result.current.playAgain())
+    expect(move.mock.calls).toEqual([['createGame']])
+    receive({ gameJoined: { view: view({ gameId: 'GAME02', phase: 'waiting' }) } })
+    expect(result.current.view?.gameId).toBe('GAME02')
+    expect(result.current.ended).toBeNull()
+  })
+
   it('a new view clears the selection, so no move reads a stale one', () => {
     const { result, receive, move } = mount()
     receive({ gameJoined: { view: view() } })

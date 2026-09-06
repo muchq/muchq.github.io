@@ -72,6 +72,16 @@ export function describeEnding(finished: string[], loser: string | undefined, vi
   return `${won}; ${loser === viewer ? 'you are' : `${loser} is`} the loser.`
 }
 
+// Where one chair finished: the first seat out wins, the seat left
+// holding cards loses, and an abandoned table has neither.
+export type Standing = 'won' | 'lost' | 'other'
+
+export function standingOf(finished: string[], loser: string | undefined, viewer: string): Standing {
+  if (finished[0] === viewer) return 'won'
+  if (loser === viewer) return 'lost'
+  return 'other'
+}
+
 export function seatOf(view: CastleView, playerId: string): CastlePlayer | undefined {
   return view.players.find(p => p.playerId === playerId)
 }
