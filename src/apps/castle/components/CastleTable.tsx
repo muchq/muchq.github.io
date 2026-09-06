@@ -73,19 +73,25 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
     headingRef.current?.focus()
   }, [])
   // Setup: the hand card picked, waiting for the face-up card to swap
-  // with. Keyed to its table, so a pick never outlives the table it was
+  // with. The card, not its slot: a view landing between the two clicks
+  // can move it, and a slot would then point at whatever took its place.
+  // Keyed to its table too, so a pick never outlives the table it was
   // made on.
-  const [pendingSwap, setPendingSwap] = useState<{ gameId: string; index: number } | null>(null)
+  const [pendingSwap, setPendingSwap] = useState<{ gameId: string; card: Card } | null>(null)
 
   const me = seatOf(view, playerId)
   const myTurn = view.currentPlayerId === playerId && view.phase === 'playing'
   const myRow = me === undefined ? 'hand' : rowInPlay(me)
   const inPlay = me === undefined ? [] : cardsOf(me, myRow)
   const arranging = view.phase === 'setup' && me !== undefined && !me.ready
-  const swapFrom =
-    arranging && pendingSwap !== null && pendingSwap.gameId === view.gameId && pendingSwap.index < me.hand.length
-      ? pendingSwap.index
-      : null
+  // Where the picked card is now. Gone from the hand — swapped away by
+  // the move this pick was the start of, most likely — and the pick goes
+  // with it rather than landing on its neighbour.
+  const pickedAt =
+    arranging && pendingSwap !== null && pendingSwap.gameId === view.gameId
+      ? me.hand.findIndex(card => face(card) === face(pendingSwap.card))
+      : -1
+  const swapFrom = pickedAt < 0 ? null : pickedAt
 
   const hint = (() => {
     if (view.phase === 'waiting' && view.players.length < 2) return 'Waiting for a second seat.'
@@ -125,7 +131,7 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
       return (
         <>
           <button type="button" className={styles.primary} onClick={table.playSelected} disabled={selected.length === 0 || !connected}>
-            Play {selected.length > 0 ? selected.map(i => face(inPlay[i])).join(' ') : ''}
+            Play {inPlay.filter((_, i) => selected.includes(i)).map(face).join(' ')}
           </button>
           {pickUp}
         </>
@@ -234,7 +240,7 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
                         toggle={picking ? swapFrom === i : playable ? selected.includes(i) : undefined}
                         onClick={
                           picking
-                            ? () => setPendingSwap(swapFrom === i ? null : { gameId: view.gameId, index: i })
+                            ? () => setPendingSwap(swapFrom === i ? null : { gameId: view.gameId, card })
                             : playable && connected
                               ? () => table.toggleCard(i)
                               : undefined

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import type { CastleGameEnded, CastleMoveName, CastleUpdate, CastleView } from '@/apps/castle/wire'
+import type { CastleGameEnded, CastleMoveName, CastleMovePayloads, CastleUpdate, CastleView } from '@/apps/castle/wire'
 import { cardsOf, rowInPlay, seatOf, toggleSelection } from '@/apps/castle/rules'
 
 // A castle table as the wire sends it, plus the viewer's selection on
@@ -30,7 +30,9 @@ export interface UseCastleTable extends CastleTableActions {
 
 export interface UseCastleTableProps {
   playerId: string
-  move: (name: CastleMoveName, payload?: unknown) => void
+  // Typed per move, so a misspelled member is a compile error rather
+  // than a frame the hub cannot decode.
+  move: <N extends CastleMoveName>(name: N, payload?: CastleMovePayloads[N]) => void
   showNotice: (message: string) => void
   // The table is gone from the hub: gameLeft, or a "Back" from an ended
   // table. The owner may steer the URL.
@@ -98,9 +100,17 @@ export const useCastleTable = ({ playerId, move, showNotice, onLeft }: UseCastle
     onLeft?.()
   }, [clear, move, onLeft, view])
 
+  // Cards, not slots (MoonBase #1505): the two the player picked, read
+  // out of the view those picks were made against.
   const swapForSetup = useCallback(
-    (handIndex: number, faceUpIndex: number) => move('swapForSetup', { handIndex, faceUpIndex }),
-    [move]
+    (handIndex: number, faceUpIndex: number) => {
+      const me = view === null ? undefined : seatOf(view, playerId)
+      const handCard = me?.hand[handIndex]
+      const faceUpCard = me?.faceUp[faceUpIndex]
+      if (handCard === undefined || faceUpCard === undefined) return
+      move('swapForSetup', { handCard, faceUpCard })
+    },
+    [move, playerId, view]
   )
   const ready = useCallback(() => move('ready'), [move])
 
@@ -116,7 +126,20 @@ export const useCastleTable = ({ playerId, move, showNotice, onLeft }: UseCastle
   const playSelected = useCallback(() => {
     const me = view === null ? undefined : seatOf(view, playerId)
     if (me === undefined || selected.length === 0) return
-    move(rowInPlay(me) === 'hand' ? 'playFromHand' : 'playFaceUp', { indexes: selected })
+    const row = rowInPlay(me)
+    const inPlay = cardsOf(me, row)
+    // A selection is indexes into the row that was on screen when it was
+    // made, and a new view clears it — but a view landing in the same
+    // batch as a tap can leave one pointing past the row. Half a play is
+    // not the play anyone chose, so send none of it.
+    const cards = selected.map(i => inPlay[i]).filter(card => card !== undefined)
+    if (cards.length !== selected.length) {
+      // And the picks go with it: they point at a row that is gone, so
+      // leaving them would arm a Play button that does nothing.
+      setSelected([])
+      return
+    }
+    move(row === 'hand' ? 'playFromHand' : 'playFaceUp', { cards })
     setSelected([])
   }, [move, playerId, selected, view])
 

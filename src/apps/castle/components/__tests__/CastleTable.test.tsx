@@ -122,6 +122,43 @@ describe('CastleTable', () => {
     expect(screen.queryByRole('button', { name: 'swap for J♥' })).toBeNull()
   })
 
+  it('a swap pick follows its card, and goes when the card does', () => {
+    const t = table()
+    const setup = (hand: typeof myHand, over = {}) =>
+      view({ phase: 'setup', currentPlayerId: undefined, players: [seat('alice', { hand }), seat('bob')], ...over })
+    const { rerender } = render(<CastleTable playerId="alice" connected view={setup(myHand)} table={t} />)
+    fireEvent.click(screen.getByRole('button', { name: 'K♣' }))
+
+    // A view lands with the hand rearranged: the pick is on the card,
+    // not on slot 1, so it moves with it.
+    rerender(
+      <CastleTable
+        playerId="alice"
+        connected
+        view={setup([{ rank: 'K', suit: '♣' }, { rank: 'K', suit: '♦' }, { rank: 'Q', suit: '♠' }])}
+        table={t}
+      />
+    )
+    expect(screen.getByRole('button', { name: 'K♣' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'K♦' })).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(screen.getByRole('button', { name: 'swap for J♥' }))
+    expect(t.swapForSetup).toHaveBeenCalledWith(0, 1)
+
+    // The card leaves the hand — the swap this pick began, echoing back.
+    // Nothing is picked now, so nothing offers to swap.
+    rerender(
+      <CastleTable
+        playerId="alice"
+        connected
+        view={setup([{ rank: 'J', suit: '♥' }, { rank: 'K', suit: '♦' }, { rank: 'Q', suit: '♠' }])}
+        table={t}
+      />
+    )
+    expect(screen.getByRole('button', { name: 'J♥' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('button', { name: 'swap for J♥' })).toBeNull()
+    expect(t.swapForSetup).toHaveBeenCalledTimes(1)
+  })
+
   it('on turn: hand cards select, play sends the selection, pick-up only without a play', () => {
     const { t } = mountWith(view(), { selected: [0, 1] })
     expect(screen.getByText('two 8s on top: play one or more of 8 or higher')).toBeDefined()

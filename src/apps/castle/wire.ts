@@ -71,14 +71,21 @@ export interface CastleUpdate {
   gameLeft?: { gameId: string }
 }
 
-export type CastleMoveName =
-  | 'createGame'
-  | 'joinGame'
-  | 'startGame'
-  | 'leaveGame'
-  | 'swapForSetup'
-  | 'ready'
-  | 'playFromHand'
-  | 'playFaceUp'
-  | 'playFaceDown'
-  | 'pickUp'
+// What each move carries. The visible rows are named by card, since the
+// hub matches cards against the row it is holding rather than trusting a
+// slot (MoonBase #1505); the blind row keeps a position, because nobody
+// can see what they are turning over.
+export interface CastleMovePayloads {
+  createGame: undefined
+  joinGame: { gameId: string }
+  startGame: undefined
+  leaveGame: undefined
+  swapForSetup: { handCard: Card; faceUpCard: Card }
+  ready: undefined
+  playFromHand: { cards: Card[] }
+  playFaceUp: { cards: Card[] }
+  playFaceDown: { index: number }
+  pickUp: undefined
+}
+
+export type CastleMoveName = keyof CastleMovePayloads

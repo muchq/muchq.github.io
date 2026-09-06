@@ -148,14 +148,14 @@ describe('HubStream', () => {
     hub.createRoom()
     hub.joinRoom('ROOM01')
     hub.chat('hi')
-    hub.move('castle', 'playFromHand', { indexes: [0, 2] })
+    hub.move('castle', 'playFromHand', { cards: [{ rank: 'K', suit: '♣' }, { rank: 'K', suit: '♦' }] })
     hub.move('golf', 'drawCard')
     hub.leaveRoom()
     expect(ws.sentFrames()).toEqual([
       { event: 'createRoom', payload: {} },
       { event: 'joinRoom', payload: { roomId: 'ROOM01' } },
       { event: 'chat', payload: { text: 'hi' } },
-      { event: 'castle', payload: { move: { playFromHand: { indexes: [0, 2] } } } },
+      { event: 'castle', payload: { move: { playFromHand: { cards: [{ rank: 'K', suit: '♣' }, { rank: 'K', suit: '♦' }] } } } },
       { event: 'golf', payload: { move: { drawCard: {} } } },
       { event: 'leaveRoom', payload: {} }
     ])
