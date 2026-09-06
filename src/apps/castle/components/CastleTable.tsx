@@ -59,7 +59,7 @@ export interface CastleTableProps {
   playerId: string
   connected: boolean
   view: CastleView
-  table: CastleTableActions & { ended: CastleGameEnded | null; selected: number[] }
+  table: CastleTableActions & { ended: CastleGameEnded | null; selected: number[]; opening: boolean }
   // The owner's chrome, rendered beside the table: chat, the notice bar.
   children?: ReactNode
 }
@@ -70,7 +70,7 @@ const SHOWN_BACKS = 6
 const ENDING_EMOJI: Record<Standing, string> = { won: '🏆', lost: '😤', other: '🤝' }
 
 const CastleTable = ({ playerId, connected, view, table, children }: CastleTableProps) => {
-  const { ended, selected } = table
+  const { ended, opening, selected } = table
   // Joining unmounts whatever was clicked; the table announces itself.
   const headingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
@@ -86,10 +86,6 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
   // hands can be looked over. Keyed by table, so the next one's ending
   // arrives in front again.
   const [endingRead, setEndingRead] = useState<string | null>(null)
-  // The table a new one has been asked for from. One create per ending:
-  // the second would be refused ("leave your current game first") and
-  // read as the first having failed.
-  const [opening, setOpening] = useState<string | null>(null)
   const playAgainRef = useRef<HTMLButtonElement>(null)
   const endingRef = useRef<HTMLDivElement>(null)
 
@@ -112,12 +108,6 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
       first.focus()
     }
   }
-
-  const askForAnother = () => {
-    setOpening(view.gameId)
-    table.playAgain()
-  }
-  const opened = opening === view.gameId
 
   const dismissEnding = () => {
     setEndingRead(view.gameId)
@@ -196,8 +186,8 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
       return (
         <>
           {ended !== null && (
-            <button type="button" className={styles.primary} onClick={askForAnother} disabled={!connected || opened}>
-              {opened ? 'Opening…' : 'Play again'}
+            <button type="button" className={styles.primary} onClick={table.playAgain} disabled={!connected || opening}>
+              {opening ? 'Opening…' : 'Play again'}
             </button>
           )}
           <button type="button" className={styles.secondary} onClick={table.leaveTable}>
@@ -365,10 +355,10 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
                   ref={playAgainRef}
                   type="button"
                   className={styles.primary}
-                  onClick={askForAnother}
-                  disabled={!connected || opened}
+                  onClick={table.playAgain}
+                  disabled={!connected || opening}
                 >
-                  {opened ? 'Opening…' : 'Play again'}
+                  {opening ? 'Opening…' : 'Play again'}
                 </button>
                 <button type="button" className={styles.secondary} onClick={table.leaveTable}>
                   Back to the room

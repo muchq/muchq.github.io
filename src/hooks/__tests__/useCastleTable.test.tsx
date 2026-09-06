@@ -134,9 +134,26 @@ describe('useCastleTable', () => {
     // create — no leave first.
     act(() => result.current.playAgain())
     expect(move.mock.calls).toEqual([['createGame']])
+    // Asked for and not yet arrived: asking again would be refused.
+    expect(result.current.opening).toBe(true)
     receive({ gameJoined: { view: view({ gameId: 'GAME02', phase: 'waiting' }) } })
     expect(result.current.view?.gameId).toBe('GAME02')
     expect(result.current.ended).toBeNull()
+    expect(result.current.opening).toBe(false)
+  })
+
+  it('a refusal lets the table be asked for again', () => {
+    const { result, receive, move } = mount()
+    receive({ gameState: { view: view({ phase: 'ended' }) } })
+    receive({ gameEnded: { finished: ['alice'], loser: 'bob' } })
+    act(() => result.current.playAgain())
+    expect(result.current.opening).toBe(true)
+    // Whatever the hub refused, no table arrived — so the ask stands to
+    // be made again rather than the button staying spent.
+    act(() => result.current.handleRejected())
+    expect(result.current.opening).toBe(false)
+    act(() => result.current.playAgain())
+    expect(move).toHaveBeenCalledTimes(2)
   })
 
   it('a new view clears the selection, so no move reads a stale one', () => {

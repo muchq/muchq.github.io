@@ -313,6 +313,17 @@ describe('useLobby', () => {
     expect(lobbyFrames(ws)).toHaveLength(1)
   })
 
+  it('a refusal lets a castle table be asked for again', async () => {
+    const { result, ws } = await open()
+    act(() => ws.receive('roomState', roomState('R1')))
+    act(() => result.current.castle.playAgain())
+    expect(result.current.castle.opening).toBe(true)
+    // The hub refused something; nothing was created, so the button is
+    // not spent.
+    act(() => ws.receive('commandRejected', { reason: 'storage unavailable; try again' }))
+    expect(result.current.castle.opening).toBe(false)
+  })
+
   it('chat appears only once the wire delivers it, merged by id, and is the room\'s', async () => {
     const { result, ws } = await open()
     act(() => ws.receive('roomState', roomState('R1')))

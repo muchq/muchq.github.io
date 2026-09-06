@@ -47,6 +47,7 @@ const view = (over: Partial<CastleView> = {}): CastleView => ({
 const table = (over: Partial<CastleTableProps['table']> = {}): CastleTableProps['table'] => ({
   ended: null,
   selected: [],
+  opening: false,
   startTable: vi.fn(),
   leaveTable: vi.fn(),
   playAgain: vi.fn(),
@@ -288,17 +289,16 @@ describe('CastleTable', () => {
     expect(t.leaveTable).toHaveBeenCalled()
   })
 
-  it('one table is asked for per ending, and escape reads the felt instead', () => {
-    const t = table({ ended: { finished: ['bob'], loser: 'alice' } })
+  it('a table already asked for is not asked for again, and escape still reads the felt', () => {
+    const t = table({ ended: { finished: ['bob'], loser: 'alice' }, opening: true })
     render(<CastleTable playerId="alice" connected view={view({ phase: 'ended', currentPlayerId: undefined })} table={t} />)
     const ending = within(screen.getByRole('dialog'))
-    fireEvent.click(ending.getByRole('button', { name: 'Play again' }))
     // The second create would be refused — the first one's table is
     // already ours — and would read as the first having failed.
     const opening = ending.getByRole('button', { name: 'Opening…' })
     expect(opening).toBeDisabled()
     fireEvent.click(opening)
-    expect(t.playAgain).toHaveBeenCalledTimes(1)
+    expect(t.playAgain).not.toHaveBeenCalled()
 
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
