@@ -154,6 +154,10 @@ describe('useCastleTable', () => {
     expect(result.current.opening).toBe(false)
     act(() => result.current.playAgain())
     expect(move).toHaveBeenCalledTimes(2)
+    // And a reconnect, which clears the table, does not bring the ask
+    // back with it.
+    act(() => result.current.clear())
+    expect(result.current.opening).toBe(false)
   })
 
   it('a new view clears the selection, so no move reads a stale one', () => {
