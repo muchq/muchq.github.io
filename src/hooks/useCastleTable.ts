@@ -10,6 +10,9 @@ import { cardsOf, rowInPlay, seatOf, toggleSelection } from '@/apps/castle/rules
 export interface CastleTableActions {
   startTable: () => void
   leaveTable: () => void
+  // Another table, from the one that just ended. The finished game is
+  // already gone from the hub, so this is a create, not a rematch.
+  playAgain: () => void
   swapForSetup: (handIndex: number, faceUpIndex: number) => void
   ready: () => void
   toggleCard: (index: number) => void
@@ -24,7 +27,12 @@ export interface UseCastleTable extends CastleTableActions {
   view: CastleView | null
   ended: CastleGameEnded | null
   selected: number[]
+  // A table has been asked for and not yet arrived.
+  opening: boolean
   handleUpdate: (update: CastleUpdate) => void
+  // Any refusal: whatever it was for, the table asked for did not
+  // happen, so the ask can be made again.
+  handleRejected: () => void
   clear: () => void
 }
 
@@ -43,12 +51,15 @@ export const useCastleTable = ({ playerId, move, showNotice, onLeft }: UseCastle
   const [view, setView] = useState<CastleView | null>(null)
   const [ended, setEnded] = useState<CastleGameEnded | null>(null)
   const [selected, setSelected] = useState<number[]>([])
+  const [opening, setOpening] = useState(false)
 
   const clear = useCallback(() => {
     setView(null)
     setEnded(null)
     setSelected([])
+    setOpening(false)
   }, [])
+  const handleRejected = useCallback(() => setOpening(false), [])
 
   const handleUpdate = useCallback(
     (update: CastleUpdate) => {
@@ -56,6 +67,7 @@ export const useCastleTable = ({ playerId, move, showNotice, onLeft }: UseCastle
         setView(update.gameJoined.view)
         setEnded(null)
         setSelected([])
+        setOpening(false)
         return
       }
       if (update.gameState) {
@@ -88,6 +100,14 @@ export const useCastleTable = ({ playerId, move, showNotice, onLeft }: UseCastle
   )
 
   const createTable = useCallback(() => move('createGame'), [move])
+  // A finished table is already gone from the hub, so playing again is
+  // the same move the lobby makes: a create, with nothing to leave. One
+  // per ending — the hub answers the first with a table and refuses the
+  // second, which would read as the first having failed.
+  const playAgain = useCallback(() => {
+    setOpening(true)
+    move('createGame')
+  }, [move])
   const joinTable = useCallback((gameId: string) => move('joinGame', { gameId }), [move])
   const startTable = useCallback(() => move('startGame'), [move])
   const leaveTable = useCallback(() => {
@@ -150,12 +170,15 @@ export const useCastleTable = ({ playerId, move, showNotice, onLeft }: UseCastle
     view,
     ended,
     selected,
+    opening,
     handleUpdate,
+    handleRejected,
     clear,
     createTable,
     joinTable,
     startTable,
     leaveTable,
+    playAgain,
     swapForSetup,
     ready,
     toggleCard,

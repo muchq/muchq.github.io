@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import type { CSSProperties, KeyboardEvent, ReactNode } from 'react'
+import type { Standing } from '../rules'
 import type { CastleTableActions } from '@/hooks/useCastleTable'
 import type { Card, CastleGameEnded, CastlePlayer, CastleView } from '../wire'
-import { cardsOf, describeEnding, describeLastPlay, describePile, face, isRed, rowInPlay, seatOf } from '../rules'
+import { cardsOf, describeEnding, describeLastPlay, describePile, face, headlineOf, isRed, rowInPlay, seatOf, standingOf } from '../rules'
 import { clockOf, fromViewer } from '../seating'
 import styles from './CastleTable.module.css'
 
@@ -57,7 +59,7 @@ export interface CastleTableProps {
   playerId: string
   connected: boolean
   view: CastleView
-  table: CastleTableActions & { ended: CastleGameEnded | null; selected: number[] }
+  table: CastleTableActions & { ended: CastleGameEnded | null; selected: number[]; opening: boolean }
   // The owner's chrome, rendered beside the table: chat, the notice bar.
   children?: ReactNode
 }
@@ -65,8 +67,10 @@ export interface CastleTableProps {
 // Another seat's hand is backs: past this many, the count says the rest.
 const SHOWN_BACKS = 6
 
+const ENDING_EMOJI: Record<Standing, string> = { won: '🏆', lost: '😤', other: '🤝' }
+
 const CastleTable = ({ playerId, connected, view, table, children }: CastleTableProps) => {
-  const { ended, selected } = table
+  const { ended, opening, selected } = table
   // Joining unmounts whatever was clicked; the table announces itself.
   const headingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
@@ -78,6 +82,42 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
   // Keyed to its table too, so a pick never outlives the table it was
   // made on.
   const [pendingSwap, setPendingSwap] = useState<{ gameId: string; card: Card } | null>(null)
+  // The table whose ending has been read and waved away, so the final
+  // hands can be looked over. Keyed by table, so the next one's ending
+  // arrives in front again.
+  const [endingRead, setEndingRead] = useState<string | null>(null)
+  const playAgainRef = useRef<HTMLButtonElement>(null)
+  const endingRef = useRef<HTMLDivElement>(null)
+
+  // gameEnded lands right behind the final view; without it there is
+  // no result to show yet.
+  const showEnding = view.phase === 'ended' && ended !== null && endingRead !== view.gameId
+  // aria-modal does not take the page behind out of the tab order, and
+  // what is back there opens underneath the dim. Tab stays in the card.
+  const keepFocusIn = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return
+    const focusable = endingRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled)')
+    if (focusable === undefined || focusable.length === 0) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
+
+  const dismissEnding = () => {
+    setEndingRead(view.gameId)
+    // The button that had the focus is going with the overlay; the
+    // heading is where reading the table starts.
+    headingRef.current?.focus()
+  }
+  useEffect(() => {
+    if (showEnding) playAgainRef.current?.focus()
+  }, [showEnding])
 
   const me = seatOf(view, playerId)
   const myTurn = view.currentPlayerId === playerId && view.phase === 'playing'
@@ -137,11 +177,23 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
         </>
       )
     }
-    if (view.phase === 'ended') {
+    if (view.phase === 'ended' && !showEnding) {
+      // The overlay's two ways on, for once it has been waved away —
+      // never behind it, where they would be tab stops nobody can see.
+      // Another table waits on the result the same way the overlay does:
+      // until gameEnded lands, nobody has been told who won. Back is the
+      // way out in the meantime.
       return (
-        <button type="button" className={styles.primary} onClick={table.leaveTable}>
-          Back to the room
-        </button>
+        <>
+          {ended !== null && (
+            <button type="button" className={styles.primary} onClick={table.playAgain} disabled={!connected || opening}>
+              {opening ? 'Opening…' : 'Play again'}
+            </button>
+          )}
+          <button type="button" className={styles.secondary} onClick={table.leaveTable}>
+            Back to the room
+          </button>
+        </>
       )
     }
     return null
@@ -276,6 +328,49 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
       <p className={styles.hint} role="status">
         {hint}
       </p>
+      {showEnding &&
+        ended !== null &&
+        createPortal(
+          // Out of the lobby's own stacking context, where the panel
+          // toggle would sit on top of the dim and open behind it.
+          <div
+            ref={endingRef}
+            className={styles.endingOverlay}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="castle-ending"
+            onKeyDown={event => {
+              if (event.key === 'Escape') dismissEnding()
+              keepFocusIn(event)
+            }}
+          >
+            <div className={styles.endingCard}>
+              <div className={styles.endingEmoji}>{ENDING_EMOJI[standingOf(ended.finished, ended.loser, playerId)]}</div>
+              <h2 id="castle-ending" className={styles.endingTitle}>
+                {headlineOf(ended, playerId)}
+              </h2>
+              <p className={styles.endingLine}>{describeEnding(ended.finished, ended.loser, playerId)}</p>
+              <div className={styles.endingButtons}>
+                <button
+                  ref={playAgainRef}
+                  type="button"
+                  className={styles.primary}
+                  onClick={table.playAgain}
+                  disabled={!connected || opening}
+                >
+                  {opening ? 'Opening…' : 'Play again'}
+                </button>
+                <button type="button" className={styles.secondary} onClick={table.leaveTable}>
+                  Back to the room
+                </button>
+              </div>
+              <button type="button" className={styles.link} onClick={dismissEnding}>
+                See the final hands
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
       <div className={styles.ring}>
         {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, clockOf(all.length, i)))}
         {(view.phase === 'playing' || view.phase === 'ended') && (

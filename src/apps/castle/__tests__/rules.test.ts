@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cardsOf, describeEnding, describeLastPlay, describePile, rowInPlay, toggleSelection } from '../rules'
+import { cardsOf, describeEnding, describeLastPlay, describePile, headlineOf, rowInPlay, standingOf, toggleSelection } from '../rules'
 import type { CastlePlayer, CastleView } from '../wire'
 
 const seat = (over: Partial<CastlePlayer> = {}): CastlePlayer => ({
@@ -114,5 +114,22 @@ describe('describeEnding', () => {
     expect(describeEnding(['alice'], 'bob', 'bob')).toBe('alice went out first and wins; you are the loser.')
     expect(describeEnding(['carol'], undefined, 'alice')).toBe('carol went out first and wins.')
     expect(describeEnding([], undefined, 'alice')).toBe('The table broke up: nobody went out')
+  })
+})
+
+describe('standingOf and headlineOf', () => {
+  it('only the first out won, whoever else finished behind them', () => {
+    expect(standingOf(['alice'], 'bob', 'alice')).toBe('won')
+    expect(standingOf(['alice'], 'bob', 'bob')).toBe('lost')
+    // carol shed her cards after alice, which is not winning.
+    expect(standingOf(['alice', 'carol'], 'bob', 'carol')).toBe('other')
+    expect(standingOf([], undefined, 'alice')).toBe('other')
+  })
+
+  it('the headline names the winner when it is not you', () => {
+    expect(headlineOf({ finished: ['alice'], loser: 'bob' }, 'alice')).toBe('You won!')
+    expect(headlineOf({ finished: ['alice'], loser: 'bob' }, 'bob')).toBe('You lost')
+    expect(headlineOf({ finished: ['alice', 'carol'], loser: 'bob' }, 'carol')).toBe('alice wins')
+    expect(headlineOf({ finished: [] }, 'alice')).toBe('The table broke up')
   })
 })

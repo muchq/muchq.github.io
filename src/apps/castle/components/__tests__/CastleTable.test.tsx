@@ -47,8 +47,10 @@ const view = (over: Partial<CastleView> = {}): CastleView => ({
 const table = (over: Partial<CastleTableProps['table']> = {}): CastleTableProps['table'] => ({
   ended: null,
   selected: [],
+  opening: false,
   startTable: vi.fn(),
   leaveTable: vi.fn(),
+  playAgain: vi.fn(),
   swapForSetup: vi.fn(),
   ready: vi.fn(),
   toggleCard: vi.fn(),
@@ -261,13 +263,94 @@ describe('CastleTable', () => {
     expect(overlap(/bob's hand/)).toBe('1rem')
   })
 
-  it('the ending reads from this chair, with every hand face up', () => {
+  it('the ending arrives in front, and waves away to the final hands', () => {
     const over = view({ phase: 'ended', currentPlayerId: undefined, finished: ['bob'] })
     over.players[1] = { ...over.players[1], hand: [{ rank: '3', suit: '♣' }], handCount: 1, out: true }
     const { t } = mountWith(over, { ended: { finished: ['bob'], loser: 'alice' } })
-    expect(screen.getByText('bob went out first and wins; you are the loser.')).toBeDefined()
+    const ending = within(screen.getByRole('dialog'))
+    expect(ending.getByRole('heading', { name: 'You lost' })).toBeDefined()
+    expect(ending.getByText('😤')).toBeDefined()
+    expect(ending.getByText('bob went out first and wins; you are the loser.')).toBeDefined()
+    // Play again takes the focus, so the ending can be answered without
+    // hunting for it.
+    expect(document.activeElement).toBe(ending.getByRole('button', { name: 'Play again' }))
+    // And nothing of the table's own is left focusable behind it.
+    expect(screen.getAllByRole('button', { name: 'Play again' })).toHaveLength(1)
+
+    // Waved away, with the focus put somewhere it can be read from.
+    fireEvent.click(ending.getByRole('button', { name: 'See the final hands' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Table G1' }))
     expect(within(screen.getByRole('region', { name: 'bob, out' })).getByRole('img', { name: '3♣' })).toBeDefined()
+    // Both ways on are still under it.
+    fireEvent.click(screen.getByRole('button', { name: 'Play again' }))
+    expect(t.playAgain).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole('button', { name: 'Back to the room' }))
     expect(t.leaveTable).toHaveBeenCalled()
+  })
+
+  it('a table already asked for is not asked for again, and escape still reads the felt', () => {
+    const t = table({ ended: { finished: ['bob'], loser: 'alice' }, opening: true })
+    render(<CastleTable playerId="alice" connected view={view({ phase: 'ended', currentPlayerId: undefined })} table={t} />)
+    const ending = within(screen.getByRole('dialog'))
+    // The second create would be refused — the first one's table is
+    // already ours — and would read as the first having failed.
+    const opening = ending.getByRole('button', { name: 'Opening…' })
+    expect(opening).toBeDisabled()
+    fireEvent.click(opening)
+    expect(t.playAgain).not.toHaveBeenCalled()
+
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('tab stays in the ending, since what is behind it opens underneath', () => {
+    const t = table({ ended: { finished: ['bob'], loser: 'alice' } })
+    render(<CastleTable playerId="alice" connected view={view({ phase: 'ended', currentPlayerId: undefined })} table={t} />)
+    const dialog = screen.getByRole('dialog')
+    const ending = within(dialog)
+    const first = ending.getByRole('button', { name: 'Play again' })
+    const last = ending.getByRole('button', { name: 'See the final hands' })
+
+    last.focus()
+    fireEvent.keyDown(dialog, { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+    fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+    // In the middle it is the browser's job, not ours.
+    ending.getByRole('button', { name: 'Back to the room' }).focus()
+    fireEvent.keyDown(dialog, { key: 'Tab' })
+    expect(document.activeElement).toBe(ending.getByRole('button', { name: 'Back to the room' }))
+  })
+
+  it('the ending headline is the viewer\u2019s own, and an abandoned table has none', () => {
+    const over = view({ phase: 'ended', currentPlayerId: undefined, finished: ['alice'] })
+    mountWith(over, { ended: { finished: ['alice'], loser: 'bob' } })
+    expect(within(screen.getByRole('dialog')).getByText('🏆')).toBeDefined()
+    expect(within(screen.getByRole('dialog')).getByRole('heading', { name: 'You won!' })).toBeDefined()
+    cleanup()
+
+    mountWith(view({ phase: 'ended', currentPlayerId: undefined }), { ended: { finished: [] } })
+    const abandoned = within(screen.getByRole('dialog'))
+    expect(abandoned.getByRole('heading', { name: 'The table broke up' })).toBeDefined()
+    expect(abandoned.getByText('The table broke up: nobody went out')).toBeDefined()
+  })
+
+  it('the next table\u2019s ending arrives in front again', () => {
+    const t = table({ ended: { finished: ['bob'], loser: 'alice' } })
+    const ended = (gameId: string) => view({ gameId, phase: 'ended', currentPlayerId: undefined, finished: ['bob'] })
+    const { rerender } = render(<CastleTable playerId="alice" connected view={ended('G1')} table={t} />)
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'See the final hands' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    rerender(<CastleTable playerId="alice" connected view={ended('G2')} table={t} />)
+    expect(screen.getByRole('dialog')).toBeDefined()
+  })
+
+  it('no result yet, no ending: the table stands until gameEnded lands', () => {
+    mountWith(view({ phase: 'ended', currentPlayerId: undefined }), { ended: null })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    // Nobody has been told who won, so nobody is offered the next game.
+    expect(screen.queryByRole('button', { name: 'Play again' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Back to the room' })).toBeDefined()
   })
 })

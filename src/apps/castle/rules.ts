@@ -2,7 +2,7 @@
 // which cards may be picked together, and how to say what just
 // happened. The engine is the referee; these only shape the offer.
 
-import type { Card, CastleLastPlay, CastlePlayer, CastleView } from './wire'
+import type { Card, CastleGameEnded, CastleLastPlay, CastlePlayer, CastleView } from './wire'
 
 export type Row = 'hand' | 'faceUp' | 'faceDown'
 
@@ -70,6 +70,31 @@ export function describeEnding(finished: string[], loser: string | undefined, vi
   const won = winner === viewer ? 'You went out first and win' : `${winner} went out first and wins`
   if (loser === undefined) return `${won}.`
   return `${won}; ${loser === viewer ? 'you are' : `${loser} is`} the loser.`
+}
+
+// Where one chair finished: the first seat out wins — only the first,
+// since the game ends there — the seat left holding cards loses, and an
+// abandoned table has neither.
+export type Standing = 'won' | 'lost' | 'other'
+
+export function standingOf(finished: string[], loser: string | undefined, viewer: string): Standing {
+  if (finished[0] === viewer) return 'won'
+  if (loser === viewer) return 'lost'
+  return 'other'
+}
+
+// The ending as a headline, from one chair. describeEnding has the whole
+// sentence; this is the half a player reads first.
+export function headlineOf(ended: CastleGameEnded, viewer: string): string {
+  if (ended.finished.length === 0) return 'The table broke up'
+  switch (standingOf(ended.finished, ended.loser, viewer)) {
+    case 'won':
+      return 'You won!'
+    case 'lost':
+      return 'You lost'
+    default:
+      return `${ended.finished[0]} wins`
+  }
 }
 
 export function seatOf(view: CastleView, playerId: string): CastlePlayer | undefined {

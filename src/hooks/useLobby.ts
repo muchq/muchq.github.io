@@ -269,6 +269,8 @@ export const useLobby = ({
 
   const handleRejected = useCallback(
     (reason: string) => {
+      // Whatever was refused, nothing a table asked for arrived.
+      castleRef.current.handleRejected()
       chatSeqRef.current += 1
       setChat(prev => ({ ...prev, rejection: { seq: chatSeqRef.current, reason } }))
       const pending = switchRef.current
