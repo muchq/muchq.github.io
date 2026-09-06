@@ -95,16 +95,38 @@
   color: rgba(255, 255, 255, 0.85);
 }
 
+/* The table from above: a round felt, the pile in the middle, the seats
+   on the rim. The ring is square; its seats are placed by percentage. */
+.ring {
+  position: relative;
+  width: min(100%, 52rem);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 45%, #2f7d57 0%, #1e5c3e 60%, #16452e 100%);
+  box-shadow:
+    inset 0 0 0 0.75rem #5b3d20,
+    inset 0 0 0 0.9rem #3f2914,
+    0 0.75rem 2rem rgba(0, 0, 0, 0.45);
+}
+
 .pile {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   padding: 0.75rem;
   border-radius: 0.75rem;
   background: rgba(0, 0, 0, 0.25);
+  max-width: 18rem;
 }
 
 .pileCards {
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
   align-items: center;
+  text-align: center;
 }
 
 .pileText {
@@ -148,17 +170,96 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
-.seats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-  gap: 1rem;
+/* A seat on the rim, facing the pile: its hand against the rim and its
+   castle toward the middle. The viewer's chair is at 6 o'clock; the
+   chairs at 9 and 3 turn their cards a quarter turn to face in, and the
+   ones across the table put their hand nearest themselves. Seats sit
+   where seatAround puts them, except that the four compass chairs pin
+   to their rim so nothing hangs off the felt. */
+.seat {
+  --cards-w: 12.9rem;
+  --cards-h: 11.6rem;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  background: rgba(0, 0, 0, 0.25);
+  border: 2px solid transparent;
 }
 
-.seat {
-  padding: 0.75rem;
-  border-radius: 0.75rem;
-  background: rgba(0, 0, 0, 0.2);
-  border: 2px solid transparent;
+.seatBody {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.seatCards {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.top {
+  flex-direction: column-reverse;
+}
+
+.top .seatCards {
+  flex-direction: column-reverse;
+}
+
+.left .seatBody,
+.right .seatBody {
+  width: var(--cards-h);
+  height: var(--cards-w);
+}
+
+/* Turned a quarter: centred on the box first, since a box bigger than
+   its grid cell would otherwise start-align before it turns. */
+.left .seatCards,
+.right .seatCards {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+}
+
+.left .seatCards {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.right .seatCards {
+  transform: translate(-50%, -50%) rotate(-90deg);
+}
+
+.seat[data-clock='6'] {
+  top: auto !important;
+  bottom: 1rem;
+  transform: translate(-50%, 0);
+}
+
+.seat[data-clock='12'] {
+  top: 1rem !important;
+  transform: translate(-50%, 0);
+}
+
+.seat[data-clock='9'] {
+  left: 1rem !important;
+  transform: translate(0, -50%);
+}
+
+.seat[data-clock='3'] {
+  left: auto !important;
+  right: 1rem;
+  transform: translate(0, -50%);
+}
+
+.handCount {
+  display: none;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .onTurn {
@@ -186,7 +287,6 @@ down and to the right so the back's corner shows under it. */
   display: flex;
   gap: 0.75rem;
   min-height: 5.4rem;
-  margin-bottom: 0.5rem;
 }
 
 .stack {
@@ -214,10 +314,10 @@ down and to the right so the back's corner shows under it. */
 /* The hand, fanned around a point below the cards. */
 .hand {
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   align-items: flex-end;
   min-height: 5.2rem;
-  padding: 0.5rem 0 0 0.75rem;
+  padding: 0.5rem 0.75rem 0;
 }
 
 .fanSlot {
@@ -294,6 +394,93 @@ down and to the right so the back's corner shows under it. */
 }
 
 @media (max-width: 600px) {
+  /* A phone is taller than wide: so is the table. The other seats fold
+     their fan away and show the count; the chairs at 10 and 2 turn in
+     like 9 and 3, up in the empty corners, so two fit across. */
+  .ring {
+    width: 100%;
+    aspect-ratio: 5 / 9;
+  }
+
+  .seat:not(.mine) .hand {
+    display: none;
+  }
+
+  .seat:not(.mine) .handCount {
+    display: inline;
+  }
+
+  .seat {
+    --cards-w: 11.1rem;
+    --cards-h: 4.5rem;
+    padding: 0.35rem 0.5rem;
+  }
+
+  .seatName {
+    font-size: 0.85rem;
+  }
+
+  .left .seatName,
+  .right .seatName,
+  .seat[data-clock='10'] .seatName,
+  .seat[data-clock='2'] .seatName {
+    max-width: 4.5rem;
+    text-align: center;
+  }
+
+  .seat[data-clock='10'],
+  .seat[data-clock='2'],
+  .seat[data-clock='10'] .seatCards,
+  .seat[data-clock='2'] .seatCards {
+    flex-direction: column;
+  }
+
+  .seat[data-clock='10'] .seatBody,
+  .seat[data-clock='2'] .seatBody {
+    width: var(--cards-h);
+    height: var(--cards-w);
+  }
+
+  .seat[data-clock='10'] .seatCards,
+  .seat[data-clock='2'] .seatCards {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+  }
+
+  .seat[data-clock='10'] .seatCards {
+    transform: translate(-50%, -50%) rotate(90deg);
+  }
+
+  .seat[data-clock='2'] .seatCards {
+    transform: translate(-50%, -50%) rotate(-90deg);
+  }
+
+  .seat[data-clock='9'],
+  .seat[data-clock='10'] {
+    left: 0 !important;
+    transform: translate(0, -50%);
+  }
+
+  .seat[data-clock='3'],
+  .seat[data-clock='2'] {
+    left: auto !important;
+    right: 0;
+    transform: translate(0, -50%);
+  }
+
+  .seat[data-clock='10'],
+  .seat[data-clock='2'] {
+    top: 24% !important;
+  }
+
+  .pile {
+    top: 45%;
+    padding: 0.4rem;
+    max-width: 9rem;
+    font-size: 0.8rem;
+  }
+
   .card {
     width: 2.6rem;
     height: 3.8rem;
@@ -319,9 +506,4 @@ down and to the right so the back's corner shows under it. */
   .hand {
     min-height: 4.5rem;
   }
-
-  .seats {
-    grid-template-columns: 1fr;
-  }
-
 }

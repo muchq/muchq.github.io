@@ -3,11 +3,15 @@ import type { ReactNode } from 'react'
 import type { CastleTableActions } from '@/hooks/useCastleTable'
 import type { Card, CastleGameEnded, CastlePlayer, CastleView } from '../wire'
 import { cardsOf, describeEnding, describeLastPlay, describePile, face, isRed, rowInPlay, seatOf } from '../rules'
+import { fromViewer, seatAround } from '../seating'
+import type { Seating } from '../seating'
 import styles from './CastleTable.module.css'
 
-// The table from the viewer's chair, over useCastleTable. Every rule the
-// UI enforces is the engine's too — the buttons offer, the hub refuses in
-// band, and the lobby's notice says why.
+// The table from the viewer's chair, seen from above: the viewer at 6
+// o'clock, the others around the ring in turn order, every hand nearest
+// its player and every castle toward the pile in the middle. Every rule
+// the UI enforces is the engine's too — the buttons offer, the hub
+// refuses in band, and the lobby's notice says why.
 
 interface CardFaceProps {
   card: Card
@@ -80,7 +84,7 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
       ? pendingSwap.index
       : null
 
-  const renderSeat = (seat: CastlePlayer) => {
+  const renderSeat = (seat: CastlePlayer, place: Seating) => {
     const mine = seat.playerId === playerId
     const onTurn = view.phase === 'playing' && view.currentPlayerId === seat.playerId
     const label = mine ? `${seat.playerId} (you)` : seat.playerId
@@ -88,7 +92,9 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
     return (
       <section
         key={seat.playerId}
-        className={`${styles.seat} ${onTurn ? styles.onTurn : ''} ${seat.out ? styles.out : ''}`}
+        className={`${styles.seat} ${styles[place.side]} ${mine ? styles.mine : ''} ${onTurn ? styles.onTurn : ''} ${seat.out ? styles.out : ''}`}
+        style={{ left: `${place.x}%`, top: `${place.y}%` }}
+        data-clock={place.clock}
         aria-label={`${label}${onTurn ? ', to play' : ''}${seat.out ? ', out' : ''}`}
       >
         <h3 className={styles.seatName}>
@@ -96,7 +102,11 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
           {view.phase === 'setup' && <span className={styles.muted}> {seat.ready ? '· ready' : '· arranging'}</span>}
           {onTurn && <span className={styles.turn}> · to play</span>}
           {seat.out && <span className={styles.muted}> · out</span>}
+          {/* Where the fan is folded away (a phone), the count stands in. */}
+          {!mine && <span className={styles.handCount}> · {seat.handCount} in hand</span>}
         </h3>
+        <div className={styles.seatBody}>
+          <div className={styles.seatCards}>
         {/* The castle: three stacks, each a face-down card with a face-up
             card covering it. Stacks pair the rows by index, which is how
             they were dealt; a played face-up card leaves its back bare. */}
@@ -168,6 +178,8 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
               </span>
             )
           })}
+        </div>
+          </div>
         </div>
       </section>
     )
@@ -242,8 +254,13 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
       <p className={styles.ending} role="status">
         {view.phase === 'ended' && ended !== null ? describeEnding(ended.finished, ended.loser, playerId) : ''}
       </p>
-      {(view.phase === 'playing' || view.phase === 'ended') && (
-        <section className={styles.pile} aria-label="pile">
+      <p className={styles.hint} role="status">
+        {hint}
+      </p>
+      <div className={styles.ring}>
+        {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, seatAround(all.length, i)))}
+        {(view.phase === 'playing' || view.phase === 'ended') && (
+          <section className={styles.pile} aria-label="pile">
           <div className={styles.pileCards}>
             {view.run.length === 0 ? (
               <div className={styles.emptyPile}>empty</div>
@@ -267,10 +284,7 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
           </div>
         </section>
       )}
-      <p className={styles.hint} role="status">
-        {hint}
-      </p>
-      <div className={styles.seats}>{view.players.map(renderSeat)}</div>
+      </div>
       <div className={styles.actions}>{actions}</div>
       {children}
     </div>

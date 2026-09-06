@@ -170,6 +170,23 @@ describe('CastleTable', () => {
     expect(t.pickUp).toHaveBeenCalled()
   })
 
+  it('seats the table around the viewer: 6 o\'clock, then clockwise in turn order', () => {
+    const four = view({ players: [seat('bob'), seat('alice', { hand: myHand }), seat('carol'), seat('dave')], currentPlayerId: 'bob' })
+    mountWith(four)
+    const clockOf = (name: RegExp) => screen.getByRole('region', { name }).getAttribute('data-clock')
+    expect(clockOf(/^alice \(you\)/)).toBe('6')
+    expect(clockOf(/^carol/)).toBe('9')
+    expect(clockOf(/^dave/)).toBe('12')
+    expect(clockOf(/^bob/)).toBe('3')
+    cleanup()
+    mountWith(view({ players: [seat('alice', { hand: myHand }), seat('bob'), seat('carol')] }))
+    expect(clockOf(/^bob/)).toBe('10')
+    expect(clockOf(/^carol/)).toBe('2')
+    // Folded away on a phone, the count still says how many they hold.
+    expect(screen.getByRole('region', { name: /^bob/ })).toHaveTextContent('3 in hand')
+    expect(screen.getByRole('region', { name: /^alice/ })).not.toHaveTextContent('in hand')
+  })
+
   it('the ending reads from this chair, with every hand face up', () => {
     const over = view({ phase: 'ended', currentPlayerId: undefined, finished: ['bob'] })
     over.players[1] = { ...over.players[1], hand: [{ rank: '3', suit: '♣' }], handCount: 1, out: true }
