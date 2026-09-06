@@ -257,14 +257,16 @@
   transform: translateX(-50%);
 }
 
+/* Out as far as the felt reaches at that height, so the chair clears
+   the pile in the middle. */
 .seat[data-clock='10'] {
-  left: 20%;
+  left: 18%;
   top: 32%;
   transform: translate(-50%, -50%);
 }
 
 .seat[data-clock='2'] {
-  left: 80%;
+  left: 82%;
   top: 32%;
   transform: translate(-50%, -50%);
 }
@@ -434,6 +436,55 @@ down and to the right so the back's corner shows under it. */
     padding: 0.35rem 0.5rem;
   }
 
+  /* No room on the rim beside the pile: 10 and 2 turn in and sit at the
+     edge like 9 and 3, so every chair but the viewer's is out of the
+     middle. Only one of the two pairs is ever at the table. */
+  .seat[data-clock='9'] .seatName,
+  .seat[data-clock='3'] .seatName,
+  .seat[data-clock='10'] .seatName,
+  .seat[data-clock='2'] .seatName {
+    max-width: 4.5rem;
+    text-align: center;
+  }
+
+  .seat[data-clock='10'],
+  .seat[data-clock='2'],
+  .seat[data-clock='10'] .seatCards,
+  .seat[data-clock='2'] .seatCards {
+    flex-direction: column;
+  }
+
+  .seat[data-clock='10'] .seatFrame,
+  .seat[data-clock='2'] .seatFrame {
+    width: var(--cards-h);
+    height: var(--cards-w);
+  }
+
+  .seat[data-clock='10'] .seatCards,
+  .seat[data-clock='2'] .seatCards {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(var(--turn));
+  }
+
+  .seat[data-clock='9'],
+  .seat[data-clock='10'] {
+    --turn: 90deg;
+    left: 0;
+    top: 42%;
+    transform: translateY(-50%);
+  }
+
+  .seat[data-clock='3'],
+  .seat[data-clock='2'] {
+    --turn: -90deg;
+    left: auto;
+    right: 0;
+    top: 42%;
+    transform: translateY(-50%);
+  }
+
   .seatName {
     font-size: 0.85rem;
   }
@@ -489,60 +540,10 @@ down and to the right so the back's corner shows under it. */
     aspect-ratio: 5 / 9;
   }
 
-  .seat[data-clock='9'] .seatName,
-  .seat[data-clock='3'] .seatName,
-  .seat[data-clock='10'] .seatName,
-  .seat[data-clock='2'] .seatName {
-    max-width: 4.5rem;
-    text-align: center;
-  }
-
-  .seat[data-clock='10'],
-  .seat[data-clock='2'],
-  .seat[data-clock='10'] .seatCards,
-  .seat[data-clock='2'] .seatCards {
-    flex-direction: column;
-  }
-
-  .seat[data-clock='10'] .seatFrame,
-  .seat[data-clock='2'] .seatFrame {
-    width: var(--cards-h);
-    height: var(--cards-w);
-  }
-
-  .seat[data-clock='10'] .seatCards,
-  .seat[data-clock='2'] .seatCards {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%) rotate(var(--turn));
-  }
-
-  .seat[data-clock='9'],
-  .seat[data-clock='10'] {
-    --turn: 90deg;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-  }
-
-  .seat[data-clock='3'],
-  .seat[data-clock='2'] {
-    --turn: -90deg;
-    left: auto;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-  }
-
+  /* The tall oval has empty corners; 10 and 2 ride up into them. */
   .seat[data-clock='10'],
   .seat[data-clock='2'] {
     top: 24%;
-  }
-
-  .seat[data-clock='9'],
-  .seat[data-clock='3'] {
-    top: 42%;
   }
 
   .seat[data-clock='6'] {
