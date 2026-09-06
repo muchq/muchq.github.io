@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { fromViewer, seatAround } from '../seating'
+import { clockOf, fromViewer } from '../seating'
 
 // Where each chair goes, by how many are at the table.
 
-const clocks = (count: number) => Array.from({ length: count }, (_, i) => seatAround(count, i).clock)
-const sides = (count: number) => Array.from({ length: count }, (_, i) => seatAround(count, i).side)
+const clocks = (count: number) => Array.from({ length: count }, (_, i) => clockOf(count, i))
 
-describe('seatAround', () => {
+describe('clockOf', () => {
   it('puts the viewer at 6 and the others evenly around the rest', () => {
     expect(clocks(1)).toEqual([6])
     expect(clocks(2)).toEqual([6, 12])
@@ -14,19 +13,8 @@ describe('seatAround', () => {
     expect(clocks(4)).toEqual([6, 9, 12, 3])
   })
 
-  it('names the rim each seat sits against', () => {
-    expect(sides(2)).toEqual(['bottom', 'top'])
-    expect(sides(3)).toEqual(['bottom', 'top', 'top'])
-    expect(sides(4)).toEqual(['bottom', 'left', 'top', 'right'])
-  })
-
-  it('places seats on a ring, the viewer at the bottom', () => {
-    expect(seatAround(4, 0)).toMatchObject({ x: 50, y: 90 })
-    expect(seatAround(4, 1)).toMatchObject({ x: 10, y: 50 })
-    expect(seatAround(4, 2)).toMatchObject({ x: 50, y: 10 })
-    expect(seatAround(4, 3)).toMatchObject({ x: 90, y: 50 })
-    expect(seatAround(3, 1).x).toBeLessThan(50)
-    expect(seatAround(3, 1).y).toBeLessThan(50)
+  it('a chair the table has no place for lands on 6', () => {
+    expect(clocks(5)).toEqual([6, 6, 6, 6, 6])
   })
 })
 

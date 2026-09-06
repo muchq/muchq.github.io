@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { CastleTableActions } from '@/hooks/useCastleTable'
 import type { Card, CastleGameEnded, CastlePlayer, CastleView } from '../wire'
 import { cardsOf, describeEnding, describeLastPlay, describePile, face, isRed, rowInPlay, seatOf } from '../rules'
-import { fromViewer, seatAround } from '../seating'
-import type { Seating } from '../seating'
+import { clockOf, fromViewer } from '../seating'
 import styles from './CastleTable.module.css'
 
 // The table from the viewer's chair, seen from above: the viewer at 6
-// o'clock, the others around the ring in turn order, every hand nearest
-// its player and every castle toward the pile in the middle. Every rule
-// the UI enforces is the engine's too — the buttons offer, the hub
-// refuses in band, and the lobby's notice says why.
+// o'clock with their moves under their hand, the others around the ring
+// in turn order, every hand nearest its player and every castle toward
+// the pile in the middle. Every rule the UI enforces is the engine's too
+// — the buttons offer, the hub refuses in band, and the lobby's notice
+// says why.
 
 interface CardFaceProps {
   card: Card
@@ -62,6 +62,9 @@ export interface CastleTableProps {
   children?: ReactNode
 }
 
+// Another seat's hand is backs: past this many, the count says the rest.
+const SHOWN_BACKS = 6
+
 const CastleTable = ({ playerId, connected, view, table, children }: CastleTableProps) => {
   const { ended, selected } = table
   // Joining unmounts whatever was clicked; the table announces itself.
@@ -83,107 +86,6 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
     arranging && pendingSwap !== null && pendingSwap.gameId === view.gameId && pendingSwap.index < me.hand.length
       ? pendingSwap.index
       : null
-
-  const renderSeat = (seat: CastlePlayer, place: Seating) => {
-    const mine = seat.playerId === playerId
-    const onTurn = view.phase === 'playing' && view.currentPlayerId === seat.playerId
-    const label = mine ? `${seat.playerId} (you)` : seat.playerId
-    const whose = mine ? 'Your' : `${seat.playerId}'s`
-    return (
-      <section
-        key={seat.playerId}
-        className={`${styles.seat} ${styles[place.side]} ${mine ? styles.mine : ''} ${onTurn ? styles.onTurn : ''} ${seat.out ? styles.out : ''}`}
-        style={{ left: `${place.x}%`, top: `${place.y}%` }}
-        data-clock={place.clock}
-        aria-label={`${label}${onTurn ? ', to play' : ''}${seat.out ? ', out' : ''}`}
-      >
-        <h3 className={styles.seatName}>
-          {label}
-          {view.phase === 'setup' && <span className={styles.muted}> {seat.ready ? '· ready' : '· arranging'}</span>}
-          {onTurn && <span className={styles.turn}> · to play</span>}
-          {seat.out && <span className={styles.muted}> · out</span>}
-          {/* Where the fan is folded away (a phone), the count stands in. */}
-          {!mine && <span className={styles.handCount}> · {seat.handCount} in hand</span>}
-        </h3>
-        <div className={styles.seatBody}>
-          <div className={styles.seatCards}>
-        {/* The castle: three stacks, each a face-down card with a face-up
-            card covering it. Stacks pair the rows by index, which is how
-            they were dealt; a played face-up card leaves its back bare. */}
-        <div className={styles.castle} role="group" aria-label={`${whose} castle`}>
-          {Array.from({ length: Math.max(seat.faceDownCount, seat.faceUp.length) }, (_, i) => {
-            const card = seat.faceUp[i]
-            const swappable = card !== undefined && mine && swapFrom !== null
-            const playable = card !== undefined && mine && myTurn && myRow === 'faceUp'
-            const blind = mine && myTurn && myRow === 'faceDown'
-            return (
-              <div key={i} className={styles.stack}>
-                {i < seat.faceDownCount && (
-                  <span className={styles.stackBase}>
-                    <CardBack
-                      label={blind ? `flip face-down card ${i + 1}` : 'face-down card'}
-                      onClick={blind && connected ? () => table.playFaceDown(i) : undefined}
-                    />
-                  </span>
-                )}
-                {card !== undefined && (
-                  <span className={styles.stackTop}>
-                    {swappable ? (
-                      <CardFace
-                        card={card}
-                        className={styles.swapTarget}
-                        label={`swap for ${face(card)}`}
-                        onClick={() => {
-                          table.swapForSetup(swapFrom, i)
-                          setPendingSwap(null)
-                        }}
-                      />
-                    ) : (
-                      <CardFace
-                        card={card}
-                        toggle={playable ? selected.includes(i) : undefined}
-                        onClick={playable && connected ? () => table.toggleCard(i) : undefined}
-                      />
-                    )}
-                  </span>
-                )}
-              </div>
-            )
-          })}
-        </div>
-        {/* The hand, fanned: faces for the viewer's own (and everyone's
-            once the game ends), backs for the rest. */}
-        <div className={styles.hand} role="group" aria-label={`${whose} hand`}>
-          {(seat.hand.length > 0 ? seat.hand : Array.from({ length: seat.handCount }, () => null)).map((card, i, all) => {
-            const picking = card !== null && mine && arranging
-            const playable = card !== null && mine && myTurn && myRow === 'hand'
-            const angle = (i - (all.length - 1) / 2) * 5
-            return (
-              <span key={i} className={styles.fanSlot} style={{ transform: `rotate(${angle}deg) translateY(${Math.abs(angle) * 0.35}px)` }}>
-                {card === null ? (
-                  <CardBack label="hand card" />
-                ) : (
-                  <CardFace
-                    card={card}
-                    toggle={picking ? swapFrom === i : playable ? selected.includes(i) : undefined}
-                    onClick={
-                      picking
-                        ? () => setPendingSwap(swapFrom === i ? null : { gameId: view.gameId, index: i })
-                        : playable && connected
-                          ? () => table.toggleCard(i)
-                          : undefined
-                    }
-                  />
-                )}
-              </span>
-            )
-          })}
-        </div>
-          </div>
-        </div>
-      </section>
-    )
-  }
 
   const hint = (() => {
     if (view.phase === 'waiting' && view.players.length < 2) return 'Waiting for a second seat.'
@@ -239,6 +141,117 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
     return null
   })()
 
+  const renderSeat = (seat: CastlePlayer, clock: number) => {
+    const mine = seat.playerId === playerId
+    const onTurn = view.phase === 'playing' && view.currentPlayerId === seat.playerId
+    const label = mine ? `${seat.playerId} (you)` : seat.playerId
+    const whose = mine ? 'Your' : `${seat.playerId}'s`
+    return (
+      <section
+        key={seat.playerId}
+        className={`${styles.seat} ${mine ? styles.mine : ''} ${onTurn ? styles.onTurn : ''} ${seat.out ? styles.out : ''}`}
+        data-clock={clock}
+        aria-label={`${label}${onTurn ? ', to play' : ''}${seat.out ? ', out' : ''}`}
+      >
+        <h3 className={styles.seatName}>
+          {label}
+          {view.phase === 'setup' && <span className={styles.muted}> {seat.ready ? '· ready' : '· arranging'}</span>}
+          {onTurn && <span className={styles.turn}> · to play</span>}
+          {seat.out && <span className={styles.muted}> · out</span>}
+          {/* Where the fan is folded away (a small screen) or capped, the count stands in. */}
+          {!mine && (
+            <span className={`${styles.handCount} ${seat.handCount > SHOWN_BACKS ? styles.handCountShown : ''}`}>
+              {' '}· {seat.handCount} in hand
+            </span>
+          )}
+        </h3>
+        <div className={styles.seatFrame}>
+          <div className={styles.seatCards}>
+            {/* The castle: three stacks, each a face-down card with a face-up
+                card covering it. Stacks pair the rows by index, which is how
+                they were dealt; a played face-up card leaves its back bare. */}
+            <div className={styles.castle} role="group" aria-label={`${whose} castle`}>
+              {Array.from({ length: Math.max(seat.faceDownCount, seat.faceUp.length) }, (_, i) => {
+                const card = seat.faceUp[i]
+                const swappable = card !== undefined && mine && swapFrom !== null
+                const playable = card !== undefined && mine && myTurn && myRow === 'faceUp'
+                const blind = mine && myTurn && myRow === 'faceDown'
+                return (
+                  <div key={i} className={styles.stack}>
+                    {i < seat.faceDownCount && (
+                      <span className={styles.stackBase}>
+                        <CardBack
+                          label={blind ? `flip face-down card ${i + 1}` : 'face-down card'}
+                          onClick={blind && connected ? () => table.playFaceDown(i) : undefined}
+                        />
+                      </span>
+                    )}
+                    {card !== undefined && (
+                      <span className={styles.stackTop}>
+                        {swappable ? (
+                          <CardFace
+                            card={card}
+                            className={styles.swapTarget}
+                            label={`swap for ${face(card)}`}
+                            onClick={() => {
+                              table.swapForSetup(swapFrom, i)
+                              setPendingSwap(null)
+                            }}
+                          />
+                        ) : (
+                          <CardFace
+                            card={card}
+                            toggle={playable ? selected.includes(i) : undefined}
+                            onClick={playable && connected ? () => table.toggleCard(i) : undefined}
+                          />
+                        )}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            {/* The hand, fanned: faces for the viewer's own (and everyone's
+                once the game ends), backs for the rest. */}
+            {/* A hand that grew on pick-ups fans tighter, so it stays a hand. */}
+            <div
+              className={styles.hand}
+              role="group"
+              aria-label={`${whose} hand`}
+              style={{ '--overlap': `${Math.min(2.2, 1 + Math.max(0, seat.handCount - 6) * 0.2)}rem` } as CSSProperties}
+            >
+              {(seat.hand.length > 0 ? seat.hand : Array.from({ length: Math.min(seat.handCount, SHOWN_BACKS) }, () => null)).map((card, i, all) => {
+                const picking = card !== null && mine && arranging
+                const playable = card !== null && mine && myTurn && myRow === 'hand'
+                const angle = (i - (all.length - 1) / 2) * 5
+                return (
+                  <span key={i} className={styles.fanSlot} style={{ transform: `rotate(${angle}deg) translateY(${Math.abs(angle) * 0.35}px)` }}>
+                    {card === null ? (
+                      <CardBack label="hand card" />
+                    ) : (
+                      <CardFace
+                        card={card}
+                        toggle={picking ? swapFrom === i : playable ? selected.includes(i) : undefined}
+                        onClick={
+                          picking
+                            ? () => setPendingSwap(swapFrom === i ? null : { gameId: view.gameId, index: i })
+                            : playable && connected
+                              ? () => table.toggleCard(i)
+                              : undefined
+                        }
+                      />
+                    )}
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+        {mine && <div className={styles.actions}>{actions}</div>}
+      </section>
+    )
+  }
+
   return (
     <div className={styles.table}>
       <div className={styles.tableHeader}>
@@ -258,34 +271,33 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
         {hint}
       </p>
       <div className={styles.ring}>
-        {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, seatAround(all.length, i)))}
+        {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, clockOf(all.length, i)))}
         {(view.phase === 'playing' || view.phase === 'ended') && (
           <section className={styles.pile} aria-label="pile">
-          <div className={styles.pileCards}>
-            {view.run.length === 0 ? (
-              <div className={styles.emptyPile}>empty</div>
-            ) : (
-              // The run on top, tightly fanned: a pair of sevens reads as a pair.
-              <div className={styles.run} role="group" aria-label="run on top">
-                {view.run.map((card, i) => (
-                  <span key={i} className={styles.runSlot} style={{ transform: `rotate(${(i - (view.run.length - 1) / 2) * 4}deg)` }}>
-                    <CardFace card={card} />
-                  </span>
-                ))}
+            <div className={styles.pileCards}>
+              {view.run.length === 0 ? (
+                <div className={styles.emptyPile}>empty</div>
+              ) : (
+                // The run on top, tightly fanned: a pair of sevens reads as a pair.
+                <div className={styles.run} role="group" aria-label="run on top">
+                  {view.run.map((card, i) => (
+                    <span key={i} className={styles.runSlot} style={{ transform: `rotate(${(i - (view.run.length - 1) / 2) * 4}deg)` }}>
+                      <CardFace card={card} />
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className={styles.pileText}>
+                <p>{describePile(view)}</p>
+                <p className={styles.muted}>
+                  {view.pileCount} on the pile · {view.drawPileCount} to draw
+                </p>
+                {view.lastPlay !== undefined && <p className={styles.lastPlay}>{describeLastPlay(view.lastPlay, playerId)}</p>}
               </div>
-            )}
-            <div className={styles.pileText}>
-              <p>{describePile(view)}</p>
-              <p className={styles.muted}>
-                {view.pileCount} on the pile · {view.drawPileCount} to draw
-              </p>
-              {view.lastPlay !== undefined && <p className={styles.lastPlay}>{describeLastPlay(view.lastPlay, playerId)}</p>}
             </div>
-          </div>
-        </section>
+          </section>
       )}
       </div>
-      <div className={styles.actions}>{actions}</div>
       {children}
     </div>
   )

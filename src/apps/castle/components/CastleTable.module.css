@@ -95,11 +95,12 @@
   color: rgba(255, 255, 255, 0.85);
 }
 
-/* The table from above: a round felt, the pile in the middle, the seats
-   on the rim. The ring is square; its seats are placed by percentage. */
+/* The table from above: a round felt, the pile in the middle, the chairs
+   on the rim by clock. The felt fits the viewport, so the viewer's own
+   hand and moves are on screen without a scroll. */
 .ring {
   position: relative;
-  width: min(100%, 52rem);
+  width: min(100%, 52rem, calc(100dvh - 11rem));
   aspect-ratio: 1;
   margin: 0 auto;
   border-radius: 50%;
@@ -118,7 +119,7 @@
   padding: 0.75rem;
   border-radius: 0.75rem;
   background: rgba(0, 0, 0, 0.25);
-  max-width: 18rem;
+  max-width: 16rem;
 }
 
 .pileCards {
@@ -170,17 +171,15 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
-/* A seat on the rim, facing the pile: its hand against the rim and its
-   castle toward the middle. The viewer's chair is at 6 o'clock; the
-   chairs at 9 and 3 turn their cards a quarter turn to face in, and the
-   ones across the table put their hand nearest themselves. Seats sit
-   where seatAround puts them, except that the four compass chairs pin
-   to their rim so nothing hangs off the felt. */
+/* A chair on the rim: hand against the rim, castle toward the pile, the
+   viewer's moves under their hand. 12 (and 10, 2) is upside-down; 9 and
+   3 are turned a quarter. */
 .seat {
+  /* Three stacks across; a castle, a gap and a hand down. */
   --cards-w: 12.9rem;
-  --cards-h: 11.6rem;
+  --cards-h: 11.1rem;
+  --turn: 0deg;
   position: absolute;
-  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -191,10 +190,8 @@
   border: 2px solid transparent;
 }
 
-.seatBody {
+.seatFrame {
   position: relative;
-  display: grid;
-  place-items: center;
 }
 
 .seatCards {
@@ -204,62 +201,77 @@
   gap: 0.5rem;
 }
 
-.top {
+.seat[data-clock='12'],
+.seat[data-clock='10'],
+.seat[data-clock='2'],
+.seat[data-clock='12'] .seatCards,
+.seat[data-clock='10'] .seatCards,
+.seat[data-clock='2'] .seatCards {
   flex-direction: column-reverse;
 }
 
-.top .seatCards {
-  flex-direction: column-reverse;
-}
-
-.left .seatBody,
-.right .seatBody {
+/* Turned: the frame takes the cards' size the other way round, and the
+   cards rotate about their own centre, absolute so the frame's cell
+   cannot start-align them first. */
+.seat[data-clock='9'] .seatFrame,
+.seat[data-clock='3'] .seatFrame {
   width: var(--cards-h);
   height: var(--cards-w);
 }
 
-/* Turned a quarter: centred on the box first, since a box bigger than
-   its grid cell would otherwise start-align before it turns. */
-.left .seatCards,
-.right .seatCards {
+.seat[data-clock='9'] .seatCards,
+.seat[data-clock='3'] .seatCards {
   position: absolute;
   left: 50%;
   top: 50%;
-}
-
-.left .seatCards {
-  transform: translate(-50%, -50%) rotate(90deg);
-}
-
-.right .seatCards {
-  transform: translate(-50%, -50%) rotate(-90deg);
-}
-
-.seat[data-clock='6'] {
-  top: auto !important;
-  bottom: 1rem;
-  transform: translate(-50%, 0);
-}
-
-.seat[data-clock='12'] {
-  top: 1rem !important;
-  transform: translate(-50%, 0);
+  transform: translate(-50%, -50%) rotate(var(--turn));
 }
 
 .seat[data-clock='9'] {
-  left: 1rem !important;
-  transform: translate(0, -50%);
+  --turn: 90deg;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .seat[data-clock='3'] {
-  left: auto !important;
+  --turn: -90deg;
   right: 1rem;
-  transform: translate(0, -50%);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.seat[data-clock='6'] {
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+}
+
+.seat[data-clock='12'] {
+  left: 50%;
+  top: 1rem;
+  transform: translateX(-50%);
+}
+
+.seat[data-clock='10'] {
+  left: 20%;
+  top: 32%;
+  transform: translate(-50%, -50%);
+}
+
+.seat[data-clock='2'] {
+  left: 80%;
+  top: 32%;
+  transform: translate(-50%, -50%);
 }
 
 .handCount {
   display: none;
   color: rgba(255, 255, 255, 0.7);
+}
+
+.handCountShown {
+  display: inline;
 }
 
 .onTurn {
@@ -320,9 +332,11 @@ down and to the right so the back's corner shows under it. */
   padding: 0.5rem 0.75rem 0;
 }
 
+/* Overlap grows with the hand (the seat sets --overlap), but never past
+   what leaves a card an edge to tap. */
 .fanSlot {
   display: block;
-  margin-left: -1rem;
+  margin-left: calc(-1 * min(var(--overlap, 1rem), var(--overlap-max, 2.2rem)));
   transform-origin: 50% 160%;
 }
 
@@ -387,21 +401,20 @@ down and to the right so the back's corner shows under it. */
   gap: 0.75rem;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
+}
+
+.actions:empty {
+  display: none;
 }
 
 .actions p {
   margin: 0;
 }
 
-@media (max-width: 600px) {
-  /* A phone is taller than wide: so is the table. The other seats fold
-     their fan away and show the count; the chairs at 10 and 2 turn in
-     like 9 and 3, up in the empty corners, so two fit across. */
-  .ring {
-    width: 100%;
-    aspect-ratio: 5 / 9;
-  }
-
+/* Small or short screens: smaller cards, and the other seats fold their
+   fan away for the count. */
+@media (max-width: 600px), (max-height: 900px) {
   .seat:not(.mine) .hand {
     display: none;
   }
@@ -420,71 +433,21 @@ down and to the right so the back's corner shows under it. */
     font-size: 0.85rem;
   }
 
-  .left .seatName,
-  .right .seatName,
-  .seat[data-clock='10'] .seatName,
-  .seat[data-clock='2'] .seatName {
-    max-width: 4.5rem;
-    text-align: center;
-  }
-
-  .seat[data-clock='10'],
-  .seat[data-clock='2'],
-  .seat[data-clock='10'] .seatCards,
-  .seat[data-clock='2'] .seatCards {
-    flex-direction: column;
-  }
-
-  .seat[data-clock='10'] .seatBody,
-  .seat[data-clock='2'] .seatBody {
-    width: var(--cards-h);
-    height: var(--cards-w);
-  }
-
-  .seat[data-clock='10'] .seatCards,
-  .seat[data-clock='2'] .seatCards {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-  }
-
-  .seat[data-clock='10'] .seatCards {
-    transform: translate(-50%, -50%) rotate(90deg);
-  }
-
-  .seat[data-clock='2'] .seatCards {
-    transform: translate(-50%, -50%) rotate(-90deg);
-  }
-
-  .seat[data-clock='9'],
-  .seat[data-clock='10'] {
-    left: 0 !important;
-    transform: translate(0, -50%);
-  }
-
-  .seat[data-clock='3'],
-  .seat[data-clock='2'] {
-    left: auto !important;
-    right: 0;
-    transform: translate(0, -50%);
-  }
-
-  .seat[data-clock='10'],
-  .seat[data-clock='2'] {
-    top: 24% !important;
-  }
-
   .pile {
     top: 45%;
-    padding: 0.4rem;
-    max-width: 9rem;
-    font-size: 0.8rem;
+    padding: 0.5rem;
+    max-width: 11rem;
+    font-size: 0.85rem;
   }
 
   .card {
     width: 2.6rem;
     height: 3.8rem;
     font-size: 0.95rem;
+  }
+
+  .fanSlot {
+    --overlap-max: 1.8rem;
   }
 
   .emptyPile {
@@ -505,5 +468,82 @@ down and to the right so the back's corner shows under it. */
   .castle,
   .hand {
     min-height: 4.5rem;
+  }
+}
+
+/* A phone is taller than wide: so is the table. 10 and 2 turn in like 9
+   and 3, up in the empty corners, so two fit across; the viewer's chair
+   spans the felt so their moves share a row. */
+@media (max-width: 600px) {
+  .ring {
+    width: 100%;
+    aspect-ratio: 5 / 9;
+  }
+
+  .seat[data-clock='9'] .seatName,
+  .seat[data-clock='3'] .seatName,
+  .seat[data-clock='10'] .seatName,
+  .seat[data-clock='2'] .seatName {
+    max-width: 4.5rem;
+    text-align: center;
+  }
+
+  .seat[data-clock='10'],
+  .seat[data-clock='2'],
+  .seat[data-clock='10'] .seatCards,
+  .seat[data-clock='2'] .seatCards {
+    flex-direction: column;
+  }
+
+  .seat[data-clock='10'] .seatFrame,
+  .seat[data-clock='2'] .seatFrame {
+    width: var(--cards-h);
+    height: var(--cards-w);
+  }
+
+  .seat[data-clock='10'] .seatCards,
+  .seat[data-clock='2'] .seatCards {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(var(--turn));
+  }
+
+  .seat[data-clock='9'],
+  .seat[data-clock='10'] {
+    --turn: 90deg;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .seat[data-clock='3'],
+  .seat[data-clock='2'] {
+    --turn: -90deg;
+    left: auto;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .seat[data-clock='10'],
+  .seat[data-clock='2'] {
+    top: 24%;
+  }
+
+  .seat[data-clock='9'],
+  .seat[data-clock='3'] {
+    top: 42%;
+  }
+
+  .seat[data-clock='6'] {
+    width: calc(100% - 1rem);
+  }
+
+  .pile {
+    top: 38%;
+    padding: 0.4rem;
+    max-width: 9rem;
+    font-size: 0.8rem;
   }
 }

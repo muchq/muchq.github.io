@@ -185,6 +185,17 @@ describe('CastleTable', () => {
     // Folded away on a phone, the count still says how many they hold.
     expect(screen.getByRole('region', { name: /^bob/ })).toHaveTextContent('3 in hand')
     expect(screen.getByRole('region', { name: /^alice/ })).not.toHaveTextContent('in hand')
+    // The viewer's moves sit under their hand.
+    expect(within(screen.getByRole('region', { name: /^alice/ })).getByRole('button', { name: 'Pick up the pile' })).toBeDefined()
+  })
+
+  it('a hand that grew fans tighter', () => {
+    const big = view()
+    big.players[0] = { ...big.players[0], handCount: 10, hand: Array.from({ length: 10 }, (_, i) => ({ rank: String(i + 2), suit: '♣' })) }
+    mountWith(big)
+    const overlap = (name: RegExp) => screen.getByRole('group', { name }).style.getPropertyValue('--overlap')
+    expect(overlap(/Your hand/)).toBe('1.8rem')
+    expect(overlap(/bob's hand/)).toBe('1rem')
   })
 
   it('the ending reads from this chair, with every hand face up', () => {

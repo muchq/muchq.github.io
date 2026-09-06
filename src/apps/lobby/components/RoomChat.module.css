@@ -227,8 +227,8 @@
   border: 0;
 }
 
-/* Drawer mode is the default: the page's content is centered at
- * max-width 1200px, so only genuinely wide viewports have margin a
+/* Drawer mode is the default: the widest table (golf, 1200px) is
+ * centered, so only genuinely wide viewports have margin beside it a
  * docked panel can occupy without covering cards or controls. There is
  * no media query here — RoomChat.tsx owns the breakpoint (DOCKED_QUERY)
  * and stamps .docked, so styling and behavior can't disagree. */
