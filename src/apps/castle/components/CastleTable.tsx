@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { CSSProperties, ReactNode } from 'react'
 import type { Standing } from '../rules'
 import type { CastleTableActions } from '@/hooks/useCastleTable'
@@ -85,11 +86,27 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
   // hands can be looked over. Keyed by table, so the next one's ending
   // arrives in front again.
   const [endingRead, setEndingRead] = useState<string | null>(null)
+  // The table a new one has been asked for from. One create per ending:
+  // the second would be refused ("leave your current game first") and
+  // read as the first having failed.
+  const [opening, setOpening] = useState<string | null>(null)
   const playAgainRef = useRef<HTMLButtonElement>(null)
 
   // gameEnded lands right behind the final view; without it there is
   // no result to show yet.
   const showEnding = view.phase === 'ended' && ended !== null && endingRead !== view.gameId
+  const askForAnother = () => {
+    setOpening(view.gameId)
+    table.playAgain()
+  }
+  const opened = opening === view.gameId
+
+  const dismissEnding = () => {
+    setEndingRead(view.gameId)
+    // The button that had the focus is going with the overlay; the
+    // heading is where reading the table starts.
+    headingRef.current?.focus()
+  }
   useEffect(() => {
     if (showEnding) playAgainRef.current?.focus()
   }, [showEnding])
@@ -157,8 +174,8 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
       // never behind it, where they would be tab stops nobody can see.
       return (
         <>
-          <button type="button" className={styles.primary} onClick={table.playAgain} disabled={!connected}>
-            Play again
+          <button type="button" className={styles.primary} onClick={askForAnother} disabled={!connected || opened}>
+            {opened ? 'Opening…' : 'Play again'}
           </button>
           <button type="button" className={styles.secondary} onClick={table.leaveTable}>
             Back to the room
@@ -298,28 +315,47 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
       <p className={styles.hint} role="status">
         {hint}
       </p>
-      {showEnding && ended !== null && (
-        <div className={styles.endingOverlay} role="dialog" aria-modal="true" aria-labelledby="castle-ending">
-          <div className={styles.endingCard}>
-            <div className={styles.endingEmoji}>{ENDING_EMOJI[standingOf(ended.finished, ended.loser, playerId)]}</div>
-            <h2 id="castle-ending" className={styles.endingTitle}>
-              {headlineOf(ended, playerId)}
-            </h2>
-            <p className={styles.endingLine}>{describeEnding(ended.finished, ended.loser, playerId)}</p>
-            <div className={styles.endingButtons}>
-              <button ref={playAgainRef} type="button" className={styles.primary} onClick={table.playAgain} disabled={!connected}>
-                Play again
-              </button>
-              <button type="button" className={styles.secondary} onClick={table.leaveTable}>
-                Back to the room
+      {showEnding &&
+        ended !== null &&
+        createPortal(
+          // Out of the lobby's own stacking context, where the panel
+          // toggle would sit on top of the dim and open behind it.
+          <div
+            className={styles.endingOverlay}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="castle-ending"
+            onKeyDown={event => {
+              if (event.key === 'Escape') dismissEnding()
+            }}
+          >
+            <div className={styles.endingCard}>
+              <div className={styles.endingEmoji}>{ENDING_EMOJI[standingOf(ended.finished, ended.loser, playerId)]}</div>
+              <h2 id="castle-ending" className={styles.endingTitle}>
+                {headlineOf(ended, playerId)}
+              </h2>
+              <p className={styles.endingLine}>{describeEnding(ended.finished, ended.loser, playerId)}</p>
+              <div className={styles.endingButtons}>
+                <button
+                  ref={playAgainRef}
+                  type="button"
+                  className={styles.primary}
+                  onClick={askForAnother}
+                  disabled={!connected || opened}
+                >
+                  {opened ? 'Opening…' : 'Play again'}
+                </button>
+                <button type="button" className={styles.secondary} onClick={table.leaveTable}>
+                  Back to the room
+                </button>
+              </div>
+              <button type="button" className={styles.link} onClick={dismissEnding}>
+                See the final hands
               </button>
             </div>
-            <button type="button" className={styles.link} onClick={() => setEndingRead(view.gameId)}>
-              See the final hands
-            </button>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
       <div className={styles.ring}>
         {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, clockOf(all.length, i)))}
         {(view.phase === 'playing' || view.phase === 'ended') && (

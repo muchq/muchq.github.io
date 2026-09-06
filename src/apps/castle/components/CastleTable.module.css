@@ -585,6 +585,11 @@ down and to the right so the back's corner shows under it. */
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   text-align: center;
+  /* A phone in landscape is shorter than the card: it scrolls rather
+     than pushing "See the final hands" off the bottom, which is the one
+     control that gets the table back. */
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
   animation: endingIn 0.25s ease-out;
 }
 

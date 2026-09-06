@@ -275,17 +275,33 @@ describe('CastleTable', () => {
     expect(document.activeElement).toBe(ending.getByRole('button', { name: 'Play again' }))
     // And nothing of the table's own is left focusable behind it.
     expect(screen.getAllByRole('button', { name: 'Play again' })).toHaveLength(1)
-    fireEvent.click(ending.getByRole('button', { name: 'Play again' }))
-    expect(t.playAgain).toHaveBeenCalled()
 
+    // Waved away, with the focus put somewhere it can be read from.
     fireEvent.click(ending.getByRole('button', { name: 'See the final hands' }))
     expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Table G1' }))
     expect(within(screen.getByRole('region', { name: 'bob, out' })).getByRole('img', { name: '3♣' })).toBeDefined()
     // Both ways on are still under it.
     fireEvent.click(screen.getByRole('button', { name: 'Play again' }))
-    expect(t.playAgain).toHaveBeenCalledTimes(2)
+    expect(t.playAgain).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole('button', { name: 'Back to the room' }))
     expect(t.leaveTable).toHaveBeenCalled()
+  })
+
+  it('one table is asked for per ending, and escape reads the felt instead', () => {
+    const t = table({ ended: { finished: ['bob'], loser: 'alice' } })
+    render(<CastleTable playerId="alice" connected view={view({ phase: 'ended', currentPlayerId: undefined })} table={t} />)
+    const ending = within(screen.getByRole('dialog'))
+    fireEvent.click(ending.getByRole('button', { name: 'Play again' }))
+    // The second create would be refused — the first one's table is
+    // already ours — and would read as the first having failed.
+    const opening = ending.getByRole('button', { name: 'Opening…' })
+    expect(opening).toBeDisabled()
+    fireEvent.click(opening)
+    expect(t.playAgain).toHaveBeenCalledTimes(1)
+
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('the ending headline is the viewer\u2019s own, and an abandoned table has none', () => {
