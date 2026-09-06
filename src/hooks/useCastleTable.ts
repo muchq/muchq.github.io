@@ -98,9 +98,19 @@ export const useCastleTable = ({ playerId, move, showNotice, onLeft }: UseCastle
     onLeft?.()
   }, [clear, move, onLeft, view])
 
+  // The wire names cards, not slots (MoonBase #1505). An index is how
+  // the UI points at a card it is drawing; it goes no further than here,
+  // and it is read against the same view that rendered it — every
+  // gameState clears the selection, so there is no older one to read.
   const swapForSetup = useCallback(
-    (handIndex: number, faceUpIndex: number) => move('swapForSetup', { handIndex, faceUpIndex }),
-    [move]
+    (handIndex: number, faceUpIndex: number) => {
+      const me = view === null ? undefined : seatOf(view, playerId)
+      const handCard = me?.hand[handIndex]
+      const faceUpCard = me?.faceUp[faceUpIndex]
+      if (handCard === undefined || faceUpCard === undefined) return
+      move('swapForSetup', { handCard, faceUpCard })
+    },
+    [move, playerId, view]
   )
   const ready = useCallback(() => move('ready'), [move])
 
@@ -116,7 +126,11 @@ export const useCastleTable = ({ playerId, move, showNotice, onLeft }: UseCastle
   const playSelected = useCallback(() => {
     const me = view === null ? undefined : seatOf(view, playerId)
     if (me === undefined || selected.length === 0) return
-    move(rowInPlay(me) === 'hand' ? 'playFromHand' : 'playFaceUp', { indexes: selected })
+    const row = rowInPlay(me)
+    const inPlay = cardsOf(me, row)
+    const cards = selected.flatMap(i => (inPlay[i] === undefined ? [] : [inPlay[i]]))
+    if (cards.length !== selected.length) return
+    move(row === 'hand' ? 'playFromHand' : 'playFaceUp', { cards })
     setSelected([])
   }, [move, playerId, selected, view])
 
