@@ -570,7 +570,7 @@ down and to the right so the back's corner shows under it. */
   padding: 1rem;
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
-  animation: endingIn 0.25s ease-out;
+  animation: endingFade 0.25s ease-out;
 }
 
 .endingCard {
@@ -585,6 +585,7 @@ down and to the right so the back's corner shows under it. */
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   text-align: center;
+  animation: endingIn 0.25s ease-out;
 }
 
 .endingEmoji {
@@ -603,16 +604,21 @@ down and to the right so the back's corner shows under it. */
   color: rgba(255, 255, 255, 0.75);
 }
 
-.endingLine:empty {
-  display: none;
-}
-
 .endingButtons {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.5rem;
   width: 100%;
+}
+
+@keyframes endingFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes endingIn {
@@ -627,7 +633,8 @@ down and to the right so the back's corner shows under it. */
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .endingOverlay {
+  .endingOverlay,
+  .endingCard {
     animation: none;
   }
 }

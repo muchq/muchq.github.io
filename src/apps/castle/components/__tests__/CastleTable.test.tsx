@@ -268,7 +268,13 @@ describe('CastleTable', () => {
     const { t } = mountWith(over, { ended: { finished: ['bob'], loser: 'alice' } })
     const ending = within(screen.getByRole('dialog'))
     expect(ending.getByRole('heading', { name: 'You lost' })).toBeDefined()
+    expect(ending.getByText('😤')).toBeDefined()
     expect(ending.getByText('bob went out first and wins; you are the loser.')).toBeDefined()
+    // Play again takes the focus, so the ending can be answered without
+    // hunting for it.
+    expect(document.activeElement).toBe(ending.getByRole('button', { name: 'Play again' }))
+    // And nothing of the table's own is left focusable behind it.
+    expect(screen.getAllByRole('button', { name: 'Play again' })).toHaveLength(1)
     fireEvent.click(ending.getByRole('button', { name: 'Play again' }))
     expect(t.playAgain).toHaveBeenCalled()
 
@@ -285,6 +291,7 @@ describe('CastleTable', () => {
   it('the ending headline is the viewer\u2019s own, and an abandoned table has none', () => {
     const over = view({ phase: 'ended', currentPlayerId: undefined, finished: ['alice'] })
     mountWith(over, { ended: { finished: ['alice'], loser: 'bob' } })
+    expect(within(screen.getByRole('dialog')).getByText('🏆')).toBeDefined()
     expect(within(screen.getByRole('dialog')).getByRole('heading', { name: 'You won!' })).toBeDefined()
     cleanup()
 
@@ -292,6 +299,16 @@ describe('CastleTable', () => {
     const abandoned = within(screen.getByRole('dialog'))
     expect(abandoned.getByRole('heading', { name: 'The table broke up' })).toBeDefined()
     expect(abandoned.getByText('The table broke up: nobody went out')).toBeDefined()
+  })
+
+  it('the next table\u2019s ending arrives in front again', () => {
+    const t = table({ ended: { finished: ['bob'], loser: 'alice' } })
+    const ended = (gameId: string) => view({ gameId, phase: 'ended', currentPlayerId: undefined, finished: ['bob'] })
+    const { rerender } = render(<CastleTable playerId="alice" connected view={ended('G1')} table={t} />)
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'See the final hands' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    rerender(<CastleTable playerId="alice" connected view={ended('G2')} table={t} />)
+    expect(screen.getByRole('dialog')).toBeDefined()
   })
 
   it('no result yet, no ending: the table stands until gameEnded lands', () => {

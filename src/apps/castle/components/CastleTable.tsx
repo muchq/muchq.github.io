@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
+import type { Standing } from '../rules'
 import type { CastleTableActions } from '@/hooks/useCastleTable'
 import type { Card, CastleGameEnded, CastlePlayer, CastleView } from '../wire'
-import { cardsOf, describeEnding, describeLastPlay, describePile, face, isRed, rowInPlay, seatOf, standingOf } from '../rules'
+import { cardsOf, describeEnding, describeLastPlay, describePile, face, headlineOf, isRed, rowInPlay, seatOf, standingOf } from '../rules'
 import { clockOf, fromViewer } from '../seating'
 import styles from './CastleTable.module.css'
 
@@ -65,6 +66,8 @@ export interface CastleTableProps {
 // Another seat's hand is backs: past this many, the count says the rest.
 const SHOWN_BACKS = 6
 
+const ENDING_EMOJI: Record<Standing, string> = { won: '🏆', lost: '😤', other: '🤝' }
+
 const CastleTable = ({ playerId, connected, view, table, children }: CastleTableProps) => {
   const { ended, selected } = table
   // Joining unmounts whatever was clicked; the table announces itself.
@@ -104,18 +107,6 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
       ? me.hand.findIndex(card => face(card) === face(pendingSwap.card))
       : -1
   const swapFrom = pickedAt < 0 ? null : pickedAt
-
-  // The ending, from this chair: the headline, with describeEnding's
-  // sentence under it for who else finished where.
-  const standing = ended === null ? 'other' : standingOf(ended.finished, ended.loser, playerId)
-  const endingTitle =
-    ended === null || ended.finished.length === 0
-      ? 'The table broke up'
-      : standing === 'won'
-        ? 'You won!'
-        : standing === 'lost'
-          ? 'You lost'
-          : `${ended.finished[0]} wins`
 
   const hint = (() => {
     if (view.phase === 'waiting' && view.players.length < 2) return 'Waiting for a second seat.'
@@ -161,9 +152,9 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
         </>
       )
     }
-    if (view.phase === 'ended') {
-      // The same two ways on as the ending overlay, for once it has been
-      // waved away.
+    if (view.phase === 'ended' && !showEnding) {
+      // The overlay's two ways on, for once it has been waved away —
+      // never behind it, where they would be tab stops nobody can see.
       return (
         <>
           <button type="button" className={styles.primary} onClick={table.playAgain} disabled={!connected}>
@@ -310,11 +301,9 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
       {showEnding && ended !== null && (
         <div className={styles.endingOverlay} role="dialog" aria-modal="true" aria-labelledby="castle-ending">
           <div className={styles.endingCard}>
-            <div className={styles.endingEmoji} aria-hidden="true">
-              {standing === 'won' ? '🏆' : standing === 'lost' ? '😤' : '🤝'}
-            </div>
+            <div className={styles.endingEmoji}>{ENDING_EMOJI[standingOf(ended.finished, ended.loser, playerId)]}</div>
             <h2 id="castle-ending" className={styles.endingTitle}>
-              {endingTitle}
+              {headlineOf(ended, playerId)}
             </h2>
             <p className={styles.endingLine}>{describeEnding(ended.finished, ended.loser, playerId)}</p>
             <div className={styles.endingButtons}>

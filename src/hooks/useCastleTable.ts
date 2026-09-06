@@ -91,6 +91,9 @@ export const useCastleTable = ({ playerId, move, showNotice, onLeft }: UseCastle
   )
 
   const createTable = useCallback(() => move('createGame'), [move])
+  // A finished table is already gone from the hub, so playing again is
+  // the same move the lobby makes: a create, with nothing to leave.
+  const playAgain = createTable
   const joinTable = useCallback((gameId: string) => move('joinGame', { gameId }), [move])
   const startTable = useCallback(() => move('startGame'), [move])
   const leaveTable = useCallback(() => {
@@ -105,8 +108,6 @@ export const useCastleTable = ({ playerId, move, showNotice, onLeft }: UseCastle
 
   // Cards, not slots (MoonBase #1505): the two the player picked, read
   // out of the view those picks were made against.
-  const playAgain = useCallback(() => move('createGame'), [move])
-
   const swapForSetup = useCallback(
     (handIndex: number, faceUpIndex: number) => {
       const me = view === null ? undefined : seatOf(view, playerId)
