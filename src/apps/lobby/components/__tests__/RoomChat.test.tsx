@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import RoomChat from '../RoomChat'
-import type { ChatMessage } from '@/types/golfChat'
+import type { ChatMessage } from '@/types/roomChat'
 
 // The chat surface itself (MoonBase#1226): literal text rendering, the
 // composer's keyboard/limit/disabled rules, and the unread affordances.

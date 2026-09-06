@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { GolfTableActions, GolfTableEnded } from '@/hooks/useGolfTable'
 import type { Card, GameState, Player } from '@/types/golf'
-import PermalinkDisplay from './PermalinkDisplay'
+import PermalinkDisplay from '@/apps/lobby/components/PermalinkDisplay'
 import styles from './GolfTable.module.css'
 
 // The table from the viewer's chair, over useGolfTable. The buttons offer

@@ -10,7 +10,7 @@ const mockClipboard = {
 describe('PermalinkDisplay', () => {
   const defaultProps = {
     label: 'Share Room',
-    url: 'https://example.com/golf/room/ABC123'
+    url: 'https://example.com/games/room/ABC123'
   }
 
   beforeEach(() => {
@@ -45,7 +45,7 @@ describe('PermalinkDisplay', () => {
     it('renders with custom label and URL', () => {
       const customProps = {
         label: 'Share Game',
-        url: 'https://example.com/golf/room/ABC123/game/XYZ789'
+        url: 'https://example.com/games/room/ABC123/table/XYZ789'
       }
 
       render(<PermalinkDisplay {...customProps} />)
@@ -182,7 +182,7 @@ describe('PermalinkDisplay', () => {
     it('has proper aria-label for game permalink', () => {
       const gameProps = {
         label: 'Share Game',
-        url: 'https://example.com/golf/room/ABC123/game/XYZ789'
+        url: 'https://example.com/games/room/ABC123/table/XYZ789'
       }
       
       render(<PermalinkDisplay {...gameProps} />)

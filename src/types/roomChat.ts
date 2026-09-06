@@ -1,4 +1,4 @@
-// Room chat over the golf wire (MoonBase#1226): the shared message
+// Room chat over the hub's room layer (MoonBase#1226): the shared message
 // shape and the merge rule every consumer applies. The server is
 // authoritative for ids, sender, and timestamp; delivery is
 // at-least-once and history/live overlap is legal, so everything that

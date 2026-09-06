@@ -1,4 +1,4 @@
-/* Room chat (MoonBase#1226), in the golf green/glass language. Drawer
+/* Room chat (MoonBase#1226), in the tables' glass language. Drawer
  * mode is the default — a floating toggle opening a bottom sheet, so
  * nothing chat-shaped can cover cards or turn controls while closed —
  * and viewports wide enough to have margin beside the 1200px content
@@ -227,7 +227,7 @@
   border: 0;
 }
 
-/* Drawer mode is the default: the golf content is centered at
+/* Drawer mode is the default: the page's content is centered at
  * max-width 1200px, so only genuinely wide viewports have margin a
  * docked panel can occupy without covering cards or controls. There is
  * no media query here — RoomChat.tsx owns the breakpoint (DOCKED_QUERY)
@@ -323,7 +323,7 @@
   width: 20rem;
   z-index: 30;
   border-radius: 1rem;
-  /* Glass over golf's dark green by default; a light host sets its own. */
+  /* Glass over a dark ground by default; a host sets its own. */
   background: var(--chat-ground, rgba(255, 255, 255, 0.1));
   animation: none;
 }
