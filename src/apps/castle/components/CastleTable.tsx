@@ -253,7 +253,7 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
   }
 
   return (
-    <div className={styles.table}>
+    <div className={styles.table} data-phase={view.phase}>
       <div className={styles.tableHeader}>
         <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
           Table {view.gameId}

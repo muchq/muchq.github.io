@@ -182,11 +182,37 @@ describe('CastleTable', () => {
     mountWith(view({ players: [seat('alice', { hand: myHand }), seat('bob'), seat('carol')] }))
     expect(clockOf(/^bob/)).toBe('10')
     expect(clockOf(/^carol/)).toBe('2')
-    // Folded away on a phone, the count still says how many they hold.
+    // The count is another seat's, never the viewer's own.
     expect(screen.getByRole('region', { name: /^bob/ })).toHaveTextContent('3 in hand')
     expect(screen.getByRole('region', { name: /^alice/ })).not.toHaveTextContent('in hand')
     // The viewer's moves sit under their hand.
     expect(within(screen.getByRole('region', { name: /^alice/ })).getByRole('button', { name: 'Pick up the pile' })).toBeDefined()
+  })
+
+  it("another seat's hand is capped at six backs, and the count says the rest", () => {
+    const big = view()
+    big.players[1] = { ...big.players[1], handCount: 9, hand: [] }
+    mountWith(big)
+    const bob = within(screen.getByRole('region', { name: /^bob/ }))
+    expect(bob.getAllByRole('img', { name: 'hand card' })).toHaveLength(6)
+    // Only a capped hand needs the count beside the fan; a short one reads
+    // off the fan itself, and the stylesheet keeps that count out of the way.
+    expect(screen.getByRole('region', { name: /^bob/ }).querySelector('[class*="handCountShown"]')).not.toBeNull()
+    cleanup()
+    mountWith(view())
+    expect(within(screen.getByRole('region', { name: /^bob/ })).getAllByRole('img', { name: 'hand card' })).toHaveLength(3)
+    expect(screen.getByRole('region', { name: /^bob/ }).querySelector('[class*="handCountShown"]')).toBeNull()
+  })
+
+  it('the showdown is every hand face up, so the table says it is ended', () => {
+    // The fold that hides other hands on a short screen is scoped to a
+    // table still in play; the root's phase is what scopes it.
+    const over = view({ phase: 'ended', currentPlayerId: undefined, finished: ['bob'] })
+    const { container } = mountWith(over, { ended: { finished: ['bob'], loser: 'alice' } })
+    expect(container.querySelector('[data-phase="ended"]')).not.toBeNull()
+    cleanup()
+    const live = mountWith(view())
+    expect(live.container.querySelector('[data-phase="playing"]')).not.toBeNull()
   })
 
   it('a hand that grew fans tighter', () => {

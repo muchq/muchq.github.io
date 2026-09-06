@@ -97,10 +97,14 @@
 
 /* The table from above: a round felt, the pile in the middle, the chairs
    on the rim by clock. The felt fits the viewport, so the viewer's own
-   hand and moves are on screen without a scroll. */
+   hand and moves are on screen without a scroll — down to the size the
+   chairs and the pile need, under which the overlay scrolls instead of
+   folding them onto each other (a phone on its side has no room for a
+   table this shape, and scrolling beats a pile of chairs). */
 .ring {
+  --felt-min: 30rem;
   position: relative;
-  width: min(100%, 52rem, calc(100dvh - 11rem));
+  width: min(100%, 52rem, max(var(--felt-min), calc(100dvh - 11rem)));
   aspect-ratio: 1;
   margin: 0 auto;
   border-radius: 50%;
@@ -413,13 +417,14 @@ down and to the right so the back's corner shows under it. */
 }
 
 /* Small or short screens: smaller cards, and the other seats fold their
-   fan away for the count. */
+   fan away for the count — except at the showdown, which is every hand
+   face up and nothing to fold. */
 @media (max-width: 600px), (max-height: 900px) {
-  .seat:not(.mine) .hand {
+  .table:not([data-phase='ended']) .seat:not(.mine) .hand {
     display: none;
   }
 
-  .seat:not(.mine) .handCount {
+  .table:not([data-phase='ended']) .seat:not(.mine) .handCount {
     display: inline;
   }
 
@@ -475,6 +480,10 @@ down and to the right so the back's corner shows under it. */
    and 3, up in the empty corners, so two fit across; the viewer's chair
    spans the felt so their moves share a row. */
 @media (max-width: 600px) {
+  /* The felt takes the width and the oval takes its height from that:
+     four chairs and a pile need more height than a phone shorter than
+     about 800px has, and on those the overlay scrolls — the alternative
+     is a felt too small to seat them apart. */
   .ring {
     width: 100%;
     aspect-ratio: 5 / 9;
