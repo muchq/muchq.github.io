@@ -297,6 +297,14 @@
   position: relative;
 }
 
+/* The other chairs are further away: their cards are drawn smaller,
+   layout and all, so the viewer's own hand has the screen. What they
+   show — how many in hand, which castle stacks still stand, what is
+   face up — reads at this size; nothing at their chairs is tapped. */
+.seat:not(.mine) .seatFrame {
+  zoom: 0.72;
+}
+
 .seatCards {
   display: flex;
   flex-direction: column;
