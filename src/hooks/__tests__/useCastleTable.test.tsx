@@ -125,6 +125,16 @@ describe('useCastleTable', () => {
     expect(result.current.selected).toEqual([])
   })
 
+  it('only your own turn is a toast; the felt shows the rest', () => {
+    const move = vi.fn()
+    const showNotice = vi.fn()
+    const { result } = renderHook(() => useCastleTable({ playerId: 'alice', move, showNotice, onLeft: vi.fn() }))
+    act(() => result.current.handleUpdate({ turnChanged: { playerId: 'bob' } }))
+    expect(showNotice).not.toHaveBeenCalled()
+    act(() => result.current.handleUpdate({ turnChanged: { playerId: 'alice' } }))
+    expect(showNotice).toHaveBeenCalledWith('Your turn')
+  })
+
   it('play again opens another table, and the ending goes with the old one', () => {
     const { result, receive, move } = mount()
     receive({ gameState: { view: view({ phase: 'ended' }) } })

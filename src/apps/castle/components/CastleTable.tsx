@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { CSSProperties, KeyboardEvent, ReactNode } from 'react'
+import type { CSSProperties, KeyboardEvent, MouseEvent, PointerEvent, ReactNode } from 'react'
 import type { Standing } from '../rules'
 import type { CastleTableActions } from '@/hooks/useCastleTable'
-import type { Card, CastleGameEnded, CastlePlayer, CastleView } from '../wire'
-import { cardsOf, describeEnding, describeLastPlay, describePile, face, headlineOf, isRed, rowInPlay, seatOf, standingOf } from '../rules'
+import type { Card, CastleGameEnded, CastleLastPlay, CastlePlayer, CastleView } from '../wire'
+import { cardsOf, describeEnding, describeLastPlay, describePile, enteredSince, face, headlineOf, isRed, rowInPlay, seatOf, standingOf } from '../rules'
 import { clockOf, fromViewer } from '../seating'
 import styles from './CastleTable.module.css'
 
@@ -23,22 +23,38 @@ interface CardFaceProps {
   toggle?: boolean
   label?: string
   className?: string
+  style?: CSSProperties
 }
 
-const CardFace = ({ card, onClick, toggle, label, className = '' }: CardFaceProps) => {
+// A card's face: the index in the top-left and, turned round, the
+// bottom-right, the way a real card carries it — so a card mostly under
+// its neighbour still says what it is — and its suit in the middle.
+const CardFaceMarks = ({ card }: { card: Card }) => (
+  <>
+    <span className={styles.index}>
+      <span className={styles.rank}>{card.rank}</span>
+      <span>{card.suit}</span>
+    </span>
+    <span className={styles.pip}>{card.suit}</span>
+    <span className={`${styles.index} ${styles.indexBottom}`}>
+      <span className={styles.rank}>{card.rank}</span>
+      <span>{card.suit}</span>
+    </span>
+  </>
+)
+
+const CardFace = ({ card, onClick, toggle, label, className = '', style }: CardFaceProps) => {
   const classes = `${styles.card} ${isRed(card) ? styles.red : ''} ${toggle ? styles.selected : ''} ${className}`
   if (onClick === undefined) {
     return (
-      <span className={classes} role="img" aria-label={label ?? face(card)}>
-        <span className={styles.rank}>{card.rank}</span>
-        <span className={styles.suit}>{card.suit}</span>
+      <span className={classes} style={style} role="img" aria-label={label ?? face(card)}>
+        <CardFaceMarks card={card} />
       </span>
     )
   }
   return (
-    <button type="button" className={classes} onClick={onClick} aria-pressed={toggle} aria-label={label ?? face(card)}>
-      <span className={styles.rank}>{card.rank}</span>
-      <span className={styles.suit}>{card.suit}</span>
+    <button type="button" className={classes} style={style} onClick={onClick} aria-pressed={toggle} aria-label={label ?? face(card)}>
+      <CardFaceMarks card={card} />
     </button>
   )
 }
@@ -67,6 +83,22 @@ export interface CastleTableProps {
 // Another seat's hand is backs: past this many, the count says the rest.
 const SHOWN_BACKS = 6
 
+// The whole fan spans at most this many degrees, however many cards:
+// three cards sit five degrees apart, fourteen closer, so the ends of a
+// big hand still face the player and stay inside the hand's own edges.
+const FAN_SPREAD = 30
+const FAN_STEP = 5
+
+// A mouse drag that moved this far was a scroll, not a tap on a card.
+const DRAG_SLOP = 6
+
+// The play as a string: the key that restarts the last-play moment when
+// a new one lands. A view repeats the last play until the next replaces
+// it, and a play that reads the same as the last — a pick-up by choice
+// twice running — is the same moment, and does not.
+const playSignature = (play: CastleLastPlay): string =>
+  `${play.playerId}:${play.cards.map(face).join(',')}:${play.burned}:${play.pickedUp}`
+
 const ENDING_EMOJI: Record<Standing, string> = { won: '🏆', lost: '😤', other: '🤝' }
 
 const CastleTable = ({ playerId, connected, view, table, children }: CastleTableProps) => {
@@ -86,8 +118,86 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
   // hands can be looked over. Keyed by table, so the next one's ending
   // arrives in front again.
   const [endingRead, setEndingRead] = useState<string | null>(null)
+  // The last play whose moment has faded: gone from the layout, not just
+  // from view, so the pile does not keep an empty line — or a card-high
+  // hole after a pick-up — until the next play.
+  const [faded, setFaded] = useState<string | null>(null)
   const playAgainRef = useRef<HTMLButtonElement>(null)
   const endingRef = useRef<HTMLDivElement>(null)
+
+  // Cards that just entered the viewer's hand slide in, so a pick-up
+  // reads as the pile arriving rather than the hand having changed.
+  // Held until the hand changes again, so a re-render mid-slide does
+  // not cut it short. A new table's deal is not an arrival: nothing was
+  // there before it to arrive into.
+  const myHand = seatOf(view, playerId)?.hand ?? []
+  const handSig = `${view.gameId}:${myHand.map(face).join(',')}`
+  // The generation is part of an arriving card's key: a draw-back lands
+  // at the same index every turn, and a node React keeps does not run
+  // its animation again.
+  const [handMark, setHandMark] = useState<{ sig: string; faces: string[]; entered: number[]; gen: number }>({
+    sig: '',
+    faces: [],
+    entered: [],
+    gen: 0
+  })
+  if (handMark.sig !== handSig) {
+    setHandMark({
+      sig: handSig,
+      faces: myHand.map(face),
+      entered: handMark.sig.startsWith(`${view.gameId}:`) ? enteredSince(handMark.faces, myHand) : [],
+      gen: handMark.gen + 1
+    })
+  }
+
+  // The arrival is for seeing: a wide hand is brought to its first new
+  // card, which on a hand that fits moves nothing.
+  useEffect(() => {
+    if (handMark.entered.length === 0) return
+    handRef.current?.querySelector(`.${styles.entered}`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+  }, [handMark])
+
+  // A hand wider than its chair scrolls. Touch scrolls it natively; a
+  // mouse drags it, and a drag that moved the hand is not a tap on the
+  // card it started on. One that moved nothing — a hand that fits — is.
+  const handRef = useRef<HTMLDivElement>(null)
+  const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null)
+  const dragged = useRef(false)
+  const onHandPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== 'mouse' || handRef.current === null) return
+    drag.current = { x: event.clientX, left: handRef.current.scrollLeft, moved: false }
+  }
+  const onHandPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (drag.current === null || handRef.current === null) return
+    if ((event.buttons & 1) === 0) {
+      // Not the primary button — another one, which ends in a context
+      // menu and never a click, or one that came up where the hand did
+      // not see it. A drag that would not end in a click would leave
+      // the next tap eaten.
+      drag.current = null
+      return
+    }
+    const dx = event.clientX - drag.current.x
+    if (Math.abs(dx) <= DRAG_SLOP) return
+    // Keeps the drag when the pointer leaves the hand. Taken only once
+    // it is a drag: a captured press retargets its click to the hand,
+    // and the card under it never hears the tap. Not every DOM has it
+    // (jsdom's does not).
+    handRef.current.setPointerCapture?.(event.pointerId)
+    handRef.current.scrollLeft = drag.current.left - dx
+    // The browser clamps a hand that fits back to where it was.
+    if (handRef.current.scrollLeft !== drag.current.left) drag.current.moved = true
+  }
+  const onHandPointerUp = () => {
+    dragged.current = drag.current?.moved ?? false
+    drag.current = null
+  }
+  const onHandClickCapture = (event: MouseEvent<HTMLDivElement>) => {
+    if (!dragged.current) return
+    dragged.current = false
+    event.stopPropagation()
+    event.preventDefault()
+  }
 
   // gameEnded lands right behind the final view; without it there is
   // no result to show yet.
@@ -270,39 +380,61 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
               })}
             </div>
             {/* The hand, fanned: faces for the viewer's own (and everyone's
-                once the game ends), backs for the rest. */}
-            {/* A hand that grew on pick-ups fans tighter, so it stays a hand. */}
-            <div
-              className={styles.hand}
-              role="group"
-              aria-label={`${whose} hand`}
-              style={{ '--overlap': `${Math.min(2.2, 1 + Math.max(0, seat.handCount - 6) * 0.2)}rem` } as CSSProperties}
-            >
-              {(seat.hand.length > 0 ? seat.hand : Array.from({ length: Math.min(seat.handCount, SHOWN_BACKS) }, () => null)).map((card, i, all) => {
+                once the game ends), backs for the rest. A hand wider than
+                the chair scrolls; the overlap is capped so every card keeps
+                its corner index in view. */}
+            {(() => {
+              const shown = seat.hand.length > 0 ? seat.hand : Array.from({ length: Math.min(seat.handCount, SHOWN_BACKS) }, () => null)
+              const step = Math.min(FAN_STEP, FAN_SPREAD / Math.max(shown.length, 1))
+              const slotKey = (i: number) => (mine && handMark.entered.includes(i) ? `${i}:${handMark.gen}` : i)
+              const renderCard = (card: Card | null, i: number) => {
                 const picking = card !== null && mine && arranging
                 const playable = card !== null && mine && myTurn && myRow === 'hand'
-                const angle = (i - (all.length - 1) / 2) * 5
-                return (
-                  <span key={i} className={styles.fanSlot} style={{ transform: `rotate(${angle}deg) translateY(${Math.abs(angle) * 0.35}px)` }}>
-                    {card === null ? (
-                      <CardBack label="hand card" />
-                    ) : (
-                      <CardFace
-                        card={card}
-                        toggle={picking ? swapFrom === i : playable ? selected.includes(i) : undefined}
-                        onClick={
-                          picking
-                            ? () => setPendingSwap(swapFrom === i ? null : { gameId: view.gameId, card })
-                            : playable && connected
-                              ? () => table.toggleCard(i)
-                              : undefined
-                        }
-                      />
-                    )}
-                  </span>
+                const entered = mine && handMark.entered.includes(i)
+                return card === null ? (
+                  <CardBack label="hand card" />
+                ) : (
+                  <CardFace
+                    card={card}
+                    className={entered ? styles.entered : ''}
+                    style={entered ? ({ '--i': handMark.entered.indexOf(i) } as CSSProperties) : undefined}
+                    toggle={picking ? swapFrom === i : playable ? selected.includes(i) : undefined}
+                    onClick={
+                      picking
+                        ? () => setPendingSwap(swapFrom === i ? null : { gameId: view.gameId, card })
+                        : playable && connected
+                          ? () => table.toggleCard(i)
+                          : undefined
+                    }
+                  />
                 )
-              })}
-            </div>
+              }
+              return (
+                <div
+                  ref={mine ? handRef : undefined}
+                  className={styles.hand}
+                  role="group"
+                  aria-label={`${whose} hand`}
+                  style={{ '--overlap': `${Math.min(2.2, 1 + Math.max(0, shown.length - 6) * 0.2)}rem` } as CSSProperties}
+                  onPointerDown={mine ? onHandPointerDown : undefined}
+                  onPointerMove={mine ? onHandPointerMove : undefined}
+                  onPointerUp={mine ? onHandPointerUp : undefined}
+                  onPointerCancel={mine ? onHandPointerUp : undefined}
+                  onClickCapture={mine ? onHandClickCapture : undefined}
+                >
+                  <div className={styles.fan}>
+                    {shown.map((card, i, all) => {
+                      const angle = (i - (all.length - 1) / 2) * step
+                      return (
+                        <span key={slotKey(i)} className={styles.fanSlot} style={{ transform: `rotate(${angle}deg) translateY(${Math.abs(angle) * 0.35}px)` }}>
+                          {renderCard(card, i)}
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         </div>
         {mine && <div className={styles.actions}>{actions}</div>}
@@ -375,29 +507,64 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
         {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, clockOf(all.length, i)))}
         {(view.phase === 'playing' || view.phase === 'ended') && (
           <section className={styles.pile} aria-label="pile">
-            <div className={styles.pileCards}>
-              {view.run.length === 0 ? (
-                <div className={styles.emptyPile}>empty</div>
-              ) : (
-                // The run on top, tightly fanned: a pair of sevens reads as a pair.
-                <div className={styles.run} role="group" aria-label="run on top">
-                  {view.run.map((card, i) => (
-                    <span key={i} className={styles.runSlot} style={{ transform: `rotate(${(i - (view.run.length - 1) / 2) * 4}deg)` }}>
-                      <CardFace card={card} />
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div className={styles.pileText}>
-                <p>{describePile(view)}</p>
-                <p className={styles.muted}>
-                  {view.pileCount} on the pile · {view.drawPileCount} to draw
-                </p>
-                {view.lastPlay !== undefined && <p className={styles.lastPlay}>{describeLastPlay(view.lastPlay, playerId)}</p>}
+            <div className={styles.piles}>
+              {/* The draw pile, as a thing rather than a count in prose. */}
+              <div
+                className={`${styles.drawPile} ${view.drawPileCount === 0 ? styles.drawn : ''}`}
+                role="img"
+                aria-label={`${view.drawPileCount} to draw`}
+              >
+                <span className={`${styles.card} ${styles.back}`} />
+                <span className={styles.count}>{view.drawPileCount}</span>
+              </div>
+              <div className={styles.pileCards} role="group" aria-label={`${view.pileCount} on the pile`}>
+                {view.run.length === 0 ? (
+                  <div className={styles.emptyPile}>empty</div>
+                ) : (
+                  // The run on top, tightly fanned: a pair of sevens reads as a pair.
+                  <div className={styles.run} role="group" aria-label="run on top">
+                    {view.run.map((card, i) => (
+                      <span key={i} className={styles.runSlot} style={{ transform: `rotate(${(i - (view.run.length - 1) / 2) * 4}deg)` }}>
+                        <CardFace card={card} />
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {view.pileCount > 0 && <span className={styles.count}>{view.pileCount}</span>}
               </div>
             </div>
+            {/* The price is the mover's to read. Off turn the run shows the
+                rank to beat; how many to play arrives with the turn, since a
+                run can be taller than the play that topped it. */}
+            {myTurn && <p className={styles.price}>{describePile(view)}</p>}
+            {/* The last play, for a moment: a pick-up shows the card that
+                did not play and stays longer, since a handful of cards
+                just arrived and this is why. */}
+            {/* One live region for the table's life, so a new play is a
+                change to it rather than a region appearing; the moment
+                itself is the keyed child. */}
+            <p className={styles.lastPlaySlot} role="status">
+              {view.lastPlay !== undefined && `${view.gameId}:${playSignature(view.lastPlay)}` !== faded && (
+                <span
+                  key={playSignature(view.lastPlay)}
+                  className={`${styles.lastPlay} ${view.lastPlay.pickedUp ? styles.pickedUp : ''}`}
+                  // The flipped card's own animation ends here too; only the
+                  // moment's own end takes it out.
+                  onAnimationEnd={(event) => {
+                    if (event.target === event.currentTarget && view.lastPlay !== undefined) {
+                      setFaded(`${view.gameId}:${playSignature(view.lastPlay)}`)
+                    }
+                  }}
+                >
+                  {view.lastPlay.pickedUp && view.lastPlay.cards[0] !== undefined && (
+                    <CardFace card={view.lastPlay.cards[0]} className={styles.flipped} />
+                  )}
+                  <span>{describeLastPlay(view.lastPlay, playerId)}</span>
+                </span>
+              )}
+            </p>
           </section>
-      )}
+        )}
       </div>
       {children}
     </div>

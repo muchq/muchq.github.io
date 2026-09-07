@@ -60,6 +60,10 @@ const table = (over: Partial<CastleTableProps['table']> = {}): CastleTableProps[
   ...over
 })
 
+// jsdom has no AnimationEvent, and React then listens for the
+// webkit-prefixed end rather than the unprefixed one.
+const endAnimation = (el: Element) => fireEvent(el, new Event('webkitAnimationEnd', { bubbles: true }))
+
 const mountWith = (v: CastleView, over: Partial<CastleTableProps['table']> = {}, connected = true) => {
   const t = table(over)
   const rendered = render(<CastleTable playerId="alice" connected={connected} view={v} table={t} />)
@@ -163,7 +167,12 @@ describe('CastleTable', () => {
 
   it('on turn: hand cards select, play sends the selection, pick-up only without a play', () => {
     const { t } = mountWith(view(), { selected: [0, 1] })
-    expect(screen.getByText('two 8s on top: play one or more of 8 or higher')).toBeDefined()
+    // The price, in a line; the counts, on the piles; the run, as cards.
+    expect(screen.getByText('Play 8 or higher')).toBeDefined()
+    expect(screen.getByRole('img', { name: '30 to draw' })).toBeDefined()
+    // A group, not an image: an image's children are decoration, and
+    // the run inside is the rank to beat.
+    expect(screen.getByRole('group', { name: '2 on the pile' })).toBeDefined()
     const run = within(screen.getByRole('group', { name: 'run on top' }))
     expect(run.getByRole('img', { name: '8♠' })).toBeDefined()
     expect(run.getByRole('img', { name: '8♥' })).toBeDefined()
@@ -186,8 +195,129 @@ describe('CastleTable', () => {
     expect(t.pickUp).toHaveBeenCalled()
     cleanup()
     mountWith(view({ pileCount: 0, run: [], lastPlay: undefined }))
-    expect(screen.getByText('Empty pile: anything goes')).toBeDefined()
+    expect(screen.getByText('Anything goes')).toBeDefined()
     expect(screen.getByRole('button', { name: 'Pick up the pile' })).toBeDisabled()
+  })
+
+  it('off turn the price is not yours to read', () => {
+    mountWith(view({ currentPlayerId: 'bob' }))
+    expect(screen.queryByText('Play 8 or higher')).toBeNull()
+    // The piles and the run still say where the table stands.
+    // A group, not an image: an image's children are decoration, and
+    // the run inside is the rank to beat.
+    expect(screen.getByRole('group', { name: '2 on the pile' })).toBeDefined()
+    expect(screen.getByRole('group', { name: 'run on top' })).toBeDefined()
+  })
+
+  it('a failed flip shows the card that did not play, with the pile it brought', () => {
+    const flipped = view({
+      pileCount: 0,
+      run: [],
+      lastPlay: { playerId: 'alice', cards: [{ rank: '3', suit: '♦' }], burned: false, pickedUp: true }
+    })
+    mountWith(flipped)
+    const told = screen.getByText('You flipped 3♦ and picked up the pile').parentElement as HTMLElement
+    expect(told.className).toContain('pickedUp')
+    expect(within(told).getByRole('img', { name: '3♦' })).toBeDefined()
+  })
+
+  it('the last play is one live region that changes, not a new one each play', () => {
+    const t = table()
+    const { rerender } = render(<CastleTable playerId="alice" connected view={view()} table={t} />)
+    const region = screen.getByText('bob played 8♥').closest('[role="status"]')
+    expect(region).not.toBeNull()
+    rerender(
+      <CastleTable
+        playerId="alice"
+        connected
+        view={view({ lastPlay: { playerId: 'alice', cards: [{ rank: '9', suit: '♣' }], burned: false, pickedUp: false } })}
+        table={t}
+      />
+    )
+    expect(screen.getByText('You played 9♣').closest('[role="status"]')).toBe(region)
+  })
+
+  it('a faded last play leaves the pile, and the next one is back', () => {
+    const t = table()
+    const { rerender } = render(<CastleTable playerId="alice" connected view={view()} table={t} />)
+    const moment = screen.getByText('bob played 8♥').parentElement as HTMLElement
+    const region = moment.parentElement as HTMLElement
+    endAnimation(moment)
+    expect(screen.queryByText('bob played 8♥')).toBeNull()
+    expect(region.childElementCount).toBe(0)
+    const next = view({ lastPlay: { playerId: 'alice', cards: [{ rank: '9', suit: '♣' }], burned: false, pickedUp: false } })
+    rerender(<CastleTable playerId="alice" connected view={next} table={t} />)
+    expect(screen.getByText('You played 9♣')).toBeDefined()
+  })
+
+  it('the flipped card finishing its turn does not take the moment with it', () => {
+    mountWith(view({ pileCount: 0, run: [], lastPlay: { playerId: 'alice', cards: [{ rank: '3', suit: '♦' }], burned: false, pickedUp: true } }))
+    const told = screen.getByText('You flipped 3♦ and picked up the pile')
+    endAnimation(within(told.parentElement as HTMLElement).getByRole('img', { name: '3♦' }))
+    expect(screen.getByText('You flipped 3♦ and picked up the pile')).toBeDefined()
+  })
+
+  it('an arrival is brought into view; a deal is not', () => {
+    const scroll = vi.fn()
+    const proto = Element.prototype as Element & { scrollIntoView?: typeof scroll }
+    const had = proto.scrollIntoView
+    proto.scrollIntoView = scroll
+    try {
+      const t = table()
+      const { rerender } = render(<CastleTable playerId="alice" connected view={view()} table={t} />)
+      expect(scroll).not.toHaveBeenCalled()
+      const after = view()
+      after.players[0] = { ...after.players[0], handCount: 5, hand: [...myHand, { rank: '3', suit: '♣' }, { rank: '3', suit: '♦' }] }
+      rerender(<CastleTable playerId="alice" connected view={after} table={t} />)
+      expect(scroll).toHaveBeenCalledTimes(1)
+      const hand = within(screen.getByRole('group', { name: 'Your hand' }))
+      expect(scroll.mock.instances[0]).toBe(hand.getByRole('button', { name: '3♣' }))
+    } finally {
+      proto.scrollIntoView = had
+    }
+  })
+
+  it('cards that just arrived slide in, and the ones that were there do not', () => {
+    const t = table()
+    const before = view()
+    const { rerender } = render(<CastleTable playerId="alice" connected view={before} table={t} />)
+    // The deal is not an arrival: nothing was there before it.
+    const hand0 = within(screen.getByRole('group', { name: 'Your hand' }))
+    expect(hand0.getByRole('button', { name: 'K♦' }).className).not.toContain('entered')
+    const after = view()
+    after.players[0] = {
+      ...after.players[0],
+      handCount: 5,
+      hand: [...myHand, { rank: '3', suit: '♣' }, { rank: '3', suit: '♦' }]
+    }
+    rerender(<CastleTable playerId="alice" connected view={after} table={t} />)
+    const hand = within(screen.getByRole('group', { name: 'Your hand' }))
+    expect(hand.getByRole('button', { name: '3♣' }).className).toContain('entered')
+    expect(hand.getByRole('button', { name: '3♦' }).className).toContain('entered')
+    expect(hand.getByRole('button', { name: 'K♦' }).className).not.toContain('entered')
+    // Staggered in the order they arrived.
+    expect(hand.getByRole('button', { name: '3♦' }).style.getPropertyValue('--i')).toBe('1')
+
+    // A draw-back lands at the same index every turn; each one is a
+    // fresh node, or the slide would run once per game.
+    const draw = (rank: string) => {
+      const v = view()
+      v.players[0] = { ...v.players[0], hand: [{ rank: 'K', suit: '♣' }, { rank: 'Q', suit: '♠' }, { rank, suit: '♥' }] }
+      rerender(<CastleTable playerId="alice" connected view={v} table={t} />)
+      return within(screen.getByRole('group', { name: 'Your hand' })).getByRole('button', { name: `${rank}♥` })
+    }
+    const first = draw('5')
+    expect(first.className).toContain('entered')
+    const second = draw('6')
+    expect(second.className).toContain('entered')
+    expect(second).not.toBe(first)
+
+    // Another table's deal, the same hand or not, is a deal.
+    const next = view({ gameId: 'G2' })
+    next.players[0] = { ...next.players[0], hand: [{ rank: '3', suit: '♣' }, { rank: '9', suit: '♠' }], handCount: 2 }
+    rerender(<CastleTable playerId="alice" connected view={next} table={t} />)
+    const dealt = within(screen.getByRole('group', { name: 'Your hand' }))
+    expect(dealt.getByRole('button', { name: '9♠' }).className).not.toContain('entered')
   })
 
   it('off turn nothing is offered', () => {
@@ -254,13 +384,89 @@ describe('CastleTable', () => {
     expect(live.container.querySelector('[data-phase="playing"]')).not.toBeNull()
   })
 
-  it('a hand that grew fans tighter', () => {
+  it('a hand that grew fans tighter, and every hand is the one fan', () => {
     const big = view()
-    big.players[0] = { ...big.players[0], handCount: 10, hand: Array.from({ length: 10 }, (_, i) => ({ rank: String(i + 2), suit: '♣' })) }
+    big.players[0] = { ...big.players[0], handCount: 7, hand: Array.from({ length: 7 }, (_, i) => ({ rank: String(i + 2), suit: '♣' })) }
     mountWith(big)
     const overlap = (name: RegExp) => screen.getByRole('group', { name }).style.getPropertyValue('--overlap')
-    expect(overlap(/Your hand/)).toBe('1.8rem')
+    expect(overlap(/Your hand/)).toBe('1.2rem')
     expect(overlap(/bob's hand/)).toBe('1rem')
+    // The spread is bounded at thirty degrees: seven cards a little
+    // under five apart, fourteen closer, so the ends still face the
+    // player.
+    const slots = (name: RegExp) => Array.from(screen.getByRole('group', { name }).querySelectorAll<HTMLElement>('[class*="fanSlot"]'))
+    expect(slots(/Your hand/)[0].style.transform).toContain(`rotate(${(-3 * 30) / 7}deg)`)
+    cleanup()
+    const bigger = view()
+    bigger.players[0] = { ...bigger.players[0], handCount: 14, hand: Array.from({ length: 14 }, (_, i) => ({ rank: String((i % 9) + 2), suit: i < 9 ? '♣' : '♦' })) }
+    mountWith(bigger)
+    expect(slots(/Your hand/)[0].style.transform).toContain(`rotate(${(-6.5 * 30) / 14}deg)`)
+    expect(slots(/Your hand/)).toHaveLength(14)
+  })
+
+  it('a hand wider than its chair scrolls: a drag is not a tap, a tap is', () => {
+    const big = view()
+    big.players[0] = { ...big.players[0], handCount: 12, hand: Array.from({ length: 12 }, (_, i) => ({ rank: String((i % 9) + 2), suit: i < 9 ? '♣' : '♦' })) }
+    const { t } = mountWith(big)
+    const hand = screen.getByRole('group', { name: 'Your hand' })
+    expect(within(hand).getAllByRole('button')).toHaveLength(12)
+    // Capturing the pointer on the press would retarget its click to the
+    // hand, and the card under it would never hear the tap.
+    const capture = vi.fn()
+    ;(hand as HTMLElement & { setPointerCapture: typeof capture }).setPointerCapture = capture
+    // A tap is a tap.
+    fireEvent.click(within(hand).getByRole('button', { name: '5♣' }))
+    expect(t.toggleCard).toHaveBeenCalledWith(3)
+    // A mouse drag that moved the hand scrolls it, and the card it
+    // started on is not played.
+    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, button: 0, buttons: 1 })
+    expect(capture).not.toHaveBeenCalled()
+    fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40, buttons: 1 })
+    expect(hand.scrollLeft).toBe(60)
+    expect(capture).toHaveBeenCalledWith(1)
+    fireEvent.pointerUp(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40 })
+    fireEvent.click(within(hand).getByRole('button', { name: '6♣' }))
+    expect(t.toggleCard).toHaveBeenCalledTimes(1)
+    // The next tap is a tap again.
+    fireEvent.click(within(hand).getByRole('button', { name: '6♣' }))
+    expect(t.toggleCard).toHaveBeenLastCalledWith(4)
+    // A touch never drags here: the hand scrolls itself under a finger.
+    fireEvent.pointerDown(hand, { pointerType: 'touch', pointerId: 2, clientX: 100 })
+    fireEvent.pointerMove(hand, { pointerType: 'touch', pointerId: 2, clientX: 40 })
+    fireEvent.pointerUp(hand, { pointerType: 'touch', pointerId: 2, clientX: 40 })
+    fireEvent.click(within(hand).getByRole('button', { name: '7♣' }))
+    expect(t.toggleCard).toHaveBeenLastCalledWith(5)
+    // A press that did not move is not a drag.
+    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, buttons: 1 })
+    fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 103, buttons: 1 })
+    fireEvent.pointerUp(hand, { pointerType: 'mouse', pointerId: 1, clientX: 103 })
+    fireEvent.click(within(hand).getByRole('button', { name: '8♣' }))
+    expect(t.toggleCard).toHaveBeenLastCalledWith(6)
+    // A drag on any button but the first ends in a context menu and
+    // never a click, and does not eat the next tap.
+    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, button: 2, buttons: 2 })
+    fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40, buttons: 2 })
+    fireEvent.pointerUp(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40, button: 2 })
+    fireEvent.click(within(hand).getByRole('button', { name: '9♣' }))
+    expect(t.toggleCard).toHaveBeenLastCalledWith(7)
+    // A button that came up where the hand could not see it ends the
+    // drag: bare movement does not scroll.
+    hand.scrollLeft = 0
+    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, buttons: 1 })
+    fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40, buttons: 0 })
+    expect(hand.scrollLeft).toBe(0)
+  })
+
+  it('a hand that fits does not scroll, so a drag across it is a tap', () => {
+    const { t } = mountWith(view())
+    const hand = screen.getByRole('group', { name: 'Your hand' })
+    // The browser clamps scrollLeft to 0 when nothing overflows.
+    Object.defineProperty(hand, 'scrollLeft', { get: () => 0, set: () => {}, configurable: true })
+    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, buttons: 1 })
+    fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40, buttons: 1 })
+    fireEvent.pointerUp(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40 })
+    fireEvent.click(within(hand).getByRole('button', { name: 'Q♠' }))
+    expect(t.toggleCard).toHaveBeenCalledWith(2)
   })
 
   it('the ending arrives in front, and waves away to the final hands', () => {
