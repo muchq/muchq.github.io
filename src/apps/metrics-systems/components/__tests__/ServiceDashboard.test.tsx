@@ -273,8 +273,9 @@ describe('ServiceDashboard', () => {
     // toggle picks between them client-side — so plain endsWith matches it.
     const urls = mockFetch.mock.calls.map((call) => String(call[0]))
     expect(urls.some((url) => url.endsWith('/service/golf_hub/timeseries/30m'))).toBe(true)
-    // The tiles read over the same range as the charts (MoonBase#1507).
-    expect(urls.some((url) => pathOf(url).endsWith('/service/golf_hub') && rangeOf(url) === '30m')).toBe(true)
+    // The tiles read over the same range as the charts (MoonBase#1507),
+    // on the same request that names the view.
+    expect(urls.some((url) => pathOf(url).endsWith('/service/golf_hub') && rangeOf(url) === '30m' && viewOf(url) === 'count')).toBe(true)
   })
 
   it('reports failure and keeps the page shape when the API is down', async () => {
@@ -734,10 +735,28 @@ describe('ServiceDashboard', () => {
     expect(screen.getByText('Req (1d)')).toBeTruthy()
 
     // The label follows the range, read back from the response rather than
-    // from the select, so it never says a window the number was not.
+    // from the select, so it never says a window the number was not: while
+    // the 7d answer is still out, the 1d number keeps its 1d caption.
+    let answer: (body: unknown) => void = () => {}
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/service/golf_hub/timeseries/')) return ok(timeseriesResponse)
+      if (pathOf(url).endsWith('/service/golf_hub')) {
+        return new Promise((resolve) => {
+          answer = (body) => resolve({ ok: true, text: () => Promise.resolve(JSON.stringify(body)) })
+        })
+      }
+      if (url.endsWith('/container/golf_hub')) return ok(containerDetail())
+      return notFound()
+    })
     fireEvent.change(container.querySelector('select')!, { target: { value: '7d' } })
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+    expect(screen.getByText('Req (1d)')).toBeTruthy()
+    expect(screen.queryByText('Req (7d)')).toBeNull()
+    await act(async () => {
+      answer({ ...rangedScalarResponse, window: '7d' })
+      await new Promise((resolve) => setTimeout(resolve, 50))
     })
     expect(screen.getByText('Req (7d)')).toBeTruthy()
     expect(screen.queryByText('Req (5m)')).toBeNull()
