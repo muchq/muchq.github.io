@@ -741,6 +741,10 @@ describe('ServiceDashboard', () => {
     })
     expect(screen.getByText('Req (7d)')).toBeTruthy()
     expect(screen.queryByText('Req (5m)')).toBeNull()
+    // The range select says the span once for every tile; the gauge says
+    // it is the exception.
+    expect(screen.getByRole('option', { name: 'last 7d' })).toBeTruthy()
+    expect(screen.getByText('Active (now)')).toBeTruthy()
   })
 
   it('keeps the old label for a proxy still sending a lifetime total', async () => {
