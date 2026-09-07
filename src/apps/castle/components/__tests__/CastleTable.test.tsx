@@ -60,6 +60,10 @@ const table = (over: Partial<CastleTableProps['table']> = {}): CastleTableProps[
   ...over
 })
 
+// jsdom has no AnimationEvent, and React then listens for the
+// webkit-prefixed end rather than the unprefixed one.
+const endAnimation = (el: Element) => fireEvent(el, new Event('webkitAnimationEnd', { bubbles: true }))
+
 const mountWith = (v: CastleView, over: Partial<CastleTableProps['table']> = {}, connected = true) => {
   const t = table(over)
   const rendered = render(<CastleTable playerId="alice" connected={connected} view={v} table={t} />)
@@ -166,7 +170,9 @@ describe('CastleTable', () => {
     // The price, in a line; the counts, on the piles; the run, as cards.
     expect(screen.getByText('Play 8 or higher')).toBeDefined()
     expect(screen.getByRole('img', { name: '30 to draw' })).toBeDefined()
-    expect(screen.getByRole('img', { name: '2 on the pile' })).toBeDefined()
+    // A group, not an image: an image's children are decoration, and
+    // the run inside is the rank to beat.
+    expect(screen.getByRole('group', { name: '2 on the pile' })).toBeDefined()
     const run = within(screen.getByRole('group', { name: 'run on top' }))
     expect(run.getByRole('img', { name: '8♠' })).toBeDefined()
     expect(run.getByRole('img', { name: '8♥' })).toBeDefined()
@@ -197,7 +203,9 @@ describe('CastleTable', () => {
     mountWith(view({ currentPlayerId: 'bob' }))
     expect(screen.queryByText('Play 8 or higher')).toBeNull()
     // The piles and the run still say where the table stands.
-    expect(screen.getByRole('img', { name: '2 on the pile' })).toBeDefined()
+    // A group, not an image: an image's children are decoration, and
+    // the run inside is the rank to beat.
+    expect(screen.getByRole('group', { name: '2 on the pile' })).toBeDefined()
     expect(screen.getByRole('group', { name: 'run on top' })).toBeDefined()
   })
 
@@ -227,6 +235,46 @@ describe('CastleTable', () => {
       />
     )
     expect(screen.getByText('You played 9♣').closest('[role="status"]')).toBe(region)
+  })
+
+  it('a faded last play leaves the pile, and the next one is back', () => {
+    const t = table()
+    const { rerender } = render(<CastleTable playerId="alice" connected view={view()} table={t} />)
+    const moment = screen.getByText('bob played 8♥').parentElement as HTMLElement
+    const region = moment.parentElement as HTMLElement
+    endAnimation(moment)
+    expect(screen.queryByText('bob played 8♥')).toBeNull()
+    expect(region.childElementCount).toBe(0)
+    const next = view({ lastPlay: { playerId: 'alice', cards: [{ rank: '9', suit: '♣' }], burned: false, pickedUp: false } })
+    rerender(<CastleTable playerId="alice" connected view={next} table={t} />)
+    expect(screen.getByText('You played 9♣')).toBeDefined()
+  })
+
+  it('the flipped card finishing its turn does not take the moment with it', () => {
+    mountWith(view({ pileCount: 0, run: [], lastPlay: { playerId: 'alice', cards: [{ rank: '3', suit: '♦' }], burned: false, pickedUp: true } }))
+    const told = screen.getByText('You flipped 3♦ and picked up the pile')
+    endAnimation(within(told.parentElement as HTMLElement).getByRole('img', { name: '3♦' }))
+    expect(screen.getByText('You flipped 3♦ and picked up the pile')).toBeDefined()
+  })
+
+  it('an arrival is brought into view; a deal is not', () => {
+    const scroll = vi.fn()
+    const proto = Element.prototype as Element & { scrollIntoView?: typeof scroll }
+    const had = proto.scrollIntoView
+    proto.scrollIntoView = scroll
+    try {
+      const t = table()
+      const { rerender } = render(<CastleTable playerId="alice" connected view={view()} table={t} />)
+      expect(scroll).not.toHaveBeenCalled()
+      const after = view()
+      after.players[0] = { ...after.players[0], handCount: 5, hand: [...myHand, { rank: '3', suit: '♣' }, { rank: '3', suit: '♦' }] }
+      rerender(<CastleTable playerId="alice" connected view={after} table={t} />)
+      expect(scroll).toHaveBeenCalledTimes(1)
+      const hand = within(screen.getByRole('group', { name: 'Your hand' }))
+      expect(scroll.mock.instances[0]).toBe(hand.getByRole('button', { name: '3♣' }))
+    } finally {
+      proto.scrollIntoView = had
+    }
   })
 
   it('cards that just arrived slide in, and the ones that were there do not', () => {
@@ -362,14 +410,20 @@ describe('CastleTable', () => {
     const { t } = mountWith(big)
     const hand = screen.getByRole('group', { name: 'Your hand' })
     expect(within(hand).getAllByRole('button')).toHaveLength(12)
+    // Capturing the pointer on the press would retarget its click to the
+    // hand, and the card under it would never hear the tap.
+    const capture = vi.fn()
+    ;(hand as HTMLElement & { setPointerCapture: typeof capture }).setPointerCapture = capture
     // A tap is a tap.
     fireEvent.click(within(hand).getByRole('button', { name: '5♣' }))
     expect(t.toggleCard).toHaveBeenCalledWith(3)
     // A mouse drag that moved the hand scrolls it, and the card it
     // started on is not played.
     fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, button: 0, buttons: 1 })
+    expect(capture).not.toHaveBeenCalled()
     fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40, buttons: 1 })
     expect(hand.scrollLeft).toBe(60)
+    expect(capture).toHaveBeenCalledWith(1)
     fireEvent.pointerUp(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40 })
     fireEvent.click(within(hand).getByRole('button', { name: '6♣' }))
     expect(t.toggleCard).toHaveBeenCalledTimes(1)

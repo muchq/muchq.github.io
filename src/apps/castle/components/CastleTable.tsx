@@ -118,6 +118,10 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
   // hands can be looked over. Keyed by table, so the next one's ending
   // arrives in front again.
   const [endingRead, setEndingRead] = useState<string | null>(null)
+  // The last play whose moment has faded: gone from the layout, not just
+  // from view, so the pile does not keep an empty line — or a card-high
+  // hole after a pick-up — until the next play.
+  const [faded, setFaded] = useState<string | null>(null)
   const playAgainRef = useRef<HTMLButtonElement>(null)
   const endingRef = useRef<HTMLDivElement>(null)
 
@@ -146,6 +150,13 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
     })
   }
 
+  // The arrival is for seeing: a wide hand is brought to its first new
+  // card, which on a hand that fits moves nothing.
+  useEffect(() => {
+    if (handMark.entered.length === 0) return
+    handRef.current?.querySelector(`.${styles.entered}`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+  }, [handMark])
+
   // A hand wider than its chair scrolls. Touch scrolls it natively; a
   // mouse drags it, and a drag that moved the hand is not a tap on the
   // card it started on. One that moved nothing — a hand that fits — is.
@@ -155,9 +166,6 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
   const onHandPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.pointerType !== 'mouse' || handRef.current === null) return
     drag.current = { x: event.clientX, left: handRef.current.scrollLeft, moved: false }
-    // Keeps the drag when the pointer leaves the hand. Not every DOM has
-    // it (jsdom's does not).
-    handRef.current.setPointerCapture?.(event.pointerId)
   }
   const onHandPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     if (drag.current === null || handRef.current === null) return
@@ -171,6 +179,11 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
     }
     const dx = event.clientX - drag.current.x
     if (Math.abs(dx) <= DRAG_SLOP) return
+    // Keeps the drag when the pointer leaves the hand. Taken only once
+    // it is a drag: a captured press retargets its click to the hand,
+    // and the card under it never hears the tap. Not every DOM has it
+    // (jsdom's does not).
+    handRef.current.setPointerCapture?.(event.pointerId)
     handRef.current.scrollLeft = drag.current.left - dx
     // The browser clamps a hand that fits back to where it was.
     if (handRef.current.scrollLeft !== drag.current.left) drag.current.moved = true
@@ -504,7 +517,7 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
                 <span className={`${styles.card} ${styles.back}`} />
                 <span className={styles.count}>{view.drawPileCount}</span>
               </div>
-              <div className={styles.pileCards} role="img" aria-label={`${view.pileCount} on the pile`}>
+              <div className={styles.pileCards} role="group" aria-label={`${view.pileCount} on the pile`}>
                 {view.run.length === 0 ? (
                   <div className={styles.emptyPile}>empty</div>
                 ) : (
@@ -520,7 +533,9 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
                 {view.pileCount > 0 && <span className={styles.count}>{view.pileCount}</span>}
               </div>
             </div>
-            {/* The price is the mover's to read; off turn the run says enough. */}
+            {/* The price is the mover's to read. Off turn the run shows the
+                rank to beat; how many to play arrives with the turn, since a
+                run can be taller than the play that topped it. */}
             {myTurn && <p className={styles.price}>{describePile(view)}</p>}
             {/* The last play, for a moment: a pick-up shows the card that
                 did not play and stays longer, since a handful of cards
@@ -529,8 +544,18 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
                 change to it rather than a region appearing; the moment
                 itself is the keyed child. */}
             <p className={styles.lastPlaySlot} role="status">
-              {view.lastPlay !== undefined && (
-                <span key={playSignature(view.lastPlay)} className={`${styles.lastPlay} ${view.lastPlay.pickedUp ? styles.pickedUp : ''}`}>
+              {view.lastPlay !== undefined && `${view.gameId}:${playSignature(view.lastPlay)}` !== faded && (
+                <span
+                  key={playSignature(view.lastPlay)}
+                  className={`${styles.lastPlay} ${view.lastPlay.pickedUp ? styles.pickedUp : ''}`}
+                  // The flipped card's own animation ends here too; only the
+                  // moment's own end takes it out.
+                  onAnimationEnd={(event) => {
+                    if (event.target === event.currentTarget && view.lastPlay !== undefined) {
+                      setFaded(`${view.gameId}:${playSignature(view.lastPlay)}`)
+                    }
+                  }}
+                >
                   {view.lastPlay.pickedUp && view.lastPlay.cards[0] !== undefined && (
                     <CardFace card={view.lastPlay.cards[0]} className={styles.flipped} />
                   )}

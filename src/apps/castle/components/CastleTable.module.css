@@ -233,7 +233,8 @@
   }
   100% {
     opacity: 0;
-    /* Gone for a screen reader too, not just faded. */
+    /* Gone for a screen reader too, not just faded; the moment leaves
+       the tree when the animation ends. */
     visibility: hidden;
   }
 }
@@ -505,9 +506,11 @@ down and to the right so the back's corner shows under it. */
   }
 }
 
-/* A card that just arrived slides up into place, one after another. */
+/* A card that just arrived slides up into place, one after another.
+   Filled backwards only: once landed the card is a card, and its
+   selected and hovered lifts are its own again. */
 .entered {
-  animation: cardIn 0.35s ease-out both;
+  animation: cardIn 0.35s ease-out backwards;
   animation-delay: calc(var(--i, 0) * 45ms);
 }
 
