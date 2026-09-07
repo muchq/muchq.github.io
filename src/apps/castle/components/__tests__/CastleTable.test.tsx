@@ -208,17 +208,34 @@ describe('CastleTable', () => {
       lastPlay: { playerId: 'alice', cards: [{ rank: '3', suit: '♦' }], burned: false, pickedUp: true }
     })
     mountWith(flipped)
-    const told = screen.getByText('You flipped 3♦ and picked up the pile').closest('p')
-    expect(told).not.toBeNull()
-    expect(told?.className).toContain('pickedUp')
-    expect(within(told as HTMLElement).getByRole('img', { name: '3♦' })).toBeDefined()
+    const told = screen.getByText('You flipped 3♦ and picked up the pile').parentElement as HTMLElement
+    expect(told.className).toContain('pickedUp')
+    expect(within(told).getByRole('img', { name: '3♦' })).toBeDefined()
+  })
+
+  it('the last play is one live region that changes, not a new one each play', () => {
+    const t = table()
+    const { rerender } = render(<CastleTable playerId="alice" connected view={view()} table={t} />)
+    const region = screen.getByText('bob played 8♥').closest('[role="status"]')
+    expect(region).not.toBeNull()
+    rerender(
+      <CastleTable
+        playerId="alice"
+        connected
+        view={view({ lastPlay: { playerId: 'alice', cards: [{ rank: '9', suit: '♣' }], burned: false, pickedUp: false } })}
+        table={t}
+      />
+    )
+    expect(screen.getByText('You played 9♣').closest('[role="status"]')).toBe(region)
   })
 
   it('cards that just arrived slide in, and the ones that were there do not', () => {
     const t = table()
     const before = view()
     const { rerender } = render(<CastleTable playerId="alice" connected view={before} table={t} />)
-    // A deal-in on mount is fine; what matters is the next change.
+    // The deal is not an arrival: nothing was there before it.
+    const hand0 = within(screen.getByRole('group', { name: 'Your hand' }))
+    expect(hand0.getByRole('button', { name: 'K♦' }).className).not.toContain('entered')
     const after = view()
     after.players[0] = {
       ...after.players[0],
@@ -232,6 +249,27 @@ describe('CastleTable', () => {
     expect(hand.getByRole('button', { name: 'K♦' }).className).not.toContain('entered')
     // Staggered in the order they arrived.
     expect(hand.getByRole('button', { name: '3♦' }).style.getPropertyValue('--i')).toBe('1')
+
+    // A draw-back lands at the same index every turn; each one is a
+    // fresh node, or the slide would run once per game.
+    const draw = (rank: string) => {
+      const v = view()
+      v.players[0] = { ...v.players[0], hand: [{ rank: 'K', suit: '♣' }, { rank: 'Q', suit: '♠' }, { rank, suit: '♥' }] }
+      rerender(<CastleTable playerId="alice" connected view={v} table={t} />)
+      return within(screen.getByRole('group', { name: 'Your hand' })).getByRole('button', { name: `${rank}♥` })
+    }
+    const first = draw('5')
+    expect(first.className).toContain('entered')
+    const second = draw('6')
+    expect(second.className).toContain('entered')
+    expect(second).not.toBe(first)
+
+    // Another table's deal, the same hand or not, is a deal.
+    const next = view({ gameId: 'G2' })
+    next.players[0] = { ...next.players[0], hand: [{ rank: '3', suit: '♣' }, { rank: '9', suit: '♠' }], handCount: 2 }
+    rerender(<CastleTable playerId="alice" connected view={next} table={t} />)
+    const dealt = within(screen.getByRole('group', { name: 'Your hand' }))
+    expect(dealt.getByRole('button', { name: '9♠' }).className).not.toContain('entered')
   })
 
   it('off turn nothing is offered', () => {
@@ -319,20 +357,45 @@ describe('CastleTable', () => {
     expect(t.toggleCard).toHaveBeenCalledWith(3)
     // A mouse drag that went somewhere scrolls, and the card it started
     // on is not played.
-    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100 })
-    fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40 })
+    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, button: 0, buttons: 1 })
+    fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40, buttons: 1 })
+    expect(hand.scrollLeft).toBe(60)
     fireEvent.pointerUp(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40 })
     fireEvent.click(within(hand).getByRole('button', { name: '6♣' }))
     expect(t.toggleCard).toHaveBeenCalledTimes(1)
+    // A finger is the browser's to scroll; its tap is a tap.
+    fireEvent.pointerDown(hand, { pointerType: 'touch', pointerId: 2, clientX: 100 })
+    fireEvent.pointerMove(hand, { pointerType: 'touch', pointerId: 2, clientX: 40 })
+    fireEvent.pointerUp(hand, { pointerType: 'touch', pointerId: 2, clientX: 40 })
+    expect(hand.scrollLeft).toBe(60)
+    fireEvent.click(within(hand).getByRole('button', { name: '6♣' }))
+    expect(t.toggleCard).toHaveBeenCalledTimes(2)
     // The next tap is a tap again.
     fireEvent.click(within(hand).getByRole('button', { name: '6♣' }))
     expect(t.toggleCard).toHaveBeenLastCalledWith(4)
+    expect(t.toggleCard).toHaveBeenCalledTimes(3)
     // A press that did not move is not a drag.
-    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100 })
-    fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 103 })
+    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, buttons: 1 })
+    fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 103, buttons: 1 })
     fireEvent.pointerUp(hand, { pointerType: 'mouse', pointerId: 1, clientX: 103 })
     fireEvent.click(within(hand).getByRole('button', { name: '7♣' }))
     expect(t.toggleCard).toHaveBeenLastCalledWith(5)
+    // A drag that never became a click — the right button, say — does
+    // not eat the next tap.
+    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, button: 0, buttons: 1 })
+    fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40, buttons: 1 })
+    fireEvent.pointerUp(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40 })
+    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, button: 2, buttons: 2 })
+    fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40, buttons: 2 })
+    fireEvent.pointerUp(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40, button: 2 })
+    fireEvent.click(within(hand).getByRole('button', { name: '8♣' }))
+    expect(t.toggleCard).toHaveBeenLastCalledWith(6)
+    // A button that came up where the strip could not see it ends the
+    // drag: bare movement does not scroll.
+    hand.scrollLeft = 0
+    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, button: 0, buttons: 1 })
+    fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40, buttons: 0 })
+    expect(hand.scrollLeft).toBe(0)
   })
 
   it('the ending arrives in front, and waves away to the final hands', () => {

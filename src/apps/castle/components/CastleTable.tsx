@@ -4,7 +4,7 @@ import type { CSSProperties, KeyboardEvent, MouseEvent, PointerEvent, ReactNode 
 import type { Standing } from '../rules'
 import type { CastleTableActions } from '@/hooks/useCastleTable'
 import type { Card, CastleGameEnded, CastleLastPlay, CastlePlayer, CastleView } from '../wire'
-import { cardsOf, describeEnding, describeLastPlay, describePile, face, headlineOf, isRed, rowInPlay, seatOf, standingOf } from '../rules'
+import { cardsOf, describeEnding, describeLastPlay, describePile, enteredSince, face, headlineOf, isRed, rowInPlay, seatOf, standingOf } from '../rules'
 import { clockOf, fromViewer } from '../seating'
 import styles from './CastleTable.module.css'
 
@@ -76,24 +76,12 @@ const FAN_MAX = 7
 // A mouse drag that moved this far was a scroll, not a tap on a card.
 const DRAG_SLOP = 6
 
-// The play as a string, to notice when a new one lands: a view repeats
-// the last play until the next replaces it.
-const playSignature = (play: CastleLastPlay | undefined): string =>
-  play === undefined ? '' : `${play.playerId}:${play.cards.map(face).join(',')}:${play.burned}:${play.pickedUp}`
-
-// Which cards of the hand were not in it last time: the draw-back, or
-// the pile just picked up. Matched as a multiset by face, so a second
-// K♣ is new only if there was not one already.
-const enteredSince = (previous: string[], hand: Card[]): number[] => {
-  const left = [...previous]
-  const entered: number[] = []
-  hand.forEach((card, i) => {
-    const at = left.indexOf(face(card))
-    if (at < 0) entered.push(i)
-    else left.splice(at, 1)
-  })
-  return entered
-}
+// The play as a string: the key that restarts the last-play moment when
+// a new one lands. A view repeats the last play until the next replaces
+// it, and a play that reads the same as the last — a pick-up by choice
+// twice running — is the same moment, and does not.
+const playSignature = (play: CastleLastPlay): string =>
+  `${play.playerId}:${play.cards.map(face).join(',')}:${play.burned}:${play.pickedUp}`
 
 const ENDING_EMOJI: Record<Standing, string> = { won: '🏆', lost: '😤', other: '🤝' }
 
@@ -117,29 +105,28 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
   const playAgainRef = useRef<HTMLButtonElement>(null)
   const endingRef = useRef<HTMLDivElement>(null)
 
-  // The last play shows for a moment when it lands, then goes: the table
-  // itself says the rest. Keyed so a new play restarts the moment even
-  // when it reads the same as the last.
-  const playSig = playSignature(view.lastPlay)
-  const [strip, setStrip] = useState({ sig: playSig, key: 0 })
-  if (strip.sig !== playSig) setStrip({ sig: playSig, key: strip.key + 1 })
-
   // Cards that just entered the viewer's hand slide in, so a pick-up
   // reads as the pile arriving rather than the hand having changed.
   // Held until the hand changes again, so a re-render mid-slide does
-  // not cut it short.
+  // not cut it short. A new table's deal is not an arrival: nothing was
+  // there before it to arrive into.
   const myHand = seatOf(view, playerId)?.hand ?? []
   const handSig = `${view.gameId}:${myHand.map(face).join(',')}`
-  const [handMark, setHandMark] = useState<{ sig: string; faces: string[]; entered: number[] }>({
+  // The generation is part of an arriving card's key: a draw-back lands
+  // at the same index every turn, and a node React keeps does not run
+  // its animation again.
+  const [handMark, setHandMark] = useState<{ sig: string; faces: string[]; entered: number[]; gen: number }>({
     sig: '',
     faces: [],
-    entered: []
+    entered: [],
+    gen: 0
   })
   if (handMark.sig !== handSig) {
     setHandMark({
       sig: handSig,
       faces: myHand.map(face),
-      entered: handMark.sig.startsWith(`${view.gameId}:`) ? enteredSince(handMark.faces, myHand) : []
+      entered: handMark.sig.startsWith(`${view.gameId}:`) ? enteredSince(handMark.faces, myHand) : [],
+      gen: handMark.gen + 1
     })
   }
 
@@ -157,6 +144,14 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
   }
   const onStripPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     if (drag.current === null || stripRef.current === null) return
+    if ((event.buttons & 1) === 0) {
+      // Not the primary button — another one, which ends in a context
+      // menu and never a click, or one that came up where the strip did
+      // not see it. A drag that would not end in a click would leave
+      // the next tap eaten.
+      drag.current = null
+      return
+    }
     const dx = event.clientX - drag.current.x
     if (Math.abs(dx) > DRAG_SLOP) drag.current.moved = true
     if (drag.current.moved) stripRef.current.scrollLeft = drag.current.left - dx
@@ -358,6 +353,7 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
             {(() => {
               const shown = seat.hand.length > 0 ? seat.hand : Array.from({ length: Math.min(seat.handCount, SHOWN_BACKS) }, () => null)
               const asStrip = mine && seat.hand.length > FAN_MAX
+              const slotKey = (i: number) => (mine && handMark.entered.includes(i) ? `${i}:${handMark.gen}` : i)
               const renderCard = (card: Card | null, i: number) => {
                 const picking = card !== null && mine && arranging
                 const playable = card !== null && mine && myTurn && myRow === 'hand'
@@ -394,7 +390,7 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
                     onClickCapture={onStripClickCapture}
                   >
                     {shown.map((card, i) => (
-                      <span key={i} className={styles.stripSlot}>
+                      <span key={slotKey(i)} className={styles.stripSlot}>
                         {renderCard(card, i)}
                       </span>
                     ))}
@@ -411,7 +407,7 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
                   {shown.map((card, i, all) => {
                     const angle = (i - (all.length - 1) / 2) * 5
                     return (
-                      <span key={i} className={styles.fanSlot} style={{ transform: `rotate(${angle}deg) translateY(${Math.abs(angle) * 0.35}px)` }}>
+                      <span key={slotKey(i)} className={styles.fanSlot} style={{ transform: `rotate(${angle}deg) translateY(${Math.abs(angle) * 0.35}px)` }}>
                         {renderCard(card, i)}
                       </span>
                     )
@@ -522,18 +518,19 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
             {/* The last play, for a moment: a pick-up shows the card that
                 did not play and stays longer, since a handful of cards
                 just arrived and this is why. */}
-            {view.lastPlay !== undefined && (
-              <p
-                key={strip.key}
-                className={`${styles.lastPlay} ${view.lastPlay.pickedUp ? styles.pickedUp : ''}`}
-                role="status"
-              >
-                {view.lastPlay.pickedUp && view.lastPlay.cards[0] !== undefined && (
-                  <CardFace card={view.lastPlay.cards[0]} className={styles.flipped} />
-                )}
-                <span>{describeLastPlay(view.lastPlay, playerId)}</span>
-              </p>
-            )}
+            {/* One live region for the table's life, so a new play is a
+                change to it rather than a region appearing; the moment
+                itself is the keyed child. */}
+            <p className={styles.lastPlaySlot} role="status">
+              {view.lastPlay !== undefined && (
+                <span key={playSignature(view.lastPlay)} className={`${styles.lastPlay} ${view.lastPlay.pickedUp ? styles.pickedUp : ''}`}>
+                  {view.lastPlay.pickedUp && view.lastPlay.cards[0] !== undefined && (
+                    <CardFace card={view.lastPlay.cards[0]} className={styles.flipped} />
+                  )}
+                  <span>{describeLastPlay(view.lastPlay, playerId)}</span>
+                </span>
+              )}
+            </p>
           </section>
         )}
       </div>

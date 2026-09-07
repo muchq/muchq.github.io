@@ -185,11 +185,18 @@
 /* The last play: in, a moment to read, and gone. A pick-up stays for
    longer and shows the card that failed, because that is the moment a
    handful of cards arrives and needs explaining. */
+.lastPlaySlot {
+  margin: 0;
+}
+
+.lastPlaySlot:empty {
+  display: none;
+}
+
 .lastPlay {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin: 0;
   color: #f0c96a;
   --linger: 3s;
   animation: lastPlay var(--linger) ease-in forwards;
@@ -226,6 +233,8 @@
   }
   100% {
     opacity: 0;
+    /* Gone for a screen reader too, not just faded. */
+    visibility: hidden;
   }
 }
 
@@ -245,7 +254,7 @@
 
 .runSlot {
   display: block;
-  margin-left: calc(-1 * var(--run-overlap, 1.7rem));
+  margin-left: -1.7rem;
   transform-origin: 50% 140%;
 }
 
@@ -657,7 +666,7 @@ down and to the right so the back's corner shows under it. */
 
   /* Smaller cards: the card under the top one still shows its rank. */
   .runSlot {
-    --run-overlap: 1.3rem;
+    margin-left: -1.3rem;
   }
 
   .emptyPile {
@@ -795,7 +804,7 @@ down and to the right so the back's corner shows under it. */
   .endingOverlay,
   .endingCard,
   .entered,
-  .flipped {
+  .lastPlay .flipped {
     animation: none;
   }
 
@@ -812,5 +821,6 @@ down and to the right so the back's corner shows under it. */
   }
   100% {
     opacity: 0;
+    visibility: hidden;
   }
 }

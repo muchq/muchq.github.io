@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cardsOf, describeEnding, describeLastPlay, describePile, headlineOf, rowInPlay, standingOf, toggleSelection } from '../rules'
+import { cardsOf, describeEnding, describeLastPlay, describePile, enteredSince, headlineOf, rowInPlay, standingOf, toggleSelection } from '../rules'
 import type { CastlePlayer, CastleView } from '../wire'
 
 const seat = (over: Partial<CastlePlayer> = {}): CastlePlayer => ({
@@ -129,5 +129,21 @@ describe('standingOf and headlineOf', () => {
     expect(headlineOf({ finished: ['alice'], loser: 'bob' }, 'bob')).toBe('You lost')
     expect(headlineOf({ finished: ['alice', 'carol'], loser: 'bob' }, 'carol')).toBe('alice wins')
     expect(headlineOf({ finished: [] }, 'alice')).toBe('The table broke up')
+  })
+})
+
+describe('enteredSince', () => {
+  it('names the cards that were not there, counting duplicates as a multiset', () => {
+    const hand = [
+      { rank: 'K', suit: '♣' },
+      { rank: 'K', suit: '♣' },
+      { rank: '3', suit: '♦' }
+    ]
+    // One K♣ was there: the second is new, the first is not.
+    expect(enteredSince(['K♣'], hand)).toEqual([1, 2])
+    expect(enteredSince(['K♣', 'K♣', '3♦'], hand)).toEqual([])
+    expect(enteredSince([], hand)).toEqual([0, 1, 2])
+    // Order changed, nothing arrived.
+    expect(enteredSince(['3♦', 'K♣', 'K♣'], hand)).toEqual([])
   })
 })
