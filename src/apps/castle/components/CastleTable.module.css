@@ -120,32 +120,122 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
   padding: 0.75rem;
   border-radius: 0.75rem;
   background: rgba(0, 0, 0, 0.25);
   max-width: 16rem;
-}
-
-.pileCards {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  align-items: center;
   text-align: center;
 }
 
-.pileText {
+/* The draw pile beside the pile: two stacks with their counts on them,
+   which is all the numbers the middle needs to say. */
+.piles {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  align-items: flex-end;
+  gap: 0.75rem;
 }
 
-.pileText p {
+.drawPile,
+.pileCards {
+  position: relative;
+}
+
+.drawPile > .card {
+  opacity: 0.9;
+}
+
+.drawn > .card {
+  opacity: 0.25;
+}
+
+.count {
+  position: absolute;
+  right: -0.4rem;
+  bottom: -0.4rem;
+  min-width: 1.4rem;
+  padding: 0 0.3rem;
+  border-radius: 0.7rem;
+  background: #f0c96a;
+  color: #3a2a00;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4rem;
+  text-align: center;
+}
+
+.drawPile > .count {
+  right: auto;
+  left: -0.4rem;
+}
+
+.drawn > .count {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.price {
   margin: 0;
+  font-weight: 600;
 }
 
+/* The last play: in, a moment to read, and gone. A pick-up stays for
+   longer and shows the card that failed, because that is the moment a
+   handful of cards arrives and needs explaining. */
 .lastPlay {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
   color: #f0c96a;
+  --linger: 3s;
+  animation: lastPlay var(--linger) ease-in forwards;
+}
+
+.pickedUp {
+  --linger: 6s;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.5rem;
+  background: rgba(240, 201, 106, 0.15);
+}
+
+/* Small beside its sentence; the phone's own card size would win the
+   tie, so this one names its parent. */
+.lastPlay .flipped {
+  flex: 0 0 auto;
+  width: 2.2rem;
+  height: 3.1rem;
+  font-size: 0.85rem;
+  animation: flipOver 0.6s ease-out both;
+}
+
+@keyframes lastPlay {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  8% {
+    opacity: 1;
+    transform: none;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes flipOver {
+  from {
+    transform: rotateY(90deg);
+  }
+  to {
+    transform: none;
+  }
 }
 
 .run {
@@ -155,7 +245,7 @@
 
 .runSlot {
   display: block;
-  margin-left: -1.7rem;
+  margin-left: calc(-1 * var(--run-overlap, 1.7rem));
   transform-origin: 50% 140%;
 }
 
@@ -249,6 +339,13 @@
   left: 50%;
   bottom: 1rem;
   transform: translateX(-50%);
+  /* Capped so a big hand scrolls inside the chair rather than widening it. */
+  max-width: calc(100% - 2rem);
+}
+
+.seatFrame,
+.seatCards {
+  max-width: 100%;
 }
 
 .seat[data-clock='12'] {
@@ -353,6 +450,54 @@ down and to the right so the back's corner shows under it. */
 .fanSlot:hover,
 .fanSlot:focus-within {
   z-index: 1;
+}
+
+/* Past what fans, the hand is a strip: every card whole, scrolled by
+   finger or dragged by mouse, the ends faded where there is more. The
+   room for a lifted card is the padding above. */
+.handStrip {
+  display: flex;
+  gap: 0.4rem;
+  max-width: 100%;
+  min-height: 5.2rem;
+  padding: 0.5rem 1.25rem 0.25rem;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  cursor: grab;
+  mask-image: linear-gradient(to right, transparent, black 1.25rem, black calc(100% - 1.25rem), transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 1.25rem, black calc(100% - 1.25rem), transparent);
+}
+
+.handStrip::-webkit-scrollbar {
+  display: none;
+}
+
+.handStrip:active {
+  cursor: grabbing;
+}
+
+.stripSlot {
+  flex: 0 0 auto;
+  scroll-snap-align: center;
+}
+
+/* A card that just arrived slides up into place, one after another. */
+.entered {
+  animation: cardIn 0.35s ease-out both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .card {
@@ -496,6 +641,10 @@ down and to the right so the back's corner shows under it. */
     font-size: 0.85rem;
   }
 
+  .handStrip {
+    min-height: 4.5rem;
+  }
+
   .card {
     width: 2.6rem;
     height: 3.8rem;
@@ -504,6 +653,11 @@ down and to the right so the back's corner shows under it. */
 
   .fanSlot {
     --overlap-max: 1.8rem;
+  }
+
+  /* Smaller cards: the card under the top one still shows its rank. */
+  .runSlot {
+    --run-overlap: 1.3rem;
   }
 
   .emptyPile {
@@ -639,7 +793,24 @@ down and to the right so the back's corner shows under it. */
 
 @media (prefers-reduced-motion: reduce) {
   .endingOverlay,
-  .endingCard {
+  .endingCard,
+  .entered,
+  .flipped {
     animation: none;
+  }
+
+  /* Still goes, still without moving. */
+  .lastPlay {
+    animation: lastPlayStill var(--linger) ease-in forwards;
+  }
+}
+
+@keyframes lastPlayStill {
+  0%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
   }
 }

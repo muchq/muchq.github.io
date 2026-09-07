@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import type { GameState } from '@/types/golf'
 import type { GolfMoveName, GolfUpdate, GolfView } from '@/apps/golf/wire'
 import { mapGameView } from '@/apps/golf/wire'
-import { GAME_STARTED, gameOverMessage, knockedMessage, turnMessage } from '@/utils/golfNotifications'
+import { GAME_STARTED, gameOverMessage, knockedMessage } from '@/utils/golfNotifications'
 import { usePeekCountdown } from './usePeekCountdown'
 
 // A golf table as the wire sends it, in the UI's model, over the lobby's
@@ -92,7 +92,8 @@ export const useGolfTable = ({ playerId, move, showNotice, onLeft }: UseGolfTabl
         return
       }
       if (update.turnChanged) {
-        showNotice(update.turnChanged.playerId === playerId ? 'Your turn' : turnMessage(update.turnChanged.playerId))
+        // Only your own turn interrupts; the table shows whose it is.
+        if (update.turnChanged.playerId === playerId) showNotice('Your turn')
         return
       }
       if (update.playerKnocked) {

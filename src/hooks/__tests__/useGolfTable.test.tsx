@@ -147,8 +147,9 @@ describe('useGolfTable', () => {
     expect(showNotice).toHaveBeenLastCalledWith('Game started! Each player can peek at 2 cards.')
     receive({ turnChanged: { playerId: 'alice' } })
     expect(showNotice).toHaveBeenLastCalledWith('Your turn')
+    // Another seat's turn is the table's to show, not a toast's.
     receive({ turnChanged: { playerId: 'bob' } })
-    expect(showNotice).toHaveBeenLastCalledWith("It's bob's turn")
+    expect(showNotice).toHaveBeenLastCalledWith('Your turn')
     receive({ playerKnocked: { playerId: 'bob' } })
     expect(showNotice).toHaveBeenLastCalledWith('bob has knocked! Last round!')
   })

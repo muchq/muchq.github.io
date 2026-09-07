@@ -52,15 +52,15 @@ export function describeLastPlay(play: CastleLastPlay, viewer: string): string {
 
 const COUNTS = ['none', 'one', 'two', 'three', 'four']
 
-// The pile as a price: the count to match is the last play's, the run
-// on top is what shows (and what a four of a kind completes). Counts
-// are words, so a run of three 3s does not read as arithmetic.
+// The pile as a price, for the seat that has to pay it: the count to
+// match is the last play's, the rank the top's. The run itself is on the
+// table, so the line does not repeat it. Counts are words, so a run of
+// three 3s does not read as arithmetic.
 export function describePile(view: CastleView): string {
   const top = view.run[view.run.length - 1]
-  if (top === undefined) return 'Empty pile: anything goes'
-  const shown = view.run.length > 1 ? `${COUNTS[view.run.length] ?? view.run.length} ${top.rank}s` : face(top)
+  if (top === undefined) return 'Anything goes'
   const price = view.lastPlay !== undefined && view.lastPlay.cards.length > 0 ? view.lastPlay.cards.length : view.run.length
-  return `${shown} on top: play ${COUNTS[price] ?? price} or more of ${top.rank} or higher`
+  return price > 1 ? `Play ${COUNTS[price] ?? price} or more, ${top.rank} or higher` : `Play ${top.rank} or higher`
 }
 
 // How a finished game reads from one chair.

@@ -163,7 +163,10 @@ describe('CastleTable', () => {
 
   it('on turn: hand cards select, play sends the selection, pick-up only without a play', () => {
     const { t } = mountWith(view(), { selected: [0, 1] })
-    expect(screen.getByText('two 8s on top: play one or more of 8 or higher')).toBeDefined()
+    // The price, in a line; the counts, on the piles; the run, as cards.
+    expect(screen.getByText('Play 8 or higher')).toBeDefined()
+    expect(screen.getByRole('img', { name: '30 to draw' })).toBeDefined()
+    expect(screen.getByRole('img', { name: '2 on the pile' })).toBeDefined()
     const run = within(screen.getByRole('group', { name: 'run on top' }))
     expect(run.getByRole('img', { name: '8♠' })).toBeDefined()
     expect(run.getByRole('img', { name: '8♥' })).toBeDefined()
@@ -186,8 +189,49 @@ describe('CastleTable', () => {
     expect(t.pickUp).toHaveBeenCalled()
     cleanup()
     mountWith(view({ pileCount: 0, run: [], lastPlay: undefined }))
-    expect(screen.getByText('Empty pile: anything goes')).toBeDefined()
+    expect(screen.getByText('Anything goes')).toBeDefined()
     expect(screen.getByRole('button', { name: 'Pick up the pile' })).toBeDisabled()
+  })
+
+  it('off turn the price is not yours to read', () => {
+    mountWith(view({ currentPlayerId: 'bob' }))
+    expect(screen.queryByText('Play 8 or higher')).toBeNull()
+    // The piles and the run still say where the table stands.
+    expect(screen.getByRole('img', { name: '2 on the pile' })).toBeDefined()
+    expect(screen.getByRole('group', { name: 'run on top' })).toBeDefined()
+  })
+
+  it('a failed flip shows the card that did not play, with the pile it brought', () => {
+    const flipped = view({
+      pileCount: 0,
+      run: [],
+      lastPlay: { playerId: 'alice', cards: [{ rank: '3', suit: '♦' }], burned: false, pickedUp: true }
+    })
+    mountWith(flipped)
+    const told = screen.getByText('You flipped 3♦ and picked up the pile').closest('p')
+    expect(told).not.toBeNull()
+    expect(told?.className).toContain('pickedUp')
+    expect(within(told as HTMLElement).getByRole('img', { name: '3♦' })).toBeDefined()
+  })
+
+  it('cards that just arrived slide in, and the ones that were there do not', () => {
+    const t = table()
+    const before = view()
+    const { rerender } = render(<CastleTable playerId="alice" connected view={before} table={t} />)
+    // A deal-in on mount is fine; what matters is the next change.
+    const after = view()
+    after.players[0] = {
+      ...after.players[0],
+      handCount: 5,
+      hand: [...myHand, { rank: '3', suit: '♣' }, { rank: '3', suit: '♦' }]
+    }
+    rerender(<CastleTable playerId="alice" connected view={after} table={t} />)
+    const hand = within(screen.getByRole('group', { name: 'Your hand' }))
+    expect(hand.getByRole('button', { name: '3♣' }).className).toContain('entered')
+    expect(hand.getByRole('button', { name: '3♦' }).className).toContain('entered')
+    expect(hand.getByRole('button', { name: 'K♦' }).className).not.toContain('entered')
+    // Staggered in the order they arrived.
+    expect(hand.getByRole('button', { name: '3♦' }).style.getPropertyValue('--i')).toBe('1')
   })
 
   it('off turn nothing is offered', () => {
@@ -254,13 +298,41 @@ describe('CastleTable', () => {
     expect(live.container.querySelector('[data-phase="playing"]')).not.toBeNull()
   })
 
-  it('a hand that grew fans tighter', () => {
+  it('a hand that grew a little fans tighter', () => {
     const big = view()
-    big.players[0] = { ...big.players[0], handCount: 10, hand: Array.from({ length: 10 }, (_, i) => ({ rank: String(i + 2), suit: '♣' })) }
+    big.players[0] = { ...big.players[0], handCount: 7, hand: Array.from({ length: 7 }, (_, i) => ({ rank: String(i + 2), suit: '♣' })) }
     mountWith(big)
     const overlap = (name: RegExp) => screen.getByRole('group', { name }).style.getPropertyValue('--overlap')
-    expect(overlap(/Your hand/)).toBe('1.8rem')
+    expect(overlap(/Your hand/)).toBe('1.2rem')
     expect(overlap(/bob's hand/)).toBe('1rem')
+  })
+
+  it('a hand too big to fan is a strip: every card whole, a drag not a tap', () => {
+    const big = view()
+    big.players[0] = { ...big.players[0], handCount: 12, hand: Array.from({ length: 12 }, (_, i) => ({ rank: String((i % 9) + 2), suit: i < 9 ? '♣' : '♦' })) }
+    const { t } = mountWith(big)
+    const hand = screen.getByRole('group', { name: 'Your hand' })
+    expect(hand.className).toContain('handStrip')
+    expect(within(hand).getAllByRole('button')).toHaveLength(12)
+    // A tap is a tap.
+    fireEvent.click(within(hand).getByRole('button', { name: '5♣' }))
+    expect(t.toggleCard).toHaveBeenCalledWith(3)
+    // A mouse drag that went somewhere scrolls, and the card it started
+    // on is not played.
+    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100 })
+    fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40 })
+    fireEvent.pointerUp(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40 })
+    fireEvent.click(within(hand).getByRole('button', { name: '6♣' }))
+    expect(t.toggleCard).toHaveBeenCalledTimes(1)
+    // The next tap is a tap again.
+    fireEvent.click(within(hand).getByRole('button', { name: '6♣' }))
+    expect(t.toggleCard).toHaveBeenLastCalledWith(4)
+    // A press that did not move is not a drag.
+    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100 })
+    fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 103 })
+    fireEvent.pointerUp(hand, { pointerType: 'mouse', pointerId: 1, clientX: 103 })
+    fireEvent.click(within(hand).getByRole('button', { name: '7♣' }))
+    expect(t.toggleCard).toHaveBeenLastCalledWith(5)
   })
 
   it('the ending arrives in front, and waves away to the final hands', () => {

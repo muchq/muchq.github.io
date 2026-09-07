@@ -82,13 +82,11 @@ describe('describeLastPlay', () => {
 })
 
 describe('describePile', () => {
-  it('names the price the next play must match', () => {
-    expect(describePile(view())).toBe('Empty pile: anything goes')
-    expect(describePile(view({ run: [{ rank: '8', suit: '♥' }], pileCount: 3 }))).toBe(
-      '8♥ on top: play one or more of 8 or higher'
-    )
+  it('names the price the next play must match, and nothing the table already shows', () => {
+    expect(describePile(view())).toBe('Anything goes')
+    expect(describePile(view({ run: [{ rank: '8', suit: '♥' }], pileCount: 3 }))).toBe('Play 8 or higher')
     expect(describePile(view({ run: [{ rank: '8', suit: '♠' }, { rank: '8', suit: '♥' }], pileCount: 3 }))).toBe(
-      'two 8s on top: play two or more of 8 or higher'
+      'Play two or more, 8 or higher'
     )
     // A queen on a queen: two show, but one king answers, since the
     // count to match is the last play's.
@@ -100,11 +98,11 @@ describe('describePile', () => {
           lastPlay: { playerId: 'bob', cards: [{ rank: 'Q', suit: '♥' }], burned: false, pickedUp: false }
         })
       )
-    ).toBe('two Qs on top: play one or more of Q or higher')
+    ).toBe('Play Q or higher')
     // Three 3s must not read as arithmetic.
     expect(
       describePile(view({ run: [{ rank: '3', suit: '♠' }, { rank: '3', suit: '♦' }, { rank: '3', suit: '♥' }], pileCount: 3 }))
-    ).toBe('three 3s on top: play three or more of 3 or higher')
+    ).toBe('Play three or more, 3 or higher')
   })
 })
 
