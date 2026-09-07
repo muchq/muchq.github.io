@@ -260,11 +260,14 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
       // service name server-side, so this no longer pulls the whole host
       // payload — every other container's stats — to use one row of it.
       const [scalarData, seriesData, containerData] = await Promise.all([
-        // ?view= is safe against an older proxy: Go's mux ignores query
-        // parameters nothing reads, so the request still succeeds and comes
-        // back in the only form that proxy has. The switch stays hidden in
-        // that case anyway — see hasToggleableMetrics.
-        fetchJson<ServiceMetricsResponse>(`${METRICS_API_URL}/service/${service}?view=${view}`),
+        // ?view= and ?range= are safe against an older proxy: Go's mux
+        // ignores query parameters nothing reads, so the request still
+        // succeeds and comes back in the only form that proxy has. The
+        // switch stays hidden in that case anyway — see hasToggleableMetrics.
+        // The range is the tiles' window (MoonBase#1507), so a tile and the
+        // chart under it describe the same span; the label reads it back
+        // from the response — see requestsTotalLabel.
+        fetchJson<ServiceMetricsResponse>(`${METRICS_API_URL}/service/${service}?view=${view}&range=${timeRange}`),
         // No ?view= here: the timeseries endpoint always answers with both
         // request_rate and request_count, and the chart below picks between
         // them locally — see STANDARD_SERIES.
@@ -391,7 +394,7 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
               </div>
               <div className={styles.miniCard}>
                 {/* Not "Total" once the proxy is new enough: the field still
-                    says total, but MoonBase#1287 made it a 5-minute count. */}
+                    says total, but MoonBase#1287 made it a windowed count. */}
                 <div className={styles.miniLabel}>{requestsTotalLabel(scalar)}</div>
                 <div className={styles.miniValue}>{formatValue(standard.requests_total || 0)}</div>
               </div>

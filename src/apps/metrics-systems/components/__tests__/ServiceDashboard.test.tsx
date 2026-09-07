@@ -32,8 +32,8 @@ const scalarResponse = {
   standard: {
     requests_total: 1234,
     rate_per_sec: 1.25,
-    success_count_5m: 100,
-    failure_count_5m: 5,
+    success_count: 100,
+    failure_count: 5,
     error_rate_percent: 4.8,
     avg_duration_microseconds: 1500,
     p95_duration_microseconds: 9500,
@@ -58,6 +58,11 @@ const rateScalarResponse = {
 }
 
 // A host still running a pre-MoonBase#1287 proxy: no `view`, no `toggleable`.
+// A proxy that windows every tile by the request's range echoes which one
+// (MoonBase#1507); the fixture above stands for the one before it, which
+// echoed a view and read every tile over five minutes.
+const rangedScalarResponse = { ...scalarResponse, window: '1d' }
+
 const legacyScalarResponse = {
   ...scalarResponse,
   view: undefined,
@@ -119,6 +124,7 @@ const containerDetail = (overrides: Record<string, unknown> = {}) => ({
 // longer matches it. Compare the path and read the view separately.
 const pathOf = (url: string) => url.split('?')[0]
 const viewOf = (url: string) => new URLSearchParams(url.split('?')[1] ?? '').get('view') ?? 'count'
+const rangeOf = (url: string) => new URLSearchParams(url.split('?')[1] ?? '').get('range')
 
 const ok = (body: unknown) => Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify(body)) })
 const notFound = () => Promise.resolve({ ok: false, text: () => Promise.resolve('') })
@@ -267,6 +273,8 @@ describe('ServiceDashboard', () => {
     // toggle picks between them client-side — so plain endsWith matches it.
     const urls = mockFetch.mock.calls.map((call) => String(call[0]))
     expect(urls.some((url) => url.endsWith('/service/golf_hub/timeseries/30m'))).toBe(true)
+    // The tiles read over the same range as the charts (MoonBase#1507).
+    expect(urls.some((url) => pathOf(url).endsWith('/service/golf_hub') && rangeOf(url) === '30m')).toBe(true)
   })
 
   it('reports failure and keeps the page shape when the API is down', async () => {
@@ -710,6 +718,29 @@ describe('ServiceDashboard', () => {
     // JSON key, so the tile has to say which of the two it is showing.
     expect(screen.getByText('Req (5m)')).toBeTruthy()
     expect(screen.queryByText('Total')).toBeNull()
+  })
+
+  it('names the requests tile by the window the proxy read it over', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/service/golf_hub/timeseries/')) return ok(timeseriesResponse)
+      if (pathOf(url).endsWith('/service/golf_hub')) return ok({ ...rangedScalarResponse, window: rangeOf(url) })
+      if (url.endsWith('/container/golf_hub')) return ok(containerDetail())
+      return notFound()
+    })
+    const { container } = render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+    expect(screen.getByText('Req (1d)')).toBeTruthy()
+
+    // The label follows the range, read back from the response rather than
+    // from the select, so it never says a window the number was not.
+    fireEvent.change(container.querySelector('select')!, { target: { value: '7d' } })
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+    expect(screen.getByText('Req (7d)')).toBeTruthy()
+    expect(screen.queryByText('Req (5m)')).toBeNull()
   })
 
   it('keeps the old label for a proxy still sending a lifetime total', async () => {
