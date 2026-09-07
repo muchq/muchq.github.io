@@ -17,8 +17,8 @@ export interface ServiceCatalog {
 export interface StandardMetrics {
   requests_total: number
   rate_per_sec: number
-  success_count_5m: number
-  failure_count_5m: number
+  success_count: number
+  failure_count: number
   error_rate_percent: number
   avg_duration_microseconds: number
   p95_duration_microseconds: number
@@ -54,6 +54,10 @@ export interface ServiceMetricsResponse {
   // proxy, which is also the signal that `requests_total` is still a lifetime
   // total rather than a windowed count — see requestsTotalLabel.
   view?: MetricView
+  // The window every windowed tile was read over — the ?range= the request
+  // named, echoed as the PromQL duration the queries carried (MoonBase#1507).
+  // Absent from a proxy that still windows every tile at five minutes.
+  window?: string
   custom: CustomMetricGroup[]
 }
 
@@ -72,15 +76,26 @@ export function hasToggleableMetrics(response: ServiceMetricsResponse | null): b
 // What to call the standard block's `requests_total` tile.
 //
 // MoonBase#1287 changed that field from sum(x) — cumulative since process
-// start, and so reset by every deploy — to a 5-minute increase(). The JSON key
+// start, and so reset by every deploy — to a windowed increase(). The JSON key
 // could not change without breaking this UI, so the name still says "total"
 // while the number no longer is one; calling the tile "Total" would repeat the
 // same wrong label the API is stuck with.
 //
-// `view` is the tell: it is present exactly when the proxy carries that change,
-// because both landed in the same commit. An older host therefore keeps the
-// old label, which is still honest about the number it is actually sending.
+// The window is whatever the proxy says it read over: the selected range once
+// it takes one (MoonBase#1507), five minutes on the proxy before that, which
+// echoes `view` but no `window`. A host older than both keeps the old label,
+// which is still honest about the number it is actually sending.
+// How often a service page refetches. A week's numbers are refetched every
+// five minutes rather than every thirty seconds: at 7d every tile is an
+// instant query with a week-long lookback (MoonBase#1507), a page of them
+// every half minute is the one load on Prometheus this dashboard adds, and
+// a week's count does not move in half a minute. Shorter ranges stay live.
+export function refreshMs(timeRange: string): number {
+  return timeRange === '7d' ? 5 * 60_000 : 30_000
+}
+
 export function requestsTotalLabel(response: ServiceMetricsResponse | null): string {
+  if (response?.window) return `Req (${response.window})`
   return response?.view ? 'Req (5m)' : 'Total'
 }
 
