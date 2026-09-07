@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import {
+  refreshMs,
   bucketMs,
   byHealthThenName,
   containerDisplayName,
@@ -357,5 +358,13 @@ describe('formatBytes', () => {
     // Memory limits arrive unset as enormous sentinels on some containers.
     expect(formatBytes(Number.MAX_SAFE_INTEGER)).toContain('TB')
     expect(formatBytes(0)).toBe('0 B')
+  })
+})
+
+describe('refreshMs', () => {
+  it('keeps short ranges live and slows a week to five minutes', () => {
+    expect(refreshMs('30m')).toBe(30_000)
+    expect(refreshMs('1d')).toBe(30_000)
+    expect(refreshMs('7d')).toBe(300_000)
   })
 })

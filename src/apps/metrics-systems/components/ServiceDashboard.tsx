@@ -9,6 +9,7 @@ import {
   fetchJson,
   fillWindow,
   hasToggleableMetrics,
+  refreshMs,
   requestsTotalLabel,
   seriesWindow,
   serviceDisplayName,
@@ -292,7 +293,7 @@ const ServiceDashboard = ({ service, onConnectionStateChange }: ServiceDashboard
     }
 
     const start = setTimeout(fetchMetrics, 0)
-    const interval = setInterval(fetchMetrics, 30000)
+    const interval = setInterval(fetchMetrics, refreshMs(timeRange))
     return () => {
       active = false
       clearTimeout(start)

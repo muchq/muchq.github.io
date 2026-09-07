@@ -85,6 +85,15 @@ export function hasToggleableMetrics(response: ServiceMetricsResponse | null): b
 // it takes one (MoonBase#1507), five minutes on the proxy before that, which
 // echoes `view` but no `window`. A host older than both keeps the old label,
 // which is still honest about the number it is actually sending.
+// How often a service page refetches. A week's numbers are refetched every
+// five minutes rather than every thirty seconds: at 7d every tile is an
+// instant query with a week-long lookback (MoonBase#1507), a page of them
+// every half minute is the one load on Prometheus this dashboard adds, and
+// a week's count does not move in half a minute. Shorter ranges stay live.
+export function refreshMs(timeRange: string): number {
+  return timeRange === '7d' ? 5 * 60_000 : 30_000
+}
+
 export function requestsTotalLabel(response: ServiceMetricsResponse | null): string {
   if (response?.window) return `Req (${response.window})`
   return response?.view ? 'Req (5m)' : 'Total'

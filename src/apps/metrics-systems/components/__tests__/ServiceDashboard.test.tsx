@@ -478,6 +478,35 @@ describe('ServiceDashboard', () => {
       }
     })
 
+    it('refetches a week every five minutes, not every thirty seconds', async () => {
+      vi.useFakeTimers()
+      try {
+        const { container } = render(<ServiceDashboard service="golf_hub" onConnectionStateChange={vi.fn()} />)
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0)
+        })
+        fireEvent.change(container.querySelector('select')!, { target: { value: '7d' } })
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0)
+        })
+        const scalarFetches = () =>
+          mockFetch.mock.calls.filter((call) => pathOf(String(call[0])).endsWith('/service/golf_hub') && rangeOf(String(call[0])) === '7d').length
+        expect(scalarFetches()).toBe(1)
+        // A week-long lookback per tile is the load this dashboard adds to
+        // Prometheus; a week's count does not move in half a minute.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(30000)
+        })
+        expect(scalarFetches()).toBe(1)
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(5 * 60000 - 30000)
+        })
+        expect(scalarFetches()).toBe(2)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
     it('falls back to a dash when the image carries no tag', async () => {
       mockFetch.mockImplementation((url: string) => {
         if (url.endsWith('/container/golf_hub')) return ok(containerDetail({ image: 'golf_hub', version: '' }))
