@@ -126,12 +126,14 @@ const LobbyPanel = ({ lobby }: LobbyPanelProps) => {
             })}
           </ul>
         )}
+        {/* One offer per game, and the room hosts both: neither is the
+            house game, so neither is the louder button. */}
         <div className={styles.stack}>
           <button type="button" className={styles.primary} onClick={lobby.castle.createTable} disabled={!connected || busy}>
             Open a castle table
           </button>
           <p className={styles.muted}>{GAME_BLURB.castle}</p>
-          <button type="button" className={styles.secondary} onClick={lobby.golf.createTable} disabled={!connected || busy}>
+          <button type="button" className={styles.primary} onClick={lobby.golf.createTable} disabled={!connected || busy}>
             Open a golf table
           </button>
           <p className={styles.muted}>{GAME_BLURB.golf}</p>

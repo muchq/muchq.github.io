@@ -75,9 +75,14 @@ describe('LobbyPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Join golf G4' }))
     expect(hook.golf.joinTable).toHaveBeenCalledWith('G4')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open a castle table' }))
+    const openCastle = screen.getByRole('button', { name: 'Open a castle table' })
+    const openGolf = screen.getByRole('button', { name: 'Open a golf table' })
+    // The same offer for either game: whichever the room plays, the
+    // button for it looks the same.
+    expect(openGolf.className).toBe(openCastle.className)
+    fireEvent.click(openCastle)
     expect(hook.castle.createTable).toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Open a golf table' }))
+    fireEvent.click(openGolf)
     expect(hook.golf.createTable).toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Leave room' }))
     expect(hook.leaveRoom).toHaveBeenCalled()
