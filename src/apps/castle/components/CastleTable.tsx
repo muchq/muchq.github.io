@@ -83,10 +83,11 @@ export interface CastleTableProps {
 // Another seat's hand is backs: past this many, the count says the rest.
 const SHOWN_BACKS = 6
 
-// The viewer's own hand fans up to this many. Past it the fan tightens
-// until nothing shows or taps, so a bigger hand is a strip instead:
-// every card whole, scrolled by finger or by dragging.
-const FAN_MAX = 7
+// The whole fan spans at most this many degrees, however many cards:
+// three cards sit five degrees apart, fourteen closer, so the ends of a
+// big hand still face the player and stay inside the hand's own edges.
+const FAN_SPREAD = 30
+const FAN_STEP = 5
 
 // A mouse drag that moved this far was a scroll, not a tap on a card.
 const DRAG_SLOP = 6
@@ -145,37 +146,40 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
     })
   }
 
-  // A big hand scrolls. Touch scrolls it natively; a mouse drags it, and
-  // a drag that went anywhere is not a tap on the card it started on.
-  const stripRef = useRef<HTMLDivElement>(null)
+  // A hand wider than its chair scrolls. Touch scrolls it natively; a
+  // mouse drags it, and a drag that moved the hand is not a tap on the
+  // card it started on. One that moved nothing — a hand that fits — is.
+  const handRef = useRef<HTMLDivElement>(null)
   const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null)
   const dragged = useRef(false)
-  const onStripPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== 'mouse' || stripRef.current === null) return
-    drag.current = { x: event.clientX, left: stripRef.current.scrollLeft, moved: false }
-    // Keeps the drag when the pointer leaves the strip. Not every DOM
-    // has it (jsdom's does not).
-    stripRef.current.setPointerCapture?.(event.pointerId)
+  const onHandPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== 'mouse' || handRef.current === null) return
+    drag.current = { x: event.clientX, left: handRef.current.scrollLeft, moved: false }
+    // Keeps the drag when the pointer leaves the hand. Not every DOM has
+    // it (jsdom's does not).
+    handRef.current.setPointerCapture?.(event.pointerId)
   }
-  const onStripPointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (drag.current === null || stripRef.current === null) return
+  const onHandPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (drag.current === null || handRef.current === null) return
     if ((event.buttons & 1) === 0) {
       // Not the primary button — another one, which ends in a context
-      // menu and never a click, or one that came up where the strip did
+      // menu and never a click, or one that came up where the hand did
       // not see it. A drag that would not end in a click would leave
       // the next tap eaten.
       drag.current = null
       return
     }
     const dx = event.clientX - drag.current.x
-    if (Math.abs(dx) > DRAG_SLOP) drag.current.moved = true
-    if (drag.current.moved) stripRef.current.scrollLeft = drag.current.left - dx
+    if (Math.abs(dx) <= DRAG_SLOP) return
+    handRef.current.scrollLeft = drag.current.left - dx
+    // The browser clamps a hand that fits back to where it was.
+    if (handRef.current.scrollLeft !== drag.current.left) drag.current.moved = true
   }
-  const onStripPointerUp = () => {
+  const onHandPointerUp = () => {
     dragged.current = drag.current?.moved ?? false
     drag.current = null
   }
-  const onStripClickCapture = (event: MouseEvent<HTMLDivElement>) => {
+  const onHandClickCapture = (event: MouseEvent<HTMLDivElement>) => {
     if (!dragged.current) return
     dragged.current = false
     event.stopPropagation()
@@ -362,12 +366,13 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
                 )
               })}
             </div>
-            {/* The hand: faces for the viewer's own (and everyone's once the
-                game ends), backs for the rest. The viewer's fans until it is
-                too big to fan, then scrolls. */}
+            {/* The hand, fanned: faces for the viewer's own (and everyone's
+                once the game ends), backs for the rest. A hand wider than
+                the chair scrolls; the overlap is capped so every card keeps
+                its corner index in view. */}
             {(() => {
               const shown = seat.hand.length > 0 ? seat.hand : Array.from({ length: Math.min(seat.handCount, SHOWN_BACKS) }, () => null)
-              const asStrip = mine && seat.hand.length > FAN_MAX
+              const step = Math.min(FAN_STEP, FAN_SPREAD / Math.max(shown.length, 1))
               const slotKey = (i: number) => (mine && handMark.entered.includes(i) ? `${i}:${handMark.gen}` : i)
               const renderCard = (card: Card | null, i: number) => {
                 const picking = card !== null && mine && arranging
@@ -391,42 +396,29 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
                   />
                 )
               }
-              if (asStrip) {
-                return (
-                  <div
-                    ref={stripRef}
-                    className={styles.handStrip}
-                    role="group"
-                    aria-label={`${whose} hand`}
-                    onPointerDown={onStripPointerDown}
-                    onPointerMove={onStripPointerMove}
-                    onPointerUp={onStripPointerUp}
-                    onPointerCancel={onStripPointerUp}
-                    onClickCapture={onStripClickCapture}
-                  >
-                    {shown.map((card, i) => (
-                      <span key={slotKey(i)} className={styles.stripSlot}>
-                        {renderCard(card, i)}
-                      </span>
-                    ))}
-                  </div>
-                )
-              }
               return (
                 <div
+                  ref={mine ? handRef : undefined}
                   className={styles.hand}
                   role="group"
                   aria-label={`${whose} hand`}
                   style={{ '--overlap': `${Math.min(2.2, 1 + Math.max(0, shown.length - 6) * 0.2)}rem` } as CSSProperties}
+                  onPointerDown={mine ? onHandPointerDown : undefined}
+                  onPointerMove={mine ? onHandPointerMove : undefined}
+                  onPointerUp={mine ? onHandPointerUp : undefined}
+                  onPointerCancel={mine ? onHandPointerUp : undefined}
+                  onClickCapture={mine ? onHandClickCapture : undefined}
                 >
-                  {shown.map((card, i, all) => {
-                    const angle = (i - (all.length - 1) / 2) * 5
-                    return (
-                      <span key={slotKey(i)} className={styles.fanSlot} style={{ transform: `rotate(${angle}deg) translateY(${Math.abs(angle) * 0.35}px)` }}>
-                        {renderCard(card, i)}
-                      </span>
-                    )
-                  })}
+                  <div className={styles.fan}>
+                    {shown.map((card, i, all) => {
+                      const angle = (i - (all.length - 1) / 2) * step
+                      return (
+                        <span key={slotKey(i)} className={styles.fanSlot} style={{ transform: `rotate(${angle}deg) translateY(${Math.abs(angle) * 0.35}px)` }}>
+                          {renderCard(card, i)}
+                        </span>
+                      )
+                    })}
+                  </div>
                 </div>
               )
             })()}

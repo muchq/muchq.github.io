@@ -336,66 +336,83 @@ describe('CastleTable', () => {
     expect(live.container.querySelector('[data-phase="playing"]')).not.toBeNull()
   })
 
-  it('a hand that grew a little fans tighter', () => {
+  it('a hand that grew fans tighter, and every hand is the one fan', () => {
     const big = view()
     big.players[0] = { ...big.players[0], handCount: 7, hand: Array.from({ length: 7 }, (_, i) => ({ rank: String(i + 2), suit: '♣' })) }
     mountWith(big)
     const overlap = (name: RegExp) => screen.getByRole('group', { name }).style.getPropertyValue('--overlap')
     expect(overlap(/Your hand/)).toBe('1.2rem')
     expect(overlap(/bob's hand/)).toBe('1rem')
+    // The spread is bounded at thirty degrees: seven cards a little
+    // under five apart, fourteen closer, so the ends still face the
+    // player.
+    const slots = (name: RegExp) => Array.from(screen.getByRole('group', { name }).querySelectorAll<HTMLElement>('[class*="fanSlot"]'))
+    expect(slots(/Your hand/)[0].style.transform).toContain(`rotate(${(-3 * 30) / 7}deg)`)
+    cleanup()
+    const bigger = view()
+    bigger.players[0] = { ...bigger.players[0], handCount: 14, hand: Array.from({ length: 14 }, (_, i) => ({ rank: String((i % 9) + 2), suit: i < 9 ? '♣' : '♦' })) }
+    mountWith(bigger)
+    expect(slots(/Your hand/)[0].style.transform).toContain(`rotate(${(-6.5 * 30) / 14}deg)`)
+    expect(slots(/Your hand/)).toHaveLength(14)
   })
 
-  it('a hand too big to fan is a strip: every card whole, a drag not a tap', () => {
+  it('a hand wider than its chair scrolls: a drag is not a tap, a tap is', () => {
     const big = view()
     big.players[0] = { ...big.players[0], handCount: 12, hand: Array.from({ length: 12 }, (_, i) => ({ rank: String((i % 9) + 2), suit: i < 9 ? '♣' : '♦' })) }
     const { t } = mountWith(big)
     const hand = screen.getByRole('group', { name: 'Your hand' })
-    expect(hand.className).toContain('handStrip')
     expect(within(hand).getAllByRole('button')).toHaveLength(12)
     // A tap is a tap.
     fireEvent.click(within(hand).getByRole('button', { name: '5♣' }))
     expect(t.toggleCard).toHaveBeenCalledWith(3)
-    // A mouse drag that went somewhere scrolls, and the card it started
-    // on is not played.
+    // A mouse drag that moved the hand scrolls it, and the card it
+    // started on is not played.
     fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, button: 0, buttons: 1 })
     fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40, buttons: 1 })
     expect(hand.scrollLeft).toBe(60)
     fireEvent.pointerUp(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40 })
     fireEvent.click(within(hand).getByRole('button', { name: '6♣' }))
     expect(t.toggleCard).toHaveBeenCalledTimes(1)
-    // A finger is the browser's to scroll; its tap is a tap.
-    fireEvent.pointerDown(hand, { pointerType: 'touch', pointerId: 2, clientX: 100 })
-    fireEvent.pointerMove(hand, { pointerType: 'touch', pointerId: 2, clientX: 40 })
-    fireEvent.pointerUp(hand, { pointerType: 'touch', pointerId: 2, clientX: 40 })
-    expect(hand.scrollLeft).toBe(60)
-    fireEvent.click(within(hand).getByRole('button', { name: '6♣' }))
-    expect(t.toggleCard).toHaveBeenCalledTimes(2)
     // The next tap is a tap again.
     fireEvent.click(within(hand).getByRole('button', { name: '6♣' }))
     expect(t.toggleCard).toHaveBeenLastCalledWith(4)
-    expect(t.toggleCard).toHaveBeenCalledTimes(3)
+    // A touch never drags here: the hand scrolls itself under a finger.
+    fireEvent.pointerDown(hand, { pointerType: 'touch', pointerId: 2, clientX: 100 })
+    fireEvent.pointerMove(hand, { pointerType: 'touch', pointerId: 2, clientX: 40 })
+    fireEvent.pointerUp(hand, { pointerType: 'touch', pointerId: 2, clientX: 40 })
+    fireEvent.click(within(hand).getByRole('button', { name: '7♣' }))
+    expect(t.toggleCard).toHaveBeenLastCalledWith(5)
     // A press that did not move is not a drag.
     fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, buttons: 1 })
     fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 103, buttons: 1 })
     fireEvent.pointerUp(hand, { pointerType: 'mouse', pointerId: 1, clientX: 103 })
-    fireEvent.click(within(hand).getByRole('button', { name: '7♣' }))
-    expect(t.toggleCard).toHaveBeenLastCalledWith(5)
-    // A drag that never became a click — the right button, say — does
-    // not eat the next tap.
-    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, button: 0, buttons: 1 })
-    fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40, buttons: 1 })
-    fireEvent.pointerUp(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40 })
+    fireEvent.click(within(hand).getByRole('button', { name: '8♣' }))
+    expect(t.toggleCard).toHaveBeenLastCalledWith(6)
+    // A drag on any button but the first ends in a context menu and
+    // never a click, and does not eat the next tap.
     fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, button: 2, buttons: 2 })
     fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40, buttons: 2 })
     fireEvent.pointerUp(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40, button: 2 })
-    fireEvent.click(within(hand).getByRole('button', { name: '8♣' }))
-    expect(t.toggleCard).toHaveBeenLastCalledWith(6)
-    // A button that came up where the strip could not see it ends the
+    fireEvent.click(within(hand).getByRole('button', { name: '9♣' }))
+    expect(t.toggleCard).toHaveBeenLastCalledWith(7)
+    // A button that came up where the hand could not see it ends the
     // drag: bare movement does not scroll.
     hand.scrollLeft = 0
-    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, button: 0, buttons: 1 })
+    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, buttons: 1 })
     fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40, buttons: 0 })
     expect(hand.scrollLeft).toBe(0)
+  })
+
+  it('a hand that fits does not scroll, so a drag across it is a tap', () => {
+    const { t } = mountWith(view())
+    const hand = screen.getByRole('group', { name: 'Your hand' })
+    // The browser clamps scrollLeft to 0 when nothing overflows.
+    Object.defineProperty(hand, 'scrollLeft', { get: () => 0, set: () => {}, configurable: true })
+    fireEvent.pointerDown(hand, { pointerType: 'mouse', pointerId: 1, clientX: 100, buttons: 1 })
+    fireEvent.pointerMove(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40, buttons: 1 })
+    fireEvent.pointerUp(hand, { pointerType: 'mouse', pointerId: 1, clientX: 40 })
+    fireEvent.click(within(hand).getByRole('button', { name: 'Q♠' }))
+    expect(t.toggleCard).toHaveBeenCalledWith(2)
   })
 
   it('the ending arrives in front, and waves away to the final hands', () => {

@@ -435,68 +435,51 @@ down and to the right so the back's corner shows under it. */
   top: 0.8rem;
 }
 
-/* The hand, fanned around a point below the cards. */
+/* The hand, fanned around a point below the cards. Wider than the
+   chair, it scrolls — by finger, or dragged by mouse — and the last card
+   in view is cut off, which is how a hand says there is more. The
+   track sits in the middle while it fits and starts at the left once
+   it does not. */
 .hand {
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  min-height: 5.2rem;
-  padding: 0.5rem 0.75rem 0;
-}
-
-/* Overlap grows with the hand (the seat sets --overlap), but never past
-   what leaves a card an edge to tap. */
-.fanSlot {
-  display: block;
-  margin-left: calc(-1 * min(var(--overlap, 1rem), var(--overlap-max, 2.2rem)));
-  transform-origin: 50% 160%;
-}
-
-.fanSlot:first-child {
-  margin-left: 0;
-}
-
-.fanSlot:hover,
-.fanSlot:focus-within {
-  z-index: 1;
-}
-
-/* Past what fans, the hand is a strip: every card whole, scrolled by
-   finger or dragged by mouse, the ends faded where there is more. The
-   room for a lifted card is the padding above. */
-.handStrip {
   display: flex;
   max-width: 100%;
   min-height: 5.2rem;
-  padding: 0.5rem 1.25rem 0.25rem;
+  /* Room at the sides for the end cards, which lean out past the track
+     that lays them out; the left of a scroller cannot be scrolled to. */
+  padding: 0.5rem 1.5rem 0.6rem;
   overflow-x: auto;
+  overflow-y: hidden;
   scroll-snap-type: x proximity;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
   cursor: grab;
-  mask-image: linear-gradient(to right, transparent, black 1.25rem, black calc(100% - 1.25rem), transparent);
-  -webkit-mask-image: linear-gradient(to right, transparent, black 1.25rem, black calc(100% - 1.25rem), transparent);
 }
 
-.handStrip::-webkit-scrollbar {
+.hand::-webkit-scrollbar {
   display: none;
 }
 
-.handStrip:active {
+.hand:active {
   cursor: grabbing;
 }
 
-/* The strip's cards overlap, the way a hand is held: the corner index
-   of the card underneath stays clear, and there is enough of each to
-   tap. A card raised or pointed at comes to the front. */
-.stripSlot {
+.fan {
+  display: flex;
+  align-items: flex-end;
+  margin: 0 auto;
+}
+
+/* Overlap grows with the hand (the seat sets --overlap), but never past
+   what leaves a card its corner index and a thumb's width to tap. */
+.fanSlot {
   position: relative;
   flex: 0 0 auto;
-  margin-left: -1.1rem;
+  margin-left: calc(-1 * min(var(--overlap, 1rem), var(--overlap-max, 1.4rem)));
+  transform-origin: 50% 160%;
   scroll-snap-align: center;
 }
 
-.stripSlot:first-child {
+.fanSlot:first-child {
   margin-left: 0;
 }
 
@@ -504,12 +487,12 @@ down and to the right so the back's corner shows under it. */
    one: raised in place, its gold edge and index show, and the neighbour
    it would otherwise cover keeps its index for the next pick. A tapped
    card keeps hover and focus on a phone, so neither counts there. */
-.stripSlot:has(:focus-visible) {
+.fanSlot:has(:focus-visible) {
   z-index: 1;
 }
 
 @media (hover: hover) {
-  .stripSlot:hover {
+  .fanSlot:hover {
     z-index: 1;
   }
 }
@@ -551,7 +534,7 @@ down and to the right so the back's corner shows under it. */
 }
 
 /* A card lying on another casts onto it. */
-.stripSlot + .stripSlot .card,
+.fanSlot + .fanSlot .card,
 .runSlot + .runSlot .card {
   box-shadow:
     -3px 0 6px rgba(0, 0, 0, 0.2),
@@ -707,14 +690,6 @@ down and to the right so the back's corner shows under it. */
     font-size: 0.85rem;
   }
 
-  .handStrip {
-    min-height: 4.5rem;
-  }
-
-  /* Narrower cards: less overlap, so what shows is still a thumb's width. */
-  .stripSlot {
-    margin-left: -0.8rem;
-  }
 
   .card {
     width: 2.6rem;
@@ -723,7 +698,7 @@ down and to the right so the back's corner shows under it. */
   }
 
   .fanSlot {
-    --overlap-max: 1.8rem;
+    --overlap-max: 1rem;
   }
 
   /* Smaller cards: the card under the top one still shows its rank. */
