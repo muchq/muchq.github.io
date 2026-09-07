@@ -466,7 +466,6 @@ down and to the right so the back's corner shows under it. */
    room for a lifted card is the padding above. */
 .handStrip {
   display: flex;
-  gap: 0.4rem;
   max-width: 100%;
   min-height: 5.2rem;
   padding: 0.5rem 1.25rem 0.25rem;
@@ -487,9 +486,32 @@ down and to the right so the back's corner shows under it. */
   cursor: grabbing;
 }
 
+/* The strip's cards overlap, the way a hand is held: the corner index
+   of the card underneath stays clear, and there is enough of each to
+   tap. A card raised or pointed at comes to the front. */
 .stripSlot {
+  position: relative;
   flex: 0 0 auto;
+  margin-left: -1.1rem;
   scroll-snap-align: center;
+}
+
+.stripSlot:first-child {
+  margin-left: 0;
+}
+
+/* Pointed at or tabbed to, a card comes to the front. Not a selected
+   one: raised in place, its gold edge and index show, and the neighbour
+   it would otherwise cover keeps its index for the next pick. A tapped
+   card keeps hover and focus on a phone, so neither counts there. */
+.stripSlot:has(:focus-visible) {
+  z-index: 1;
+}
+
+@media (hover: hover) {
+  .stripSlot:hover {
+    z-index: 1;
+  }
 }
 
 /* A card that just arrived slides up into place, one after another. */
@@ -510,6 +532,7 @@ down and to the right so the back's corner shows under it. */
 }
 
 .card {
+  position: relative;
   width: 3.2rem;
   height: 4.6rem;
   border-radius: 0.4rem;
@@ -517,13 +540,47 @@ down and to the right so the back's corner shows under it. */
   background: white;
   color: #1a1a1a;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   font-size: 1.1rem;
-  line-height: 1.1;
+  line-height: 1;
   padding: 0;
   cursor: default;
+  /* An edge, so two white cards do not read as one white shape. */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+/* A card lying on another casts onto it. */
+.stripSlot + .stripSlot .card,
+.runSlot + .runSlot .card {
+  box-shadow:
+    -3px 0 6px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+/* The marks scale with the card's font size, so the small cards and the
+   flipped one in the last-play line carry the same face. */
+.index {
+  position: absolute;
+  top: 0.15em;
+  left: 0.25em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.62em;
+  line-height: 1.05;
+}
+
+.indexBottom {
+  top: auto;
+  left: auto;
+  right: 0.25em;
+  bottom: 0.15em;
+  transform: rotate(180deg);
+}
+
+.pip {
+  font-size: 1.35em;
 }
 
 .card:enabled {
@@ -652,6 +709,11 @@ down and to the right so the back's corner shows under it. */
 
   .handStrip {
     min-height: 4.5rem;
+  }
+
+  /* Narrower cards: less overlap, so what shows is still a thumb's width. */
+  .stripSlot {
+    margin-left: -0.8rem;
   }
 
   .card {

@@ -26,20 +26,35 @@ interface CardFaceProps {
   style?: CSSProperties
 }
 
+// A card's face: the index in the top-left and, turned round, the
+// bottom-right, the way a real card carries it — so a card mostly under
+// its neighbour still says what it is — and its suit in the middle.
+const CardFaceMarks = ({ card }: { card: Card }) => (
+  <>
+    <span className={styles.index}>
+      <span className={styles.rank}>{card.rank}</span>
+      <span>{card.suit}</span>
+    </span>
+    <span className={styles.pip}>{card.suit}</span>
+    <span className={`${styles.index} ${styles.indexBottom}`}>
+      <span className={styles.rank}>{card.rank}</span>
+      <span>{card.suit}</span>
+    </span>
+  </>
+)
+
 const CardFace = ({ card, onClick, toggle, label, className = '', style }: CardFaceProps) => {
   const classes = `${styles.card} ${isRed(card) ? styles.red : ''} ${toggle ? styles.selected : ''} ${className}`
   if (onClick === undefined) {
     return (
       <span className={classes} style={style} role="img" aria-label={label ?? face(card)}>
-        <span className={styles.rank}>{card.rank}</span>
-        <span className={styles.suit}>{card.suit}</span>
+        <CardFaceMarks card={card} />
       </span>
     )
   }
   return (
     <button type="button" className={classes} style={style} onClick={onClick} aria-pressed={toggle} aria-label={label ?? face(card)}>
-      <span className={styles.rank}>{card.rank}</span>
-      <span className={styles.suit}>{card.suit}</span>
+      <CardFaceMarks card={card} />
     </button>
   )
 }
