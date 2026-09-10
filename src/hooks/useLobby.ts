@@ -32,11 +32,11 @@ export const lobbyTablePath = (roomId: string, gameId: string) =>
 
 const NOTICE_MS = 3000
 
+// The room's chat; it is open the whole time the session is in a room.
+// A fresh room has no history to replay, so the wire says nothing
+// until someone speaks.
 export interface LobbyChat {
   messages: ChatMessage[]
-  // True once the room's wire has delivered chat (the join replay or a
-  // live message); a UI ahead of its server renders no composer.
-  available: boolean
   replayUpTo: number
   rejection: { seq: number; reason: string } | null
 }
@@ -87,7 +87,7 @@ export const useLobby = ({
   const [room, setRoom] = useState<HubRoom | null>(null)
   const [notice, setNotice] = useState('')
   const [roomCode, setRoomCode] = useState('')
-  const [chat, setChat] = useState<LobbyChat>({ messages: [], available: false, replayUpTo: 0, rejection: null })
+  const [chat, setChat] = useState<LobbyChat>({ messages: [], replayUpTo: 0, rejection: null })
 
   const streamRef = useRef<HubStream | null>(null)
   const noticeTimeoutRef = useRef<number | null>(null)
@@ -118,7 +118,7 @@ export const useLobby = ({
   }, [])
 
   const resetChat = useCallback(() => {
-    setChat({ messages: [], available: false, replayUpTo: 0, rejection: null })
+    setChat({ messages: [], replayUpTo: 0, rejection: null })
   }, [])
 
   // One link for the life of the hook; the renderer attaches to it when
@@ -209,6 +209,14 @@ export const useLobby = ({
       switchRef.current = null
       tablePendingRef.current = null
       const here = ready.roomId ?? null
+      // A reconnect that lands somewhere other than the room this
+      // session was showing — the room reaped while it was away, or a
+      // fresh seat — leaves nothing of that room behind: a panel still
+      // showing it offers tables the hub refuses as "not in a room".
+      if (here !== roomIdRef.current) {
+        setRoom(null)
+        resetChat()
+      }
       roomIdRef.current = here
       const wanted = permalinkRef.current
       if (wanted.roomId && wanted.roomId !== here) {
@@ -224,7 +232,7 @@ export const useLobby = ({
       if (here !== null && !wanted.roomId) navigate(lobbyRoomPath(here), { replace: true })
       enterWorld(here)
     },
-    [clearTables, enterWorld, navigate, onPlayerIdChange, world]
+    [clearTables, enterWorld, navigate, onPlayerIdChange, resetChat, world]
   )
 
   const handleRoom = useCallback(
@@ -326,11 +334,10 @@ export const useLobby = ({
         onRoom: handleRoom,
         onRoomLeft: handleRoomLeft,
         onChat: message =>
-          setChat(prev => ({ ...prev, available: true, messages: mergeChatMessages(prev.messages, [message]) })),
+          setChat(prev => ({ ...prev, messages: mergeChatMessages(prev.messages, [message]) })),
         onChatHistory: messages =>
           setChat(prev => ({
             ...prev,
-            available: true,
             messages: mergeChatMessages(prev.messages, messages),
             replayUpTo: Math.max(prev.replayUpTo, ...messages.map(m => m.messageId))
           })),

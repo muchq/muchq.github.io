@@ -12,7 +12,7 @@ const state = {
   connected: true,
   lost: null,
   room: null,
-  chat: { messages: [], available: false, replayUpTo: 0, rejection: null },
+  chat: { messages: [], replayUpTo: 0, rejection: null },
   notice: '',
   roomCode: '',
   setRoomCode: vi.fn(),
@@ -32,6 +32,7 @@ vi.mock('@/hooks/useLobby', async importOriginal => ({
 }))
 vi.mock('@/apps/thoughts/components/ThoughtsGame', () => ({ default: () => <div>world</div> }))
 vi.mock('@/apps/castle/components/CastleTable', () => ({ default: () => <div>table</div> }))
+vi.mock('../RoomChat', () => ({ default: () => <div>chat</div> }))
 vi.mock('@/apps/golf/components/GolfTable', () => ({
   default: ({ shareUrl }: { shareUrl: string | null }) => <div>golf table {shareUrl}</div>
 }))
@@ -68,6 +69,17 @@ describe('LobbyGame', () => {
     expect(screen.queryByRole('complementary', { name: 'lobby' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Lobby' }))
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
+  })
+
+  it('chat is up whenever the session is in a room, before anyone has spoken', () => {
+    const { rerender } = render(<LobbyGame />)
+    expect(screen.queryByText('chat')).toBeNull()
+    state.room = { roomId: 'R1', players: [], games: [] }
+    rerender(<LobbyGame />)
+    expect(screen.getByText('chat')).toBeTruthy()
+    state.room = null
+    rerender(<LobbyGame />)
+    expect(screen.queryByText('chat')).toBeNull()
   })
 
   it('a lost hub is said, not hidden', () => {
