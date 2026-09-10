@@ -29,7 +29,7 @@ const lobby = (over: Partial<UseLobby> = {}): UseLobby =>
     connected: true,
     lost: null,
     room: null,
-    chat: { messages: [], available: false, replayUpTo: 0, rejection: null },
+    chat: { messages: [], replayUpTo: 0, rejection: null },
     notice: '',
     roomCode: '',
     setRoomCode: vi.fn(),

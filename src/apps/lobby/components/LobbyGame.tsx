@@ -77,7 +77,7 @@ const LobbyGame = (props: UseLobbyProps) => {
           <LobbyPanel lobby={lobby} />
         </div>
       )}
-      {chat.available && (
+      {room !== null && (
         <div className={styles.chatHost}>
           <RoomChat
             messages={chat.messages}

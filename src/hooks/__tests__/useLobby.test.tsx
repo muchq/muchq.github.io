@@ -324,13 +324,11 @@ describe('useLobby', () => {
     expect(result.current.castle.opening).toBe(false)
   })
 
-  it('chat appears only once the wire delivers it, merged by id, and is the room\'s', async () => {
+  it("chat is merged by id, and is the room's", async () => {
     const { result, ws } = await open()
     act(() => ws.receive('roomState', roomState('R1')))
-    expect(result.current.chat.available).toBe(false)
     const message = { messageId: 3, playerId: 'bob', text: 'hi', sentAtUnixMillis: 1 }
     act(() => ws.receive('roomChatHistory', { messages: [message] }))
-    expect(result.current.chat.available).toBe(true)
     expect(result.current.chat.replayUpTo).toBe(3)
     act(() => ws.receive('roomChat', message))
     expect(result.current.chat.messages).toHaveLength(1)
@@ -339,7 +337,7 @@ describe('useLobby', () => {
     act(() => ws.receive('commandRejected', { reason: 'slow down' }))
     expect(result.current.chat.rejection).toEqual({ seq: 1, reason: 'slow down' })
     act(() => ws.receive('roomState', roomState('R2')))
-    expect(result.current.chat).toEqual({ messages: [], available: false, replayUpTo: 0, rejection: null })
+    expect(result.current.chat).toEqual({ messages: [], replayUpTo: 0, rejection: null })
     act(() => ws.receive('roomChat', message))
     act(() => ws.receive('roomLeft', { roomId: 'R2' }))
     expect(result.current.chat.messages).toEqual([])
@@ -374,6 +372,70 @@ describe('useLobby', () => {
       // A seat that survived comes back as gameJoined and is the table again.
       act(() => next.receive('golf', { update: { gameJoined: { view: golfView('G7') } } }))
       expect(result.current.golf.view?.id).toBe('G7')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a reconnect that lands outside the room drops the room it was showing', async () => {
+    vi.useFakeTimers()
+    try {
+      const { result, pathname } = mount({ permalinkRoomId: 'R1' }, '/games/room/R1')
+      let ws!: FakeWebSocket
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+        ws = FakeWebSocket.instances[0]
+        ws.open()
+        ws.receive('sessionReady', { playerId: 'alice', resumed: true, roomId: 'R1' })
+      })
+      act(() => ws.receive('roomState', roomState('R1')))
+      act(() => ws.receive('roomChat', { messageId: 1, playerId: 'bob', text: 'hi', sentAtUnixMillis: 1 }))
+      expect(result.current.room?.roomId).toBe('R1')
+      act(() => ws.close())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000)
+      })
+      // The room was reaped while the seat was away: the hub admits the
+      // session into the plaza, and the link's room is refused.
+      const next = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
+      act(() => {
+        next.open()
+        next.receive('sessionReady', { playerId: 'alice', resumed: true })
+      })
+      expect(result.current.room).toBeNull()
+      expect(result.current.chat.messages).toEqual([])
+      expect(next.lastSent()).toEqual({ event: 'joinRoom', payload: { roomId: 'R1' } })
+      act(() => next.receive('commandRejected', { reason: 'room not found' }))
+      expect(result.current.room).toBeNull()
+      expect(result.current.notice).toBe('Room R1 is gone')
+      expect(pathname()).toBe('/games')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a reconnect back into the same room keeps the room on screen', async () => {
+    vi.useFakeTimers()
+    try {
+      const { result } = mount()
+      let ws!: FakeWebSocket
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+        ws = FakeWebSocket.instances[0]
+        ws.open()
+        ws.receive('sessionReady', { playerId: 'alice', resumed: false })
+      })
+      act(() => ws.receive('roomState', roomState('R1')))
+      act(() => ws.close())
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000)
+      })
+      const next = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
+      act(() => {
+        next.open()
+        next.receive('sessionReady', { playerId: 'alice', resumed: true, roomId: 'R1' })
+      })
+      expect(result.current.room?.roomId).toBe('R1')
     } finally {
       vi.useRealTimers()
     }
