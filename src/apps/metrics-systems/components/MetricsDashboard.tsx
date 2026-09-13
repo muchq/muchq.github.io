@@ -225,20 +225,31 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
     return fillWindow(systemFrame, rows, { rx: 0, tx: 0 })
   }
 
+  // Whole physical disks only. Device names are the host's — nvme0n1 here, vda
+  // on a virtio guest, sda elsewhere — so the set is chosen by shape rather
+  // than named. Partitions are dropped because their reads are already counted
+  // in the parent disk's, and loopbacks because their I/O is a squashfs mount
+  // artifact rather than traffic to a device.
+  const isPhysicalDisk = (device?: string) =>
+    !!device && !/^loop\d+$/.test(device) && !/^(?:nvme\d+n\d+|mmcblk\d+)p\d+$|^[a-z]+\d+$/.test(device)
+
+  // Summed across whatever disks the host has, so a second drive is charted
+  // rather than silently losing to whichever series came back first.
   const getDiskIOData = () => {
-    const diskSeries = systemTimeseries?.series?.filter(s => s.metric_name === 'disk_io_rate' && s.labels?.device === 'vda')
-    const readSeries = diskSeries?.find(s => s.labels?.direction === 'read')
-    const writeSeries = diskSeries?.find(s => s.labels?.direction === 'write')
-    if (!systemFrame || (!readSeries?.values?.length && !writeSeries?.values?.length)) return []
+    const diskSeries = (systemTimeseries?.series ?? []).filter(
+      s => s.metric_name === 'disk_io_rate' && isPhysicalDisk(s.labels?.device),
+    )
+    if (!systemFrame || !diskSeries.some(s => s.values?.length)) return []
 
     const rows = new Map<number, { read?: number; write?: number }>()
-    readSeries?.values?.forEach(v => {
-      const key = bucketMs(v.timestamp, systemFrame)
-      rows.set(key, { ...rows.get(key), read: (v.value || 0) / (1024 * 1024) })
-    })
-    writeSeries?.values?.forEach(v => {
-      const key = bucketMs(v.timestamp, systemFrame)
-      rows.set(key, { ...rows.get(key), write: (v.value || 0) / (1024 * 1024) })
+    diskSeries.forEach(series => {
+      const key = series.labels?.direction
+      if (key !== 'read' && key !== 'write') return
+      series.values?.forEach(v => {
+        const bucket = bucketMs(v.timestamp, systemFrame)
+        const row = rows.get(bucket) ?? {}
+        rows.set(bucket, { ...row, [key]: (row[key] ?? 0) + (v.value || 0) / (1024 * 1024) })
+      })
     })
     return fillWindow(systemFrame, rows, { read: 0, write: 0 })
   }
