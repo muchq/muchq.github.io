@@ -12,12 +12,28 @@ type ChartRow = Record<string, unknown>
 const rowKeys = (data?: ChartRow[]) => JSON.stringify(Object.keys(data?.[0] ?? {}))
 const rowNames = (data?: ChartRow[]) => JSON.stringify((data ?? []).map((d) => d.name))
 
+// The largest value each numeric key reaches across the window. A summary
+// rather than the rows themselves: a day at 30s is ~2900 rows per chart, and
+// what an assertion about a series wants to know is which device's numbers
+// ended up in it, not where in the window they landed.
+const rowPeaks = (data?: ChartRow[]) =>
+  JSON.stringify(
+    (data ?? []).reduce<Record<string, number>>((peaks, row) => {
+      for (const [key, value] of Object.entries(row)) {
+        if (typeof value === 'number') peaks[key] = Math.max(peaks[key] ?? 0, value)
+      }
+      return peaks
+    }, {}),
+  )
+
 vi.mock('recharts', () => ({
   LineChart: ({ children, data }: { children: React.ReactNode; data?: ChartRow[] }) => (
     <div data-testid="line-chart" data-row-keys={rowKeys(data)}>{children}</div>
   ),
   Line: ({ dataKey }: { dataKey?: string }) => <div data-testid="line" data-key={dataKey} />,
-  AreaChart: ({ children }: { children: React.ReactNode }) => <div data-testid="area-chart">{children}</div>,
+  AreaChart: ({ children, data }: { children: React.ReactNode; data?: ChartRow[] }) => (
+    <div data-testid="area-chart" data-row-peaks={rowPeaks(data)}>{children}</div>
+  ),
   Area: () => <div data-testid="area" />,
   XAxis: () => <div data-testid="x-axis" />,
   YAxis: () => <div data-testid="y-axis" />,
@@ -32,6 +48,8 @@ vi.mock('recharts', () => ({
   Pie: () => <div data-testid="pie" />,
   Cell: () => <div data-testid="cell" />
 }))
+
+const MIB = 1024 * 1024
 
 const hostResponse = {
   timestamp: new Date().toISOString(),
@@ -94,6 +112,70 @@ describe('MetricsDashboard (host view)', () => {
       return Promise.resolve({ ok: false, text: () => Promise.resolve('') })
     })
     globalThis.fetch = mockFetch as unknown as typeof fetch
+  })
+
+  it('charts disk I/O from the physical disk, whatever the host calls it', async () => {
+    // The device names are the host's, not a fixed list: nvme0n1 on one box,
+    // vda on a virtio guest, sda elsewhere. A filter naming one of them charts
+    // nothing on the others, and an empty Disk I/O panel reads as an idle disk
+    // rather than as a panel looking for a device that does not exist.
+    //
+    // Whole disks sum; partitions and loopbacks are excluded rather than added.
+    // nvme0n1p1's reads are already counted in nvme0n1's, so including them
+    // double-counts, and loop devices are squashfs images whose I/O is a mount
+    // artifact. Every device carries a different number so a chart that summed
+    // the wrong set fails rather than coincidentally matching.
+    const end = new Date()
+    const sample = (value: number) => [{ timestamp: end.toISOString(), value }]
+    const io = (device: string, direction: string, value: number) => ({
+      metric_name: 'disk_io_rate',
+      labels: { device, direction },
+      values: sample(value),
+    })
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/host/timeseries/')) {
+        return Promise.resolve({
+          ok: true,
+          text: () =>
+            Promise.resolve(
+              JSON.stringify({
+                time_range: '1d',
+                start_time: new Date(end.getTime() - 6 * 3600_000).toISOString(),
+                end_time: end.toISOString(),
+                step: '1h',
+                series: [
+                  io('nvme0n1', 'read', 4 * MIB),
+                  io('nvme0n1', 'write', 2 * MIB),
+                  io('sdb', 'read', 3 * MIB),
+                  io('sdb', 'write', 1 * MIB),
+                  io('nvme0n1p1', 'read', 1 * MIB),
+                  io('nvme0n1p1', 'write', 1 * MIB),
+                  io('sdb1', 'read', 1 * MIB),
+                  io('loop0', 'read', 8 * MIB),
+                  io('loop0', 'write', 8 * MIB),
+                ],
+              }),
+            ),
+        })
+      }
+      if (url.endsWith('/host')) {
+        return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify(hostResponse)) })
+      }
+      return Promise.resolve({ ok: false, text: () => Promise.resolve('') })
+    })
+
+    render(<MetricsDashboard onConnectionStateChange={vi.fn()} />)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    })
+
+    const diskPanel = screen.getByText('Disk I/O').parentElement as HTMLElement
+    expect(within(diskPanel).queryByText('No data available')).toBeNull()
+    const peaks = JSON.parse(
+      within(diskPanel).getByTestId('area-chart').getAttribute('data-row-peaks') ?? '{}',
+    )
+    expect(peaks.read).toBeCloseTo(4 + 3)
+    expect(peaks.write).toBeCloseTo(2 + 1)
   })
 
   it('renders host scalars and the container table from the merged endpoint', async () => {
