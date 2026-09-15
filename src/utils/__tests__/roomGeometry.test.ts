@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { ROOM_GEOMETRIES, DEFAULT_ROOM, nextRoom, roomById, roomFragmentShader, RAY_TRACER_UNIFORMS } from '../roomGeometry'
-import { fragmentShaderSource } from '../shaders'
+import { SHADER_FOV, depthCoefficients } from '../projection'
 import { GAME_CONFIG } from '../gameClasses'
 
 // The room registry is the seam a new geometry lands in: one entry, a
@@ -41,6 +41,11 @@ describe('the registry', () => {
       expect(Math.max(Math.abs(s.center[0]), Math.abs(s.center[2])) - s.scale).toBeGreaterThan(GAME_CONFIG.worldBoundary)
     }
   })
+
+  it('gives avatars a wake in the glasshouse and none on the grid', () => {
+    expect(roomById('grid')!.trailLength).toBe(0)
+    expect(roomById('glasshouse')!.trailLength).toBeGreaterThan(1)
+  })
 })
 
 describe('roomFragmentShader', () => {
@@ -54,28 +59,38 @@ describe('roomFragmentShader', () => {
         }
       })
 
-      it('defines the wall hook exactly once and the shared main calls it', () => {
+      it('defines each room hook exactly once and the shared main calls both', () => {
         expect(src.match(/vec4 roomWalls\(/g)).toHaveLength(1)
         expect(src).toMatch(/roomWalls\(cameraPos, rayDir/)
+        expect(src.match(/vec3 roomAvatar\(/g)).toHaveLength(1)
+        expect(src).toMatch(/lighting = roomAvatar\(lighting, sphereColor, hit\.normal, viewDir, hit\.point\)/)
         expect(src.match(/void main\(\)/g)).toHaveLength(1)
       })
 
-      it('writes a depth the attractor pass can test against', () => {
-        expect(src).toContain('gl_FragDepth')
+      // The camera the labels and the line pass use is the one the rays
+      // are cast from: the shader reads the same constants, not copies.
+      it('casts rays with the shared fov and writes the shared depth mapping', () => {
+        expect(src.match(/float fov = /g)).toHaveLength(1)
+        expect(src).toContain(`float fov = ${SHADER_FOV};`)
+        const { a, b } = depthCoefficients()
+        expect(src).toContain(`const float DEPTH_A = ${a};`)
+        expect(src).toContain(`const float DEPTH_B = ${b};`)
+        expect(src).toMatch(/gl_FragDepth = .*fragDepth\(/)
       })
     })
   }
 
-  it('composes the grid room into the shader the world exports by default', () => {
-    expect(roomFragmentShader(DEFAULT_ROOM)).toBe(fragmentShaderSource)
-  })
-
-  it('gives the glasshouse walls the grid does not have', () => {
+  it('gives the glasshouse walls and a rim the grid does not have', () => {
     const grid = roomFragmentShader(roomById('grid')!)
     const glass = roomFragmentShader(roomById('glasshouse')!)
     expect(glass).not.toBe(grid)
-    // The grid's hook is the no-op; a stray wall in it would tint the plaza.
-    expect(grid).toMatch(/vec4 roomWalls\([^)]*\)\s*\{\s*return vec4\(0\.0\);\s*\}/)
-    expect(glass).not.toMatch(/vec4 roomWalls\([^)]*\)\s*\{\s*return vec4\(0\.0\);\s*\}/)
+    // The grid's hooks are the no-ops; a stray wall or glow in them would
+    // change the plaza.
+    const noWalls = /vec4 roomWalls\([^)]*\)\s*\{\s*return vec4\(0\.0\);\s*\}/
+    const noRim = /vec3 roomAvatar\(vec3 lit[^)]*\)\s*\{\s*return lit;\s*\}/
+    expect(grid).toMatch(noWalls)
+    expect(grid).toMatch(noRim)
+    expect(glass).not.toMatch(noWalls)
+    expect(glass).not.toMatch(noRim)
   })
 })

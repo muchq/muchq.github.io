@@ -1,11 +1,11 @@
 // WebGL2 Shaders for the Thoughts Game
-import { DEPTH_RANGE } from './projection'
+import { DEPTH_RANGE, SHADER_FOV, depthCoefficients } from './projection'
 
 // GLSL ES wants a decimal point on a float literal.
 const glslFloat = (n: number) => (Number.isInteger(n) ? `${n}.0` : `${n}`)
 
 export const vertexShaderSource = `#version 300 es
-  in vec2 a_position;
+  layout(location = 0) in vec2 a_position;
   out vec2 v_uv;
 
   void main() {
@@ -14,13 +14,18 @@ export const vertexShaderSource = `#version 300 es
   }
 `
 
-// The ray tracer, in two halves around the one hook a room fills in:
+// The ray tracer, in two halves around the hooks a room fills in:
 //
 //   vec4 roomWalls(vec3 ro, vec3 rd, float tHit)
+//     the tint (rgb) and its strength (a) of whatever the room puts
+//     between the camera and the primary ray's landing point, tHit
+//     along the ray;
+//   vec3 roomAvatar(vec3 lit, vec3 base, vec3 normal, vec3 viewDir, vec3 point)
+//     the room's last word on a lit avatar surface.
 //
-// the tint (rgb) and its strength (a) of whatever the room puts between
-// the camera and the primary ray's landing point, tHit along the ray.
-// composeFragmentShader() joins the halves around a room's block.
+// composeFragmentShader() joins the halves around a room's block. The
+// floor is not behind a hook: it lives in traceRay and the floor branch
+// of main, so a room that replaces it needs a third hook here.
 export const fragmentShaderPrelude = `#version 300 es
   precision highp float;
 
@@ -300,15 +305,14 @@ export const fragmentShaderPrelude = `#version 300 es
     return baseColor + lightningColor;
   }
 
-  // View-space distance to window depth, the mapping viewProjection()
-  // (projection.ts) gives the attractor pass, so the two passes share a
-  // depth buffer.
+  // View-space distance to window depth: the mapping viewProjection()
+  // (projection.ts) gives the line pass, from the same two numbers, so
+  // the two passes share a depth buffer.
   const float DEPTH_NEAR = ${glslFloat(DEPTH_RANGE.near)};
-  const float DEPTH_FAR = ${glslFloat(DEPTH_RANGE.far)};
+  const float DEPTH_A = ${glslFloat(depthCoefficients().a)};
+  const float DEPTH_B = ${glslFloat(depthCoefficients().b)};
   float fragDepth(float zView) {
-    float a = (DEPTH_FAR + DEPTH_NEAR) / (DEPTH_FAR - DEPTH_NEAR);
-    float b = -2.0 * DEPTH_FAR * DEPTH_NEAR / (DEPTH_FAR - DEPTH_NEAR);
-    return clamp((a + b / max(zView, DEPTH_NEAR)) * 0.5 + 0.5, 0.0, 1.0);
+    return clamp((DEPTH_A + DEPTH_B / max(zView, DEPTH_NEAR)) * 0.5 + 0.5, 0.0, 1.0);
   }
 `
 
@@ -328,7 +332,7 @@ export const fragmentShaderMain = `
     vec3 up = cross(right, forward);
 
     // Calculate ray direction in world space
-    float fov = 0.8; // Field of view factor
+    float fov = ${glslFloat(SHADER_FOV)}; // Shared with the labels and the line pass (projection.ts)
     vec3 rayDir = normalize(forward + ndc.x * right * fov + ndc.y * up * fov);
 
     // Get stormy sky color with lightning
@@ -367,6 +371,7 @@ export const fragmentShaderMain = `
         // Add ambient
         lighting += sphereColor * 0.2;
 
+        lighting = roomAvatar(lighting, sphereColor, hit.normal, viewDir, hit.point);
         finalColor += lighting * reflectivity;
 
         // Set up reflection ray
@@ -435,10 +440,14 @@ export const fragmentShaderMain = `
   }
 `
 
-// A room with nothing in the way.
-export const NO_WALLS_GLSL = `
+// A room with nothing in the way and nothing to say about avatars.
+export const NO_ROOM_GLSL = `
   vec4 roomWalls(vec3 ro, vec3 rd, float tHit) {
     return vec4(0.0);
+  }
+
+  vec3 roomAvatar(vec3 lit, vec3 base, vec3 normal, vec3 viewDir, vec3 point) {
+    return lit;
   }
 `
 
@@ -446,16 +455,13 @@ export function composeFragmentShader(roomGlsl: string): string {
   return fragmentShaderPrelude + roomGlsl + fragmentShaderMain
 }
 
-// The world as it always was: the grid room.
-export const fragmentShaderSource = composeFragmentShader(NO_WALLS_GLSL)
-
-// The attractor pass: a line strip per attractor through the same camera
+// The line pass: a strip per attractor or wake through the same camera
 // as the ray tracer, with a glowing head running along it (u_head, in
 // points) and the trail fading behind it. u_glass tints the whole thing
-// the colour of the wall it hangs behind.
-export const attractorVertexShaderSource = `#version 300 es
-  in vec3 a_position;
-  in float a_index;
+// the colour of the wall it is seen through.
+export const lineVertexShaderSource = `#version 300 es
+  layout(location = 0) in vec3 a_position;
+  layout(location = 1) in float a_index;
   uniform mat4 u_viewProj;
   uniform mat4 u_model;
   uniform float u_head;
@@ -469,7 +475,7 @@ export const attractorVertexShaderSource = `#version 300 es
   }
 `
 
-export const attractorFragmentShaderSource = `#version 300 es
+export const lineFragmentShaderSource = `#version 300 es
   precision mediump float;
   in float v_glow;
   uniform vec3 u_color;

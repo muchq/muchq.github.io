@@ -54,8 +54,9 @@ const rk4 = (f: (s: Vec3) => Vec3, s: Vec3, dt: number): Vec3 => {
 
 const BURN_IN = 500
 
-// `points` xyz triples along the attractor, centred on their mean and
-// scaled into the unit ball, so a spec's centre and scale place it.
+// `points` xyz triples along the attractor, centred on its bounding box
+// and scaled so its farthest point is at distance 1, so a spec's centre
+// and scale say where the curve visually sits.
 export function attractorTrajectory(kind: AttractorKind, points: number): Float32Array {
   const system = SYSTEMS[kind]
   if (!system) throw new Error(`no such attractor: ${kind}`)
@@ -66,13 +67,15 @@ export function attractorTrajectory(kind: AttractorKind, points: number): Float3
     raw.push(s)
     s = rk4(system.derivative, s, system.dt)
   }
-  const mean: Vec3 = [0, 0, 0]
-  for (const p of raw) for (let a = 0; a < 3; a++) mean[a] += p[a] / points
+  const lo: Vec3 = [Infinity, Infinity, Infinity]
+  const hi: Vec3 = [-Infinity, -Infinity, -Infinity]
+  for (const p of raw) for (let a = 0; a < 3; a++) { lo[a] = Math.min(lo[a], p[a]); hi[a] = Math.max(hi[a], p[a]) }
+  const mid: Vec3 = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2]
   let radius = 0
-  for (const p of raw) radius = Math.max(radius, Math.hypot(p[0] - mean[0], p[1] - mean[1], p[2] - mean[2]))
+  for (const p of raw) radius = Math.max(radius, Math.hypot(p[0] - mid[0], p[1] - mid[1], p[2] - mid[2]))
   const out = new Float32Array(points * 3)
   raw.forEach((p, i) => {
-    for (let a = 0; a < 3; a++) out[i * 3 + a] = (p[a] - mean[a]) / (radius || 1)
+    for (let a = 0; a < 3; a++) out[i * 3 + a] = (p[a] - mid[a]) / (radius || 1)
   })
   return out
 }

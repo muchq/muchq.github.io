@@ -14,18 +14,17 @@ describe('attractorTrajectory', () => {
         expect(Array.from(xyz).every(Number.isFinite)).toBe(true)
       })
 
-      it('is centred and fits in the unit ball', () => {
+      // Centred on its bounding box, so a spec's centre is where the
+      // curve visually sits, and scaled so its farthest point is at 1.
+      it('is centred on its bounding box and reaches the unit sphere', () => {
         let maxR = 0
-        const mean = [0, 0, 0]
-        for (let i = 0; i < points; i++) {
-          const x = xyz[i * 3], y = xyz[i * 3 + 1], z = xyz[i * 3 + 2]
-          mean[0] += x / points; mean[1] += y / points; mean[2] += z / points
-          maxR = Math.max(maxR, Math.hypot(x, y, z))
+        for (let axis = 0; axis < 3; axis++) {
+          let lo = Infinity, hi = -Infinity
+          for (let i = 0; i < points; i++) { lo = Math.min(lo, xyz[i * 3 + axis]); hi = Math.max(hi, xyz[i * 3 + axis]) }
+          expect(hi + lo).toBeCloseTo(0, 5)
         }
-        expect(maxR).toBeLessThanOrEqual(1 + 1e-6)
-        expect(maxR).toBeGreaterThan(0.9)
-        expect(Math.abs(mean[0])).toBeLessThan(0.3)
-        expect(Math.abs(mean[2])).toBeLessThan(0.3)
+        for (let i = 0; i < points; i++) maxR = Math.max(maxR, Math.hypot(xyz[i * 3], xyz[i * 3 + 1], xyz[i * 3 + 2]))
+        expect(maxR).toBeCloseTo(1, 5)
       })
 
       // A strange attractor never settles: consecutive points keep moving

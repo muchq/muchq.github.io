@@ -2,10 +2,10 @@ import { useCallback } from 'react'
 import type { MutableRefObject } from 'react'
 import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
 import { generateRandomColor, generateRandomSpawnPosition } from '@/utils/gameUtils'
-import { RoomPrograms } from '@/utils/roomPrograms'
-import { DEFAULT_ROOM, nextRoom } from '@/utils/roomGeometry'
+import { RoomResources } from '@/utils/roomResources'
+import { DEFAULT_ROOM } from '@/utils/roomGeometry'
 import { bindRoomHotkey } from '@/utils/roomHotkey'
-import { AttractorRenderer } from '@/utils/attractorRenderer'
+import { AvatarTrails } from '@/utils/avatarTrails'
 import { projectToNdc, viewProjection } from '@/utils/projection'
 import { VirtualJoystick } from '@/utils/virtualJoystick'
 import { AudioSystem } from '@/utils/audioSystem'
@@ -99,6 +99,7 @@ export const useThoughtsGame = () => {
     // Set once the canvas is up; cleanup removes the same reference.
     let resizeCanvas: (() => void) | null = null
     let unbindRoomHotkey: (() => void) | null = null
+    let disposeRooms: (() => void) | null = null
 
     // Function to cycle through shapes
     function cyclePlayerShape() {
@@ -167,32 +168,27 @@ export const useThoughtsGame = () => {
         return () => {}
       }
     } else {
-      // The room decides the ray tracer; the hotkey walks the registry.
-      const programs = new RoomPrograms(gl)
+      // The room decides the ray tracer; the hotkey walks the registry,
+      // stepping past any room that will not build.
+      const rooms = new RoomResources(gl)
+      disposeRooms = () => rooms.dispose()
       let room = DEFAULT_ROOM
-      const first = programs.get(room)
+      const first = rooms.get(room)
 
       if (!first) {
         console.error('Failed to create program')
         return () => {}
       }
-      let active = first
-
-      // Attractors are built the first time their room is shown.
-      const attractorRenderers = new Map<string, AttractorRenderer | null>()
-      const attractorsFor = (r: typeof room) => {
-        if (!attractorRenderers.has(r.id)) attractorRenderers.set(r.id, AttractorRenderer.create(gl, r.attractors))
-        return attractorRenderers.get(r.id) ?? null
-      }
-      let attractors = attractorsFor(room)
+      let built = first
+      let trails = room.trailLength > 0 ? new AvatarTrails(room.trailLength) : null
 
       unbindRoomHotkey = bindRoomHotkey(document, () => {
-        const next = nextRoom(room.id)
-        const program = programs.get(next)
-        if (!program) return
+        const next = rooms.next(room.id)
+        const nextBuilt = next && rooms.get(next)
+        if (!next || !nextBuilt) return
         room = next
-        active = program
-        attractors = attractorsFor(room)
+        built = nextBuilt
+        trails = room.trailLength > 0 ? new AvatarTrails(room.trailLength) : null
         // eslint-disable-next-line no-console
         console.log(`🏠 Room: ${room.label}`)
       })
@@ -212,13 +208,10 @@ export const useThoughtsGame = () => {
       const quadVAO = gl.createVertexArray()
       gl.bindVertexArray(quadVAO)
 
-      // Every room's program shares the vertex shader, so the attribute
-      // sits at the same location in each.
-      const positionLocation = active.positionLocation
-      if (positionLocation !== -1) {
-        gl.enableVertexAttribArray(positionLocation)
-        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0)
-      }
+      // a_position is pinned to location 0 in the vertex shader every
+      // room's program links against.
+      gl.enableVertexAttribArray(0)
+      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
 
       // The ray tracer writes the sky at the far end of depth, which
       // LESS would reject against the cleared buffer.
@@ -507,9 +500,9 @@ export const useThoughtsGame = () => {
         webglContext.clear(webglContext.COLOR_BUFFER_BIT | webglContext.DEPTH_BUFFER_BIT)
 
         webglContext.enable(webglContext.DEPTH_TEST)
-        webglContext.useProgram(active.program)
+        webglContext.useProgram(built.program)
         webglContext.bindVertexArray(quadVAO)
-        const u = active.uniforms
+        const u = built.uniforms
 
         const localPlayer = gameState.getLocalPlayer()
 
@@ -551,6 +544,7 @@ export const useThoughtsGame = () => {
 
           // Add object center using direct position
           objectCenters.push(player.position[0], playerBobbingY, player.position[2])
+          trails?.record(player.id, [player.position[0], playerBobbingY, player.position[2]])
 
           // Add object color
           objectColors.push(player.color[0], player.color[1], player.color[2])
@@ -585,13 +579,18 @@ export const useThoughtsGame = () => {
 
         webglContext.drawArrays(webglContext.TRIANGLE_STRIP, 0, 4)
 
-        // What the room hangs outside its walls, over the frame and
-        // behind whatever the ray tracer put nearer.
-        attractors?.draw(
-          viewProjection(cameraPosition, cameraTargetPos, canvas.width / canvas.height),
-          time * 0.001,
-          room.behindGlass
-        )
+        // What the room hangs outside its walls and trails behind its
+        // avatars, over the frame and behind whatever the ray tracer put
+        // nearer.
+        if (built.lines) {
+          trails?.prune(gameState.players.keys())
+          built.lines.draw(
+            viewProjection(cameraPosition, cameraTargetPos, canvas.width / canvas.height),
+            time * 0.001,
+            room.behindGlass,
+            trails?.strips(id => gameState.players.get(id)?.color ?? [1, 1, 1]) ?? []
+          )
+        }
 
         animationId = requestAnimationFrame(render)
       }
@@ -624,6 +623,7 @@ export const useThoughtsGame = () => {
       soundToggle?.removeEventListener('click', handleSoundToggle)
       if (resizeCanvas) window.removeEventListener('resize', resizeCanvas)
       unbindRoomHotkey?.()
+      disposeRooms?.()
       window.removeEventListener('beforeunload', handleBeforeUnload)
 
       if (animationId) {

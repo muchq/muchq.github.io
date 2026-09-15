@@ -37,7 +37,8 @@ export function cameraBasis(cameraPos: Vec3, target: Vec3): CameraBasis {
 }
 
 // The direction the shader casts for a screen position in [-1, 1]².
-export function shaderRayDir(ndcX: number, ndcY: number, basis: CameraBasis, aspect: number, fov = SHADER_FOV): Vec3 {
+export function shaderRayDir(ndcX: number, ndcY: number, basis: CameraBasis, aspect: number): Vec3 {
+  const fov = SHADER_FOV
   const x = ndcX * aspect
   const { forward, right, up } = basis
   return normalize([
@@ -56,7 +57,8 @@ export interface Projected {
 
 // Where a world point lands on screen, in [-1, 1]² with y up, or null
 // when it is not in front of the camera.
-export function projectToNdc(point: Vec3, cameraPos: Vec3, target: Vec3, aspect: number, fov = SHADER_FOV): Projected | null {
+export function projectToNdc(point: Vec3, cameraPos: Vec3, target: Vec3, aspect: number): Projected | null {
+  const fov = SHADER_FOV
   const { forward, right, up } = cameraBasis(cameraPos, target)
   const rel = sub(point, cameraPos)
   const f = dot(rel, forward)
@@ -68,12 +70,17 @@ export function projectToNdc(point: Vec3, cameraPos: Vec3, target: Vec3, aspect:
   }
 }
 
-// Window-depth NDC z for a view-space distance: the perspective mapping
-// with DEPTH_RANGE's near and far. The ray tracer writes the same.
-export function ndcDepth(zView: number): number {
+// The perspective depth mapping, NDC z = a + b / zView, over
+// DEPTH_RANGE. The ray tracer's fragDepth is built from these two numbers,
+// so the formula lives here once.
+export function depthCoefficients(): { a: number; b: number } {
   const { near, far } = DEPTH_RANGE
-  const a = (far + near) / (far - near)
-  const b = (-2 * far * near) / (far - near)
+  return { a: (far + near) / (far - near), b: (-2 * far * near) / (far - near) }
+}
+
+// Window-depth NDC z for a view-space distance.
+export function ndcDepth(zView: number): number {
+  const { a, b } = depthCoefficients()
   return a + b / zView
 }
 
@@ -82,13 +89,11 @@ export type Mat4 = Float32Array
 
 // The matrix that takes a world point to clip space such that clip / w
 // is (projectToNdc.x, projectToNdc.y, ndcDepth(forward)).
-export function viewProjection(cameraPos: Vec3, target: Vec3, aspect: number, fov = SHADER_FOV): Mat4 {
+export function viewProjection(cameraPos: Vec3, target: Vec3, aspect: number): Mat4 {
   const { forward, right, up } = cameraBasis(cameraPos, target)
-  const { near, far } = DEPTH_RANGE
-  const a = (far + near) / (far - near)
-  const b = (-2 * far * near) / (far - near)
-  const sx = 1 / (fov * aspect)
-  const sy = 1 / fov
+  const { a, b } = depthCoefficients()
+  const sx = 1 / (SHADER_FOV * aspect)
+  const sy = 1 / SHADER_FOV
   // Rows of P·V, then laid down column-major.
   const rows = [
     [sx * right[0], sx * right[1], sx * right[2], -sx * dot(right, cameraPos)],
