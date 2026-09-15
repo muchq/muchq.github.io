@@ -181,6 +181,7 @@ export const useThoughtsGame = () => {
       }
       let built = first
       let trails = room.trailLength > 0 ? new AvatarTrails(room.trailLength) : null
+      audioSystem.setProfile(room.sound)
 
       unbindRoomHotkey = bindRoomHotkey(document, () => {
         const next = rooms.next(room.id)
@@ -189,6 +190,7 @@ export const useThoughtsGame = () => {
         room = next
         built = nextBuilt
         trails = room.trailLength > 0 ? new AvatarTrails(room.trailLength) : null
+        audioSystem.setProfile(room.sound)
         // eslint-disable-next-line no-console
         console.log(`🏠 Room: ${room.label}`)
       })
@@ -541,6 +543,7 @@ export const useThoughtsGame = () => {
         const objectCenters: number[] = []
         const objectColors: number[] = []
         const objectShapes: number[] = []
+        const objectUps: number[] = []
 
         // Add all players' object data (including local player if it exists)
         for (let i = 0; i < Math.min(allPlayers.length, 10); i++) {
@@ -551,6 +554,8 @@ export const useThoughtsGame = () => {
           const center = world.place(player.position[0], player.position[2], playerBobbingY - GAME_CONFIG.groundLevel)
           objectCenters.push(center[0], center[1], center[2])
           trails?.record(player.id, center)
+          const up = world.up(player.position[0], player.position[2])
+          objectUps.push(up[0], up[1], up[2])
 
           // Add object color
           objectColors.push(player.color[0], player.color[1], player.color[2])
@@ -563,6 +568,7 @@ export const useThoughtsGame = () => {
         while (objectCenters.length < 30) objectCenters.push(0.0) // 10 objects * 3 components
         while (objectColors.length < 30) objectColors.push(0.0) // 10 objects * 3 components
         while (objectShapes.length < 10) objectShapes.push(0) // 10 objects * 1 component
+        while (objectUps.length < 30) objectUps.push(0.0, 1.0, 0.0)
 
         // Set uniforms for ray tracing
         const sphereZenith = (GAME_CONFIG.groundLevel + GAME_CONFIG.sphereRadius) + (GAME_CONFIG.bounceHeight / 2) // Midpoint of bounce
@@ -583,6 +589,7 @@ export const useThoughtsGame = () => {
         webglContext.uniform3fv(u.u_objectCenters, objectCenters)
         webglContext.uniform3fv(u.u_objectColors, objectColors)
         webglContext.uniform1iv(u.u_objectShapes, objectShapes)
+        webglContext.uniform3fv(u.u_objectUps, objectUps)
 
         webglContext.drawArrays(webglContext.TRIANGLE_STRIP, 0, 4)
 

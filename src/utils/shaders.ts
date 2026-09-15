@@ -2,7 +2,7 @@
 import { DEPTH_RANGE, SHADER_FOV, depthCoefficients } from './projection'
 
 // GLSL ES wants a decimal point on a float literal.
-const glslFloat = (n: number) => (Number.isInteger(n) ? `${n}.0` : `${n}`)
+export const glslFloat = (n: number) => (Number.isInteger(n) ? `${n}.0` : `${n}`)
 
 // The colours a room paints the world in: read by the sky and the floor
 // as PALETTE_* constants, so a room is a change of place, not of trim.
@@ -28,9 +28,8 @@ export const vertexShaderSource = `#version 300 es
 // The ray tracer, in two halves around the hooks a room fills in:
 //
 //   Floor roomFloor(vec3 ro, vec3 rd)
-//     where the ray lands on the room's ground, its normal there, the
-//     plane coordinate the checker and boundary read, and how much of
-//     that spot is sky rather than ground;
+//     where the ray lands on the room's ground, its normal there, and
+//     the plane coordinate the checker and boundary read;
 //   vec4 roomWalls(vec3 ro, vec3 rd, float tHit)
 //     the tint (rgb) and its strength (a) of whatever the room puts
 //     between the camera and the primary ray's landing point, tHit
@@ -58,6 +57,7 @@ const fragmentShaderHeader = `#version 300 es
   uniform vec3 u_objectCenters[10];
   uniform vec3 u_objectColors[10];
   uniform int u_objectShapes[10]; // 0=sphere, 1=cube, 2=pyramid
+  uniform vec3 u_objectUps[10];   // which way each one stands
 `
 
 export const fragmentShaderPrelude = `
@@ -194,7 +194,6 @@ export const fragmentShaderPrelude = `
     vec3 normal;
     vec3 color;
     vec2 coord; // floor only: the plane coordinate
-    float sky;  // floor only: how much of this spot is sky
   };
 
   // What a room's ground looks like to a ray.
@@ -202,7 +201,6 @@ export const fragmentShaderPrelude = `
     float t;
     vec3 normal;
     vec2 coord;
-    float sky;
   };
 
   Floor planeFloor(vec3 ro, vec3 rd) {
@@ -210,8 +208,15 @@ export const fragmentShaderPrelude = `
     f.t = intersectPlane(ro, rd, vec3(0.0, -2.0, 0.0), vec3(0.0, 1.0, 0.0));
     f.normal = vec3(0.0, 1.0, 0.0);
     f.coord = (ro + rd * f.t).xz;
-    f.sky = 0.0;
     return f;
+  }
+
+  // A frame whose y is \`up\`, for a shape standing on a room's ground.
+  mat3 frameOf(vec3 up) {
+    vec3 helper = abs(up.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+    vec3 right = normalize(cross(up, helper));
+    vec3 forward = cross(right, up);
+    return mat3(right, up, forward);
   }
   // Generate stormy sky color with lightning
   vec3 getSkyColor(vec3 rayDir) {
@@ -303,52 +308,59 @@ export const fragmentShaderMain = `
       float objectT = -1.0;
       vec3 objectCenter = u_objectCenters[i];
       int shapeType = u_objectShapes[i];
-      
+      // Cubes and pyramids stand on the room's ground: the ray is taken
+      // into the shape's own frame, whose y is its up.
+      mat3 frame = frameOf(u_objectUps[i]);
+      vec3 localOrigin = (rayOrigin - objectCenter) * frame;
+      vec3 localDir = rayDir * frame;
+
       // Test intersection based on shape type
       if (shapeType == 0) { // Sphere
         objectT = intersectSphere(rayOrigin, rayDir, objectCenter, 1.0);
       } else if (shapeType == 1) { // Cube
-        objectT = intersectCube(rayOrigin, rayDir, objectCenter, 1.0);
+        objectT = intersectCube(localOrigin, localDir, vec3(0.0), 1.0);
       } else if (shapeType == 2) { // Pyramid
-        objectT = intersectPyramid(rayOrigin, rayDir, objectCenter, 2.0);
+        objectT = intersectPyramid(localOrigin, localDir, vec3(0.0), 2.0);
       }
-      
+
       if (objectT > 0.0 && objectT < closestT) {
         closestT = objectT;
         hit.t = objectT;
         hit.objectId = i + 1; // object indices start at 1
         hit.point = rayOrigin + objectT * rayDir;
-        
+        vec3 localPoint = localOrigin + objectT * localDir;
+
         // Calculate normal based on shape type
         if (shapeType == 0) { // Sphere
           hit.normal = normalize(hit.point - objectCenter);
         } else if (shapeType == 1) { // Cube
-          vec3 d = abs(hit.point - objectCenter);
+          vec3 d = abs(localPoint);
           float maxComp = max(max(d.x, d.y), d.z);
-          if (maxComp == d.x) hit.normal = sign(hit.point.x - objectCenter.x) * vec3(1.0, 0.0, 0.0);
-          else if (maxComp == d.y) hit.normal = sign(hit.point.y - objectCenter.y) * vec3(0.0, 1.0, 0.0);
-          else hit.normal = sign(hit.point.z - objectCenter.z) * vec3(0.0, 0.0, 1.0);
+          vec3 localNormal;
+          if (maxComp == d.x) localNormal = sign(localPoint.x) * vec3(1.0, 0.0, 0.0);
+          else if (maxComp == d.y) localNormal = sign(localPoint.y) * vec3(0.0, 1.0, 0.0);
+          else localNormal = sign(localPoint.z) * vec3(0.0, 0.0, 1.0);
+          hit.normal = frame * localNormal;
         } else if (shapeType == 2) { // Pyramid
           // Simplified pyramid normal (cone-like)
-          vec3 toTip = normalize(vec3(0.0, 1.0, 0.0));
-          vec3 toPoint = normalize(hit.point - objectCenter);
-          hit.normal = normalize(mix(toPoint, toTip, 0.3));
+          vec3 toTip = vec3(0.0, 1.0, 0.0);
+          vec3 toPoint = normalize(localPoint);
+          hit.normal = frame * normalize(mix(toPoint, toTip, 0.3));
         }
-        
+
         hit.color = u_objectColors[i];
       }
     }
 
     // Test the room's ground
-    Floor floor = roomFloor(rayOrigin, rayDir);
+    Floor ground = roomFloor(rayOrigin, rayDir);
 
-    if (floor.t > 0.0 && floor.t < closestT) {
-      hit.t = floor.t;
+    if (ground.t > 0.0 && ground.t < closestT) {
+      hit.t = ground.t;
       hit.objectId = 11; // floor
-      hit.point = rayOrigin + floor.t * rayDir;
-      hit.normal = floor.normal;
-      hit.coord = floor.coord;
-      hit.sky = floor.sky;
+      hit.point = rayOrigin + ground.t * rayDir;
+      hit.normal = ground.normal;
+      hit.coord = ground.coord;
     }
 
     return hit;
@@ -415,7 +427,7 @@ export const fragmentShaderMain = `
         // Set up reflection ray
         currentRayDir = reflect(-viewDir, hit.normal);
         rayOrigin = hit.point + hit.normal * 0.001; // Offset to avoid self-intersection
-        reflectivity *= 0.3; // Reduce reflection strength
+        reflectivity *= 0.3 * ROOM_REFLECT; // Reduce reflection strength
 
       } else if (hit.objectId == 11) {
         // Hit floor
@@ -448,8 +460,6 @@ export const fragmentShaderMain = `
         lighting += floorColor * 0.2;
 
         lighting = roomFloorShade(lighting, floorColor, hit.normal, viewDir, hit.point);
-        // Where the ground gives way to sky, the sky is painted on it.
-        lighting = mix(lighting, getSkyColor(-hit.normal), hit.sky);
 
         // Distance fog
         float distance = length(hit.point - cameraPos);
@@ -462,7 +472,7 @@ export const fragmentShaderMain = `
         // Set up reflection ray (floor is less reflective)
         currentRayDir = reflect(-viewDir, hit.normal);
         rayOrigin = hit.point + hit.normal * 0.001;
-        reflectivity *= 0.1; // Very weak floor reflections
+        reflectivity *= 0.1 * ROOM_REFLECT; // Very weak floor reflections
       }
 
       // Stop if reflectivity gets too low
@@ -508,10 +518,15 @@ export interface RoomLook {
   fog: number
   // Side of a checker cell, in plane units.
   block: number
+  // How much a surface reflects the next bounce; 0 keeps colours flat.
+  reflect: number
 }
 
 export function composeFragmentShader(roomGlsl: string, look: RoomLook): string {
-  const constants = `  const float ROOM_FOG = ${glslFloat(look.fog)};\n  const float ROOM_BLOCK = ${glslFloat(look.block)};\n`
+  const constants =
+    `  const float ROOM_FOG = ${glslFloat(look.fog)};\n` +
+    `  const float ROOM_BLOCK = ${glslFloat(look.block)};\n` +
+    `  const float ROOM_REFLECT = ${glslFloat(look.reflect)};\n`
   return fragmentShaderHeader + paletteGlsl(look.palette) + constants + fragmentShaderPrelude + roomGlsl + fragmentShaderMain
 }
 

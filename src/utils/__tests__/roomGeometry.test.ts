@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { ROOM_GEOMETRIES, DEFAULT_ROOM, nextRoom, roomById, roomFragmentShader, RAY_TRACER_UNIFORMS } from '../roomGeometry'
 import { SHADER_FOV, depthCoefficients } from '../projection'
-import { PALETTE_KEYS, type Palette } from '../shaders'
-import { SPHERE_ROOM } from '../sphereWorld'
+import { PALETTE_KEYS, glslFloat, type Palette } from '../shaders'
+import { SPHERE_ROOM, sphereWorld } from '../sphereWorld'
+import { CALM_SOUND, CHIPTUNE_SOUND } from '../audioSystem'
 import { GAME_CONFIG } from '../gameClasses'
 
 // The room registry is the seam a new geometry lands in: one entry, a
@@ -44,7 +45,28 @@ describe('the registry', () => {
     }
     const sphere = roomById('sphere')!.world
     expect(sphere.up(3, -4)).not.toEqual([0, 1, 0])
-    expect(Math.hypot(...sphere.place(3, -4, 0))).toBeGreaterThan(20)
+    // Built over the same boundary the shader receives in u_worldBoundary.
+    expect(sphere.place(GAME_CONFIG.worldBoundary, 0, 0)).toEqual(
+      sphereWorld(GAME_CONFIG.worldBoundary).place(GAME_CONFIG.worldBoundary, 0, 0)
+    )
+    expect(sphere.place(10, 0, 0)).not.toEqual(sphereWorld(GAME_CONFIG.worldBoundary / 5).place(10, 0, 0))
+  })
+
+  it('hangs nothing outside the sphere room and trails no wake there', () => {
+    expect(roomById('sphere')!.attractors).toEqual([])
+    expect(roomById('sphere')!.trailLength).toBe(0)
+  })
+
+  it('keeps the plane rooms reflective and the sphere room flat', () => {
+    expect(roomById('grid')!.reflect).toBe(1)
+    expect(roomById('glasshouse')!.reflect).toBe(1)
+    expect(roomById('sphere')!.reflect).toBe(0)
+  })
+
+  it('scores the plane rooms as the world always was and the sphere room as a cartridge', () => {
+    expect(roomById('grid')!.sound).toBe(CALM_SOUND)
+    expect(roomById('glasshouse')!.sound).toBe(CALM_SOUND)
+    expect(roomById('sphere')!.sound).toBe(CHIPTUNE_SOUND)
   })
 
   it('has no fog in the sphere room, where the far wall is the point', () => {
@@ -90,11 +112,26 @@ describe('roomFragmentShader', () => {
         expect(src.match(/vec3 roomAvatar\(/g)).toHaveLength(1)
         expect(src).toMatch(/lighting = roomAvatar\(lighting, sphereColor, hit\.normal, viewDir, hit\.point\)/)
         expect(src.match(/Floor roomFloor\(/g)).toHaveLength(1)
-        expect(src).toMatch(/Floor floor = roomFloor\(rayOrigin, rayDir\)/)
+        expect(src).toMatch(/Floor ground = roomFloor\(rayOrigin, rayDir\)/)
+        expect(src.match(/vec3 roomFloorShade\(/g)).toHaveLength(1)
+        expect(src).toMatch(/lighting = roomFloorShade\(lighting, floorColor, hit\.normal, viewDir, hit\.point\)/)
         expect(src.match(/void main\(\)/g)).toHaveLength(1)
-        expect(src).toContain(`const float ROOM_FOG = ${room.fog === 0 ? '0.0' : room.fog}`)
-        expect(src).toContain(`const float ROOM_BLOCK = ${room.block}`)
+        expect(src).toContain(`const float ROOM_FOG = ${glslFloat(room.fog)};`)
+        expect(src).toContain(`const float ROOM_BLOCK = ${glslFloat(room.block)};`)
+        expect(src).toContain(`const float ROOM_REFLECT = ${glslFloat(room.reflect)};`)
         expect(src).toContain('floor(floorCoord / ROOM_BLOCK)')
+        // The checker and the boundary read the room's plane coordinate,
+        // not where the ray landed in space.
+        expect(src).toContain('vec2 floorCoord = hit.coord;')
+        expect(src).toContain('abs(floorCoord.x - boundary)')
+        expect(src).toContain('abs(floorCoord.y - boundary)')
+        expect(src).not.toContain('hit.point.x - boundary')
+        // Cubes and pyramids stand on the room's ground.
+        expect(src).toContain('mat3 frame = frameOf(u_objectUps[i]);')
+        expect(src).toContain('hit.normal = frame * localNormal;')
+        // Reflections bounce by the room's say-so.
+        expect(src).toContain('reflectivity *= 0.3 * ROOM_REFLECT;')
+        expect(src).toContain('reflectivity *= 0.1 * ROOM_REFLECT;')
       })
 
       // The camera the labels and the line pass use is the one the rays
@@ -151,25 +188,31 @@ describe('roomFragmentShader', () => {
     expect(lum(glass.boundary) - lum(grid.boundary)).toBeGreaterThan(0.4)
   })
 
-  it('gives the grid and the glasshouse the flat floor, and the sphere room its own', () => {
+  it('gives the grid and the glasshouse the flat floor, and the sphere room its own, with no sky on it', () => {
     const plane = /Floor roomFloor\([^)]*\)\s*\{\s*return planeFloor\(ro, rd\);\s*\}/
     expect(roomFragmentShader(roomById('grid')!)).toMatch(plane)
     expect(roomFragmentShader(roomById('glasshouse')!)).toMatch(plane)
     const sphere = roomFragmentShader(roomById('sphere')!)
     expect(sphere).not.toMatch(plane)
-    expect(sphere).toContain(`const float SPHERE_RADIUS = ${SPHERE_ROOM.radius.toFixed(1)}`)
+    expect(sphere).toContain(`const float SPHERE_RADIUS = ${SPHERE_ROOM.radius.toFixed(1)};`)
+    expect(sphere).toContain(`const float SPHERE_WRAP = ${SPHERE_ROOM.wrap.toFixed(2)};`)
+    expect(sphere).toContain(`const float SPHERE_LAT = ${SPHERE_ROOM.latitude.toFixed(2)};`)
+    // A sphere is a sphere: the wall goes all the way round, and nothing
+    // in the shader paints sky on it.
+    expect(sphere).not.toMatch(/\.sky\b/)
+    expect(sphere).not.toContain('getSkyColor(-hit.normal)')
   })
 
-  // Mario's sky: saturated blue, nothing like the storm over the grid.
+  // A cartridge afternoon: green and brown blocks under red trim, and no
+  // storm; the grid's grey gets nowhere near it.
   it('paints the sphere room in a cartoon palette, far from the grid in colour', () => {
     const grid = roomById('grid')!.palette
     const mario = roomById('sphere')!.palette
     const gap = (a: [number, number, number], b: [number, number, number]) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
-    expect(gap(grid.skyHorizon, mario.skyHorizon)).toBeGreaterThan(0.15)
     expect(gap(grid.floorLight, mario.floorLight)).toBeGreaterThan(0.5)
+    expect(gap(grid.floorDark, mario.floorDark)).toBeGreaterThan(0.3)
     expect(gap(grid.boundary, mario.boundary)).toBeGreaterThan(0.5)
-    expect(mario.cloud).toEqual([1, 1, 1])
-    expect(mario.skyZenith[2] - mario.skyZenith[0]).toBeGreaterThan(0.4)
+    expect(mario.lightning).toEqual([0, 0, 0])
   })
 
   it('gives the glasshouse walls and a rim the grid does not have', () => {

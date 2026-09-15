@@ -20,18 +20,17 @@ export const planeWorld: WorldMapping = {
 }
 
 // The sphere room: the plane is a square patch of the inner wall, x as
-// longitude and z as latitude over the same arc, so a step is the same
-// length in either direction and the same length it is on the plane;
-// height goes inward. Beyond the patch, every way, is sky. The shader's
-// floor hook reads the same three numbers.
-export const SPHERE_ROOM = { radius: 40, wrap: 0.4, latitude: 0.8 } as const
+// longitude and z as latitude over the same arc, height inward. No flat
+// map of a sphere keeps lengths: a step is plane-length through the
+// middle of the patch, and along x it shrinks toward the top and bottom
+// edges, to about six tenths at z = ±boundary, as the lines of
+// longitude draw together. The patch stops well short of the poles so
+// the camera, which sits up to 15 plane units behind the avatar, never
+// crosses one. The wall goes on past the patch. The shader's floor hook
+// reads the same three numbers.
+export const SPHERE_ROOM = { radius: 53, wrap: 0.3, latitude: 0.6 } as const
 
-export interface SphereWorld extends WorldMapping {
-  // The plane point a wall point came from.
-  planeCoord(p: Vec3): [number, number]
-}
-
-export function sphereWorld(boundary: number): SphereWorld {
+export function sphereWorld(boundary: number): WorldMapping {
   const { radius, wrap, latitude } = SPHERE_ROOM
   const outward = (x: number, z: number): Vec3 => {
     const lon = (x / boundary) * Math.PI * wrap
@@ -48,13 +47,6 @@ export function sphereWorld(boundary: number): SphereWorld {
     up: (x, z) => {
       const n = outward(x, z)
       return [-n[0], -n[1], -n[2]]
-    },
-    planeCoord: p => {
-      const l = Math.hypot(p[0], p[1], p[2]) || 1
-      const n = [p[0] / l, p[1] / l, p[2] / l]
-      const lat = Math.asin(Math.max(-1, Math.min(1, n[1])))
-      const lon = Math.atan2(n[0], -n[2])
-      return [(lon / (Math.PI * wrap)) * boundary, (lat / ((Math.PI / 2) * latitude)) * boundary]
     },
   }
 }

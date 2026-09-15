@@ -27,7 +27,6 @@ describe('cameraBasis', () => {
   it('takes a tilted up and keeps the frame orthonormal around it', () => {
     const tilted: [number, number, number] = [0.6, 0.8, 0]
     const { forward, right, up } = cameraBasis(cam, target, tilted)
-    const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
     expect(dot(forward, forward)).toBeCloseTo(1)
     expect(dot(right, right)).toBeCloseTo(1)
     expect(dot(up, up)).toBeCloseTo(1)

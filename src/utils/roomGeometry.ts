@@ -10,13 +10,15 @@ import { attractorsOutside, type AttractorSpec } from './attractors'
 import { GAME_CONFIG } from './gameClasses'
 import type { Vec3 } from './projection'
 import { planeWorld, sphereWorld, SPHERE_ROOM, type WorldMapping } from './sphereWorld'
+import { CALM_SOUND, CHIPTUNE_SOUND, type SoundProfile } from './audioSystem'
 
 // The rooms the world can be: each is a palette the sky and floor are
 // painted in, a mapping from the hub's flat world to where the room
-// draws it, a GLSL block the ray tracer calls for its ground, walls and
-// shading (see shaders.ts), the attractors hung outside, the tint those
-// take on through the glass, and how long a wake an avatar leaves. A
-// new room is a new entry here. The hotkey cycles the list in order and
+// draws it, how the shared tracer is tuned there (fog, block size,
+// reflections), a GLSL block the ray tracer calls for its ground, walls
+// and shading (see shaders.ts), the attractors hung outside, the tint
+// those take on through the glass, how long a wake an avatar leaves,
+// and what it sounds like. A new room is a new entry here. The hotkey cycles the list in order and
 // the hub will one day name one per room (MoonBase#1554).
 
 export type RoomGeometryId = 'grid' | 'glasshouse' | 'sphere'
@@ -30,12 +32,15 @@ export interface RoomGeometry {
   fog: number
   // Side of a checker cell, in plane units.
   block: number
+  // How much a surface reflects the next bounce; 0 keeps colours flat.
+  reflect: number
   glsl: string
   attractors: AttractorSpec[]
   // rgb and strength of the wall between the camera and the line pass.
   behindGlass: [number, number, number, number]
   // Points in an avatar's wake; 0 for none.
   trailLength: number
+  sound: SoundProfile
 }
 
 // The uniforms the render loop sets every frame; every room's shader
@@ -51,6 +56,7 @@ export const RAY_TRACER_UNIFORMS = [
   'u_objectCenters',
   'u_objectColors',
   'u_objectShapes',
+  'u_objectUps',
 ] as const
 export type RayTracerUniform = (typeof RAY_TRACER_UNIFORMS)[number]
 
@@ -82,7 +88,8 @@ const MARIO_PALETTE: Palette = {
   skyHorizon: [0.4, 0.7, 1.0],
   skyZenith: [0.3, 0.55, 1.0],
   cloud: [1, 1, 1],
-  lightning: [1.0, 1.0, 0.85],
+  // No storm over a cartridge afternoon.
+  lightning: [0, 0, 0],
   floorLight: [0.36, 0.78, 0.22],
   floorDark: [0.65, 0.4, 0.16],
   boundary: [0.93, 0.2, 0.12],
@@ -138,9 +145,10 @@ const GLASSHOUSE_GLSL = PLANE_FLOOR_GLSL + PLAIN_FLOOR_SHADE_GLSL + `
 `
 
 // The inside of a giant sphere: the hub's plane laid on its wall as a
-// square patch, x as longitude and z as latitude, with the rest of the
-// sphere painted as sky. Drawn like a cartridge-era platformer: flat
-// colour in a few bands, and an ink outline round every avatar.
+// square patch, x as longitude and z as latitude, and the wall going on
+// past the patch's edge all the way round; the red lines are where the
+// hub stops you. Drawn like a cartridge-era platformer: flat colour in
+// a few bands, and an ink outline round every avatar.
 const SPHERE_GLSL = NO_WALLS_GLSL + `
   const float PI = 3.14159265;
   const float SPHERE_RADIUS = ${SPHERE_ROOM.radius.toFixed(1)};
@@ -157,7 +165,6 @@ const SPHERE_GLSL = NO_WALLS_GLSL + `
     float lon = atan(n.x, -n.z);
     float b = u_worldBoundary;
     f.coord = vec2(lon / (PI * SPHERE_WRAP) * b, lat / (PI * 0.5 * SPHERE_LAT) * b);
-    f.sky = smoothstep(1.0, 1.12, max(abs(f.coord.x), abs(f.coord.y)) / b);
     return f;
   }
 
@@ -182,10 +189,12 @@ export const ROOM_GEOMETRIES: readonly RoomGeometry[] = [
     world: planeWorld,
     fog: 0.05,
     block: 0.5,
+    reflect: 1,
     glsl: NO_ROOM_GLSL,
     attractors: [],
     behindGlass: [0, 0, 0, 0],
     trailLength: 0,
+    sound: CALM_SOUND,
   },
   {
     id: 'glasshouse',
@@ -194,10 +203,12 @@ export const ROOM_GEOMETRIES: readonly RoomGeometry[] = [
     world: planeWorld,
     fog: 0.05,
     block: 0.5,
+    reflect: 1,
     glsl: GLASSHOUSE_GLSL,
     attractors: attractorsOutside(GAME_CONFIG.worldBoundary),
     behindGlass: [...GLASS_TINT, 0.35],
     trailLength: 120,
+    sound: CALM_SOUND,
   },
   {
     id: 'sphere',
@@ -206,10 +217,12 @@ export const ROOM_GEOMETRIES: readonly RoomGeometry[] = [
     world: sphereWorld(GAME_CONFIG.worldBoundary),
     fog: 0,
     block: 2.5,
+    reflect: 0,
     glsl: SPHERE_GLSL,
     attractors: [],
     behindGlass: [0, 0, 0, 0],
     trailLength: 0,
+    sound: CHIPTUNE_SOUND,
   },
 ]
 

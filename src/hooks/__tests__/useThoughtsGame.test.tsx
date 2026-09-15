@@ -3,8 +3,24 @@ import { renderHook } from '@testing-library/react'
 import { useThoughtsGame } from '../useThoughtsGame'
 import { fakeGl } from '@/test/fakeGl'
 import { ROOM_HOTKEY } from '@/utils/roomHotkey'
+import { roomById } from '@/utils/roomGeometry'
+import { GAME_CONFIG, Player } from '@/utils/gameClasses'
+import { CALM_SOUND, CHIPTUNE_SOUND, type SoundProfile } from '@/utils/audioSystem'
+import { SPHERE_ROOM } from '@/utils/sphereWorld'
 import type { HubWorldLink } from '@/utils/hubWorldLink'
 import type { WorldLink } from '@/utils/worldSync'
+
+const setProfile = vi.fn()
+vi.mock('@/utils/audioSystem', async importOriginal => {
+  const real = await importOriginal<typeof import('@/utils/audioSystem')>()
+  class AudioSystem extends real.AudioSystem {
+    setProfile(profile: SoundProfile) {
+      setProfile(profile)
+      super.setProfile(profile)
+    }
+  }
+  return { ...real, AudioSystem }
+})
 
 // The renderer's wiring over a fake context: what one frame does, what a
 // room switch changes, and what cleanup lets go of. The units under it
@@ -58,6 +74,8 @@ describe('useThoughtsGame', () => {
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation(cb => { frames.push(cb); return frames.length })
     vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
     vi.spyOn(console, 'log').mockImplementation(() => {})
+    // A deterministic spawn: the local player stands at the origin.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5)
     canvas = document.createElement('canvas')
     document.body.appendChild(canvas)
     cleanup = null
@@ -93,19 +111,71 @@ describe('useThoughtsGame', () => {
     expect(lastQuadBind()).toBeGreaterThan(gl.bindVertexArray.mock.invocationCallOrder[0])
   })
 
-  it('tilts the camera only once the room curves the world', () => {
+  // The camera stands 7 behind the avatar at angle 0, at height 5 above
+  // the floor, aiming at the bounce zenith plus the room's lift; the
+  // wiring puts every one of those through the room's world.
+  const vec = (name: string) => gl.uniform3f.mock.calls.filter(c => c[0]?.uniform === name).map(c => c.slice(1) as [number, number, number])
+  const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+  const zenithHeight = GAME_CONFIG.sphereRadius + GAME_CONFIG.bounceHeight / 2
+
+  it('keeps the plane camera level and aimed at the avatar', () => {
     start()
     frame()
-    const upCalls = () => gl.uniform3f.mock.calls.filter(c => c[0]?.uniform === 'u_cameraUp').map(c => c.slice(1))
-    expect(upCalls().at(-1)).toEqual([0, 1, 0])
+    expect(vec('u_cameraUp').at(-1)).toEqual([0, 1, 0])
+    expect(vec('u_cameraTarget').at(-1)).toEqual([0, GAME_CONFIG.groundLevel + zenithHeight, 0])
+    expect(vec('u_cameraPos').at(-1)).toEqual([0, 3, 7])
+  })
+
+  it('tilts the camera to the sphere room, lifted, from its own plane point', () => {
+    start()
+    frame()
     press(ROOM_HOTKEY)
     frame(32)
-    expect(upCalls().at(-1)).toEqual([0, 1, 0])
+    expect(vec('u_cameraUp').at(-1)).toEqual([0, 1, 0])
     press(ROOM_HOTKEY)
     frame(48)
-    const [x, y, z] = upCalls().at(-1)!
-    expect(Math.hypot(x, y, z)).toBeCloseTo(1)
-    expect([x, y, z]).not.toEqual([0, 1, 0])
+    const world = roomById('sphere')!.world
+    const up = vec('u_cameraUp').at(-1)!
+    const pos = vec('u_cameraPos').at(-1)!
+    world.up(0, 7).forEach((v, i) => expect(up[i]).toBeCloseTo(v))
+    world.place(0, 7, 5).forEach((v, i) => expect(pos[i]).toBeCloseTo(v))
+    // Up points at the centre of the sphere.
+    expect(dot(up, pos)).toBeLessThan(0)
+    world.place(0, 0, zenithHeight + world.lookLift).forEach((v, i) => expect(vec('u_cameraTarget').at(-1)![i]).toBeCloseTo(v))
+  })
+
+  it('stands the avatar on the sphere wall, up toward the centre', () => {
+    start()
+    frame()
+    press(ROOM_HOTKEY)
+    press(ROOM_HOTKEY)
+    frame(48)
+    const centres = gl.uniform3fv.mock.calls.filter(c => c[0]?.uniform === 'u_objectCenters').at(-1)![1] as number[]
+    const ups = gl.uniform3fv.mock.calls.filter(c => c[0]?.uniform === 'u_objectUps').at(-1)![1] as number[]
+    const centre = centres.slice(0, 3)
+    const up = ups.slice(0, 3)
+    const height = new Player('p').getBouncingY(48) - GAME_CONFIG.groundLevel
+    expect(Math.hypot(...centre)).toBeCloseTo(SPHERE_ROOM.radius - height, 3)
+    expect(Math.hypot(...up)).toBeCloseTo(1)
+    expect(dot(up, centre)).toBeLessThan(0)
+  })
+
+  it('stands the avatar upright on the grid', () => {
+    start()
+    frame()
+    const ups = gl.uniform3fv.mock.calls.filter(c => c[0]?.uniform === 'u_objectUps').at(-1)![1] as number[]
+    expect(ups.slice(0, 3)).toEqual([0, 1, 0])
+  })
+
+  it('scores each room as it is entered', () => {
+    setProfile.mockClear()
+    start()
+    expect(setProfile).toHaveBeenLastCalledWith(CALM_SOUND)
+    press(ROOM_HOTKEY)
+    press(ROOM_HOTKEY)
+    expect(setProfile).toHaveBeenLastCalledWith(CHIPTUNE_SOUND)
+    press(ROOM_HOTKEY)
+    expect(setProfile).toHaveBeenLastCalledWith(CALM_SOUND)
   })
 
   it('steps past the glasshouse when it will not build, and never tries it again', () => {

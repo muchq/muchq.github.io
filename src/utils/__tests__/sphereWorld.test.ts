@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { sphereWorld, planeWorld, SPHERE_ROOM } from '../sphereWorld'
 import { GAME_CONFIG } from '../gameClasses'
+import { cameraBasis } from '../projection'
 
 // The hub moves players on a flat ±boundary plane; a room decides where
 // that plane is drawn. The sphere room wraps it onto the inner wall of a
@@ -42,9 +43,9 @@ describe('sphereWorld', () => {
     const centre = world.place(0, 0, 0)
     expect(dot(centre, world.place(b, 0, 0))).toBeCloseTo(dot(centre, world.place(0, b, 0)))
     expect(dot(centre, world.place(-b, 0, 0))).toBeCloseTo(dot(centre, world.place(0, -b, 0)))
-    // Most of the way to a quarter turn: the patch is a big share of the wall.
+    // Past half a quarter turn: the patch is a big share of the wall.
     expect(dot(centre, world.place(b, 0, 0))).toBeGreaterThan(0)
-    expect(dot(centre, world.place(b, 0, 0))).toBeLessThan(R * R * 0.5)
+    expect(dot(centre, world.place(b, 0, 0))).toBeLessThan(R * R * 0.7)
   })
 
   it('leaves the poles and the far side as sky: no plane point reaches them', () => {
@@ -53,29 +54,57 @@ describe('sphereWorld', () => {
     expect(world.place(b, 0, 0)[2]).toBeLessThan(R * 0.98)
   })
 
-  // A step on the plane is a step of the same length on the wall, and
-  // along it, in either direction.
-  it('moves a plane step along the wall at plane scale, either way', () => {
-    const p = world.place(10, 5, 0)
-    for (const [dx, dz] of [[0.01, 0], [0, 0.01]]) {
-      const q = world.place(10 + dx, 5 + dz, 0)
-      const step = [q[0] - p[0], q[1] - p[1], q[2] - p[2]]
-      expect(Math.abs(dot(step, world.up(10, 5)))).toBeLessThan(1e-4)
-      expect(len(step)).toBeGreaterThan(0.0095)
-      expect(len(step)).toBeLessThan(0.0105)
+  // A step on the plane is a step along the wall, at plane length through
+  // the middle of the patch in either direction.
+  const step = (x: number, z: number, dx: number, dz: number) => {
+    const p = world.place(x, z, 0)
+    const q = world.place(x + dx, z + dz, 0)
+    const s = [q[0] - p[0], q[1] - p[1], q[2] - p[2]]
+    expect(Math.abs(dot(s, world.up(x, z)))).toBeLessThan(1e-4)
+    return len(s) / Math.hypot(dx, dz)
+  }
+
+  it('moves a plane step along the wall at plane scale through the middle, either way', () => {
+    expect(step(0, 0, 0.01, 0)).toBeCloseTo(1, 2)
+    expect(step(0, 0, 0, 0.01)).toBeCloseTo(1, 2)
+    expect(step(10, 5, 0.01, 0)).toBeCloseTo(1, 1)
+  })
+
+  // No flat map of a sphere keeps lengths: toward the top and bottom
+  // edges an x step shortens as the lines of longitude draw together,
+  // while a z step does not.
+  it('shortens an x step to about six tenths at the top and bottom edges, and z not at all', () => {
+    for (const z of [b, -b]) {
+      expect(step(0, z, 0.01, 0)).toBeGreaterThan(0.55)
+      expect(step(0, z, 0.01, 0)).toBeLessThan(0.65)
+      expect(step(0, z, 0, 0.01)).toBeCloseTo(1, 2)
     }
   })
 
-  it('reads the plane coordinate back off a wall point', () => {
-    for (const [x, z] of [[0, 0], [20, -10], [-49, 30], [49.9, -49.9]]) {
-      const [px, pz] = world.planeCoord(world.place(x, z, 0))
-      expect(px).toBeCloseTo(x, 4)
-      expect(pz).toBeCloseTo(z, 4)
-    }
+  it('is giant: dozens of avatars across', () => {
+    expect(R).toBeGreaterThan(40 * GAME_CONFIG.sphereRadius)
   })
 
-  it('is giant: many avatars across', () => {
-    expect(R).toBeGreaterThan(20)
+  // The camera orbits up to 15 plane units behind the avatar, so its
+  // plane point reaches ±65: a pole there would spin the frame.
+  it('keeps the camera off the poles, so its frame never degenerates', () => {
+    let worst = Infinity
+    for (let pz = -50; pz <= 50; pz += 10) {
+      for (let px = -50; px <= 50; px += 10) {
+        const target = world.place(px, pz, 4)
+        for (let a = 0; a < 2 * Math.PI; a += Math.PI / 8) {
+          for (const d of [2, 7, 15]) {
+            const cx = px + Math.sin(a) * d
+            const cz = pz + Math.cos(a) * d
+            const cam = world.place(cx, cz, 5)
+            const { forward, right } = cameraBasis(cam, target, world.up(cx, cz))
+            worst = Math.min(worst, Math.hypot(...right) * Math.hypot(...forward))
+            expect(Math.abs(world.place(cx, cz, 0)[1])).toBeLessThan(R * 0.98)
+          }
+        }
+      }
+    }
+    expect(worst).toBeGreaterThan(0.9)
   })
 
   it('lifts the camera aim so the far wall and sky come into the frame; the plane does not', () => {
