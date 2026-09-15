@@ -1,7 +1,22 @@
 // WebGL2 Shaders for the Thoughts Game
+import { DEPTH_RANGE, SHADER_FOV, depthCoefficients } from './projection'
+
+// GLSL ES wants a decimal point on a float literal.
+export const glslFloat = (n: number) => (Number.isInteger(n) ? `${n}.0` : `${n}`)
+
+// The colours a room paints the world in: read by the sky and the floor
+// as PALETTE_* constants, so a room is a change of place, not of trim.
+export const PALETTE_KEYS = ['skyHorizon', 'skyZenith', 'cloud', 'lightning', 'floorLight', 'floorDark', 'boundary'] as const
+export type Palette = Record<(typeof PALETTE_KEYS)[number], [number, number, number]>
+
+const paletteGlsl = (palette: Palette) =>
+  PALETTE_KEYS.map(key => {
+    const [r, g, b] = palette[key]
+    return `  const vec3 PALETTE_${key} = vec3(${r.toFixed(3)}, ${g.toFixed(3)}, ${b.toFixed(3)});`
+  }).join('\n') + '\n'
 
 export const vertexShaderSource = `#version 300 es
-  in vec2 a_position;
+  layout(location = 0) in vec2 a_position;
   out vec2 v_uv;
 
   void main() {
@@ -10,7 +25,22 @@ export const vertexShaderSource = `#version 300 es
   }
 `
 
-export const fragmentShaderSource = `#version 300 es
+// The ray tracer, in two halves around the hooks a room fills in:
+//
+//   Floor roomFloor(vec3 ro, vec3 rd)
+//     where the ray lands on the room's ground, its normal there, and
+//     the plane coordinate the checker and boundary read;
+//   vec4 roomWalls(vec3 ro, vec3 rd, float tHit)
+//     the tint (rgb) and its strength (a) of whatever the room puts
+//     between the camera and the primary ray's landing point, tHit
+//     along the ray;
+//   vec3 roomAvatar(vec3 lit, vec3 base, vec3 normal, vec3 viewDir, vec3 point)
+//   vec3 roomFloorShade(vec3 lit, vec3 base, vec3 normal, vec3 viewDir, vec3 point)
+//     the room's last word on a lit avatar or ground surface.
+//
+// composeFragmentShader() joins the halves around a room's block; the
+// blocks below are the defaults a room composes from.
+const fragmentShaderHeader = `#version 300 es
   precision highp float;
 
   in vec2 v_uv;
@@ -18,6 +48,7 @@ export const fragmentShaderSource = `#version 300 es
   uniform vec2 u_resolution;
   uniform vec3 u_cameraPos;
   uniform vec3 u_cameraTarget;
+  uniform vec3 u_cameraUp;
   uniform float u_time;
   uniform float u_worldBoundary;
 
@@ -26,6 +57,10 @@ export const fragmentShaderSource = `#version 300 es
   uniform vec3 u_objectCenters[10];
   uniform vec3 u_objectColors[10];
   uniform int u_objectShapes[10]; // 0=sphere, 1=cube, 2=pyramid
+  uniform vec3 u_objectUps[10];   // which way each one stands
+`
+
+export const fragmentShaderPrelude = `
 
   // Light sources
   const vec3 light1 = vec3(1.0, 1.0, 1.0);   // Main light (top right)
@@ -158,70 +193,31 @@ export const fragmentShaderSource = `#version 300 es
     vec3 point;
     vec3 normal;
     vec3 color;
+    vec2 coord; // floor only: the plane coordinate
   };
 
-  Hit traceRay(vec3 rayOrigin, vec3 rayDir) {
-    Hit hit;
-    hit.t = -1.0;
-    hit.objectId = 0;
-    float closestT = 1e30;
+  // What a room's ground looks like to a ray.
+  struct Floor {
+    float t;
+    vec3 normal;
+    vec2 coord;
+  };
 
-    // Test all objects
-    for (int i = 0; i < u_numObjects && i < 10; i++) {
-      float objectT = -1.0;
-      vec3 objectCenter = u_objectCenters[i];
-      int shapeType = u_objectShapes[i];
-      
-      // Test intersection based on shape type
-      if (shapeType == 0) { // Sphere
-        objectT = intersectSphere(rayOrigin, rayDir, objectCenter, 1.0);
-      } else if (shapeType == 1) { // Cube
-        objectT = intersectCube(rayOrigin, rayDir, objectCenter, 1.0);
-      } else if (shapeType == 2) { // Pyramid
-        objectT = intersectPyramid(rayOrigin, rayDir, objectCenter, 2.0);
-      }
-      
-      if (objectT > 0.0 && objectT < closestT) {
-        closestT = objectT;
-        hit.t = objectT;
-        hit.objectId = i + 1; // object indices start at 1
-        hit.point = rayOrigin + objectT * rayDir;
-        
-        // Calculate normal based on shape type
-        if (shapeType == 0) { // Sphere
-          hit.normal = normalize(hit.point - objectCenter);
-        } else if (shapeType == 1) { // Cube
-          vec3 d = abs(hit.point - objectCenter);
-          float maxComp = max(max(d.x, d.y), d.z);
-          if (maxComp == d.x) hit.normal = sign(hit.point.x - objectCenter.x) * vec3(1.0, 0.0, 0.0);
-          else if (maxComp == d.y) hit.normal = sign(hit.point.y - objectCenter.y) * vec3(0.0, 1.0, 0.0);
-          else hit.normal = sign(hit.point.z - objectCenter.z) * vec3(0.0, 0.0, 1.0);
-        } else if (shapeType == 2) { // Pyramid
-          // Simplified pyramid normal (cone-like)
-          vec3 toTip = normalize(vec3(0.0, 1.0, 0.0));
-          vec3 toPoint = normalize(hit.point - objectCenter);
-          hit.normal = normalize(mix(toPoint, toTip, 0.3));
-        }
-        
-        hit.color = u_objectColors[i];
-      }
-    }
-
-    // Test floor
-    vec3 floorPoint = vec3(0.0, -2.0, 0.0);
-    vec3 floorNormal = vec3(0.0, 1.0, 0.0);
-    float floorT = intersectPlane(rayOrigin, rayDir, floorPoint, floorNormal);
-
-    if (floorT > 0.0 && floorT < closestT) {
-      hit.t = floorT;
-      hit.objectId = 11; // floor
-      hit.point = rayOrigin + floorT * rayDir;
-      hit.normal = floorNormal;
-    }
-
-    return hit;
+  Floor planeFloor(vec3 ro, vec3 rd) {
+    Floor f;
+    f.t = intersectPlane(ro, rd, vec3(0.0, -2.0, 0.0), vec3(0.0, 1.0, 0.0));
+    f.normal = vec3(0.0, 1.0, 0.0);
+    f.coord = (ro + rd * f.t).xz;
+    return f;
   }
 
+  // A frame whose y is \`up\`, for a shape standing on a room's ground.
+  mat3 frameOf(vec3 up) {
+    vec3 helper = abs(up.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+    vec3 right = normalize(cross(up, helper));
+    vec3 forward = cross(right, up);
+    return mat3(right, up, forward);
+  }
   // Generate stormy sky color with lightning
   vec3 getSkyColor(vec3 rayDir) {
     // Use 3D noise directly from ray direction to avoid seams
@@ -231,9 +227,8 @@ export const fragmentShaderSource = `#version 300 es
     float cloudDensity = fbm(noiseCoord.xy);
     cloudDensity = smoothstep(0.4, 0.8, cloudDensity * 0.8);
 
-    // Darker storm sky colors (20% darker)
-    vec3 skyColor = mix(vec3(0.48, 0.64, 0.8), vec3(0.64, 0.72, 0.8), rayDir.y * 0.5 + 0.5);
-    vec3 cloudColor = vec3(0.72, 0.76, 0.8);
+    vec3 skyColor = mix(PALETTE_skyHorizon, PALETTE_skyZenith, rayDir.y * 0.5 + 0.5);
+    vec3 cloudColor = PALETTE_cloud;
 
     // Add some cloud variation
     float cloudVariation = fbm(noiseCoord.xy * 2.0) * 0.3;
@@ -284,10 +279,93 @@ export const fragmentShaderSource = `#version 300 es
 
     // Mix sky, clouds, and lightning
     vec3 baseColor = mix(noisySkyColor, noisyCloudColor, cloudDensity);
-    vec3 lightningColor = vec3(0.9, 0.95, 1.0) * lightningIntensity;
+    vec3 lightningColor = PALETTE_lightning * lightningIntensity;
 
     return baseColor + lightningColor;
   }
+
+  // View-space distance to window depth: the mapping viewProjection()
+  // (projection.ts) gives the line pass, from the same two numbers, so
+  // the two passes share a depth buffer.
+  const float DEPTH_NEAR = ${glslFloat(DEPTH_RANGE.near)};
+  const float DEPTH_A = ${glslFloat(depthCoefficients().a)};
+  const float DEPTH_B = ${glslFloat(depthCoefficients().b)};
+  float fragDepth(float zView) {
+    return clamp((DEPTH_A + DEPTH_B / max(zView, DEPTH_NEAR)) * 0.5 + 0.5, 0.0, 1.0);
+  }
+`
+
+// traceRay and main, after the room's block so its hooks are defined.
+export const fragmentShaderMain = `
+  Hit traceRay(vec3 rayOrigin, vec3 rayDir) {
+    Hit hit;
+    hit.t = -1.0;
+    hit.objectId = 0;
+    float closestT = 1e30;
+
+    // Test all objects
+    for (int i = 0; i < u_numObjects && i < 10; i++) {
+      float objectT = -1.0;
+      vec3 objectCenter = u_objectCenters[i];
+      int shapeType = u_objectShapes[i];
+      // Cubes and pyramids stand on the room's ground: the ray is taken
+      // into the shape's own frame, whose y is its up.
+      mat3 frame = frameOf(u_objectUps[i]);
+      vec3 localOrigin = (rayOrigin - objectCenter) * frame;
+      vec3 localDir = rayDir * frame;
+
+      // Test intersection based on shape type
+      if (shapeType == 0) { // Sphere
+        objectT = intersectSphere(rayOrigin, rayDir, objectCenter, 1.0);
+      } else if (shapeType == 1) { // Cube
+        objectT = intersectCube(localOrigin, localDir, vec3(0.0), 1.0);
+      } else if (shapeType == 2) { // Pyramid
+        objectT = intersectPyramid(localOrigin, localDir, vec3(0.0), 2.0);
+      }
+
+      if (objectT > 0.0 && objectT < closestT) {
+        closestT = objectT;
+        hit.t = objectT;
+        hit.objectId = i + 1; // object indices start at 1
+        hit.point = rayOrigin + objectT * rayDir;
+        vec3 localPoint = localOrigin + objectT * localDir;
+
+        // Calculate normal based on shape type
+        if (shapeType == 0) { // Sphere
+          hit.normal = normalize(hit.point - objectCenter);
+        } else if (shapeType == 1) { // Cube
+          vec3 d = abs(localPoint);
+          float maxComp = max(max(d.x, d.y), d.z);
+          vec3 localNormal;
+          if (maxComp == d.x) localNormal = sign(localPoint.x) * vec3(1.0, 0.0, 0.0);
+          else if (maxComp == d.y) localNormal = sign(localPoint.y) * vec3(0.0, 1.0, 0.0);
+          else localNormal = sign(localPoint.z) * vec3(0.0, 0.0, 1.0);
+          hit.normal = frame * localNormal;
+        } else if (shapeType == 2) { // Pyramid
+          // Simplified pyramid normal (cone-like)
+          vec3 toTip = vec3(0.0, 1.0, 0.0);
+          vec3 toPoint = normalize(localPoint);
+          hit.normal = frame * normalize(mix(toPoint, toTip, 0.3));
+        }
+
+        hit.color = u_objectColors[i];
+      }
+    }
+
+    // Test the room's ground
+    Floor ground = roomFloor(rayOrigin, rayDir);
+
+    if (ground.t > 0.0 && ground.t < closestT) {
+      hit.t = ground.t;
+      hit.objectId = 11; // floor
+      hit.point = rayOrigin + ground.t * rayDir;
+      hit.normal = ground.normal;
+      hit.coord = ground.coord;
+    }
+
+    return hit;
+  }
+
 
   void main() {
     // Convert screen coordinates to normalized device coordinates
@@ -300,11 +378,11 @@ export const fragmentShaderSource = `#version 300 es
 
     // Create camera coordinate system (look-at matrix)
     vec3 forward = normalize(target - cameraPos);
-    vec3 right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
+    vec3 right = normalize(cross(forward, u_cameraUp));
     vec3 up = cross(right, forward);
 
     // Calculate ray direction in world space
-    float fov = 0.8; // Field of view factor
+    float fov = ${glslFloat(SHADER_FOV)}; // Shared with the labels and the line pass (projection.ts)
     vec3 rayDir = normalize(forward + ndc.x * right * fov + ndc.y * up * fov);
 
     // Get stormy sky color with lightning
@@ -314,10 +392,13 @@ export const fragmentShaderSource = `#version 300 es
     vec3 rayOrigin = cameraPos;
     vec3 currentRayDir = rayDir;
     float reflectivity = 1.0;
+    // Where the primary ray lands; -1.0 is the sky.
+    float primaryT = -1.0;
 
     // Ray tracing with reflections (up to 2 bounces)
     for (int bounce = 0; bounce < 2; bounce++) {
       Hit hit = traceRay(rayOrigin, currentRayDir);
+      if (bounce == 0) primaryT = hit.t;
 
       if (hit.objectId == 0) {
         // Hit background - get sky color for this ray direction
@@ -340,37 +421,35 @@ export const fragmentShaderSource = `#version 300 es
         // Add ambient
         lighting += sphereColor * 0.2;
 
+        lighting = roomAvatar(lighting, sphereColor, hit.normal, viewDir, hit.point);
         finalColor += lighting * reflectivity;
 
         // Set up reflection ray
         currentRayDir = reflect(-viewDir, hit.normal);
         rayOrigin = hit.point + hit.normal * 0.001; // Offset to avoid self-intersection
-        reflectivity *= 0.3; // Reduce reflection strength
+        reflectivity *= 0.3 * ROOM_REFLECT; // Reduce reflection strength
 
       } else if (hit.objectId == 11) {
         // Hit floor
-        vec2 floorCoord = hit.point.xz;
-        vec2 checker = floor(floorCoord * 2.0);
+        vec2 floorCoord = hit.coord;
+        vec2 checker = floor(floorCoord / ROOM_BLOCK);
         float checkerPattern = mod(checker.x + checker.y, 2.0);
 
-        vec3 floorColor1 = vec3(0.9, 0.9, 0.95); // Light gray
-        vec3 floorColor2 = vec3(0.7, 0.7, 0.8);  // Darker gray
-        vec3 floorColor = mix(floorColor1, floorColor2, checkerPattern);
+        vec3 floorColor = mix(PALETTE_floorLight, PALETTE_floorDark, checkerPattern);
 
         // Add boundary lines
         float boundary = u_worldBoundary;
         float lineWidth = 2.0; // Thicker boundary lines
 
         // Distance to each boundary edge
-        float distToEdgeX = min(abs(hit.point.x - boundary), abs(hit.point.x + boundary));
-        float distToEdgeZ = min(abs(hit.point.z - boundary), abs(hit.point.z + boundary));
+        float distToEdgeX = min(abs(floorCoord.x - boundary), abs(floorCoord.x + boundary));
+        float distToEdgeZ = min(abs(floorCoord.y - boundary), abs(floorCoord.y + boundary));
         float distToEdge = min(distToEdgeX, distToEdgeZ);
 
         // Create boundary line effect
         if (distToEdge < lineWidth) {
           float lineIntensity = 1.0 - smoothstep(0.0, lineWidth, distToEdge);
-          vec3 boundaryColor = vec3(0.0, 0.0, 0.0); // Black boundary
-          floorColor = mix(floorColor, boundaryColor, lineIntensity * 0.9);
+          floorColor = mix(floorColor, PALETTE_boundary, lineIntensity * 0.9);
         }
 
         // Add lighting from both light sources
@@ -380,9 +459,11 @@ export const fragmentShaderSource = `#version 300 es
         // Add ambient
         lighting += floorColor * 0.2;
 
+        lighting = roomFloorShade(lighting, floorColor, hit.normal, viewDir, hit.point);
+
         // Distance fog
         float distance = length(hit.point - cameraPos);
-        float fogFactor = exp(-distance * 0.05);
+        float fogFactor = exp(-distance * ROOM_FOG);
         vec3 fogColor = getSkyColor(normalize(hit.point - cameraPos));
         lighting = mix(fogColor, lighting, fogFactor);
 
@@ -391,13 +472,94 @@ export const fragmentShaderSource = `#version 300 es
         // Set up reflection ray (floor is less reflective)
         currentRayDir = reflect(-viewDir, hit.normal);
         rayOrigin = hit.point + hit.normal * 0.001;
-        reflectivity *= 0.1; // Very weak floor reflections
+        reflectivity *= 0.1 * ROOM_REFLECT; // Very weak floor reflections
       }
 
       // Stop if reflectivity gets too low
       if (reflectivity < 0.01) break;
     }
 
+    // The room's walls stand between the camera and whatever the primary
+    // ray landed on; they tint but never reflect.
+    vec4 wall = roomWalls(cameraPos, rayDir, primaryT > 0.0 ? primaryT : 1e30);
+    finalColor = mix(finalColor, wall.rgb, wall.a);
+
     fragColor = vec4(finalColor, 1.0);
+    gl_FragDepth = primaryT > 0.0 ? fragDepth(primaryT * dot(rayDir, forward)) : 1.0;
+  }
+`
+
+// The defaults a room composes its block from.
+export const NO_WALLS_GLSL = `
+  vec4 roomWalls(vec3 ro, vec3 rd, float tHit) {
+    return vec4(0.0);
+  }
+`
+export const PLANE_FLOOR_GLSL = `
+  Floor roomFloor(vec3 ro, vec3 rd) {
+    return planeFloor(ro, rd);
+  }
+`
+export const PLAIN_AVATAR_GLSL = `
+  vec3 roomAvatar(vec3 lit, vec3 base, vec3 normal, vec3 viewDir, vec3 point) {
+    return lit;
+  }
+`
+export const PLAIN_FLOOR_SHADE_GLSL = `
+  vec3 roomFloorShade(vec3 lit, vec3 base, vec3 normal, vec3 viewDir, vec3 point) {
+    return lit;
+  }
+`
+export const NO_ROOM_GLSL = NO_WALLS_GLSL + PLANE_FLOOR_GLSL + PLAIN_AVATAR_GLSL + PLAIN_FLOOR_SHADE_GLSL
+
+export interface RoomLook {
+  palette: Palette
+  // Distance fog density; 0 for none.
+  fog: number
+  // Side of a checker cell, in plane units.
+  block: number
+  // How much a surface reflects the next bounce; 0 keeps colours flat.
+  reflect: number
+}
+
+export function composeFragmentShader(roomGlsl: string, look: RoomLook): string {
+  const constants =
+    `  const float ROOM_FOG = ${glslFloat(look.fog)};\n` +
+    `  const float ROOM_BLOCK = ${glslFloat(look.block)};\n` +
+    `  const float ROOM_REFLECT = ${glslFloat(look.reflect)};\n`
+  return fragmentShaderHeader + paletteGlsl(look.palette) + constants + fragmentShaderPrelude + roomGlsl + fragmentShaderMain
+}
+
+// The line pass: a strip per attractor or wake through the same camera
+// as the ray tracer, with a glowing head running along it (u_head, in
+// points) and the trail fading behind it. u_glass tints the whole thing
+// the colour of the wall it is seen through.
+export const lineVertexShaderSource = `#version 300 es
+  layout(location = 0) in vec3 a_position;
+  layout(location = 1) in float a_index;
+  uniform mat4 u_viewProj;
+  uniform mat4 u_model;
+  uniform float u_head;
+  uniform float u_count;
+  out float v_glow;
+
+  void main() {
+    gl_Position = u_viewProj * u_model * vec4(a_position, 1.0);
+    float behind = mod(u_head - a_index + u_count, u_count);
+    v_glow = exp(-behind / (u_count * 0.08));
+  }
+`
+
+export const lineFragmentShaderSource = `#version 300 es
+  precision mediump float;
+  in float v_glow;
+  uniform vec3 u_color;
+  uniform vec4 u_glass;
+  out vec4 fragColor;
+
+  void main() {
+    vec3 rgb = mix(u_color * 0.55, vec3(1.0), v_glow * 0.6);
+    rgb = mix(rgb, u_glass.rgb, u_glass.a);
+    fragColor = vec4(rgb, 0.28 + 0.72 * v_glow);
   }
 `

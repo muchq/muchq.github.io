@@ -1,23 +1,82 @@
 import type { AudioSystem as IAudioSystem } from '@/types/game'
 
-// Simple melody pattern - just peaceful arpeggios
-const melodyPattern: number[] = [
-  60, 64, 67, 72, // C E G C' (simple arpeggio)
-  67, 71, 74, 79, // G B D G'
-  57, 60, 64, 69, // A C E A'
-  65, 69, 72, 77  // F A C F'
-]
+// What a room sounds like: the wave its notes are, how fast, which
+// tune, and what a bounce is. A melody entry of 0 is a rest.
+export interface SoundProfile {
+  wave: OscillatorType
+  tempo: number
+  // Beats per melody step and per chord.
+  noteBeats: number
+  chordBeats: number
+  // Odds a melody step sounds; 1 plays the tune as written, since a roll
+  // is always below it.
+  melodyChance: number
+  melody: number[]
+  chords: number[][]
+  // A bounce: a note at `from` (plus up to `spread` at random), swept to
+  // `to` over `duration` seconds when `to` is set.
+  bounce: { wave: OscillatorType; from: number; spread: number; to: number | null; duration: number }
+  // Master multiplier; square waves carry more energy than sines.
+  gain: number
+}
 
-// Simple chord progression (I-V-vi-IV in C major)
-const chordProgression: number[][] = [
-  [60, 64, 67], // C major
-  [67, 71, 74], // G major
-  [57, 60, 64], // A minor
-  [65, 69, 72]  // F major
-]
+// Peaceful sine arpeggios, the sound the world always had.
+export const CALM_SOUND: SoundProfile = {
+  wave: 'sine',
+  tempo: 60,
+  noteBeats: 2,
+  chordBeats: 8,
+  melodyChance: 0.3,
+  melody: [
+    60, 64, 67, 72, // C E G C'
+    67, 71, 74, 79, // G B D G'
+    57, 60, 64, 69, // A C E A'
+    65, 69, 72, 77, // F A C F'
+  ],
+  chords: [
+    [60, 64, 67], // C major
+    [67, 71, 74], // G major
+    [57, 60, 64], // A minor
+    [65, 69, 72], // F major
+  ],
+  bounce: { wave: 'sine', from: 200, spread: 100, to: null, duration: 0.1 },
+  gain: 1,
+}
+
+// A cartridge: square waves, a brisk original hop in C major with rests
+// on the off-beats, power chords under it, and a rising jump blip.
+export const CHIPTUNE_SOUND: SoundProfile = {
+  wave: 'square',
+  tempo: 150,
+  noteBeats: 0.5,
+  chordBeats: 2,
+  melodyChance: 1,
+  melody: [
+    67, 72, 0, 74, 76, 0, 74, 72, // G C  . D E . D C
+    69, 0, 72, 69, 67, 0, 64, 0, // A . C A G . E .
+    65, 69, 0, 72, 74, 0, 72, 69, // F A . C D . C A
+    67, 0, 71, 74, 79, 0, 76, 0, // G . B D G' . E .
+  ],
+  chords: [
+    [48, 55], // C
+    [53, 60], // F
+    [55, 62], // G
+    [48, 55], // C
+  ],
+  bounce: { wave: 'square', from: 330, spread: 0, to: 990, duration: 0.12 },
+  gain: 0.45,
+}
 
 function midiToFreq(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12)
+}
+
+// One period of a wave at phase t in [0, 1).
+function waveSample(wave: OscillatorType, phase: number): number {
+  const s = Math.sin(2 * Math.PI * phase)
+  if (wave === 'square') return s >= 0 ? 1 : -1
+  if (wave === 'triangle') return (2 / Math.PI) * Math.asin(s)
+  return s
 }
 
 export class AudioSystem implements IAudioSystem {
@@ -33,20 +92,22 @@ export class AudioSystem implements IAudioSystem {
   }
   lastBounceTime: number
   notesPlayedCount: number
+  profile: SoundProfile
   private isMobile: boolean
   private html5BackgroundAudio: HTMLAudioElement | null
   private mobileBounceAudioUrl: string | null
 
-  constructor() {
+  constructor(profile: SoundProfile = CALM_SOUND) {
     this.audioContext = null
     this.soundEnabled = false
     this.lastBounceTime = 0
     this.notesPlayedCount = 0
+    this.profile = profile
     this.backgroundMusic = {
       isPlaying: false,
       gainNode: null,
       nextNoteTime: 0,
-      tempo: 60, // Slower, more relaxed
+      tempo: profile.tempo,
       noteIndex: 0,
       chordIndex: 0
     }
@@ -58,6 +119,23 @@ export class AudioSystem implements IAudioSystem {
 
     if (this.isMobile) {
       this.initMobileAudio()
+    }
+  }
+
+  // The room's sound, from now on. A tune in progress starts the new one
+  // from the top; on mobile the pre-rendered track is rebuilt.
+  setProfile(profile: SoundProfile): void {
+    if (profile === this.profile) return
+    this.profile = profile
+    this.backgroundMusic.tempo = profile.tempo
+    this.backgroundMusic.noteIndex = 0
+    this.backgroundMusic.chordIndex = 0
+    if (this.isMobile) {
+      this.createMobileBounceSound()
+      if (this.backgroundMusic.isPlaying) {
+        this.stopBackgroundMusic()
+        this.startBackgroundMusic()
+      }
     }
   }
 
@@ -77,13 +155,16 @@ export class AudioSystem implements IAudioSystem {
       const buffer = tempContext.createBuffer(1, samples, sampleRate)
       const channelData = buffer.getChannelData(0)
 
-      // Use a fixed frequency for consistent bounce sound
-      const frequency = 250 // Fixed frequency for consistency
-
+      // The profile's bounce, at the middle of its spread, swept if it sweeps.
+      const { bounce, gain } = this.profile
+      const from = bounce.from + bounce.spread / 2
+      let phase = 0
       for (let i = 0; i < samples; i++) {
         const time = i / sampleRate
+        const frequency = bounce.to === null ? from : from * Math.pow(bounce.to / from, Math.min(1, time / bounce.duration))
+        phase += frequency / sampleRate
         const envelope = Math.exp(-time * 30) // Quick decay
-        channelData[i] = Math.sin(2 * Math.PI * frequency * time) * envelope * 0.05
+        channelData[i] = waveSample(bounce.wave, phase % 1) * envelope * 0.05 * gain
       }
 
       const wav = this.encodeWAV(buffer)
@@ -176,11 +257,12 @@ export class AudioSystem implements IAudioSystem {
       const oscillator = this.audioContext.createOscillator()
       const gainNode = this.audioContext.createGain()
 
-      oscillator.type = 'sine'
+      oscillator.type = this.profile.wave
       oscillator.frequency.setValueAtTime(frequency, startTime)
+      volume *= this.profile.gain
 
       gainNode.gain.setValueAtTime(0, startTime)
-      gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.1)
+      gainNode.gain.linearRampToValueAtTime(volume, startTime + Math.min(0.1, duration * 0.2))
       gainNode.gain.setValueAtTime(volume, startTime + duration * 0.7)
       gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
 
@@ -206,13 +288,13 @@ export class AudioSystem implements IAudioSystem {
         const oscillator = this.audioContext!.createOscillator()
         const gainNode = this.audioContext!.createGain()
 
-        oscillator.type = 'sine'
+        oscillator.type = this.profile.wave
         oscillator.frequency.setValueAtTime(freq, startTime)
 
-        const volume = 0.02 // Quieter chords
+        const volume = 0.02 * this.profile.gain // Quieter chords
         gainNode.gain.setValueAtTime(0, startTime)
-        gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.2)
-        gainNode.gain.setValueAtTime(volume, startTime + duration - 0.5)
+        gainNode.gain.linearRampToValueAtTime(volume, startTime + Math.min(0.2, duration * 0.2))
+        gainNode.gain.setValueAtTime(volume, startTime + duration * 0.7)
         gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
 
         oscillator.connect(gainNode)
@@ -232,31 +314,30 @@ export class AudioSystem implements IAudioSystem {
     if (!this.backgroundMusic.isPlaying || !this.audioContext) return
 
     const currentTime = this.audioContext.currentTime
+    const { melody, chords, noteBeats, chordBeats, melodyChance } = this.profile
     const secondsPerBeat = 60.0 / this.backgroundMusic.tempo
-    const noteLength = secondsPerBeat * 2 // Half notes
-    const chordLength = secondsPerBeat * 8 // Very long chords
+    const noteLength = secondsPerBeat * noteBeats
+    const chordLength = secondsPerBeat * chordBeats
+    const stepsPerChord = Math.max(1, Math.round(chordBeats / noteBeats))
 
     // Schedule ahead by 200ms
     while (this.backgroundMusic.nextNoteTime < currentTime + 0.2) {
-      // Play melody note occasionally (30% chance)
-      if (Math.random() < 0.3) {
-        const melodyMidi = melodyPattern[this.backgroundMusic.noteIndex]
-        const melodyFreq = midiToFreq(melodyMidi)
-        this.createSimpleNote(melodyFreq, this.backgroundMusic.nextNoteTime, noteLength * 1.5)
+      const melodyMidi = melody[this.backgroundMusic.noteIndex]
+      if (melodyMidi > 0 && Math.random() < melodyChance) {
+        this.createSimpleNote(midiToFreq(melodyMidi), this.backgroundMusic.nextNoteTime, noteLength * 1.5)
       }
 
-      // Play chord every 8 beats
-      if (this.backgroundMusic.noteIndex % 4 === 0) {
-        const chord = chordProgression[this.backgroundMusic.chordIndex]
+      if (this.backgroundMusic.noteIndex % stepsPerChord === 0) {
+        const chord = chords[this.backgroundMusic.chordIndex]
         const chordFreqs = chord.map(midi => midiToFreq(midi - 12))
         this.createSimpleChord(chordFreqs, this.backgroundMusic.nextNoteTime, chordLength)
 
-        this.backgroundMusic.chordIndex = (this.backgroundMusic.chordIndex + 1) % chordProgression.length
+        this.backgroundMusic.chordIndex = (this.backgroundMusic.chordIndex + 1) % chords.length
       }
 
       // Advance to next note
       this.backgroundMusic.nextNoteTime += noteLength
-      this.backgroundMusic.noteIndex = (this.backgroundMusic.noteIndex + 1) % melodyPattern.length
+      this.backgroundMusic.noteIndex = (this.backgroundMusic.noteIndex + 1) % melody.length
     }
 
     // Schedule next batch
@@ -344,11 +425,12 @@ export class AudioSystem implements IAudioSystem {
     const buffer = tempContext.createBuffer(1, samples, sampleRate)
     const channelData = buffer.getChannelData(0)
 
-    // Use the same melody and chord patterns as Web Audio version
-    const tempo = 60 // Same as backgroundMusic.tempo
-    const secondsPerBeat = 60.0 / tempo
-    const noteLength = secondsPerBeat * 2 // Half notes
-    const chordLength = secondsPerBeat * 8 // Very long chords
+    // The same profile the Web Audio version plays
+    const { melody, chords, noteBeats, chordBeats, melodyChance, wave, gain } = this.profile
+    const secondsPerBeat = 60.0 / this.profile.tempo
+    const noteLength = secondsPerBeat * noteBeats
+    const chordLength = secondsPerBeat * chordBeats
+    const stepsPerChord = Math.max(1, Math.round(chordBeats / noteBeats))
 
     // Pre-render the procedural music pattern
     let currentTime = 0
@@ -363,26 +445,23 @@ export class AudioSystem implements IAudioSystem {
     }
 
     while (currentTime < duration) {
-      // Schedule melody note occasionally (30% chance, same as Web Audio)
-      if (seededRandom() < 0.3) {
-        const melodyMidi = melodyPattern[noteIndex]
-        const melodyFreq = midiToFreq(melodyMidi)
-        this.renderNoteToBuffer(channelData, sampleRate, melodyFreq, currentTime, noteLength * 1.5, 0.005)
+      const melodyMidi = melody[noteIndex]
+      if (melodyMidi > 0 && seededRandom() < melodyChance) {
+        this.renderNoteToBuffer(channelData, sampleRate, midiToFreq(melodyMidi), currentTime, noteLength * 1.5, 0.005 * gain, wave)
       }
 
-      // Play chord every 4 beats (same as Web Audio)
-      if (noteIndex % 4 === 0) {
-        const chord = chordProgression[chordIndex]
+      if (noteIndex % stepsPerChord === 0) {
+        const chord = chords[chordIndex]
         chord.forEach(midi => {
           const chordFreq = midiToFreq(midi - 12) // Same octave offset as Web Audio
-          this.renderNoteToBuffer(channelData, sampleRate, chordFreq, currentTime, chordLength, 0.003)
+          this.renderNoteToBuffer(channelData, sampleRate, chordFreq, currentTime, chordLength, 0.003 * gain, wave)
         })
-        chordIndex = (chordIndex + 1) % chordProgression.length
+        chordIndex = (chordIndex + 1) % chords.length
       }
 
       // Advance to next note (same logic as Web Audio)
       currentTime += noteLength
-      noteIndex = (noteIndex + 1) % melodyPattern.length
+      noteIndex = (noteIndex + 1) % melody.length
     }
 
     // Apply fade-in and fade-out to prevent clicks at loop boundaries
@@ -410,7 +489,8 @@ export class AudioSystem implements IAudioSystem {
     frequency: number,
     startTime: number,
     duration: number,
-    volume: number
+    volume: number,
+    wave: OscillatorType = 'sine'
   ): void {
     const startSample = Math.floor(startTime * sampleRate)
     const durationSamples = Math.floor(duration * sampleRate)
@@ -434,8 +514,8 @@ export class AudioSystem implements IAudioSystem {
         envelope = Math.exp(-releaseProgress * 5) // Exponential decay
       }
 
-      // Generate sine wave with envelope
-      const sample = Math.sin(2 * Math.PI * frequency * noteTime) * envelope * volume
+      // Generate the wave with envelope
+      const sample = waveSample(wave, (frequency * noteTime) % 1) * envelope * volume
 
       // Add to existing sample (for chord mixing)
       channelData[i] = Math.max(-1, Math.min(1, channelData[i] + sample))
@@ -488,18 +568,20 @@ export class AudioSystem implements IAudioSystem {
     oscillator.connect(gainNode)
     gainNode.connect(this.audioContext.destination)
 
-    // Simple bounce sound
-    const frequency = 200 + Math.random() * 100
+    // The room's bounce: a note, swept if the profile says so
+    const { bounce, gain } = this.profile
+    const frequency = bounce.from + Math.random() * bounce.spread
     oscillator.frequency.setValueAtTime(frequency, now)
-    oscillator.type = 'sine'
+    if (bounce.to !== null) oscillator.frequency.exponentialRampToValueAtTime(bounce.to, now + bounce.duration)
+    oscillator.type = bounce.wave
 
     // Quick attack and decay
     gainNode.gain.setValueAtTime(0, now)
-    gainNode.gain.linearRampToValueAtTime(0.015, now + 0.01)
-    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1)
+    gainNode.gain.linearRampToValueAtTime(0.015 * gain, now + 0.01)
+    gainNode.gain.exponentialRampToValueAtTime(0.001, now + bounce.duration)
 
     oscillator.start(now)
-    oscillator.stop(now + 0.1)
+    oscillator.stop(now + bounce.duration)
   }
 
   private playMobileBoingSound(): void {

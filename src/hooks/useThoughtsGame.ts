@@ -1,8 +1,12 @@
 import { useCallback } from 'react'
 import type { MutableRefObject } from 'react'
-import { vertexShaderSource, fragmentShaderSource } from '@/utils/shaders'
 import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
-import { generateRandomColor, generateRandomSpawnPosition, createShader, createProgram } from '@/utils/gameUtils'
+import { generateRandomColor, generateRandomSpawnPosition } from '@/utils/gameUtils'
+import { RoomResources } from '@/utils/roomResources'
+import { DEFAULT_ROOM } from '@/utils/roomGeometry'
+import { bindRoomHotkey } from '@/utils/roomHotkey'
+import { AvatarTrails } from '@/utils/avatarTrails'
+import { projectToNdc, viewProjection } from '@/utils/projection'
 import { VirtualJoystick } from '@/utils/virtualJoystick'
 import { AudioSystem } from '@/utils/audioSystem'
 import { isTypingTarget } from '@/utils/keyboard'
@@ -94,6 +98,8 @@ export const useThoughtsGame = () => {
     soundToggle?.addEventListener('click', handleSoundToggle)
     // Set once the canvas is up; cleanup removes the same reference.
     let resizeCanvas: (() => void) | null = null
+    let unbindRoomHotkey: (() => void) | null = null
+    let disposeRooms: (() => void) | null = null
 
     // Function to cycle through shapes
     function cyclePlayerShape() {
@@ -162,21 +168,32 @@ export const useThoughtsGame = () => {
         return () => {}
       }
     } else {
-      // Create and compile shaders
-      const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource)
-      const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource)
+      // The room decides the ray tracer; the hotkey walks the registry,
+      // stepping past any room that will not build.
+      const rooms = new RoomResources(gl)
+      disposeRooms = () => rooms.dispose()
+      let room = DEFAULT_ROOM
+      const first = rooms.get(room)
 
-      if (!vertexShader || !fragmentShader) {
-        console.error('Failed to create shaders')
-        return () => {}
-      }
-
-      const program = createProgram(gl, vertexShader, fragmentShader)
-
-      if (!program) {
+      if (!first) {
         console.error('Failed to create program')
         return () => {}
       }
+      let built = first
+      let trails = room.trailLength > 0 ? new AvatarTrails(room.trailLength) : null
+      audioSystem.setProfile(room.sound)
+
+      unbindRoomHotkey = bindRoomHotkey(document, () => {
+        const next = rooms.next(room.id)
+        const nextBuilt = next && rooms.get(next)
+        if (!next || !nextBuilt) return
+        room = next
+        built = nextBuilt
+        trails = room.trailLength > 0 ? new AvatarTrails(room.trailLength) : null
+        audioSystem.setProfile(room.sound)
+        // eslint-disable-next-line no-console
+        console.log(`🏠 Room: ${room.label}`)
+      })
 
       // Create fullscreen quad
       const quadVertices = new Float32Array([
@@ -193,24 +210,14 @@ export const useThoughtsGame = () => {
       const quadVAO = gl.createVertexArray()
       gl.bindVertexArray(quadVAO)
 
-      const positionLocation = gl.getAttribLocation(program, 'a_position')
-      if (positionLocation !== -1) {
-        gl.enableVertexAttribArray(positionLocation)
-        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0)
-      }
+      // a_position is pinned to location 0 in the vertex shader every
+      // room's program links against.
+      gl.enableVertexAttribArray(0)
+      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
 
-      // Get uniform locations for ray tracing
-      const resolutionLocation = gl.getUniformLocation(program, 'u_resolution')
-      const cameraPosLocation = gl.getUniformLocation(program, 'u_cameraPos')
-      const cameraTargetLocation = gl.getUniformLocation(program, 'u_cameraTarget')
-      const timeLocation = gl.getUniformLocation(program, 'u_time')
-      const worldBoundaryLocation = gl.getUniformLocation(program, 'u_worldBoundary')
-
-      // Multiple objects support
-      const numObjectsLocation = gl.getUniformLocation(program, 'u_numObjects')
-      const objectCentersLocation = gl.getUniformLocation(program, 'u_objectCenters')
-      const objectColorsLocation = gl.getUniformLocation(program, 'u_objectColors')
-      const objectShapesLocation = gl.getUniformLocation(program, 'u_objectShapes')
+      // The ray tracer writes the sky at the far end of depth, which
+      // LESS would reject against the cleared buffer.
+      gl.depthFunc(gl.LEQUAL)
 
       // Type guard to ensure gl is not null for the rest of the function
       const webglContext = gl
@@ -375,45 +382,12 @@ export const useThoughtsGame = () => {
       }
 
       // Update player labels function
-      const updatePlayerLabels = (cameraPosition: [number, number, number], cameraTarget: [number, number, number]) => {
+      const updatePlayerLabels = (cameraPosition: [number, number, number], cameraTarget: [number, number, number], cameraUp: [number, number, number]) => {
         const localPlayer = gameState.getLocalPlayer()
         if (!localPlayer) return
 
         const labelsContainer = document.getElementById('player-labels-container')
         if (!labelsContainer) return
-
-        // Camera vectors for projection
-        const forward = [
-          cameraTarget[0] - cameraPosition[0],
-          cameraTarget[1] - cameraPosition[1],
-          cameraTarget[2] - cameraPosition[2]
-        ]
-        const forwardLength = Math.sqrt(forward[0]**2 + forward[1]**2 + forward[2]**2)
-        forward[0] /= forwardLength
-        forward[1] /= forwardLength
-        forward[2] /= forwardLength
-
-        // Calculate right vector by crossing forward with world up [0, 1, 0]
-        const worldUp = [0, 1, 0]
-        const right = [
-          forward[1] * worldUp[2] - forward[2] * worldUp[1], // forward.y * 0 - forward.z * 1 = -forward.z
-          forward[2] * worldUp[0] - forward[0] * worldUp[2], // forward.z * 0 - forward.x * 0 = 0
-          forward[0] * worldUp[1] - forward[1] * worldUp[0]  // forward.x * 1 - forward.y * 0 = forward.x
-        ]
-        // Normalize right vector
-        const rightLength = Math.sqrt(right[0]**2 + right[1]**2 + right[2]**2)
-        if (rightLength > 0) {
-          right[0] /= rightLength
-          right[1] /= rightLength
-          right[2] /= rightLength
-        }
-
-        // Calculate up vector by crossing right with forward
-        const up = [
-          right[1] * forward[2] - right[2] * forward[1],
-          right[2] * forward[0] - right[0] * forward[2],
-          right[0] * forward[1] - right[1] * forward[0]
-        ]
 
         const allPlayers = Array.from(gameState.players.values())
         const currentOtherPlayerIds = new Set<string>()
@@ -462,43 +436,19 @@ export const useThoughtsGame = () => {
             const playerY = sphereZenith + GAME_CONFIG.sphereRadius + 0.3 // Position above sphere at fixed height
 
 
-            // Project 3D position to 2D screen
-            const relPos = [
-              player.position[0] - cameraPosition[0],
-              playerY - cameraPosition[1],
-              player.position[2] - cameraPosition[2]
-            ]
+            // Project 3D position to 2D screen, through the camera the
+            // shader casts its rays from. Only shown in front of the camera.
+            const projected = projectToNdc(
+              room.world.place(player.position[0], player.position[2], playerY - GAME_CONFIG.groundLevel),
+              cameraPosition,
+              cameraTarget,
+              canvas.width / canvas.height,
+              cameraUp
+            )
 
-            const dotForward = relPos[0] * forward[0] + relPos[1] * forward[1] + relPos[2] * forward[2]
-
-            if (dotForward > 0.1) { // Only show if in front of camera
-              // Match the exact projection used in the shader
-              const aspectRatio = canvas.width / canvas.height
-              const shaderFov = 0.8 // This matches the shader's fov value
-
-              // Project to camera space (matching shader's calculation)
-              const rightDot = relPos[0] * right[0] + relPos[1] * right[1] + relPos[2] * right[2]
-              const upDot = relPos[0] * up[0] + relPos[1] * up[1] + relPos[2] * up[2]
-
-              // Calculate projection matching the shader's inverse process
-              // In shader: rayDir = normalize(forward + ndc.x * right * fov + ndc.y * up * fov)
-              // We need to reverse this to get NDC from world position
-
-              // First get the projected position in camera space
-              const projX = rightDot / dotForward
-              const projY = upDot / dotForward
-
-              // Apply FOV (inverse of shader's multiplication)
-              const ndcX = projX / shaderFov
-              const ndcY = projY / shaderFov
-
-              // The shader applies aspect ratio to NDC.x before ray calculation
-              // So we need to divide by aspect ratio to get screen NDC
-              const screenNdcX = ndcX / aspectRatio
-
-              // Convert to screen coordinates
-              const screenX = (screenNdcX + 1) * 0.5 * window.innerWidth
-              const screenY = (1 - ndcY) * 0.5 * window.innerHeight
+            if (projected && projected.forward > 0.1) {
+              const screenX = (projected.x + 1) * 0.5 * window.innerWidth
+              const screenY = (1 - projected.y) * 0.5 * window.innerHeight
 
               labelElement.style.left = screenX + 'px'
               labelElement.style.top = screenY + 'px'
@@ -553,18 +503,24 @@ export const useThoughtsGame = () => {
         webglContext.clear(webglContext.COLOR_BUFFER_BIT | webglContext.DEPTH_BUFFER_BIT)
 
         webglContext.enable(webglContext.DEPTH_TEST)
-        webglContext.useProgram(program)
+        webglContext.useProgram(built.program)
+        webglContext.bindVertexArray(quadVAO)
+        const u = built.uniforms
 
         const localPlayer = gameState.getLocalPlayer()
 
         // Calculate camera position - use default position if no local player yet
         const fixedSphereY = -1.0 // Keep camera at a fixed height relative to sphere's center position
         const playerPos = localPlayer ? localPlayer.position : [0, 0, 0] as [number, number, number]
-        const cameraPosition: [number, number, number] = [
+        // On the hub's plane, then placed where the room draws that plane.
+        const cameraPlane: [number, number, number] = [
           playerPos[0] + Math.sin(gameState.camera.angle) * gameState.camera.distance,
           fixedSphereY + gameState.camera.height,
           playerPos[2] + Math.cos(gameState.camera.angle) * gameState.camera.distance
         ]
+        const world = room.world
+        const cameraPosition = world.place(cameraPlane[0], cameraPlane[2], cameraPlane[1] - GAME_CONFIG.groundLevel)
+        const cameraUp = world.up(cameraPlane[0], cameraPlane[2])
 
         // Physics simulation for bouncing (used for visual feedback and sound triggers)
 
@@ -587,14 +543,19 @@ export const useThoughtsGame = () => {
         const objectCenters: number[] = []
         const objectColors: number[] = []
         const objectShapes: number[] = []
+        const objectUps: number[] = []
 
         // Add all players' object data (including local player if it exists)
         for (let i = 0; i < Math.min(allPlayers.length, 10); i++) {
           const player = allPlayers[i]
           const playerBobbingY = player.getBouncingY(time)
 
-          // Add object center using direct position
-          objectCenters.push(player.position[0], playerBobbingY, player.position[2])
+          // Add object center where the room draws this plane point
+          const center = world.place(player.position[0], player.position[2], playerBobbingY - GAME_CONFIG.groundLevel)
+          objectCenters.push(center[0], center[1], center[2])
+          trails?.record(player.id, center)
+          const up = world.up(player.position[0], player.position[2])
+          objectUps.push(up[0], up[1], up[2])
 
           // Add object color
           objectColors.push(player.color[0], player.color[1], player.color[2])
@@ -607,27 +568,43 @@ export const useThoughtsGame = () => {
         while (objectCenters.length < 30) objectCenters.push(0.0) // 10 objects * 3 components
         while (objectColors.length < 30) objectColors.push(0.0) // 10 objects * 3 components
         while (objectShapes.length < 10) objectShapes.push(0) // 10 objects * 1 component
+        while (objectUps.length < 30) objectUps.push(0.0, 1.0, 0.0)
 
         // Set uniforms for ray tracing
         const sphereZenith = (GAME_CONFIG.groundLevel + GAME_CONFIG.sphereRadius) + (GAME_CONFIG.bounceHeight / 2) // Midpoint of bounce
-        const cameraTargetPos: [number, number, number] = [playerPos[0], sphereZenith, playerPos[2]]
+        const cameraTargetPos = world.place(playerPos[0], playerPos[2], sphereZenith - GAME_CONFIG.groundLevel + world.lookLift)
 
-        webglContext.uniform2f(resolutionLocation, canvas.width, canvas.height)
-        webglContext.uniform3f(cameraPosLocation, cameraPosition[0], cameraPosition[1], cameraPosition[2])
-        webglContext.uniform3f(cameraTargetLocation, cameraTargetPos[0], cameraTargetPos[1], cameraTargetPos[2])
-        webglContext.uniform1f(timeLocation, time * 0.001)
-        webglContext.uniform1f(worldBoundaryLocation, GAME_CONFIG.worldBoundary)
+        webglContext.uniform2f(u.u_resolution, canvas.width, canvas.height)
+        webglContext.uniform3f(u.u_cameraPos, cameraPosition[0], cameraPosition[1], cameraPosition[2])
+        webglContext.uniform3f(u.u_cameraTarget, cameraTargetPos[0], cameraTargetPos[1], cameraTargetPos[2])
+        webglContext.uniform3f(u.u_cameraUp, cameraUp[0], cameraUp[1], cameraUp[2])
+        webglContext.uniform1f(u.u_time, time * 0.001)
+        webglContext.uniform1f(u.u_worldBoundary, GAME_CONFIG.worldBoundary)
 
         // Update player labels after setting up camera
-        updatePlayerLabels(cameraPosition, cameraTargetPos)
+        updatePlayerLabels(cameraPosition, cameraTargetPos, cameraUp)
 
         // Set multiple object data
-        webglContext.uniform1i(numObjectsLocation, Math.min(allPlayers.length, 10))
-        webglContext.uniform3fv(objectCentersLocation, objectCenters)
-        webglContext.uniform3fv(objectColorsLocation, objectColors)
-        webglContext.uniform1iv(objectShapesLocation, objectShapes)
+        webglContext.uniform1i(u.u_numObjects, Math.min(allPlayers.length, 10))
+        webglContext.uniform3fv(u.u_objectCenters, objectCenters)
+        webglContext.uniform3fv(u.u_objectColors, objectColors)
+        webglContext.uniform1iv(u.u_objectShapes, objectShapes)
+        webglContext.uniform3fv(u.u_objectUps, objectUps)
 
         webglContext.drawArrays(webglContext.TRIANGLE_STRIP, 0, 4)
+
+        // What the room hangs outside its walls and trails behind its
+        // avatars, over the frame and behind whatever the ray tracer put
+        // nearer.
+        if (built.lines) {
+          trails?.prune(gameState.players.keys())
+          built.lines.draw(
+            viewProjection(cameraPosition, cameraTargetPos, canvas.width / canvas.height, cameraUp),
+            time * 0.001,
+            room.behindGlass,
+            trails?.strips(id => gameState.players.get(id)?.color ?? [1, 1, 1]) ?? []
+          )
+        }
 
         animationId = requestAnimationFrame(render)
       }
@@ -659,6 +636,8 @@ export const useThoughtsGame = () => {
       mobileMenuToggle?.removeEventListener('click', handleMobileMenuToggle)
       soundToggle?.removeEventListener('click', handleSoundToggle)
       if (resizeCanvas) window.removeEventListener('resize', resizeCanvas)
+      unbindRoomHotkey?.()
+      disposeRooms?.()
       window.removeEventListener('beforeunload', handleBeforeUnload)
 
       if (animationId) {
