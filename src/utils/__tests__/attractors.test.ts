@@ -67,6 +67,16 @@ describe('attractorsOutside', () => {
     }
   })
 
+  // Seen from the middle of the room, each one spans more of the view
+  // than the walls' height does: gigantic, not an ornament.
+  it('looks gigantic from the middle of the room', () => {
+    for (const s of specs) {
+      const distance = Math.hypot(s.center[0], s.center[2])
+      const angularDiameter = (2 * Math.atan(s.scale / distance) * 180) / Math.PI
+      expect(angularDiameter).toBeGreaterThanOrEqual(40)
+    }
+  })
+
   it('uses more than one kind', () => {
     expect(new Set(specs.map(s => s.kind)).size).toBeGreaterThan(1)
   })

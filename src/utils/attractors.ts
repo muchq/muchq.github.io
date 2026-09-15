@@ -80,17 +80,18 @@ export function attractorTrajectory(kind: AttractorKind, points: number): Float3
   return out
 }
 
-// Where the glasshouse hangs its attractors: past each wall, hovering
-// just off the floor so they sit in the default camera's frame, big
-// enough to read from the middle of the room.
+// Where the glasshouse hangs its attractors: one past each wall, close
+// behind the glass and as tall as the room is wide, standing on the
+// outside floor, so from inside they fill the panes.
 export function attractorsOutside(boundary: number): AttractorSpec[] {
   const b = boundary
   const common = { points: 3000, speed: 400 }
+  const standing = (scale: number) => scale + 2
   return [
-    { kind: 'lorenz', center: [b + 38, 16.5, b + 38], scale: 18, color: [1.0, 0.55, 0.25], spin: 0.08, ...common },
-    { kind: 'rossler', center: [-(b + 40), 14.5, b + 30], scale: 16, color: [0.45, 0.9, 1.0], spin: -0.06, ...common },
-    { kind: 'lorenz', center: [b + 42, 18.5, -(b + 34)], scale: 20, color: [0.85, 0.5, 1.0], spin: 0.05, ...common },
-    { kind: 'rossler', center: [-(b + 36), 13.5, -(b + 42)], scale: 15, color: [0.5, 1.0, 0.6], spin: 0.09, ...common },
+    { kind: 'lorenz', center: [b + 58, standing(50), 12], scale: 50, color: [1.0, 0.55, 0.25], spin: 0.03, ...common },
+    { kind: 'rossler', center: [-14, standing(44), -(b + 55)], scale: 44, color: [0.45, 0.9, 1.0], spin: -0.04, ...common },
+    { kind: 'lorenz', center: [-(b + 62), standing(56), -18], scale: 56, color: [0.85, 0.5, 1.0], spin: 0.025, ...common },
+    { kind: 'rossler', center: [20, standing(40), b + 52], scale: 40, color: [0.5, 1.0, 0.6], spin: 0.045, ...common },
   ]
 }
 
