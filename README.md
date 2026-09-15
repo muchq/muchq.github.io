@@ -69,13 +69,16 @@ and `useCastleTable` their state over the room stream's game envelopes. Share li
 links redirect to them.
 
 The world's shape is a room geometry (`src/utils/roomGeometry.ts`, MoonBase#1554): each
-entry is a GLSL block the ray tracer calls for its walls and its avatars, the attractors hung
-outside, the tint they take on through the glass, and the length of the wake an avatar leaves.
-Today the grid the world always had and a glasshouse, where avatars breathe and trail a glow;
-a new room with walls and ornaments is a new entry, a room that replaces the floor needs a hook
-in `shaders.ts` first, and the hub will name one per room once rooms carry a geometry.
-`src/utils/projection.ts` is the one camera the ray tracer, the player labels, and the line
-pass share; the shader reads its constants rather than carrying copies.
+entry is a palette, a mapping from the hub's flat world to where the room draws it
+(`src/utils/sphereWorld.ts`), a GLSL block the ray tracer calls for its ground, walls and
+shading, the attractors hung outside, the tint they take on through the glass, and the length
+of the wake an avatar leaves. Today: the grid the world always had; a glasshouse at night,
+where avatars breathe and trail a glow past gigantic attractors; and the inside of a sphere,
+the plane wrapped round its wall and drawn like an SNES platformer. Players move on the same
+±50 plane in every room; the hub never knows which one is drawn. A new room is a new entry,
+and the hub will name one per room once rooms carry a geometry. `src/utils/projection.ts` is
+the one camera the ray tracer, the player labels, and the line pass share; the shader reads
+its constants rather than carrying copies.
 
 The lobby speaks the games hub's one stream (`/games/v2/play` on api.muchq.com; the models
 and the protocol are documented with the service in MoonBase, `domains/games/apis/games_hub`)

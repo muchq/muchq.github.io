@@ -380,7 +380,7 @@ export const useThoughtsGame = () => {
       }
 
       // Update player labels function
-      const updatePlayerLabels = (cameraPosition: [number, number, number], cameraTarget: [number, number, number]) => {
+      const updatePlayerLabels = (cameraPosition: [number, number, number], cameraTarget: [number, number, number], cameraUp: [number, number, number]) => {
         const localPlayer = gameState.getLocalPlayer()
         if (!localPlayer) return
 
@@ -437,10 +437,11 @@ export const useThoughtsGame = () => {
             // Project 3D position to 2D screen, through the camera the
             // shader casts its rays from. Only shown in front of the camera.
             const projected = projectToNdc(
-              [player.position[0], playerY, player.position[2]],
+              room.world.place(player.position[0], player.position[2], playerY - GAME_CONFIG.groundLevel),
               cameraPosition,
               cameraTarget,
-              canvas.width / canvas.height
+              canvas.width / canvas.height,
+              cameraUp
             )
 
             if (projected && projected.forward > 0.1) {
@@ -509,11 +510,15 @@ export const useThoughtsGame = () => {
         // Calculate camera position - use default position if no local player yet
         const fixedSphereY = -1.0 // Keep camera at a fixed height relative to sphere's center position
         const playerPos = localPlayer ? localPlayer.position : [0, 0, 0] as [number, number, number]
-        const cameraPosition: [number, number, number] = [
+        // On the hub's plane, then placed where the room draws that plane.
+        const cameraPlane: [number, number, number] = [
           playerPos[0] + Math.sin(gameState.camera.angle) * gameState.camera.distance,
           fixedSphereY + gameState.camera.height,
           playerPos[2] + Math.cos(gameState.camera.angle) * gameState.camera.distance
         ]
+        const world = room.world
+        const cameraPosition = world.place(cameraPlane[0], cameraPlane[2], cameraPlane[1] - GAME_CONFIG.groundLevel)
+        const cameraUp = world.up(cameraPlane[0], cameraPlane[2])
 
         // Physics simulation for bouncing (used for visual feedback and sound triggers)
 
@@ -542,9 +547,10 @@ export const useThoughtsGame = () => {
           const player = allPlayers[i]
           const playerBobbingY = player.getBouncingY(time)
 
-          // Add object center using direct position
-          objectCenters.push(player.position[0], playerBobbingY, player.position[2])
-          trails?.record(player.id, [player.position[0], playerBobbingY, player.position[2]])
+          // Add object center where the room draws this plane point
+          const center = world.place(player.position[0], player.position[2], playerBobbingY - GAME_CONFIG.groundLevel)
+          objectCenters.push(center[0], center[1], center[2])
+          trails?.record(player.id, center)
 
           // Add object color
           objectColors.push(player.color[0], player.color[1], player.color[2])
@@ -560,16 +566,17 @@ export const useThoughtsGame = () => {
 
         // Set uniforms for ray tracing
         const sphereZenith = (GAME_CONFIG.groundLevel + GAME_CONFIG.sphereRadius) + (GAME_CONFIG.bounceHeight / 2) // Midpoint of bounce
-        const cameraTargetPos: [number, number, number] = [playerPos[0], sphereZenith, playerPos[2]]
+        const cameraTargetPos = world.place(playerPos[0], playerPos[2], sphereZenith - GAME_CONFIG.groundLevel + world.lookLift)
 
         webglContext.uniform2f(u.u_resolution, canvas.width, canvas.height)
         webglContext.uniform3f(u.u_cameraPos, cameraPosition[0], cameraPosition[1], cameraPosition[2])
         webglContext.uniform3f(u.u_cameraTarget, cameraTargetPos[0], cameraTargetPos[1], cameraTargetPos[2])
+        webglContext.uniform3f(u.u_cameraUp, cameraUp[0], cameraUp[1], cameraUp[2])
         webglContext.uniform1f(u.u_time, time * 0.001)
         webglContext.uniform1f(u.u_worldBoundary, GAME_CONFIG.worldBoundary)
 
         // Update player labels after setting up camera
-        updatePlayerLabels(cameraPosition, cameraTargetPos)
+        updatePlayerLabels(cameraPosition, cameraTargetPos, cameraUp)
 
         // Set multiple object data
         webglContext.uniform1i(u.u_numObjects, Math.min(allPlayers.length, 10))
@@ -585,7 +592,7 @@ export const useThoughtsGame = () => {
         if (built.lines) {
           trails?.prune(gameState.players.keys())
           built.lines.draw(
-            viewProjection(cameraPosition, cameraTargetPos, canvas.width / canvas.height),
+            viewProjection(cameraPosition, cameraTargetPos, canvas.width / canvas.height, cameraUp),
             time * 0.001,
             room.behindGlass,
             trails?.strips(id => gameState.players.get(id)?.color ?? [1, 1, 1]) ?? []

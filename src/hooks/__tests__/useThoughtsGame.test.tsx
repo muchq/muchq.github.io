@@ -93,17 +93,34 @@ describe('useThoughtsGame', () => {
     expect(lastQuadBind()).toBeGreaterThan(gl.bindVertexArray.mock.invocationCallOrder[0])
   })
 
-  it('stays on the grid when the glasshouse will not build', () => {
-    start({ compiles: src => !src.includes('fresnel') })
+  it('tilts the camera only once the room curves the world', () => {
+    start()
     frame()
-    const program = gl.useProgram.mock.calls[0][0]
-    press(ROOM_HOTKEY)
+    const upCalls = () => gl.uniform3f.mock.calls.filter(c => c[0]?.uniform === 'u_cameraUp').map(c => c.slice(1))
+    expect(upCalls().at(-1)).toEqual([0, 1, 0])
     press(ROOM_HOTKEY)
     frame(32)
-    expect(gl.useProgram).toHaveBeenLastCalledWith(program)
-    // The vertex shader, the grid, and one try at the glasshouse: it is
-    // remembered as unbuildable, so the second press compiles nothing.
-    expect(gl.compileShader).toHaveBeenCalledTimes(1 + 1 + 1)
+    expect(upCalls().at(-1)).toEqual([0, 1, 0])
+    press(ROOM_HOTKEY)
+    frame(48)
+    const [x, y, z] = upCalls().at(-1)!
+    expect(Math.hypot(x, y, z)).toBeCloseTo(1)
+    expect([x, y, z]).not.toEqual([0, 1, 0])
+  })
+
+  it('steps past the glasshouse when it will not build, and never tries it again', () => {
+    start({ compiles: src => !src.includes('fresnel') })
+    frame()
+    const grid = gl.useProgram.mock.calls[0][0]
+    press(ROOM_HOTKEY)
+    frame(32)
+    // The vertex shader, the grid, one try at the glasshouse, the sphere.
+    expect(gl.compileShader).toHaveBeenCalledTimes(1 + 1 + 1 + 1)
+    expect(gl.useProgram).not.toHaveBeenLastCalledWith(grid)
+    press(ROOM_HOTKEY)
+    frame(48)
+    expect(gl.useProgram).toHaveBeenLastCalledWith(grid)
+    expect(gl.compileShader).toHaveBeenCalledTimes(4)
   })
 
   it('stops listening for the hotkey and frees the rooms on cleanup', () => {

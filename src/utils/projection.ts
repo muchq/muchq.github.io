@@ -27,11 +27,13 @@ const normalize = (a: Vec3): Vec3 => {
   return [a[0] / l, a[1] / l, a[2] / l]
 }
 
+export const WORLD_UP: Vec3 = [0, 1, 0]
+
 // The look-at frame the shader builds: forward at the target, right
-// level with the ground, up from the two.
-export function cameraBasis(cameraPos: Vec3, target: Vec3): CameraBasis {
+// square to the world's up (which a room may tilt), up from the two.
+export function cameraBasis(cameraPos: Vec3, target: Vec3, worldUp: Vec3 = WORLD_UP): CameraBasis {
   const forward = normalize(sub(target, cameraPos))
-  const right = normalize(cross(forward, [0, 1, 0]))
+  const right = normalize(cross(forward, worldUp))
   const up = cross(right, forward)
   return { forward, right, up }
 }
@@ -57,9 +59,9 @@ export interface Projected {
 
 // Where a world point lands on screen, in [-1, 1]² with y up, or null
 // when it is not in front of the camera.
-export function projectToNdc(point: Vec3, cameraPos: Vec3, target: Vec3, aspect: number): Projected | null {
+export function projectToNdc(point: Vec3, cameraPos: Vec3, target: Vec3, aspect: number, worldUp: Vec3 = WORLD_UP): Projected | null {
   const fov = SHADER_FOV
-  const { forward, right, up } = cameraBasis(cameraPos, target)
+  const { forward, right, up } = cameraBasis(cameraPos, target, worldUp)
   const rel = sub(point, cameraPos)
   const f = dot(rel, forward)
   if (f <= 0) return null
@@ -89,8 +91,8 @@ export type Mat4 = Float32Array
 
 // The matrix that takes a world point to clip space such that clip / w
 // is (projectToNdc.x, projectToNdc.y, ndcDepth(forward)).
-export function viewProjection(cameraPos: Vec3, target: Vec3, aspect: number): Mat4 {
-  const { forward, right, up } = cameraBasis(cameraPos, target)
+export function viewProjection(cameraPos: Vec3, target: Vec3, aspect: number, worldUp: Vec3 = WORLD_UP): Mat4 {
+  const { forward, right, up } = cameraBasis(cameraPos, target, worldUp)
   const { a, b } = depthCoefficients()
   const sx = 1 / (SHADER_FOV * aspect)
   const sy = 1 / SHADER_FOV

@@ -59,8 +59,13 @@ describe('RoomResources', () => {
   describe('next', () => {
     it('walks the registry in order and wraps', () => {
       const rooms = new RoomResources(fakeGl(), ROOM_GEOMETRIES)
-      expect(rooms.next(grid.id)).toBe(glass)
-      expect(rooms.next(glass.id)).toBe(grid)
+      const ids: string[] = []
+      let room = grid
+      for (let i = 0; i < ROOM_GEOMETRIES.length; i++) {
+        room = rooms.next(room.id)!
+        ids.push(room.id)
+      }
+      expect(ids).toEqual([...ROOM_GEOMETRIES.slice(1).map(r => r.id), grid.id])
     })
 
     it('skips a room that will not build', () => {

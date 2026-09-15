@@ -1,22 +1,35 @@
-import { composeFragmentShader, NO_ROOM_GLSL, type Palette } from './shaders'
+import {
+  composeFragmentShader,
+  NO_ROOM_GLSL,
+  NO_WALLS_GLSL,
+  PLANE_FLOOR_GLSL,
+  PLAIN_FLOOR_SHADE_GLSL,
+  type Palette,
+} from './shaders'
 import { attractorsOutside, type AttractorSpec } from './attractors'
 import { GAME_CONFIG } from './gameClasses'
 import type { Vec3 } from './projection'
+import { planeWorld, sphereWorld, SPHERE_ROOM, type WorldMapping } from './sphereWorld'
 
 // The rooms the world can be: each is a palette the sky and floor are
-// painted in, a GLSL block the ray tracer calls for its walls and its
-// avatars (see shaders.ts), the attractors hung outside, the tint those
-// take on through the glass, and how long a wake an avatar leaves. A new room with walls and ornaments is a new
-// entry here; a room that replaces the floor needs a hook in shaders.ts
-// first, since the floor lives in traceRay. The hotkey cycles the list
-// in order and the hub will one day name one per room (MoonBase#1554).
+// painted in, a mapping from the hub's flat world to where the room
+// draws it, a GLSL block the ray tracer calls for its ground, walls and
+// shading (see shaders.ts), the attractors hung outside, the tint those
+// take on through the glass, and how long a wake an avatar leaves. A
+// new room is a new entry here. The hotkey cycles the list in order and
+// the hub will one day name one per room (MoonBase#1554).
 
-export type RoomGeometryId = 'grid' | 'glasshouse'
+export type RoomGeometryId = 'grid' | 'glasshouse' | 'sphere'
 
 export interface RoomGeometry {
   id: RoomGeometryId
   label: string
   palette: Palette
+  world: WorldMapping
+  // Distance fog density; 0 for none.
+  fog: number
+  // Side of a checker cell, in plane units.
+  block: number
   glsl: string
   attractors: AttractorSpec[]
   // rgb and strength of the wall between the camera and the line pass.
@@ -31,6 +44,7 @@ export const RAY_TRACER_UNIFORMS = [
   'u_resolution',
   'u_cameraPos',
   'u_cameraTarget',
+  'u_cameraUp',
   'u_time',
   'u_worldBoundary',
   'u_numObjects',
@@ -62,6 +76,18 @@ const GLASSHOUSE_PALETTE: Palette = {
   boundary: [0.3, 0.9, 1.0],
 }
 
+// An SNES afternoon: a flat saturated sky, white clouds, green and
+// brown blocks, red trim.
+const MARIO_PALETTE: Palette = {
+  skyHorizon: [0.4, 0.7, 1.0],
+  skyZenith: [0.3, 0.55, 1.0],
+  cloud: [1, 1, 1],
+  lightning: [1.0, 1.0, 0.85],
+  floorLight: [0.36, 0.78, 0.22],
+  floorDark: [0.65, 0.4, 0.16],
+  boundary: [0.93, 0.2, 0.12],
+}
+
 const GLASS_TINT: Vec3 = [0.62, 0.86, 1.0]
 const glsl3 = (v: Vec3) => `vec3(${v.map(n => n.toFixed(2)).join(', ')})`
 
@@ -70,7 +96,7 @@ const glsl3 = (v: Vec3) => `vec3(${v.map(n => n.toFixed(2)).join(', ')})`
 // pixel: faint face-on, stronger at a grazing angle, with a mullion
 // every tenth of the boundary to give the height something to read
 // against. Avatars breathe: a rim glow in their own colour that pulses.
-const GLASSHOUSE_GLSL = `
+const GLASSHOUSE_GLSL = PLANE_FLOOR_GLSL + PLAIN_FLOOR_SHADE_GLSL + `
   vec4 roomWalls(vec3 ro, vec3 rd, float tHit) {
     float b = u_worldBoundary;
     float t = tHit;
@@ -111,11 +137,51 @@ const GLASSHOUSE_GLSL = `
   }
 `
 
+// The inside of a giant sphere: the hub's plane laid on its wall as a
+// square patch, x as longitude and z as latitude, with the rest of the
+// sphere painted as sky. Drawn like a cartridge-era platformer: flat
+// colour in a few bands, and an ink outline round every avatar.
+const SPHERE_GLSL = NO_WALLS_GLSL + `
+  const float PI = 3.14159265;
+  const float SPHERE_RADIUS = ${SPHERE_ROOM.radius.toFixed(1)};
+  const float SPHERE_WRAP = ${SPHERE_ROOM.wrap.toFixed(2)};
+  const float SPHERE_LAT = ${SPHERE_ROOM.latitude.toFixed(2)};
+  const vec3 TOON_LIGHT = normalize(vec3(0.4, 1.0, 0.3));
+
+  Floor roomFloor(vec3 ro, vec3 rd) {
+    Floor f;
+    f.t = intersectSphere(ro, rd, vec3(0.0), SPHERE_RADIUS);
+    vec3 n = normalize(ro + rd * f.t);
+    f.normal = -n;
+    float lat = asin(clamp(n.y, -1.0, 1.0));
+    float lon = atan(n.x, -n.z);
+    float b = u_worldBoundary;
+    f.coord = vec2(lon / (PI * SPHERE_WRAP) * b, lat / (PI * 0.5 * SPHERE_LAT) * b);
+    f.sky = smoothstep(1.0, 1.12, max(abs(f.coord.x), abs(f.coord.y)) / b);
+    return f;
+  }
+
+  vec3 roomAvatar(vec3 lit, vec3 base, vec3 normal, vec3 viewDir, vec3 point) {
+    if (abs(dot(normal, viewDir)) < 0.28) return vec3(0.05, 0.03, 0.03);
+    float light = dot(normal, TOON_LIGHT);
+    float band = light > 0.45 ? 1.0 : (light > -0.1 ? 0.72 : 0.5);
+    return base * band;
+  }
+
+  vec3 roomFloorShade(vec3 lit, vec3 base, vec3 normal, vec3 viewDir, vec3 point) {
+    float light = dot(normal, TOON_LIGHT);
+    return base * (light > 0.2 ? 1.0 : 0.82);
+  }
+`
+
 export const ROOM_GEOMETRIES: readonly RoomGeometry[] = [
   {
     id: 'grid',
     label: 'Grid',
     palette: GRID_PALETTE,
+    world: planeWorld,
+    fog: 0.05,
+    block: 0.5,
     glsl: NO_ROOM_GLSL,
     attractors: [],
     behindGlass: [0, 0, 0, 0],
@@ -125,10 +191,25 @@ export const ROOM_GEOMETRIES: readonly RoomGeometry[] = [
     id: 'glasshouse',
     label: 'Glasshouse',
     palette: GLASSHOUSE_PALETTE,
+    world: planeWorld,
+    fog: 0.05,
+    block: 0.5,
     glsl: GLASSHOUSE_GLSL,
     attractors: attractorsOutside(GAME_CONFIG.worldBoundary),
     behindGlass: [...GLASS_TINT, 0.35],
     trailLength: 120,
+  },
+  {
+    id: 'sphere',
+    label: 'Sphere',
+    palette: MARIO_PALETTE,
+    world: sphereWorld(GAME_CONFIG.worldBoundary),
+    fog: 0,
+    block: 2.5,
+    glsl: SPHERE_GLSL,
+    attractors: [],
+    behindGlass: [0, 0, 0, 0],
+    trailLength: 0,
   },
 ]
 
@@ -144,5 +225,5 @@ export function nextRoom(id: RoomGeometryId): RoomGeometry {
 }
 
 export function roomFragmentShader(room: RoomGeometry): string {
-  return composeFragmentShader(room.glsl, room.palette)
+  return composeFragmentShader(room.glsl, room)
 }
