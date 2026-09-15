@@ -1,4 +1,8 @@
 // WebGL2 Shaders for the Thoughts Game
+import { DEPTH_RANGE } from './projection'
+
+// GLSL ES wants a decimal point on a float literal.
+const glslFloat = (n: number) => (Number.isInteger(n) ? `${n}.0` : `${n}`)
 
 export const vertexShaderSource = `#version 300 es
   in vec2 a_position;
@@ -10,7 +14,14 @@ export const vertexShaderSource = `#version 300 es
   }
 `
 
-export const fragmentShaderSource = `#version 300 es
+// The ray tracer, in two halves around the one hook a room fills in:
+//
+//   vec4 roomWalls(vec3 ro, vec3 rd, float tHit)
+//
+// the tint (rgb) and its strength (a) of whatever the room puts between
+// the camera and the primary ray's landing point, tHit along the ray.
+// composeFragmentShader() joins the halves around a room's block.
+export const fragmentShaderPrelude = `#version 300 es
   precision highp float;
 
   in vec2 v_uv;
@@ -289,6 +300,19 @@ export const fragmentShaderSource = `#version 300 es
     return baseColor + lightningColor;
   }
 
+  // View-space distance to window depth, the mapping viewProjection()
+  // (projection.ts) gives the attractor pass, so the two passes share a
+  // depth buffer.
+  const float DEPTH_NEAR = ${glslFloat(DEPTH_RANGE.near)};
+  const float DEPTH_FAR = ${glslFloat(DEPTH_RANGE.far)};
+  float fragDepth(float zView) {
+    float a = (DEPTH_FAR + DEPTH_NEAR) / (DEPTH_FAR - DEPTH_NEAR);
+    float b = -2.0 * DEPTH_FAR * DEPTH_NEAR / (DEPTH_FAR - DEPTH_NEAR);
+    return clamp((a + b / max(zView, DEPTH_NEAR)) * 0.5 + 0.5, 0.0, 1.0);
+  }
+`
+
+export const fragmentShaderMain = `
   void main() {
     // Convert screen coordinates to normalized device coordinates
     vec2 ndc = (gl_FragCoord.xy / u_resolution.xy) * 2.0 - 1.0;
@@ -314,10 +338,13 @@ export const fragmentShaderSource = `#version 300 es
     vec3 rayOrigin = cameraPos;
     vec3 currentRayDir = rayDir;
     float reflectivity = 1.0;
+    // Where the primary ray lands; -1.0 is the sky.
+    float primaryT = -1.0;
 
     // Ray tracing with reflections (up to 2 bounces)
     for (int bounce = 0; bounce < 2; bounce++) {
       Hit hit = traceRay(rayOrigin, currentRayDir);
+      if (bounce == 0) primaryT = hit.t;
 
       if (hit.objectId == 0) {
         // Hit background - get sky color for this ray direction
@@ -398,6 +425,60 @@ export const fragmentShaderSource = `#version 300 es
       if (reflectivity < 0.01) break;
     }
 
+    // The room's walls stand between the camera and whatever the primary
+    // ray landed on; they tint but never reflect.
+    vec4 wall = roomWalls(cameraPos, rayDir, primaryT > 0.0 ? primaryT : 1e30);
+    finalColor = mix(finalColor, wall.rgb, wall.a);
+
     fragColor = vec4(finalColor, 1.0);
+    gl_FragDepth = primaryT > 0.0 ? fragDepth(primaryT * dot(rayDir, forward)) : 1.0;
+  }
+`
+
+// A room with nothing in the way.
+export const NO_WALLS_GLSL = `
+  vec4 roomWalls(vec3 ro, vec3 rd, float tHit) {
+    return vec4(0.0);
+  }
+`
+
+export function composeFragmentShader(roomGlsl: string): string {
+  return fragmentShaderPrelude + roomGlsl + fragmentShaderMain
+}
+
+// The world as it always was: the grid room.
+export const fragmentShaderSource = composeFragmentShader(NO_WALLS_GLSL)
+
+// The attractor pass: a line strip per attractor through the same camera
+// as the ray tracer, with a glowing head running along it (u_head, in
+// points) and the trail fading behind it. u_glass tints the whole thing
+// the colour of the wall it hangs behind.
+export const attractorVertexShaderSource = `#version 300 es
+  in vec3 a_position;
+  in float a_index;
+  uniform mat4 u_viewProj;
+  uniform mat4 u_model;
+  uniform float u_head;
+  uniform float u_count;
+  out float v_glow;
+
+  void main() {
+    gl_Position = u_viewProj * u_model * vec4(a_position, 1.0);
+    float behind = mod(u_head - a_index + u_count, u_count);
+    v_glow = exp(-behind / (u_count * 0.08));
+  }
+`
+
+export const attractorFragmentShaderSource = `#version 300 es
+  precision mediump float;
+  in float v_glow;
+  uniform vec3 u_color;
+  uniform vec4 u_glass;
+  out vec4 fragColor;
+
+  void main() {
+    vec3 rgb = mix(u_color * 0.55, vec3(1.0), v_glow * 0.6);
+    rgb = mix(rgb, u_glass.rgb, u_glass.a);
+    fragColor = vec4(rgb, 0.28 + 0.72 * v_glow);
   }
 `
