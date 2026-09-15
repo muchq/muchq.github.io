@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { ROOM_GEOMETRIES, DEFAULT_ROOM, nextRoom, roomById, roomFragmentShader, RAY_TRACER_UNIFORMS } from '../roomGeometry'
 import { SHADER_FOV, depthCoefficients } from '../projection'
+import { PALETTE_KEYS, type Palette } from '../shaders'
 import { GAME_CONFIG } from '../gameClasses'
 
 // The room registry is the seam a new geometry lands in: one entry, a
@@ -79,6 +80,45 @@ describe('roomFragmentShader', () => {
       })
     })
   }
+
+  it('paints each room from its own palette, with no colour left hardcoded', () => {
+    for (const room of ROOM_GEOMETRIES) {
+      const src = roomFragmentShader(room)
+      for (const key of PALETTE_KEYS) {
+        const [r, g, b] = room.palette[key]
+        expect(src).toContain(`const vec3 PALETTE_${key} = vec3(${r.toFixed(3)}, ${g.toFixed(3)}, ${b.toFixed(3)});`)
+        // Declared once and read at least once.
+        expect(src.split(`PALETTE_${key}`).length - 1).toBeGreaterThanOrEqual(2)
+      }
+      // The colours the sky and floor were once written with.
+      expect(src).not.toContain('vec3(0.48, 0.64, 0.8)')
+      expect(src).not.toContain('vec3(0.9, 0.9, 0.95)')
+      expect(src).not.toContain('vec3(0.0, 0.0, 0.0); // Black boundary')
+    }
+  })
+
+  it('keeps the grid the colours the world always had', () => {
+    expect(roomById('grid')!.palette).toEqual<Palette>({
+      skyHorizon: [0.48, 0.64, 0.8],
+      skyZenith: [0.64, 0.72, 0.8],
+      cloud: [0.72, 0.76, 0.8],
+      lightning: [0.9, 0.95, 1.0],
+      floorLight: [0.9, 0.9, 0.95],
+      floorDark: [0.7, 0.7, 0.8],
+      boundary: [0.0, 0.0, 0.0],
+    })
+  })
+
+  // Switching rooms has to read as a change of place, not of trim.
+  it('makes the glasshouse starkly darker than the grid, with a boundary that glows instead', () => {
+    const lum = ([r, g, b]: [number, number, number]) => 0.2126 * r + 0.7152 * g + 0.0722 * b
+    const grid = roomById('grid')!.palette
+    const glass = roomById('glasshouse')!.palette
+    expect(lum(grid.skyHorizon) - lum(glass.skyHorizon)).toBeGreaterThan(0.4)
+    expect(lum(grid.floorLight) - lum(glass.floorLight)).toBeGreaterThan(0.4)
+    expect(lum(grid.floorDark) - lum(glass.floorDark)).toBeGreaterThan(0.4)
+    expect(lum(glass.boundary) - lum(grid.boundary)).toBeGreaterThan(0.4)
+  })
 
   it('gives the glasshouse walls and a rim the grid does not have', () => {
     const grid = roomFragmentShader(roomById('grid')!)

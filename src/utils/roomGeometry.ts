@@ -1,12 +1,12 @@
-import { composeFragmentShader, NO_ROOM_GLSL } from './shaders'
+import { composeFragmentShader, NO_ROOM_GLSL, type Palette } from './shaders'
 import { attractorsOutside, type AttractorSpec } from './attractors'
 import { GAME_CONFIG } from './gameClasses'
 import type { Vec3 } from './projection'
 
-// The rooms the world can be: each is a GLSL block the ray tracer calls
-// for its walls and its avatars (see shaders.ts), the attractors hung
-// outside, the tint those take on through the glass, and how long a
-// wake an avatar leaves. A new room with walls and ornaments is a new
+// The rooms the world can be: each is a palette the sky and floor are
+// painted in, a GLSL block the ray tracer calls for its walls and its
+// avatars (see shaders.ts), the attractors hung outside, the tint those
+// take on through the glass, and how long a wake an avatar leaves. A new room with walls and ornaments is a new
 // entry here; a room that replaces the floor needs a hook in shaders.ts
 // first, since the floor lives in traceRay. The hotkey cycles the list
 // in order and the hub will one day name one per room (MoonBase#1554).
@@ -16,6 +16,7 @@ export type RoomGeometryId = 'grid' | 'glasshouse'
 export interface RoomGeometry {
   id: RoomGeometryId
   label: string
+  palette: Palette
   glsl: string
   attractors: AttractorSpec[]
   // rgb and strength of the wall between the camera and the line pass.
@@ -38,6 +39,28 @@ export const RAY_TRACER_UNIFORMS = [
   'u_objectShapes',
 ] as const
 export type RayTracerUniform = (typeof RAY_TRACER_UNIFORMS)[number]
+
+// The stormy afternoon the world always had.
+const GRID_PALETTE: Palette = {
+  skyHorizon: [0.48, 0.64, 0.8],
+  skyZenith: [0.64, 0.72, 0.8],
+  cloud: [0.72, 0.76, 0.8],
+  lightning: [0.9, 0.95, 1.0],
+  floorLight: [0.9, 0.9, 0.95],
+  floorDark: [0.7, 0.7, 0.8],
+  boundary: [0.0, 0.0, 0.0],
+}
+
+// Deep night: the glass, the attractors and the avatars carry the light.
+const GLASSHOUSE_PALETTE: Palette = {
+  skyHorizon: [0.06, 0.03, 0.14],
+  skyZenith: [0.01, 0.01, 0.05],
+  cloud: [0.11, 0.08, 0.2],
+  lightning: [0.6, 0.8, 1.0],
+  floorLight: [0.13, 0.13, 0.18],
+  floorDark: [0.05, 0.05, 0.08],
+  boundary: [0.3, 0.9, 1.0],
+}
 
 const GLASS_TINT: Vec3 = [0.62, 0.86, 1.0]
 const glsl3 = (v: Vec3) => `vec3(${v.map(n => n.toFixed(2)).join(', ')})`
@@ -89,10 +112,19 @@ const GLASSHOUSE_GLSL = `
 `
 
 export const ROOM_GEOMETRIES: readonly RoomGeometry[] = [
-  { id: 'grid', label: 'Grid', glsl: NO_ROOM_GLSL, attractors: [], behindGlass: [0, 0, 0, 0], trailLength: 0 },
+  {
+    id: 'grid',
+    label: 'Grid',
+    palette: GRID_PALETTE,
+    glsl: NO_ROOM_GLSL,
+    attractors: [],
+    behindGlass: [0, 0, 0, 0],
+    trailLength: 0,
+  },
   {
     id: 'glasshouse',
     label: 'Glasshouse',
+    palette: GLASSHOUSE_PALETTE,
     glsl: GLASSHOUSE_GLSL,
     attractors: attractorsOutside(GAME_CONFIG.worldBoundary),
     behindGlass: [...GLASS_TINT, 0.35],
@@ -112,5 +144,5 @@ export function nextRoom(id: RoomGeometryId): RoomGeometry {
 }
 
 export function roomFragmentShader(room: RoomGeometry): string {
-  return composeFragmentShader(room.glsl)
+  return composeFragmentShader(room.glsl, room.palette)
 }

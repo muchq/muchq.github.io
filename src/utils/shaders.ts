@@ -4,6 +4,17 @@ import { DEPTH_RANGE, SHADER_FOV, depthCoefficients } from './projection'
 // GLSL ES wants a decimal point on a float literal.
 const glslFloat = (n: number) => (Number.isInteger(n) ? `${n}.0` : `${n}`)
 
+// The colours a room paints the world in: read by the sky and the floor
+// as PALETTE_* constants, so a room is a change of place, not of trim.
+export const PALETTE_KEYS = ['skyHorizon', 'skyZenith', 'cloud', 'lightning', 'floorLight', 'floorDark', 'boundary'] as const
+export type Palette = Record<(typeof PALETTE_KEYS)[number], [number, number, number]>
+
+const paletteGlsl = (palette: Palette) =>
+  PALETTE_KEYS.map(key => {
+    const [r, g, b] = palette[key]
+    return `  const vec3 PALETTE_${key} = vec3(${r.toFixed(3)}, ${g.toFixed(3)}, ${b.toFixed(3)});`
+  }).join('\n') + '\n'
+
 export const vertexShaderSource = `#version 300 es
   layout(location = 0) in vec2 a_position;
   out vec2 v_uv;
@@ -26,7 +37,7 @@ export const vertexShaderSource = `#version 300 es
 // composeFragmentShader() joins the halves around a room's block. The
 // floor is not behind a hook: it lives in traceRay and the floor branch
 // of main, so a room that replaces it needs a third hook here.
-export const fragmentShaderPrelude = `#version 300 es
+const fragmentShaderHeader = `#version 300 es
   precision highp float;
 
   in vec2 v_uv;
@@ -42,6 +53,9 @@ export const fragmentShaderPrelude = `#version 300 es
   uniform vec3 u_objectCenters[10];
   uniform vec3 u_objectColors[10];
   uniform int u_objectShapes[10]; // 0=sphere, 1=cube, 2=pyramid
+`
+
+export const fragmentShaderPrelude = `
 
   // Light sources
   const vec3 light1 = vec3(1.0, 1.0, 1.0);   // Main light (top right)
@@ -247,9 +261,8 @@ export const fragmentShaderPrelude = `#version 300 es
     float cloudDensity = fbm(noiseCoord.xy);
     cloudDensity = smoothstep(0.4, 0.8, cloudDensity * 0.8);
 
-    // Darker storm sky colors (20% darker)
-    vec3 skyColor = mix(vec3(0.48, 0.64, 0.8), vec3(0.64, 0.72, 0.8), rayDir.y * 0.5 + 0.5);
-    vec3 cloudColor = vec3(0.72, 0.76, 0.8);
+    vec3 skyColor = mix(PALETTE_skyHorizon, PALETTE_skyZenith, rayDir.y * 0.5 + 0.5);
+    vec3 cloudColor = PALETTE_cloud;
 
     // Add some cloud variation
     float cloudVariation = fbm(noiseCoord.xy * 2.0) * 0.3;
@@ -300,7 +313,7 @@ export const fragmentShaderPrelude = `#version 300 es
 
     // Mix sky, clouds, and lightning
     vec3 baseColor = mix(noisySkyColor, noisyCloudColor, cloudDensity);
-    vec3 lightningColor = vec3(0.9, 0.95, 1.0) * lightningIntensity;
+    vec3 lightningColor = PALETTE_lightning * lightningIntensity;
 
     return baseColor + lightningColor;
   }
@@ -385,9 +398,7 @@ export const fragmentShaderMain = `
         vec2 checker = floor(floorCoord * 2.0);
         float checkerPattern = mod(checker.x + checker.y, 2.0);
 
-        vec3 floorColor1 = vec3(0.9, 0.9, 0.95); // Light gray
-        vec3 floorColor2 = vec3(0.7, 0.7, 0.8);  // Darker gray
-        vec3 floorColor = mix(floorColor1, floorColor2, checkerPattern);
+        vec3 floorColor = mix(PALETTE_floorLight, PALETTE_floorDark, checkerPattern);
 
         // Add boundary lines
         float boundary = u_worldBoundary;
@@ -401,8 +412,7 @@ export const fragmentShaderMain = `
         // Create boundary line effect
         if (distToEdge < lineWidth) {
           float lineIntensity = 1.0 - smoothstep(0.0, lineWidth, distToEdge);
-          vec3 boundaryColor = vec3(0.0, 0.0, 0.0); // Black boundary
-          floorColor = mix(floorColor, boundaryColor, lineIntensity * 0.9);
+          floorColor = mix(floorColor, PALETTE_boundary, lineIntensity * 0.9);
         }
 
         // Add lighting from both light sources
@@ -451,8 +461,8 @@ export const NO_ROOM_GLSL = `
   }
 `
 
-export function composeFragmentShader(roomGlsl: string): string {
-  return fragmentShaderPrelude + roomGlsl + fragmentShaderMain
+export function composeFragmentShader(roomGlsl: string, palette: Palette): string {
+  return fragmentShaderHeader + paletteGlsl(palette) + fragmentShaderPrelude + roomGlsl + fragmentShaderMain
 }
 
 // The line pass: a strip per attractor or wake through the same camera
