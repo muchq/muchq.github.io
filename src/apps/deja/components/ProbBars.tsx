@@ -1,4 +1,5 @@
 import styles from './Deja.module.css'
+import { displayToken } from '../displayToken'
 import type { Prediction } from '../types'
 
 interface Props {
@@ -17,7 +18,7 @@ const ProbBars = ({ predictions, limit, actual }: Props) => {
     <div className={styles.bars}>
       {predictions.slice(0, limit).map((p) => (
         <div key={p.token} className={`${styles.barRow} ${p.token === actual ? styles.barHit : ''}`} title={p.token}>
-          <span className={styles.barLabel}>{p.token}</span>
+          <span className={styles.barLabel}>{displayToken(p.token)}</span>
           <span className={styles.barTrack}>
             <span
               role="meter"

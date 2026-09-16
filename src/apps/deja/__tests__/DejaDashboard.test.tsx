@@ -59,16 +59,27 @@ describe('DejaDashboard', () => {
       const outcome = row.getAttribute('data-outcome')!
       // The CSS hook is the outcome's own class, not only the data attribute.
       expect([...row.classList].some((c) => c.includes(outcome))).toBe(true)
+      expect(within(row).getByTestId('outcome')).toHaveTextContent(outcome)
     }
-    expect(within(rowOf(hitEvent.seq)).getByTestId('actual')).toHaveTextContent(TOKENS.iili)
-    expect(within(rowOf(anomalyEvent.seq)).getByTestId('actual')).toHaveTextContent(TOKENS.probe)
+    expect(within(rowOf(hitEvent.seq)).getByTestId('actual')).toHaveTextContent('GET /iili/v1/r/*')
+    expect(within(rowOf(hitEvent.seq)).getByTestId('actual')).toHaveAttribute('title', TOKENS.iili)
+    expect(within(rowOf(anomalyEvent.seq)).getByTestId('actual')).toHaveTextContent('GET /.env')
+    expect(within(rowOf(anomalyEvent.seq)).getByTestId('actual')).toHaveAttribute('title', TOKENS.probe)
+
+    const legend = screen.getByRole('list', { name: 'Outcome key' })
+    expect(within(legend).getAllByRole('listitem').map((item) => item.getAttribute('data-outcome'))).toEqual([
+      'hit', 'near', 'miss', 'anomaly', 'novel', 'warmup',
+    ])
+    expect(screen.getByText(/newest 200/i)).toBeInTheDocument()
   })
 
-  it('shows the context chips oldest first and the bigram top-3 as bars, the net as a dash', async () => {
+  it('shows shortened context chips with the full token on title, and bigram bars', async () => {
     mount({ events: [anomalyEvent], state: stateOf() })
     await goLive()
     const row = within(rowOf(anomalyEvent.seq))
-    expect(row.getAllByTestId('chip').map((c) => c.textContent)).toEqual([TOKENS.home, TOKENS.stats, TOKENS.iili])
+    const chips = row.getAllByTestId('chip')
+    expect(chips.map((c) => c.getAttribute('title'))).toEqual([TOKENS.home, TOKENS.stats, TOKENS.iili])
+    expect(chips.map((c) => c.textContent)).toEqual(['GET /', 'GET /stats/v1/summary', 'GET /iili/v1/r/*'])
     const bigram = within(row.getByTestId('bigram'))
     expect(bigram.getAllByRole('meter').map((m) => m.getAttribute('aria-valuenow'))).toEqual(['0.9', '0.1'])
     expect(row.getByTestId('net')).toHaveTextContent('—')
