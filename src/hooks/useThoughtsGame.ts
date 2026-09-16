@@ -571,6 +571,9 @@ export const useThoughtsGame = () => {
         }
 
         // Prepare object data for all players
+        // Where a wake is drawn: the middle of the bounce, so it leaves
+        // the avatar at its waist however high it happens to be.
+        const wakeHeight = GAME_CONFIG.sphereRadius + GAME_CONFIG.bounceHeight / 2
         const allPlayers = Array.from(gameState.players.values())
         const objectCenters: number[] = []
         const objectColors: number[] = []
@@ -585,7 +588,9 @@ export const useThoughtsGame = () => {
           // Add object center where the room draws this plane point
           const center = surface.place(player.position, playerBobbingY - GAME_CONFIG.groundLevel)
           objectCenters.push(center[0], center[1], center[2])
-          trails?.record(player.id, center)
+          // The wake follows where the avatar went, not how it bobbed:
+          // a steady height, so the ribbon is a path and not a zigzag.
+          trails?.record(player.id, surface.place(player.position, wakeHeight))
           const up = surface.up(player.position)
           objectUps.push(up[0], up[1], up[2])
 
@@ -633,9 +638,10 @@ export const useThoughtsGame = () => {
           trails?.prune(gameState.players.keys())
           built.lines.draw(
             viewProjection(cameraPosition, cameraTargetPos, canvas.width / canvas.height, cameraUp),
+            cameraPosition,
             time * 0.001,
             room.behindGlass,
-            trails?.strips(id => gameState.players.get(id)?.color ?? [1, 1, 1]) ?? []
+            trails?.strips(id => gameState.players.get(id)?.color ?? [1, 1, 1], cameraPosition) ?? []
           )
         }
 

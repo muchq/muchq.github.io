@@ -57,6 +57,7 @@ export const fakeGl = (
     bindVertexArray: vi.fn(),
     enableVertexAttribArray: vi.fn(),
     vertexAttribPointer: vi.fn(),
+    vertexAttrib1f: vi.fn(),
     useProgram: vi.fn(),
     uniformMatrix4fv: vi.fn(),
     uniform1f: vi.fn(),

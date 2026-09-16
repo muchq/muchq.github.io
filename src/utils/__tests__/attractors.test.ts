@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { attractorTrajectory, ATTRACTOR_KINDS, attractorsOutside, modelMatrix } from '../attractors'
+import { attractorTrajectory, ATTRACTOR_KINDS, attractorsOutside, cometStretch, COMET_LIMIT, modelMatrix } from '../attractors'
 import { transformPoint } from '../projection'
 import { GAME_CONFIG } from '../gameClasses'
 
@@ -50,6 +50,38 @@ describe('attractorTrajectory', () => {
     })
   }
 
+  // Four systems that look like four systems: the same curve under two
+  // names would be four panes of the same thing again.
+  it('draws a different shape for every kind', () => {
+    const signature = (kind: (typeof ATTRACTOR_KINDS)[number]) => {
+      const points = 3000
+      const xyz = attractorTrajectory(kind, points)
+      let mean = 0
+      let inner = 0
+      const spread = [0, 0, 0]
+      for (let i = 0; i < points; i++) {
+        const r = Math.hypot(xyz[i * 3], xyz[i * 3 + 1], xyz[i * 3 + 2])
+        mean += r / points
+        if (r < 0.5) inner += 1 / points
+      }
+      for (let axis = 0; axis < 3; axis++) {
+        let lo = Infinity, hi = -Infinity
+        for (let i = 0; i < points; i++) { lo = Math.min(lo, xyz[i * 3 + axis]); hi = Math.max(hi, xyz[i * 3 + axis]) }
+        spread[axis] = hi - lo
+      }
+      // How round it is, how much of it sits near the middle, and how
+      // flat: three ways for two curves to be the same shape.
+      return [mean, inner, spread[1] / Math.max(spread[0], spread[2])]
+    }
+    const signatures = ATTRACTOR_KINDS.map(signature)
+    for (let a = 0; a < signatures.length; a++) {
+      for (let b = a + 1; b < signatures.length; b++) {
+        const apart = signatures[a].map((v, i) => Math.abs(v - signatures[b][i]))
+        expect(Math.max(...apart)).toBeGreaterThan(0.06)
+      }
+    }
+  })
+
   it('rejects a kind it does not integrate', () => {
     expect(() => attractorTrajectory('mandelbrot' as never, 10)).toThrow(/mandelbrot/)
   })
@@ -77,8 +109,35 @@ describe('attractorsOutside', () => {
     }
   })
 
-  it('uses more than one kind', () => {
-    expect(new Set(specs.map(s => s.kind)).size).toBeGreaterThan(1)
+  // Four panes, four different things to look at: the same curve twice
+  // would make two walls of the room say the same thing.
+  it('shows a different system through every pane', () => {
+    expect(specs).toHaveLength(4)
+    expect(new Set(specs.map(s => s.kind)).size).toBe(specs.length)
+    const walls = specs.map(s => (Math.abs(s.center[0]) > Math.abs(s.center[2]) ? (s.center[0] > 0 ? 'E' : 'W') : s.center[2] > 0 ? 'S' : 'N'))
+    expect(new Set(walls).size).toBe(4)
+  })
+
+  // And drawn differently: a comet, a chain of beads, a drift of sparks,
+  // a hard spark. Colour alone would leave four of the same thing.
+  it('draws every one of them its own way', () => {
+    const styles = specs.map(s => JSON.stringify(s.style))
+    expect(new Set(styles).size).toBe(specs.length)
+    expect(specs.filter(s => s.style.bead > 0)).toHaveLength(1)
+    expect(specs.filter(s => s.style.twinkle > 0)).toHaveLength(1)
+    // Heads that reach a long way back and heads that barely glow.
+    const tails = specs.map(s => s.style.tail).sort((a, b) => a - b)
+    expect(tails.at(-1)! / tails[0]).toBeGreaterThan(5)
+    // Taken at different resolutions, so one reads smooth and one coarse.
+    expect(new Set(specs.map(s => s.points)).size).toBe(specs.length)
+    // Comets of their own sizes, and one wall with none at all.
+    expect(specs.filter(s => s.style.comet === 0)).toHaveLength(1)
+    const comets = specs.filter(s => s.style.comet > 0).map(s => s.style.comet)
+    expect(new Set(comets).size).toBe(comets.length)
+    for (const s of specs) {
+      expect(s.style.tail).toBeGreaterThan(0)
+      expect(s.style.core).toBeGreaterThan(0)
+    }
   })
 
   // The twin: the placement rule, not the fixture, is what holds them out.
@@ -101,5 +160,45 @@ describe('modelMatrix', () => {
     expect(x[2]).toBeCloseTo(-24)
     const y = transformPoint(m, [0, 1, 0])
     expect(y[1]).toBeCloseTo(9)
+  })
+})
+
+// The comet is the lit stretch drawn as a ribbon rather than a wire. A
+// curve is a loop, so the stretch behind the head wraps round its end.
+describe('cometStretch', () => {
+  it('reads the points just behind the head, oldest first', () => {
+    expect(cometStretch(10, 6, 4)).toEqual([3, 4, 5, 6])
+    expect(cometStretch(10, 6.9, 4)).toEqual([3, 4, 5, 6])
+  })
+
+  // These are finite samples of a chaotic system, not loops: the last
+  // point is nowhere near the first. A stretch that ran off the start
+  // and round to the end would draw a ribbon clean across the room
+  // between two unrelated places, once every time the head came round.
+  it('stops at the start of the curve rather than wrapping to its end', () => {
+    expect(cometStretch(10, 1, 4)).toEqual([0, 1])
+    expect(cometStretch(10, 3, 9)).toEqual([0, 1, 2, 3])
+    for (const head of [0, 1, 2, 5, 9]) {
+      const stretch = cometStretch(10, head, 6)
+      for (const index of stretch) {
+        expect(index).toBeGreaterThanOrEqual(0)
+        expect(index).toBeLessThanOrEqual(head)
+      }
+      // Consecutive, so every quad of the ribbon spans one step of the
+      // curve and never a jump across it.
+      stretch.forEach((index, i) => expect(index).toBe(stretch[0] + i))
+    }
+  })
+
+  it('draws nothing where there is no stretch to draw', () => {
+    expect(cometStretch(10, 5, 1)).toEqual([])
+    expect(cometStretch(10, 5, 0)).toEqual([])
+    // The head at the very start has nothing behind it yet.
+    expect(cometStretch(10, 0, 6)).toEqual([])
+  })
+
+  it('never asks for more of a curve than there is, or than is worth it', () => {
+    expect(cometStretch(10, 9, 50)).toHaveLength(10)
+    expect(cometStretch(5000, 4999, 5000)).toHaveLength(COMET_LIMIT)
   })
 })
