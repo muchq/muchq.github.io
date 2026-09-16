@@ -208,8 +208,10 @@ export const useThoughtsGame = () => {
           localPlayer.updatePosition(frame.position)
         }
         const map = document.getElementById('mini-map')
-        // A globe has no corners; the plane's map is the square it was.
-        if (map) map.style.borderRadius = mapIsRound(surface) ? '50%' : ''
+        // A globe has no corners, and its stylesheet rounds the map, what
+        // it clips and the line round it; the plane's map is the square
+        // it was.
+        if (map) map.dataset.map = mapIsRound(surface) ? 'globe' : 'square'
         // eslint-disable-next-line no-console
         console.log(`🏠 Room: ${room.label}`)
         return true
