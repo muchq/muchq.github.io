@@ -32,8 +32,16 @@ interface FakeOscillator {
   stop: ReturnType<typeof vi.fn>
 }
 
+interface FakeBufferSource {
+  buffer: AudioBuffer | null
+  connect: ReturnType<typeof vi.fn>
+  start: ReturnType<typeof vi.fn>
+  stop: ReturnType<typeof vi.fn>
+}
+
 const fakeContext = ({ filters = true } = {}) => {
   const oscillators: FakeOscillator[] = []
+  const bufferSources: FakeBufferSource[] = []
   const biquads: FakeFilter[] = []
   const gains: FakeGain[] = []
   const gain = (): FakeGain => {
@@ -72,6 +80,17 @@ const fakeContext = ({ filters = true } = {}) => {
       oscillators.push(osc)
       return osc
     }),
+    createBufferSource: vi.fn(() => {
+      const source: FakeBufferSource = {
+        buffer: null,
+        connect: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+      }
+      bufferSources.push(source)
+      return source
+    }),
+    decodeAudioData: vi.fn(() => Promise.resolve({ duration: 0.1 } as AudioBuffer)),
     resume: vi.fn(() => Promise.resolve()),
     ...(filters
       ? {
@@ -92,11 +111,12 @@ const fakeContext = ({ filters = true } = {}) => {
     now += ms / 1000
     vi.advanceTimersByTime(ms)
   }
-  return { context, oscillators, biquads, gains, advance }
+  return { context, oscillators, bufferSources, biquads, gains, advance }
 }
 
 describe('AudioSystem', () => {
   let oscillators: FakeOscillator[]
+  let bufferSources: FakeBufferSource[]
   let biquads: FakeFilter[]
   let gains: FakeGain[]
   let advance: (ms: number) => void
@@ -106,6 +126,7 @@ describe('AudioSystem', () => {
     vi.useFakeTimers()
     const fake = fakeContext()
     oscillators = fake.oscillators
+    bufferSources = fake.bufferSources
     biquads = fake.biquads
     gains = fake.gains
     advance = fake.advance
@@ -239,18 +260,24 @@ describe('AudioSystem', () => {
     expect(system.backgroundMusic.tempo).toBe(CHIPTUNE_SOUND.tempo)
   })
 
-  it('has an original chiptune: square, brisk, in a major key, with rests', () => {
+  it('has an original chiptune: square, leisurely, in a major key, with rests', () => {
     expect(CHIPTUNE_SOUND.wave).toBe('square')
-    expect(CHIPTUNE_SOUND.tempo).toBeGreaterThanOrEqual(120)
-    expect(CHIPTUNE_SOUND.melody.length).toBeGreaterThanOrEqual(16)
+    expect(CHIPTUNE_SOUND.tempo).toBe(90)
+    // Sixteen bars of eighths — long enough to wander the sphere in.
+    expect(CHIPTUNE_SOUND.melody).toHaveLength(128)
+    const loopSeconds =
+      (CHIPTUNE_SOUND.melody.length * CHIPTUNE_SOUND.noteBeats * 60) / CHIPTUNE_SOUND.tempo
+    expect(loopSeconds).toBeGreaterThanOrEqual(40)
     expect(CHIPTUNE_SOUND.melody).toContain(0)
+    expect(CHIPTUNE_SOUND.melody.filter(n => n === 0).length).toBeGreaterThan(24)
     for (const midi of CHIPTUNE_SOUND.melody) if (midi > 0) expect([0, 2, 4, 5, 7, 9, 11]).toContain(midi % 12)
     expect(CHIPTUNE_SOUND.gain).toBeLessThan(1)
+    expect(CHIPTUNE_SOUND.chords.length).toBe(32)
   })
-  // A floor, not a tune: a kick under every beat on its own sine, saw
-  // notes plucked through a filter that shuts over each one, and two
-  // chords that take their time. The rooms that had no drum keep none.
-  it('puts a kick under every beat of the techno, on its own sine', () => {
+  // A floor, not a tune: a kick under every beat (sample when the bank
+  // is loaded, sine pulse as fallback), saw notes plucked through a
+  // filter that shuts over each one, and chords that take their time.
+  it('puts a kick under every beat of the techno, on its own sine when samples are not loaded', () => {
     system.setProfile(TECHNO_SOUND)
     system.startBackgroundMusic()
     const beat = 60 / TECHNO_SOUND.tempo
@@ -278,6 +305,27 @@ describe('AudioSystem', () => {
     for (let i = 1; i < starts.length; i++) {
       expect(starts[i] - starts[i - 1]).toBeCloseTo(beat, 6)
     }
+  })
+
+  it('fires the sample kick every beat once the bank is loaded', () => {
+    const kickBuf = { duration: 0.2, numberOfChannels: 1, length: 8820, sampleRate: 44100, getChannelData: () => new Float32Array(8820) }
+    system.setProfile(TECHNO_SOUND)
+    system.injectSampleBuffers({ kick: kickBuf as unknown as AudioBuffer })
+    system.startBackgroundMusic()
+    const beat = 60 / TECHNO_SOUND.tempo
+    for (let i = 0; i < 20; i++) advance(200)
+    expect(bufferSources.length).toBeGreaterThan(3)
+    const starts = bufferSources.map(s => s.start.mock.calls[0][0] as number).sort((a, b) => a - b)
+    for (let i = 1; i < Math.min(starts.length, 5); i++) {
+      expect(starts[i] - starts[i - 1]).toBeCloseTo(beat, 6)
+    }
+    // No synthetic sine kick while the sample is available.
+    const sineKicks = oscillators.filter(
+      osc =>
+        osc.type === 'sine' &&
+        osc.frequency.setValueAtTime.mock.calls.some(call => call[0] === TECHNO_SOUND.pulse!.from)
+    )
+    expect(sineKicks).toHaveLength(0)
   })
 
   it('plucks every techno note through a falling lowpass', () => {
@@ -352,17 +400,18 @@ describe('AudioSystem', () => {
     }
   })
 
-  it('keeps the techno minimal: two chords, a saw, and a hard-techno tempo', () => {
+  it('keeps the techno minimal: a saw at 140, and a loop long enough to live in', () => {
     expect(TECHNO_SOUND.wave).toBe('sawtooth')
-    // Hard techno runs faster than the four-to-the-floor house band.
-    expect(TECHNO_SOUND.tempo).toBeGreaterThanOrEqual(140)
-    expect(TECHNO_SOUND.tempo).toBeLessThanOrEqual(155)
-    // Sixteenths, and a pad that changes every other bar.
+    expect(TECHNO_SOUND.tempo).toBe(140)
+    // Sixteenths, and a pad that changes every bar.
     expect(TECHNO_SOUND.noteBeats).toBe(0.25)
     expect(TECHNO_SOUND.chordBeats).toBe(4)
-    expect(TECHNO_SOUND.chords).toHaveLength(2)
-    // Two bars of sixteenths, a chord to a bar.
-    expect(TECHNO_SOUND.melody).toHaveLength(32)
+    // Eight bars of sixteenths (≥8s at 140), alternating A minor / G.
+    expect(TECHNO_SOUND.melody).toHaveLength(128)
+    const loopSeconds =
+      (TECHNO_SOUND.melody.length * TECHNO_SOUND.noteBeats * 60) / TECHNO_SOUND.tempo
+    expect(loopSeconds).toBeGreaterThanOrEqual(8)
+    expect(TECHNO_SOUND.chords.length).toBeGreaterThanOrEqual(2)
     // And every note belongs to the chord playing under it: the pad
     // changes where the melody does, which is what chordBeats decides.
     const stepsPerChord = Math.round(TECHNO_SOUND.chordBeats / TECHNO_SOUND.noteBeats)
@@ -373,7 +422,46 @@ describe('AudioSystem', () => {
     })
     // Written rests, not rolled ones.
     expect(TECHNO_SOUND.melodyChance).toBe(1)
-    expect(TECHNO_SOUND.melody.filter(note => note === 0).length).toBeGreaterThan(8)
+    expect(TECHNO_SOUND.melody.filter(note => note === 0).length).toBeGreaterThan(32)
+  })
+
+  it('ships a glasshouse sample bank: kick, hats, chops, and a riser', () => {
+    const samples = TECHNO_SOUND.samples!
+    expect(samples.kick?.id).toBe('kick')
+    expect(samples.kick!.gain).toBeLessThan(0.7)
+    expect(samples.bank.kick).toMatch(/\/audio\/glasshouse\/kick\.wav$/)
+    expect(samples.bank.hat).toBeTruthy()
+    expect(samples.bank.woosh).toBeTruthy()
+    expect(samples.hits.length).toBeGreaterThan(3)
+    // Quieter synthetic fallback so a missing bank does not swamp the room.
+    expect(TECHNO_SOUND.pulse!.gain).toBeLessThanOrEqual(0.6)
+    expect(TECHNO_SOUND.chords.every(c => c.length <= 3)).toBe(true)
+  })
+
+  // A second voice over the looping riff: one step a bar for 32 bars,
+  // mostly rests, hanging long enough to feel like space rather than a tune.
+  it('carries a sparse 32-bar lead above the techno riff', () => {
+    const lead = TECHNO_SOUND.lead!
+    expect(lead.noteBeats).toBe(4)
+    expect(lead.melody).toHaveLength(32)
+    const sounding = lead.melody.filter(n => n > 0)
+    expect(sounding.length).toBeGreaterThanOrEqual(4)
+    expect(sounding.length).toBeLessThanOrEqual(10)
+    for (const note of sounding) {
+      expect(note).toBeGreaterThanOrEqual(60)
+    }
+    const loopBars = lead.melody.length
+    expect(loopBars * lead.noteBeats).toBe(128) // 32 bars × 4 beats
+  })
+
+  it('sounds the lead on its own wave, not the saw riff', () => {
+    system.setProfile(TECHNO_SOUND)
+    system.startBackgroundMusic()
+    // First lead note is on bar 0; a sixteenth is ~0.1s at 140, so one
+    // scheduler tick already covers the downbeat.
+    advance(200)
+    const leadWave = TECHNO_SOUND.lead!.wave
+    expect(oscillators.some(o => o.type === leadWave)).toBe(true)
   })
 
   // The riff is the room, so where it sits matters: a bright lead over
