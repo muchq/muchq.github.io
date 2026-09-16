@@ -150,6 +150,20 @@ export interface Moon {
   radius: number
   tint: readonly [number, number, number]
 }
+// The star field, in numbers rather than in the shader, because one of
+// them constrains another: only the ray's own cell is hashed, so a disc
+// wider than the margin left around the cell's faces would be cut off
+// flat against a neighbour that almost always holds no star.
+export const GLASSHOUSE_STARS = {
+  // Cells across a unit direction: how fine the field is.
+  lattice: 90,
+  // A cell carries a star when its hash clears this.
+  threshold: 0.955,
+  // The disc, and how far a star may wander inside its own cell.
+  radius: 0.3,
+  jitter: 0.4,
+} as const
+
 export const GLASSHOUSE_MOONS: readonly Moon[] = [
   { centre: [-1500, 288, -2300], radius: 150, tint: [0.86, 0.88, 0.95] },
   { centre: [2100, 128, 900], radius: 95, tint: [0.95, 0.74, 0.62] },
@@ -183,26 +197,28 @@ const GLASSHOUSE_SKY_GLSL = `
     return tint * clamp(halo, 0.0, 1.0) * 0.06;
   }
 
-  vec3 roomSky(vec3 rayDir, vec3 base) {
+  vec3 roomSky(vec3 rayOrigin, vec3 rayDir, vec3 base) {
     vec3 sky = base;
 
     // Stars, on a lattice of directions: one cell in a few hundred
     // carries one, placed somewhere inside its own cell so the field
     // reads as scattered rather than as a grid.
-    vec3 lattice = rayDir * 90.0;
+    vec3 lattice = rayDir * ${glslFloat(GLASSHOUSE_STARS.lattice)};
     vec3 cell = floor(lattice);
     float pick = hash(cell.xy + cell.z * 113.0);
-    if (pick > 0.955) {
-      vec3 at = vec3(hash(cell.xy + 7.0), hash(cell.yz + 19.0), hash(cell.xz + 31.0));
+    if (pick > ${glslFloat(GLASSHOUSE_STARS.threshold)}) {
+      // Kept clear of the cell's faces, so a disc is never cut off flat
+      // against a neighbour that holds no star.
+      vec3 at = ${glslFloat((1 - GLASSHOUSE_STARS.jitter) / 2)} + ${glslFloat(GLASSHOUSE_STARS.jitter)} * vec3(hash(cell.xy + 7.0), hash(cell.yz + 19.0), hash(cell.xz + 31.0));
       float near = length(fract(lattice) - at);
-      float shape = smoothstep(0.30, 0.0, near);
+      float shape = smoothstep(${glslFloat(GLASSHOUSE_STARS.radius)}, 0.0, near);
       // Slow, and never all the way out: stars twinkle, they do not blink.
       float twinkle = 0.62 + 0.38 * sin(u_time * 1.7 + pick * 320.0);
       sky += vec3(0.85, 0.9, 1.0) * shape * twinkle * (0.7 + 0.9 * fract(pick * 71.0));
     }
 
 ${GLASSHOUSE_MOONS.map(
-    moon => `    sky += glasshouseMoon(u_cameraPos, rayDir, ${vec3(moon.centre)}, ${glslFloat(moon.radius)}, ${vec3(moon.tint)});`,
+    moon => `    sky += glasshouseMoon(rayOrigin, rayDir, ${vec3(moon.centre)}, ${glslFloat(moon.radius)}, ${vec3(moon.tint)});`,
   ).join('\n')}
     return sky;
   }

@@ -221,12 +221,15 @@ export const fragmentShaderPrelude = `
     return mat3(right, up, forward);
   }
   // What a room hangs beyond its walls, over the palette's own sky.
+  // Takes where the ray started, not just where it points: a reflected
+  // ray leaves the floor, and anything the room puts at a finite
+  // distance has to be seen from there or it sits in the wrong place.
   // Declared here because getSkyColor calls it and the room's block
   // comes after this one; every room defines it, plainly or otherwise.
-  vec3 roomSky(vec3 rayDir, vec3 base);
+  vec3 roomSky(vec3 rayOrigin, vec3 rayDir, vec3 base);
 
   // Generate stormy sky color with lightning
-  vec3 getSkyColor(vec3 rayDir) {
+  vec3 getSkyColor(vec3 rayOrigin, vec3 rayDir) {
     // Use 3D noise directly from ray direction to avoid seams
     vec3 noiseCoord = rayDir * 3.0 + vec3(u_time * 0.02, u_time * 0.01, 0.0);
 
@@ -288,7 +291,7 @@ export const fragmentShaderPrelude = `
     vec3 baseColor = mix(noisySkyColor, noisyCloudColor, cloudDensity);
     vec3 lightningColor = PALETTE_lightning * lightningIntensity;
 
-    return roomSky(rayDir, baseColor + lightningColor);
+    return roomSky(rayOrigin, rayDir, baseColor + lightningColor);
   }
 
   // View-space distance to window depth: the mapping viewProjection()
@@ -393,7 +396,7 @@ export const fragmentShaderMain = `
     vec3 rayDir = normalize(forward + ndc.x * right * fov + ndc.y * up * fov);
 
     // Get stormy sky color with lightning
-    vec3 backgroundColor = getSkyColor(rayDir);
+    vec3 backgroundColor = getSkyColor(cameraPos, rayDir);
 
     vec3 finalColor = vec3(0.0);
     vec3 rayOrigin = cameraPos;
@@ -409,7 +412,7 @@ export const fragmentShaderMain = `
 
       if (hit.objectId == 0) {
         // Hit background - get sky color for this ray direction
-        vec3 skyColor = getSkyColor(currentRayDir);
+        vec3 skyColor = getSkyColor(rayOrigin, currentRayDir);
         finalColor += skyColor * reflectivity;
         break;
       }
@@ -471,7 +474,7 @@ export const fragmentShaderMain = `
         // Distance fog
         float distance = length(hit.point - cameraPos);
         float fogFactor = exp(-distance * ROOM_FOG);
-        vec3 fogColor = getSkyColor(normalize(hit.point - cameraPos));
+        vec3 fogColor = getSkyColor(cameraPos, normalize(hit.point - cameraPos));
         lighting = mix(fogColor, lighting, fogFactor);
 
         finalColor += lighting * reflectivity;
@@ -518,7 +521,7 @@ export const PLAIN_FLOOR_SHADE_GLSL = `
   }
 `
 export const PLAIN_SKY_GLSL = `
-  vec3 roomSky(vec3 rayDir, vec3 base) {
+  vec3 roomSky(vec3 rayOrigin, vec3 rayDir, vec3 base) {
     return base;
   }
 `
