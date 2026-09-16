@@ -160,6 +160,25 @@ describe('AudioSystem', () => {
     )
   })
 
+  // Two clients hear a landing two different ways, and the bounce gain
+  // has to reach both. It reached neither before it existed, and the
+  // pre-rendered path has drifted from the live one before.
+  it('scales the live landing by the room\'s bounce gain', () => {
+    const before = gains.length
+    system.setProfile(CHIPTUNE_SOUND)
+    system.playBoingSound()
+    const plain = gains[before].gain.linearRampToValueAtTime.mock.calls[0][0]
+    expect(plain).toBeCloseTo(0.015 * CHIPTUNE_SOUND.gain, 6)
+
+    const between = gains.length
+    system.setProfile(TECHNO_SOUND)
+    system.lastBounceTime = -Infinity
+    system.playBoingSound()
+    const scaled = gains[between].gain.linearRampToValueAtTime.mock.calls[0][0]
+    expect(scaled).toBeCloseTo(0.015 * TECHNO_SOUND.gain * TECHNO_SOUND.bounce.gain!, 6)
+    expect(scaled).toBeLessThan(plain)
+  })
+
   it('plays the chiptune on square waves, every step, at its own tempo', () => {
     system.setProfile(CHIPTUNE_SOUND)
     system.startBackgroundMusic()
@@ -306,10 +325,11 @@ describe('AudioSystem', () => {
     }
   })
 
-  it('keeps the techno minimal: two chords, a saw, and a floor tempo', () => {
+  it('keeps the techno minimal: two chords, a saw, and a hard-techno tempo', () => {
     expect(TECHNO_SOUND.wave).toBe('sawtooth')
-    expect(TECHNO_SOUND.tempo).toBeGreaterThanOrEqual(120)
-    expect(TECHNO_SOUND.tempo).toBeLessThanOrEqual(140)
+    // Hard techno runs faster than the four-to-the-floor house band.
+    expect(TECHNO_SOUND.tempo).toBeGreaterThanOrEqual(140)
+    expect(TECHNO_SOUND.tempo).toBeLessThanOrEqual(155)
     // Sixteenths, and a pad that changes every other bar.
     expect(TECHNO_SOUND.noteBeats).toBe(0.25)
     expect(TECHNO_SOUND.chordBeats).toBe(4)
@@ -327,6 +347,30 @@ describe('AudioSystem', () => {
     // Written rests, not rolled ones.
     expect(TECHNO_SOUND.melodyChance).toBe(1)
     expect(TECHNO_SOUND.melody.filter(note => note === 0).length).toBeGreaterThan(8)
+  })
+
+  // The riff is the room, so where it sits matters: a bright lead over
+  // the top is a different genre. Everything sounding is below middle C.
+  it('keeps the techno riff and its drone down low', () => {
+    for (const note of TECHNO_SOUND.melody) {
+      if (note === 0) continue
+      expect(note, `${note}`).toBeLessThan(60)
+      expect(note, `${note}`).toBeGreaterThanOrEqual(36)
+    }
+    // And each chord is rooted a further octave under that, which is
+    // the sub the kick sits on.
+    for (const chord of TECHNO_SOUND.chords) {
+      expect(Math.min(...chord)).toBeLessThan(36)
+    }
+  })
+
+  // A landing was a 1800Hz triangle: high enough that it cut through
+  // the whole room however quiet the number said it was. Loudness is
+  // not amplitude, so the fix is both — down in pitch and down in gain.
+  it('lands with a thud in the techno room, not a squeak', () => {
+    expect(TECHNO_SOUND.bounce.from + TECHNO_SOUND.bounce.spread).toBeLessThan(400)
+    expect(TECHNO_SOUND.bounce.to!).toBeLessThan(TECHNO_SOUND.bounce.from)
+    expect(TECHNO_SOUND.bounce.gain!).toBeLessThan(0.5)
   })
   // Notes already scheduled keep sounding: a calm chord runs eight
   // seconds, long enough to hang over the techno that replaced it. They
