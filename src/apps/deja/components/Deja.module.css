@@ -1,0 +1,236 @@
+/* The tape: one row per scored request, newest on top, bounded to 200
+   rows and scrolled inside its own box so the page keeps its shape. Each
+   row's outcome colours its left edge and a wash behind it. */
+.tape {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  border: 1px solid rgba(102, 182, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(26, 31, 53, 0.4);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.75rem;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(200px, 1.4fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(200px, 1.2fr);
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  border-left: 3px solid rgba(255, 255, 255, 0.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.row > * {
+  min-width: 0;
+}
+
+.head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(13, 17, 32, 0.95);
+  color: rgba(255, 255, 255, 0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.65rem;
+  border-left-color: transparent;
+}
+
+.hit {
+  border-left-color: #4ade80;
+  background: rgba(74, 222, 128, 0.08);
+}
+
+.near {
+  border-left-color: #ffb347;
+  background: rgba(255, 179, 71, 0.08);
+}
+
+.anomaly {
+  border-left-color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.12);
+}
+
+.novel {
+  border-left-color: #b388ff;
+  background: rgba(179, 136, 255, 0.12);
+}
+
+.miss,
+.warmup {
+  border-left-color: rgba(255, 255, 255, 0.15);
+}
+
+.seq {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* Context chips fade with age: the oldest of the eight is the faintest. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chip {
+  display: inline-block;
+  max-width: 100%;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(102, 182, 255, 0.35);
+  background: rgba(102, 182, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.actual {
+  color: white;
+  overflow-wrap: anywhere;
+}
+
+/* A predictor's likeliest next tokens as bars, the width the probability. */
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.barRow {
+  display: grid;
+  grid-template-columns: minmax(40px, 40%) 1fr;
+  gap: 6px;
+  align-items: center;
+}
+
+.barTrack {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.bar {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: rgba(102, 182, 255, 0.7);
+  min-width: 2px;
+}
+
+.barHit .bar {
+  background: #4ade80;
+}
+
+.barLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.none {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Charts share the tile treatment the metrics dashboard gives its own. */
+.chart {
+  background: rgba(26, 31, 53, 0.4);
+  border: 1px solid rgba(102, 182, 255, 0.2);
+  border-radius: 10px;
+  padding: 16px 8px 8px 0;
+}
+
+.chartNote {
+  margin: 8px 0 0 16px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.dot {
+  cursor: pointer;
+}
+
+/* Warmup progress: the bar fills as scored steps approach warmup_needed. */
+.progress {
+  height: 6px;
+  margin-top: 8px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  background: #66b6ff;
+}
+
+/* Ask it */
+.hint {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.askRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.askButton {
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid rgba(102, 182, 255, 0.4);
+  background: rgba(102, 182, 255, 0.15);
+  color: white;
+  font: inherit;
+  cursor: pointer;
+}
+
+.askButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.answer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px 32px;
+  margin-top: 16px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.8rem;
+}
+
+.answer > div {
+  min-width: 0;
+}
+
+.answerTitle {
+  font-family: 'Lexend', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0 0 8px;
+}
+
+.note {
+  margin: 12px 0 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+}
+
+.error {
+  margin: 12px 0 0;
+  font-size: 0.85rem;
+  color: #ff6b6b;
+}

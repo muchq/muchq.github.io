@@ -51,6 +51,7 @@ npm run deploy
 | `/wordchains` | Word chain puzzles |
 | `/metrics` | Live service/host dashboards for the backend fleet |
 | `/stats` | Traffic aggregates from the access logs: crawlers, scanners, short-link popularity |
+| `/deja` | The anomaly detector over the access-log token stream, live: its tape, learning curve, and a way to ask it |
 | `/resilience` | Distributed-systems game |
 | `/groups`, `/sets`, `/top` | Math learning modules (permutation groups, sets, Topology Quest) |
 

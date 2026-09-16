@@ -69,6 +69,7 @@ describe('Navigation', () => {
       'Wordchains',
       'iili',
       'Stats',
+      'Deja',
       'Metrics',
     ])
     expect(links.map(link => link.getAttribute('href'))).toEqual([
@@ -77,6 +78,7 @@ describe('Navigation', () => {
       '/wordchains',
       '/iili',
       '/stats',
+      '/deja',
       '/metrics',
     ])
     for (const link of links) {
