@@ -543,29 +543,40 @@ export function composeFragmentShader(roomGlsl: string, look: RoomLook): string 
 export const lineVertexShaderSource = `#version 300 es
   layout(location = 0) in vec3 a_position;
   layout(location = 1) in float a_index;
+  // Which side of a ribbon this vertex sits on, -1 to 1. A wire has no
+  // sides and leaves it 0, the middle.
+  layout(location = 2) in float a_edge;
   uniform mat4 u_viewProj;
   uniform mat4 u_model;
   uniform float u_head;
   uniform float u_count;
   out float v_glow;
+  out float v_edge;
 
   void main() {
     gl_Position = u_viewProj * u_model * vec4(a_position, 1.0);
     float behind = mod(u_head - a_index + u_count, u_count);
-    v_glow = exp(-behind / (u_count * 0.08));
+    v_glow = exp(-behind / (u_count * 0.25));
+    v_edge = a_edge;
   }
 `
 
 export const lineFragmentShaderSource = `#version 300 es
   precision mediump float;
   in float v_glow;
+  in float v_edge;
   uniform vec3 u_color;
   uniform vec4 u_glass;
   out vec4 fragColor;
 
   void main() {
-    vec3 rgb = mix(u_color * 0.55, vec3(1.0), v_glow * 0.6);
+    // Across a ribbon: bright down the middle, gone by the edges, so it
+    // reads as light rather than as a strip of paper. A wire is all
+    // middle.
+    float across = 1.0 - v_edge * v_edge;
+    float core = across * across;
+    vec3 rgb = mix(u_color * 0.7, vec3(1.0), v_glow * 0.45 + core * 0.15);
     rgb = mix(rgb, u_glass.rgb, u_glass.a);
-    fragColor = vec4(rgb, 0.28 + 0.72 * v_glow);
+    fragColor = vec4(rgb, (0.22 + 0.78 * v_glow) * core);
   }
 `

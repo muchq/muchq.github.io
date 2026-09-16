@@ -3,7 +3,7 @@ import { ROOM_GEOMETRIES, DEFAULT_ROOM, nextRoom, roomById, roomForGeometry, roo
 import { SHADER_FOV, depthCoefficients } from '../projection'
 import { PALETTE_KEYS, glslFloat, type Palette } from '../shaders'
 import { PLANE_GEOMETRY, SPHERE_RADIUS, sphereGeometry } from '../surface'
-import { CALM_SOUND, CHIPTUNE_SOUND } from '../audioSystem'
+import { CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND } from '../audioSystem'
 import { GAME_CONFIG } from '../gameClasses'
 
 // The room registry is the seam a new geometry lands in: one entry, a
@@ -71,10 +71,24 @@ describe('the registry', () => {
     expect(roomById('sphere')!.reflect).toBe(0)
   })
 
-  it('scores the plane rooms as the world always was and the sphere room as a cartridge', () => {
+  it('scores each room for the room it is', () => {
     expect(roomById('grid')!.sound).toBe(CALM_SOUND)
-    expect(roomById('glasshouse')!.sound).toBe(CALM_SOUND)
+    // A glass room at night with things circling outside is a club.
+    expect(roomById('glasshouse')!.sound).toBe(TECHNO_SOUND)
     expect(roomById('sphere')!.sound).toBe(CHIPTUNE_SOUND)
+  })
+
+  // The room is lit by the people in it, which is why its floor is
+  // nearly black on its own and its own shade hook is not the plain one.
+  it('lights the glasshouse floor from the avatars standing on it', () => {
+    const glasshouse = roomFragmentShader(roomById('glasshouse')!)
+    expect(glasshouse).toContain('u_objectCenters[i]')
+    expect(glasshouse).toContain('u_objectColors[i]')
+    expect(glasshouse).not.toMatch(/roomFloorShade\([^)]*\)\s*\{\s*return lit;\s*\}/)
+    // The other rooms are lit as they were.
+    for (const id of ['grid', 'sphere']) {
+      expect(roomFragmentShader(roomById(id)!)).not.toContain('halfway')
+    }
   })
 
   it('has no fog in the sphere room, where the far wall is the point', () => {

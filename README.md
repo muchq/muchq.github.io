@@ -82,8 +82,15 @@ surface itself, how the shared tracer is tuned there (fog, block size, reflectio
 block the ray tracer calls for its ground, walls and shading, the attractors hung outside,
 the tint they take on through the glass, the length of the wake an avatar leaves, and a
 sound profile (`src/utils/audioSystem.ts`). Today: the grid the world always had; a
-glasshouse at night, where avatars breathe and trail a glow past gigantic attractors; and
-the inside of a sphere, drawn and scored like an SNES platformer. A new room is a new entry.
+glasshouse at night, lit by the people in it — every avatar is a lamp the floor and the
+glass take their colour from — where they trail a glowing wake past gigantic attractors to a
+minimal techno floor; and the inside of a sphere, drawn and scored like an SNES platformer. A
+new room is a new entry.
+
+A wake is a ribbon, not a wire (`src/utils/ribbon.ts`): two vertices a point, turned to face
+the camera and tapering into the tail, so it has width in the world and thins with distance.
+It takes a point by distance travelled rather than by frame, at a steady height, so a slow
+frame and a fast one leave the same path and a bounce does not zigzag it.
 
 Two rooms can stand on one surface — grid and glasshouse are the same plane in different
 light — so the undocumented `g` cycles them here and now, while stepping to or from the

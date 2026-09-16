@@ -3,14 +3,13 @@ import {
   NO_ROOM_GLSL,
   NO_WALLS_GLSL,
   PLANE_FLOOR_GLSL,
-  PLAIN_FLOOR_SHADE_GLSL,
   type Palette,
 } from './shaders'
 import { attractorsOutside, type AttractorSpec } from './attractors'
 import { GAME_CONFIG } from './gameClasses'
 import type { Vec3 } from './projection'
 import { PLANE_GEOMETRY, sphereGeometry, sameSurfaceKind, type Geometry } from './surface'
-import { CALM_SOUND, CHIPTUNE_SOUND, type SoundProfile } from './audioSystem'
+import { CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND, type SoundProfile } from './audioSystem'
 
 // The rooms the world can be: each is a palette the sky and floor are
 // painted in, the surface the hub keeps its players on (MoonBase#1554),
@@ -80,13 +79,15 @@ const GRID_PALETTE: Palette = {
 }
 
 // Deep night: the glass, the attractors and the avatars carry the light.
+// The floor is barely there on its own — what you see of it is what the
+// avatars throw onto it (GLASSHOUSE_FLOOR_SHADE_GLSL).
 const GLASSHOUSE_PALETTE: Palette = {
-  skyHorizon: [0.06, 0.03, 0.14],
-  skyZenith: [0.01, 0.01, 0.05],
-  cloud: [0.11, 0.08, 0.2],
+  skyHorizon: [0.08, 0.05, 0.18],
+  skyZenith: [0.02, 0.02, 0.07],
+  cloud: [0.14, 0.1, 0.24],
   lightning: [0.6, 0.8, 1.0],
-  floorLight: [0.13, 0.13, 0.18],
-  floorDark: [0.05, 0.05, 0.08],
+  floorLight: [0.15, 0.15, 0.21],
+  floorDark: [0.06, 0.06, 0.1],
   boundary: [0.3, 0.9, 1.0],
 }
 
@@ -111,7 +112,27 @@ const glsl3 = (v: Vec3) => `vec3(${v.map(n => n.toFixed(2)).join(', ')})`
 // pixel: faint face-on, stronger at a grazing angle, with a mullion
 // every tenth of the boundary to give the height something to read
 // against. Avatars breathe: a rim glow in their own colour that pulses.
-const GLASSHOUSE_GLSL = PLANE_FLOOR_GLSL + PLAIN_FLOOR_SHADE_GLSL + `
+// The room's light comes from the people in it. Every avatar is a lamp:
+// the floor takes its colour, falling off with distance, and the glass
+// underfoot throws a hard little streak of it back at the camera. Two
+// avatars close together mix, which is the whole point of the room.
+const GLASSHOUSE_FLOOR_SHADE_GLSL = `
+  vec3 roomFloorShade(vec3 lit, vec3 base, vec3 normal, vec3 viewDir, vec3 point) {
+    vec3 pooled = vec3(0.0);
+    for (int i = 0; i < u_numObjects && i < 10; i++) {
+      vec3 toLamp = u_objectCenters[i] - point;
+      float dist = length(toLamp);
+      vec3 dir = toLamp / max(dist, 0.001);
+      float fall = 1.0 / (1.0 + dist * dist * 0.06);
+      pooled += u_objectColors[i] * max(0.0, dot(normal, dir)) * fall;
+      vec3 halfway = normalize(dir + viewDir);
+      pooled += u_objectColors[i] * pow(max(0.0, dot(normal, halfway)), 48.0) * fall * 1.6;
+    }
+    return lit + pooled * 1.4;
+  }
+`
+
+const GLASSHOUSE_GLSL = PLANE_FLOOR_GLSL + GLASSHOUSE_FLOOR_SHADE_GLSL + `
   vec4 roomWalls(vec3 ro, vec3 rd, float tHit) {
     float b = u_worldBoundary;
     float t = tHit;
@@ -217,7 +238,7 @@ export const ROOM_GEOMETRIES: readonly RoomGeometry[] = [
     attractors: attractorsOutside(GAME_CONFIG.worldBoundary),
     behindGlass: [...GLASS_TINT, 0.35],
     trailLength: 120,
-    sound: CALM_SOUND,
+    sound: TECHNO_SOUND,
   },
   {
     id: 'sphere',

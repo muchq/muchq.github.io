@@ -3,10 +3,14 @@ import { lineVertexShaderSource, lineFragmentShaderSource } from './shaders'
 import { attractorTrajectory, modelMatrix, type AttractorSpec } from './attractors'
 import type { Mat4, Vec3 } from './projection'
 
-// A strip the caller rebuilds every frame: x, y, z, index per point.
+// A ribbon the caller rebuilds every frame: x, y, z, index, edge per
+// vertex, two vertices per point of the path.
 export interface DynamicStrip {
   data: Float32Array
-  count: number
+  // Vertices to draw.
+  vertices: number
+  // Points of the path, which is what the glow runs along.
+  points: number
   color: Vec3
 }
 
@@ -50,7 +54,7 @@ export class LineStrips {
       gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW)
       strips.push({ ...geometry, spec })
     }
-    const dynamic = LineStrips.geometry(gl)
+    const dynamic = LineStrips.ribbonGeometry(gl)
     gl.bindVertexArray(null)
     if (!dynamic) return null
     const u = {
@@ -62,6 +66,24 @@ export class LineStrips {
       glass: gl.getUniformLocation(program, 'u_glass'),
     }
     return new LineStrips(gl, program, strips, dynamic, u)
+  }
+
+  // The same, plus the edge a ribbon's vertex sits on. An attractor's
+  // array leaves that attribute off, and reads the 0 of a point dead
+  // centre, which is the whole of a wire.
+  private static ribbonGeometry(gl: WebGL2RenderingContext): Geometry | null {
+    const vao = gl.createVertexArray()
+    const buffer = gl.createBuffer()
+    if (!vao || !buffer) return null
+    gl.bindVertexArray(vao)
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+    gl.enableVertexAttribArray(0)
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 20, 0)
+    gl.enableVertexAttribArray(1)
+    gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 20, 12)
+    gl.enableVertexAttribArray(2)
+    gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 20, 16)
+    return { vao, buffer }
   }
 
   // A vertex array over one buffer of x, y, z, index floats, left bound.
@@ -85,6 +107,8 @@ export class LineStrips {
     gl.enable(gl.DEPTH_TEST)
     gl.depthMask(false)
     gl.enable(gl.BLEND)
+    // Attractors are seen through the glass, so they blend over what is
+    // behind them.
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
     gl.uniformMatrix4fv(u.viewProj, false, viewProj)
     gl.uniform4f(u.glass, glass[0], glass[1], glass[2], glass[3])
@@ -97,15 +121,21 @@ export class LineStrips {
       gl.drawArrays(gl.LINE_STRIP, 0, spec.points)
     }
     if (wakes.length > 0) {
+      // A wake is light an avatar leaves behind, so it adds to the room
+      // rather than covering it, and overlapping wakes brighten. It is
+      // also in here with you, not out beyond the glass, so none of the
+      // tint that the attractors are seen through touches it.
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
+      gl.uniform4f(u.glass, 0, 0, 0, 0)
       gl.bindVertexArray(this.dynamic.vao)
       gl.bindBuffer(gl.ARRAY_BUFFER, this.dynamic.buffer)
       gl.uniformMatrix4fv(u.model, false, IDENTITY)
       for (const wake of wakes) {
         gl.bufferData(gl.ARRAY_BUFFER, wake.data, gl.DYNAMIC_DRAW)
-        gl.uniform1f(u.head, wake.count - 1)
-        gl.uniform1f(u.count, wake.count)
+        gl.uniform1f(u.head, wake.points - 1)
+        gl.uniform1f(u.count, wake.points)
         gl.uniform3f(u.color, wake.color[0], wake.color[1], wake.color[2])
-        gl.drawArrays(gl.LINE_STRIP, 0, wake.count)
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, wake.vertices)
       }
     }
     gl.bindVertexArray(null)

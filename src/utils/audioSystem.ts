@@ -18,6 +18,12 @@ export interface SoundProfile {
   bounce: { wave: OscillatorType; from: number; spread: number; to: number | null; duration: number }
   // Master multiplier; square waves carry more energy than sines.
   gain: number
+  // A kick every `beats`, swept from `from` to `to` hertz as it decays:
+  // what makes a floor four-on-the-floor. Absent is no drum at all.
+  pulse?: { from: number; to: number; duration: number; beats: number; gain: number }
+  // A lowpass each melody note is plucked through, falling from `from`
+  // to `to` hertz over `seconds`. The sweep is the sound, not the note.
+  filter?: { from: number; to: number; seconds: number; q: number }
 }
 
 // Peaceful sine arpeggios, the sound the world always had.
@@ -65,6 +71,31 @@ export const CHIPTUNE_SOUND: SoundProfile = {
   ],
   bounce: { wave: 'square', from: 330, spread: 0, to: 990, duration: 0.12 },
   gain: 0.45,
+}
+
+// Deep night on a dance floor: a saw arpeggio plucked through a falling
+// filter over two chords, a kick under every beat, and a tick when an
+// avatar lands. Minimal on purpose — it repeats for as long as you stay.
+export const TECHNO_SOUND: SoundProfile = {
+  wave: 'sawtooth',
+  tempo: 128,
+  noteBeats: 0.25,
+  chordBeats: 8,
+  melodyChance: 1,
+  melody: [
+    69, 0, 76, 0, 72, 0, 76, 81, // A  . E  . C . E  A'
+    0, 76, 0, 72, 69, 0, 72, 0, //  . E  . C  A . C  .
+    67, 0, 74, 0, 71, 0, 74, 79, // G  . D  . B . D  G'
+    0, 74, 0, 71, 67, 0, 71, 0, //  . D  . B  G . B  .
+  ],
+  chords: [
+    [57, 60, 64], // A minor
+    [55, 59, 62], // G major
+  ],
+  bounce: { wave: 'triangle', from: 1800, spread: 200, to: 900, duration: 0.05 },
+  pulse: { from: 150, to: 45, duration: 0.24, beats: 1, gain: 0.5 },
+  filter: { from: 2600, to: 380, seconds: 0.18, q: 9 },
+  gain: 0.5,
 }
 
 function midiToFreq(midi: number): number {
@@ -266,7 +297,21 @@ export class AudioSystem implements IAudioSystem {
       gainNode.gain.setValueAtTime(volume, startTime + duration * 0.7)
       gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
 
-      oscillator.connect(gainNode)
+      // The pluck: a lowpass shutting over the note, so a saw arrives
+      // bright and leaves round. A context too old to build one still
+      // plays the note, unfiltered.
+      const pluck = this.profile.filter
+      const filter = pluck ? this.audioContext.createBiquadFilter?.() ?? null : null
+      if (pluck && filter) {
+        filter.type = 'lowpass'
+        filter.Q.setValueAtTime(pluck.q, startTime)
+        filter.frequency.setValueAtTime(pluck.from, startTime)
+        filter.frequency.exponentialRampToValueAtTime(pluck.to, startTime + pluck.seconds)
+        oscillator.connect(filter)
+        filter.connect(gainNode)
+      } else {
+        oscillator.connect(gainNode)
+      }
       gainNode.connect(this.backgroundMusic.gainNode)
 
       oscillator.start(startTime)
@@ -275,6 +320,31 @@ export class AudioSystem implements IAudioSystem {
       this.notesPlayedCount++
     } catch {
       // Silent failure for note creation
+    }
+  }
+
+  // The kick: a short drop from a click to a thud. Its own sine, under
+  // everything, so the melody's wave and filter never touch it.
+  private createPulse(startTime: number): void {
+    const pulse = this.profile.pulse
+    if (!pulse || !this.audioContext || !this.backgroundMusic.gainNode) return
+    try {
+      const oscillator = this.audioContext.createOscillator()
+      const gainNode = this.audioContext.createGain()
+      oscillator.type = 'sine'
+      oscillator.frequency.setValueAtTime(pulse.from, startTime)
+      oscillator.frequency.exponentialRampToValueAtTime(pulse.to, startTime + pulse.duration)
+      const volume = pulse.gain * this.profile.gain
+      gainNode.gain.setValueAtTime(0, startTime)
+      gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.005)
+      gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + pulse.duration)
+      oscillator.connect(gainNode)
+      gainNode.connect(this.backgroundMusic.gainNode)
+      oscillator.start(startTime)
+      oscillator.stop(startTime + pulse.duration)
+      this.notesPlayedCount++
+    } catch {
+      // Silent failure for pulse creation
     }
   }
 
@@ -314,14 +384,19 @@ export class AudioSystem implements IAudioSystem {
     if (!this.backgroundMusic.isPlaying || !this.audioContext) return
 
     const currentTime = this.audioContext.currentTime
-    const { melody, chords, noteBeats, chordBeats, melodyChance } = this.profile
+    const { melody, chords, noteBeats, chordBeats, melodyChance, pulse } = this.profile
     const secondsPerBeat = 60.0 / this.backgroundMusic.tempo
     const noteLength = secondsPerBeat * noteBeats
     const chordLength = secondsPerBeat * chordBeats
     const stepsPerChord = Math.max(1, Math.round(chordBeats / noteBeats))
+    const stepsPerPulse = pulse ? Math.max(1, Math.round(pulse.beats / noteBeats)) : 0
 
     // Schedule ahead by 200ms
     while (this.backgroundMusic.nextNoteTime < currentTime + 0.2) {
+      if (stepsPerPulse > 0 && this.backgroundMusic.noteIndex % stepsPerPulse === 0) {
+        this.createPulse(this.backgroundMusic.nextNoteTime)
+      }
+
       const melodyMidi = melody[this.backgroundMusic.noteIndex]
       if (melodyMidi > 0 && Math.random() < melodyChance) {
         this.createSimpleNote(midiToFreq(melodyMidi), this.backgroundMusic.nextNoteTime, noteLength * 1.5)
