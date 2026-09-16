@@ -97,6 +97,41 @@ describe('the registry', () => {
     }
   })
 
+  it('hangs a night sky beyond the glass, and only there', () => {
+    const glasshouse = roomFragmentShader(roomById('glasshouse')!)
+    // Stars live on a lattice of directions, so they turn with the
+    // camera and never slide: the sky is meant to read as very far off.
+    // Take the scale out and they would swim as you walk.
+    expect(glasshouse).toContain('vec3 lattice = rayDir * 90.0;')
+    expect(glasshouse).toContain('vec3 cell = floor(lattice);')
+    expect(glasshouse).toContain('float pick = hash(cell.xy + cell.z * 113.0);')
+    // Sparse: a few cells in a hundred carry one.
+    expect(glasshouse).toContain('if (pick > 0.955) {')
+    expect(glasshouse).toContain('float near = length(fract(lattice) - at);')
+    // Twinkle never reaches zero — stars twinkle, they do not blink.
+    expect(glasshouse).toContain('float twinkle = 0.62 + 0.38 * sin(u_time * 1.7 + pick * 320.0);')
+
+    // The moons are traced from where the camera actually is, at a
+    // great but finite distance, which is the whole of what parallaxes
+    // them against the stars. Trace them from the origin instead and
+    // the effect is gone.
+    expect(glasshouse).toContain('const vec3 MOON_ONE = vec3(-1500.0, 620.0, -2300.0);')
+    expect(glasshouse).toContain('const vec3 MOON_TWO = vec3(2100.0, 1150.0, 900.0);')
+    expect(glasshouse.match(/glasshouseMoon\(u_cameraPos, rayDir, MOON_(ONE|TWO)/g)).toHaveLength(2)
+    expect(glasshouse).toContain('float t = intersectSphere(ro, rd, centre, radius);')
+
+    // Two different sizes, so one reads as nearer than the other.
+    expect(glasshouse).toContain('MOON_ONE, 210.0,')
+    expect(glasshouse).toContain('MOON_TWO, 95.0,')
+
+    // The other rooms keep the plain pass-through.
+    for (const id of ['grid', 'sphere']) {
+      const src = roomFragmentShader(roomById(id)!)
+      expect(src).toMatch(/vec3 roomSky\(vec3 rayDir, vec3 base\) \{\s*return base;\s*\}/)
+      expect(src).not.toContain('glasshouseMoon')
+    }
+  })
+
   it('has no fog in the sphere room, where the far wall is the point', () => {
     expect(roomById('grid')!.fog).toBeGreaterThan(0)
     expect(roomById('sphere')!.fog).toBe(0)
@@ -143,7 +178,17 @@ describe('roomFragmentShader', () => {
         expect(src).toMatch(/Floor ground = roomFloor\(rayOrigin, rayDir\)/)
         expect(src.match(/vec3 roomFloorShade\(/g)).toHaveLength(1)
         expect(src).toMatch(/lighting = roomFloorShade\(lighting, floorColor, hit\.normal, viewDir, hit\.point\)/)
+        expect(src.match(/vec3 roomSky\(vec3 rayDir, vec3 base\) \{/g)).toHaveLength(1)
+        expect(src).toMatch(/return roomSky\(rayDir, baseColor \+ lightningColor\);/)
         expect(src.match(/void main\(\)/g)).toHaveLength(1)
+        // The room block is emitted after the prelude, so the prelude's
+        // own call to roomSky only compiles because a prototype comes
+        // first. Nothing else in the file needs one, which is exactly
+        // why it is easy to drop.
+        expect(src.indexOf('vec3 roomSky(vec3 rayDir, vec3 base);')).toBeGreaterThan(-1)
+        expect(src.indexOf('vec3 roomSky(vec3 rayDir, vec3 base);')).toBeLessThan(
+          src.indexOf('return roomSky(rayDir, baseColor + lightningColor);'),
+        )
         expect(src).toContain(`const float ROOM_FOG = ${glslFloat(room.fog)};`)
         expect(src).toContain(`const float ROOM_BLOCK = ${glslFloat(room.block)};`)
         expect(src).toContain(`const float ROOM_REFLECT = ${glslFloat(room.reflect)};`)
