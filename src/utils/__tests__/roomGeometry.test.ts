@@ -54,8 +54,10 @@ describe('the registry', () => {
     expect(roomForGeometry(PLANE_GEOMETRY).id).toBe('grid')
     expect(roomForGeometry(PLANE_GEOMETRY, 'sphere').id).toBe('grid')
     expect(roomForGeometry(sphereGeometry(SPHERE_RADIUS), 'grid').id).toBe('sphere')
-    // A sphere no room is built for is drawn flat rather than not at all.
-    expect(roomForGeometry(sphereGeometry(7)).id).toBe(DEFAULT_ROOM.id)
+    // A room is a look, not a size: one sphere room draws any sphere the
+    // hub allows, and the renderer stands the world on the hub's radius.
+    expect(roomForGeometry(sphereGeometry(7)).id).toBe('sphere')
+    expect(roomForGeometry(sphereGeometry(999), 'glasshouse').id).toBe('sphere')
   })
 
   it('hangs nothing outside the sphere room and trails no wake there', () => {
@@ -200,7 +202,10 @@ describe('roomFragmentShader', () => {
     expect(roomFragmentShader(roomById('glasshouse')!)).toMatch(plane)
     const sphere = roomFragmentShader(roomById('sphere')!)
     expect(sphere).not.toMatch(plane)
-    expect(sphere).toContain(`const float SPHERE_RADIUS = ${SPHERE_RADIUS.toFixed(1)};`)
+    // The wall is wherever the hub put it, not a number baked in here.
+    expect(sphere).not.toContain('const float SPHERE_RADIUS')
+    expect(sphere).toContain('intersectSphere(ro, rd, vec3(0.0), u_surfaceRadius)')
+    expect(RAY_TRACER_UNIFORMS).toContain('u_surfaceRadius')
     // The whole wall is floor: no patch of it is parameterised, so
     // nothing bounds where the checker is drawn.
     expect(sphere).not.toContain('SPHERE_WRAP')

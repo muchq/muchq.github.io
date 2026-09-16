@@ -4,7 +4,7 @@ import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
 import { generateRandomColor, generateRandomSpawnPosition } from '@/utils/gameUtils'
 import { RoomResources } from '@/utils/roomResources'
 import { DEFAULT_ROOM, roomForGeometry, type RoomGeometry, type RoomGeometryId } from '@/utils/roomGeometry'
-import { cameraStand, frameAt, sameGeometry, surfaceFor, turn, walk, type Frame, type Geometry } from '@/utils/surface'
+import { cameraStand, frameAt, sameGeometry, sphereRadiusOf, surfaceFor, turn, walk, type Frame, type Geometry } from '@/utils/surface'
 import { mapHeadingDegrees, mapIsRound, mapPoint } from '@/utils/miniMap'
 import { bindRoomHotkey, bindShapeHotkey } from '@/utils/hotkeys'
 import { AvatarTrails } from '@/utils/avatarTrails'
@@ -192,12 +192,14 @@ export const useThoughtsGame = () => {
       // the skin it wanted rather than the first that fits the surface.
       let wanted: RoomGeometryId = room.id
 
-      const drawRoom = (next: RoomGeometry): boolean => {
+      // `geometry` is the world's, and the room is only how it is drawn:
+      // the hub may put the room on a sphere no room was written for.
+      const drawRoom = (next: RoomGeometry, geometry: Geometry = next.geometry): boolean => {
         const nextBuilt = rooms.get(next)
         if (!nextBuilt) return false
         room = next
         built = nextBuilt
-        surface = surfaceFor(next.geometry)
+        surface = surfaceFor(geometry)
         trails = next.trailLength > 0 ? new AvatarTrails(next.trailLength) : null
         audioSystem.setProfile(next.sound)
         const localPlayer = gameState.getLocalPlayer()
@@ -218,7 +220,7 @@ export const useThoughtsGame = () => {
       // reshapes it, and everyone standing there redraws together.
       networkManager.onGeometryChange = (geometry: Geometry) => {
         if (sameGeometry(surface.geometry, geometry)) return
-        drawRoom(roomForGeometry(geometry, wanted))
+        drawRoom(roomForGeometry(geometry, wanted), geometry)
       }
 
       unbindRoomHotkey = bindRoomHotkey(document, () => {
@@ -608,6 +610,7 @@ export const useThoughtsGame = () => {
         webglContext.uniform3f(u.u_cameraUp, cameraUp[0], cameraUp[1], cameraUp[2])
         webglContext.uniform1f(u.u_time, time * 0.001)
         webglContext.uniform1f(u.u_worldBoundary, GAME_CONFIG.worldBoundary)
+        webglContext.uniform1f(u.u_surfaceRadius, sphereRadiusOf(surface.geometry) ?? 0)
 
         // Update player labels after setting up camera
         updatePlayerLabels(cameraPosition, cameraTargetPos, cameraUp)

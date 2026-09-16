@@ -289,6 +289,26 @@ describe('useThoughtsGame', () => {
     map.remove()
   })
 
+  // A room is a look, not a size: the hub takes any radius from 2 to
+  // 1000, and whatever it names is the world the client stands on and
+  // draws — drawing a plane instead would have every move refused.
+  it('stands on a sphere no room was written for, and draws it at that size', () => {
+    const link = { ...worldLink(), isConnected: true }
+    startWith(link)
+    frame()
+    link.onGeometryChange!(sphereGeometry(7))
+    frame(32)
+    expect(setProfile).toHaveBeenLastCalledWith(CHIPTUNE_SOUND)
+    const radius = gl.uniform1f.mock.calls.filter(c => c[0]?.uniform === 'u_surfaceRadius').at(-1)![1]
+    expect(radius).toBe(7)
+    const height = new Player('p').getBouncingY(32) - GAME_CONFIG.groundLevel
+    expect(Math.hypot(...avatar())).toBeCloseTo(7 - height, 3)
+    // And the plane says so too, rather than leaving the last radius up.
+    link.onGeometryChange!(PLANE_GEOMETRY)
+    frame(48)
+    expect(gl.uniform1f.mock.calls.filter(c => c[0]?.uniform === 'u_surfaceRadius').at(-1)![1]).toBe(0)
+  })
+
   it('cycles the avatar shape on space through the hotkey seam, and tells the hub', () => {
     const link = { ...worldLink(), isConnected: true }
     startWith(link)

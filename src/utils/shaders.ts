@@ -51,6 +51,8 @@ const fragmentShaderHeader = `#version 300 es
   uniform vec3 u_cameraUp;
   uniform float u_time;
   uniform float u_worldBoundary;
+  // The radius of the surface the world stands on; 0 on a plane.
+  uniform float u_surfaceRadius;
 
   // Multiple object support (up to 10 players)
   uniform int u_numObjects;

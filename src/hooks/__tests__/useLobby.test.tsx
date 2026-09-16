@@ -5,9 +5,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { useLobby } from '../useLobby'
 import type { UseLobbyProps } from '../useLobby'
 import { FakeWebSocket, admitted, flushAsync, installFakeHub } from '@/test/fakeHub'
-import { GameState } from '@/utils/gameClasses'
+import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
 import { HUB_RESUME_TOKEN_KEY } from '@/utils/hubSession'
 import { ShapeType } from '@/types/game'
+import { sphereGeometry } from '@/utils/surface'
 import type { CastleView } from '@/apps/castle/wire'
 import type { GolfView } from '@/apps/golf/wire'
 import type { HubRoom } from '@/utils/hubStream'
@@ -114,14 +115,37 @@ describe('useLobby', () => {
 
   it("a seat resumed in a room joins that room's world once, and the URL names the room", async () => {
     const { result, ws, pathname } = await open({}, '/games', 'R1')
-    expect(lobbyFrames(ws)).toHaveLength(1)
+    // Not yet: the room's roomState names the surface its world stands
+    // on, and a spawn that is not a point of it is refused.
+    expect(lobbyFrames(ws)).toHaveLength(0)
     act(() => ws.receive('roomState', roomState('R1')))
     expect(result.current.room?.roomId).toBe('R1')
     expect(pathname()).toBe('/games/room/R1')
-    // The roomState that follows a resume is not a room change: the hub
-    // would refuse a second join as already in the world.
+    // And only the once: the hub refuses a second join as already in
+    // the world.
     expect(lobbyFrames(ws)).toHaveLength(1)
     expect(result.current.notice).toBe('')
+  })
+
+  // The world a seat joins has a shape, and the spawn has to be a point
+  // of it or the hub refuses the join outright: a room's surface arrives
+  // with its roomState, and the plaza is always flat however round the
+  // room being left was.
+  it('spawns on the surface of whatever world it is joining', async () => {
+    const { ws } = await open({}, '/games', 'R1')
+    const sphere = { ...roomState('R1'), geometry: sphereGeometry(53) }
+    act(() => ws.receive('roomState', sphere))
+    const spawn = (frame: { payload: { action: Record<string, { position: number[] }> } }) =>
+      frame.payload.action.join.position
+    const intoRoom = spawn(lobbyFrames(ws)[0] as never)
+    expect(Math.hypot(...intoRoom)).toBeCloseTo(53, 6)
+
+    act(() => ws.receive('roomLeft', { roomId: 'R1' }))
+    const intoPlaza = spawn(lobbyFrames(ws).at(-1) as never)
+    expect(lobbyFrames(ws)).toHaveLength(2)
+    expect(intoPlaza[1]).toBe(0)
+    expect(Math.abs(intoPlaza[0])).toBeLessThanOrEqual(GAME_CONFIG.worldBoundary)
+    expect(Math.abs(intoPlaza[2])).toBeLessThanOrEqual(GAME_CONFIG.worldBoundary)
   })
 
   it('a room change re-joins the world, and the URL follows the room', async () => {
@@ -236,7 +260,7 @@ describe('useLobby', () => {
   it('a share link into the room the seat resumed in keeps the seat: no leave, one join, then the table', async () => {
     const { ws, pathname } = await open({ permalinkRoomId: 'R1', permalinkGameId: 'G1' }, '/games/room/R1/table/G1', 'R1')
     expect(ws.sentFrames().some(frame => frame.event === 'leaveRoom' || frame.event === 'joinRoom')).toBe(false)
-    expect(lobbyFrames(ws)).toHaveLength(1)
+    expect(lobbyFrames(ws)).toHaveLength(0)
     act(() => ws.receive('roomState', roomState('R1', [{ gameId: 'G1', game: 'castle', status: 'waiting', playerCount: 1 }])))
     expect(lobbyFrames(ws)).toHaveLength(1)
     expect(ws.lastSent()).toEqual({ event: 'castle', payload: { move: { joinGame: { gameId: 'G1' } } } })

@@ -9,7 +9,7 @@ import {
 import { attractorsOutside, type AttractorSpec } from './attractors'
 import { GAME_CONFIG } from './gameClasses'
 import type { Vec3 } from './projection'
-import { PLANE_GEOMETRY, sphereGeometry, SPHERE_RADIUS, sameGeometry, type Geometry } from './surface'
+import { PLANE_GEOMETRY, sphereGeometry, sameSurfaceKind, type Geometry } from './surface'
 import { CALM_SOUND, CHIPTUNE_SOUND, type SoundProfile } from './audioSystem'
 
 // The rooms the world can be: each is a palette the sky and floor are
@@ -59,6 +59,7 @@ export const RAY_TRACER_UNIFORMS = [
   'u_cameraUp',
   'u_time',
   'u_worldBoundary',
+  'u_surfaceRadius',
   'u_numObjects',
   'u_objectCenters',
   'u_objectColors',
@@ -159,17 +160,18 @@ const GLASSHOUSE_GLSL = PLANE_FLOOR_GLSL + PLAIN_FLOOR_SHADE_GLSL + `
 // colour in a few bands, and an ink outline round every avatar.
 const SPHERE_GLSL = NO_WALLS_GLSL + `
   const float PI = 3.14159265;
-  const float SPHERE_RADIUS = ${SPHERE_RADIUS.toFixed(1)};
   const vec3 TOON_LIGHT = normalize(vec3(0.4, 1.0, 0.3));
 
   Floor roomFloor(vec3 ro, vec3 rd) {
     Floor f;
-    f.t = intersectSphere(ro, rd, vec3(0.0), SPHERE_RADIUS);
+    // The wall is wherever the hub put it: the room draws the sphere the
+    // world actually stands on, not the one it was written for.
+    f.t = intersectSphere(ro, rd, vec3(0.0), u_surfaceRadius);
     vec3 n = normalize(ro + rd * f.t);
     f.normal = -n;
     float lat = asin(clamp(n.y, -1.0, 1.0));
     float lon = atan(n.x, -n.z);
-    f.coord = vec2(lon * SPHERE_RADIUS * cos(lat), lat * SPHERE_RADIUS);
+    f.coord = vec2(lon * u_surfaceRadius * cos(lat), lat * u_surfaceRadius);
     return f;
   }
 
@@ -245,14 +247,15 @@ export function nextRoom(id: RoomGeometryId): RoomGeometry {
   return ROOM_GEOMETRIES[(i + 1) % ROOM_GEOMETRIES.length]
 }
 
-// Which room to draw for the surface the hub named. Several rooms can
-// share one, so a room the client was heading for wins; otherwise it is
-// the first that stands on it, and a surface no room draws (a sphere of
-// some other size) is drawn flat rather than not at all.
+// Which room to draw for the surface the hub named. A room is a look,
+// not a size: the sphere room draws a sphere of any radius the hub
+// allows, and the renderer stands the world on the hub's own geometry.
+// Several rooms can share a kind, so a room this client was heading for
+// wins; otherwise it is the first of that kind.
 export function roomForGeometry(geometry: Geometry, wanted?: RoomGeometryId): RoomGeometry {
   const preferred = wanted && roomById(wanted)
-  if (preferred && sameGeometry(preferred.geometry, geometry)) return preferred
-  return ROOM_GEOMETRIES.find(r => sameGeometry(r.geometry, geometry)) ?? DEFAULT_ROOM
+  if (preferred && sameSurfaceKind(preferred.geometry, geometry)) return preferred
+  return ROOM_GEOMETRIES.find(r => sameSurfaceKind(r.geometry, geometry)) ?? DEFAULT_ROOM
 }
 
 export function roomFragmentShader(room: RoomGeometry): string {

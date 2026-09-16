@@ -139,6 +139,9 @@ export const useLobby = ({
   const enterWorld = useCallback(
     (roomId: string | null) => {
       if (worldRoomRef.current === roomId) return
+      // The plaza is flat, whatever shape the room being left was: the
+      // spawn has to be a point of the world being joined.
+      if (roomId === null) world.roomGeometry(PLANE_GEOMETRY)
       worldRoomRef.current = roomId
       world.join()
     },
@@ -231,7 +234,9 @@ export const useLobby = ({
       }
       if (wanted.gameId) tablePendingRef.current = wanted.gameId
       if (here !== null && !wanted.roomId) navigate(lobbyRoomPath(here), { replace: true })
-      enterWorld(here)
+      // A resumed room's world waits for its roomState, which names the
+      // surface; handleRoom enters it once that has landed.
+      if (here === null) enterWorld(null)
     },
     [clearTables, enterWorld, navigate, onPlayerIdChange, resetChat, world]
   )

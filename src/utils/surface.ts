@@ -25,6 +25,12 @@ export function sameGeometry(a: Geometry, b: Geometry): boolean {
   return sphereRadiusOf(a) === sphereRadiusOf(b)
 }
 
+// Same kind of surface, whatever its size: which room draws it is a
+// question about the kind, since one sphere room draws any sphere.
+export function sameSurfaceKind(a: Geometry, b: Geometry): boolean {
+  return (sphereRadiusOf(a) === null) === (sphereRadiusOf(b) === null)
+}
+
 // What the renderer asks of a surface: where to draw a point standing on
 // it, which way is up there, where a position lands (the hub's own rule,
 // so both agree without a round trip), and how far along the tangent a
