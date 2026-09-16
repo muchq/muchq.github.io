@@ -103,12 +103,88 @@ function midiToFreq(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12)
 }
 
-// One period of a wave at phase t in [0, 1).
-function waveSample(wave: OscillatorType, phase: number): number {
+// One period of a wave at phase t in [0, 1). Every wave a profile can
+// ask for: one it does not know would come out a sine, and the room
+// would sound wrong on the clients that render their track ahead of
+// time rather than scheduling it.
+export function waveSample(wave: OscillatorType, phase: number): number {
   const s = Math.sin(2 * Math.PI * phase)
   if (wave === 'square') return s >= 0 ? 1 : -1
   if (wave === 'triangle') return (2 / Math.PI) * Math.asin(s)
+  if (wave === 'sawtooth') return 2 * (phase - Math.floor(phase + 0.5))
   return s
+}
+
+// What the offline track is made of, for the clients that cannot run the
+// scheduler: a phone, or any window under 1024px. These are the same
+// sounds the live path plays, written into a buffer instead, so a narrow
+// window hears the same room as a wide one.
+
+// The kick: a drop from a click to a thud, decaying as it falls.
+export function renderPulse(
+  channelData: Float32Array,
+  sampleRate: number,
+  startTime: number,
+  pulse: NonNullable<SoundProfile['pulse']>,
+  gain: number
+): void {
+  const startSample = Math.floor(startTime * sampleRate)
+  const endSample = Math.min(startSample + Math.floor(pulse.duration * sampleRate), channelData.length)
+  let phase = 0
+  for (let i = Math.max(0, startSample); i < endSample; i++) {
+    const progress = (i - startSample) / (pulse.duration * sampleRate)
+    const frequency = pulse.from * Math.pow(pulse.to / pulse.from, progress)
+    phase = (phase + frequency / sampleRate) % 1
+    const envelope = Math.exp(-progress * 5)
+    const sample = waveSample('sine', phase) * envelope * pulse.gain * gain * 0.12
+    channelData[i] = Math.max(-1, Math.min(1, channelData[i] + sample))
+  }
+}
+
+export interface RenderedNote {
+  frequency: number
+  startTime: number
+  duration: number
+  volume: number
+  wave: OscillatorType
+  // The pluck: one pole of a lowpass whose corner falls over the note,
+  // which is what the live path's filter node does to it.
+  filter?: SoundProfile['filter']
+}
+
+export function renderNote(
+  channelData: Float32Array,
+  sampleRate: number,
+  { frequency, startTime, duration, volume, wave, filter }: RenderedNote
+): void {
+  const startSample = Math.floor(startTime * sampleRate)
+  const endSample = Math.min(startSample + Math.floor(duration * sampleRate), channelData.length)
+  let pole = 0
+  for (let i = Math.max(0, startSample); i < endSample; i++) {
+    const noteTime = (i - startSample) / sampleRate
+    const progress = noteTime / duration
+
+    // Attack, sustain, release.
+    let envelope: number
+    if (progress < 0.1) {
+      envelope = progress / 0.1
+    } else if (progress < 0.7) {
+      envelope = 1.0
+    } else {
+      envelope = Math.exp(-((progress - 0.7) / 0.3) * 5)
+    }
+
+    let shaped = waveSample(wave, (frequency * noteTime) % 1)
+    if (filter) {
+      const corner = filter.from * Math.pow(filter.to / filter.from, Math.min(1, noteTime / filter.seconds))
+      const alpha = 1 - Math.exp((-2 * Math.PI * corner) / sampleRate)
+      pole += alpha * (shaped - pole)
+      shaped = pole * (1 + filter.q * 0.05)
+    }
+
+    // Added, not written: chords mix into what is already there.
+    channelData[i] = Math.max(-1, Math.min(1, channelData[i] + shaped * envelope * volume))
+  }
 }
 
 export class AudioSystem implements IAudioSystem {
@@ -167,6 +243,7 @@ export class AudioSystem implements IAudioSystem {
     // into silence, so the next step is due now.
     const clock = this.audioContext?.currentTime ?? 0
     this.backgroundMusic.nextNoteTime = Math.min(this.backgroundMusic.nextNoteTime, clock)
+    this.retireVoices(clock)
     if (this.isMobile) {
       this.createMobileBounceSound()
       if (this.backgroundMusic.isPlaying) {
@@ -174,6 +251,29 @@ export class AudioSystem implements IAudioSystem {
         this.startBackgroundMusic()
       }
     }
+  }
+
+  // Notes already scheduled go on sounding whatever the room now is: a
+  // calm chord runs eight seconds, long enough to hang over the techno.
+  // They are all downstream of one gain, so the room being left fades
+  // out on its own node while the new one starts on a fresh one.
+  private retireVoices(clock: number): void {
+    const leaving = this.backgroundMusic.gainNode
+    if (!this.audioContext || !leaving || !this.backgroundMusic.isPlaying) return
+    const FADE = 0.08
+    try {
+      leaving.gain.cancelScheduledValues(clock)
+      leaving.gain.setValueAtTime(leaving.gain.value, clock)
+      leaving.gain.linearRampToValueAtTime(0, clock + FADE)
+      window.setTimeout(() => leaving.disconnect(), Math.ceil(FADE * 1000) + 50)
+    } catch {
+      // A context that will not automate is one we cannot fade; the new
+      // node below still takes every note from here on.
+    }
+    const fresh = this.audioContext.createGain()
+    fresh.gain.setValueAtTime(0.1, clock)
+    fresh.connect(this.audioContext.destination)
+    this.backgroundMusic.gainNode = fresh
   }
 
   private initMobileAudio(): void {
@@ -507,7 +607,7 @@ export class AudioSystem implements IAudioSystem {
     const channelData = buffer.getChannelData(0)
 
     // The same profile the Web Audio version plays
-    const { melody, chords, noteBeats, chordBeats, melodyChance, wave, gain } = this.profile
+    const { melody, chords, noteBeats, chordBeats, melodyChance, wave, gain, pulse, filter } = this.profile
     const secondsPerBeat = 60.0 / this.profile.tempo
     const noteLength = secondsPerBeat * noteBeats
     const chordLength = secondsPerBeat * chordBeats
@@ -525,10 +625,16 @@ export class AudioSystem implements IAudioSystem {
       return seed / 233280
     }
 
+    const stepsPerPulse = pulse ? Math.max(1, Math.round(pulse.beats / noteBeats)) : 0
+
     while (currentTime < duration) {
+      if (stepsPerPulse > 0 && noteIndex % stepsPerPulse === 0 && pulse) {
+        this.renderPulseToBuffer(channelData, sampleRate, currentTime, pulse, gain)
+      }
+
       const melodyMidi = melody[noteIndex]
       if (melodyMidi > 0 && seededRandom() < melodyChance) {
-        this.renderNoteToBuffer(channelData, sampleRate, midiToFreq(melodyMidi), currentTime, noteLength * 1.5, 0.005 * gain, wave)
+        this.renderNoteToBuffer(channelData, sampleRate, midiToFreq(melodyMidi), currentTime, noteLength * 1.5, 0.005 * gain, wave, filter)
       }
 
       if (noteIndex % stepsPerChord === 0) {
@@ -564,6 +670,16 @@ export class AudioSystem implements IAudioSystem {
     return this.encodeWAV(buffer)
   }
 
+  private renderPulseToBuffer(
+    channelData: Float32Array,
+    sampleRate: number,
+    startTime: number,
+    pulse: NonNullable<SoundProfile['pulse']>,
+    gain: number
+  ): void {
+    renderPulse(channelData, sampleRate, startTime, pulse, gain)
+  }
+
   private renderNoteToBuffer(
     channelData: Float32Array,
     sampleRate: number,
@@ -571,37 +687,12 @@ export class AudioSystem implements IAudioSystem {
     startTime: number,
     duration: number,
     volume: number,
-    wave: OscillatorType = 'sine'
+    wave: OscillatorType = 'sine',
+    filter?: SoundProfile['filter']
   ): void {
-    const startSample = Math.floor(startTime * sampleRate)
-    const durationSamples = Math.floor(duration * sampleRate)
-    const endSample = Math.min(startSample + durationSamples, channelData.length)
-
-    for (let i = startSample; i < endSample; i++) {
-      const noteTime = (i - startSample) / sampleRate
-      const progress = noteTime / duration
-
-      // Same envelope shape as Web Audio version
-      let envelope: number
-      if (progress < 0.1) {
-        // Attack phase - linear ramp up
-        envelope = progress / 0.1
-      } else if (progress < 0.7) {
-        // Sustain phase
-        envelope = 1.0
-      } else {
-        // Release phase - exponential decay
-        const releaseProgress = (progress - 0.7) / 0.3
-        envelope = Math.exp(-releaseProgress * 5) // Exponential decay
-      }
-
-      // Generate the wave with envelope
-      const sample = waveSample(wave, (frequency * noteTime) % 1) * envelope * volume
-
-      // Add to existing sample (for chord mixing)
-      channelData[i] = Math.max(-1, Math.min(1, channelData[i] + sample))
-    }
+    renderNote(channelData, sampleRate, { frequency, startTime, duration, volume, wave, filter })
   }
+
 
   stopBackgroundMusic(): void {
     if (!this.backgroundMusic.isPlaying) return

@@ -5,6 +5,18 @@ import { AudioSystem, CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND } from '../audioS
 // are, how fast, which tune, and what a bounce sounds like. The grid
 // keeps the sound it always had; the sphere room is a cartridge.
 
+interface FakeGain {
+  gain: {
+    value: number
+    setValueAtTime: ReturnType<typeof vi.fn>
+    linearRampToValueAtTime: ReturnType<typeof vi.fn>
+    exponentialRampToValueAtTime: ReturnType<typeof vi.fn>
+    cancelScheduledValues: ReturnType<typeof vi.fn>
+  }
+  connect: ReturnType<typeof vi.fn>
+  disconnect: ReturnType<typeof vi.fn>
+}
+
 interface FakeFilter {
   type: string
   Q: { setValueAtTime: ReturnType<typeof vi.fn> }
@@ -23,15 +35,22 @@ interface FakeOscillator {
 const fakeContext = ({ filters = true } = {}) => {
   const oscillators: FakeOscillator[] = []
   const biquads: FakeFilter[] = []
-  const gain = () => ({
-    gain: {
-      setValueAtTime: vi.fn(),
-      linearRampToValueAtTime: vi.fn(),
-      exponentialRampToValueAtTime: vi.fn(),
-    },
-    connect: vi.fn(),
-    disconnect: vi.fn(),
-  })
+  const gains: FakeGain[] = []
+  const gain = (): FakeGain => {
+    const node: FakeGain = {
+      gain: {
+        value: 1,
+        setValueAtTime: vi.fn(),
+        linearRampToValueAtTime: vi.fn(),
+        exponentialRampToValueAtTime: vi.fn(),
+        cancelScheduledValues: vi.fn(),
+      },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    }
+    gains.push(node)
+    return node
+  }
   // The scheduler only queues 200ms ahead of the context's own clock, so
   // a clock that never moves hears one batch and no more.
   let now = 0
@@ -73,12 +92,13 @@ const fakeContext = ({ filters = true } = {}) => {
     now += ms / 1000
     vi.advanceTimersByTime(ms)
   }
-  return { context, oscillators, biquads, advance }
+  return { context, oscillators, biquads, gains, advance }
 }
 
 describe('AudioSystem', () => {
   let oscillators: FakeOscillator[]
   let biquads: FakeFilter[]
+  let gains: FakeGain[]
   let advance: (ms: number) => void
   let system: AudioSystem
 
@@ -87,6 +107,7 @@ describe('AudioSystem', () => {
     const fake = fakeContext()
     oscillators = fake.oscillators
     biquads = fake.biquads
+    gains = fake.gains
     advance = fake.advance
     vi.stubGlobal('AudioContext', function FakeAudioContext() { return fake.context })
     system = new AudioSystem()
@@ -306,5 +327,20 @@ describe('AudioSystem', () => {
     // Written rests, not rolled ones.
     expect(TECHNO_SOUND.melodyChance).toBe(1)
     expect(TECHNO_SOUND.melody.filter(note => note === 0).length).toBeGreaterThan(8)
+  })
+  // Notes already scheduled keep sounding: a calm chord runs eight
+  // seconds, long enough to hang over the techno that replaced it. They
+  // all hang off one gain, so the room being left fades out on its own.
+  it('takes the last room with it rather than letting it ring on', () => {
+    system.startBackgroundMusic()
+    advance(200)
+    const leaving = system.backgroundMusic.gainNode as unknown as FakeGain
+    system.setProfile(TECHNO_SOUND)
+    expect(leaving.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, expect.any(Number))
+    // And the new room plays through a node of its own.
+    expect(system.backgroundMusic.gainNode).not.toBe(leaving)
+    expect(gains.at(-1)!.connect).toHaveBeenCalled()
+    vi.advanceTimersByTime(500)
+    expect(leaving.disconnect).toHaveBeenCalled()
   })
 })

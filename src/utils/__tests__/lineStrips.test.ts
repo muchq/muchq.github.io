@@ -170,10 +170,16 @@ describe('LineStrips', () => {
     const gl = fakeGl()
     LineStrips.create(gl, specs)!.draw(vp, eye, 2, [0, 0, 0, 0], [wake(4)])
     const styles = gl.uniform4f.mock.calls.filter(call => call[0]?.uniform === 'u_style')
-    expect(styles).toHaveLength(specs.length + 1)
+    // One per wire, then one per comet, then the wakes'.
+    const wires = styles.slice(0, specs.length)
     specs.forEach((spec, i) => {
-      expect(styles[i].slice(1)).toEqual([spec.style.bead, spec.style.tail, spec.style.twinkle, spec.style.core])
+      expect(wires[i].slice(1)).toEqual([spec.style.bead, spec.style.tail, spec.style.twinkle, spec.style.core])
     })
+    // A comet keeps its curve's beads and colour, but its glow spans the
+    // whole ribbon, because the ribbon is only the lit part.
+    const comets = styles.slice(specs.length, -1)
+    expect(comets).toHaveLength(specs.filter(s => s.style.comet > 0).length)
+    for (const comet of comets) expect(comet[2]).toBe(1)
     const wakeStyle = styles.at(-1)!.slice(1)
     expect(wakeStyle[0]).toBe(0)
     expect(wakeStyle[2]).toBe(0)
@@ -181,12 +187,24 @@ describe('LineStrips', () => {
     expect(gl.uniform1f).toHaveBeenCalledWith({ uniform: 'u_time' }, 2)
   })
 
-  it('keeps the glass off the wake, which is in the room with you', () => {
+  // A wake is in the room with you and takes no tint; a comet is out
+  // beyond the pane with the wire it runs along, so it wears the same
+  // tint that wire does rather than punching through it.
+  it('keeps the glass off the wake and on the comet', () => {
     const gl = fakeGl()
-    LineStrips.create(gl, specs)!.draw(vp, eye, 0, [0.5, 0.8, 1, 0.35], [wake(4)])
+    LineStrips.create(gl, specs)!.draw(vp, eye, 1, [0.5, 0.8, 1, 0.35], [wake(4)])
     const tints = gl.uniform4f.mock.calls.filter(call => call[0]?.uniform === 'u_glass')
     expect(tints[0].slice(1)).toEqual([0.5, 0.8, 1, 0.35])
     expect(tints.at(-1)!.slice(1)).toEqual([0, 0, 0, 0])
+    // Only once it is done with the comets: every ribbon drawn before
+    // the tint is cleared is one of theirs.
+    const clearedAt = gl.uniform4f.mock.invocationCallOrder[gl.uniform4f.mock.calls.length - 1]
+    const ribbons = gl.drawArrays.mock.calls
+      .map((call, i) => ({ mode: call[0], at: gl.drawArrays.mock.invocationCallOrder[i] }))
+      .filter(draw => draw.mode === gl.TRIANGLE_STRIP)
+    const wanted = specs.filter(s => s.style.comet > 0).length
+    expect(ribbons.filter(draw => draw.at < clearedAt)).toHaveLength(wanted)
+    expect(ribbons.filter(draw => draw.at > clearedAt)).toHaveLength(1)
   })
 
   it('gives a ribbon a side to read its softness from, and a wire none', () => {

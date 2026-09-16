@@ -13,6 +13,9 @@ export interface DynamicStrip {
   // Points of the path, which is what the glow runs along.
   points: number
   color: Vec3
+  // bead, tail, twinkle, core, when this ribbon is drawn its own way
+  // rather than under whatever the pass set.
+  style?: [number, number, number, number]
 }
 
 interface Geometry {
@@ -153,11 +156,21 @@ export class LineStrips {
       gl.drawArrays(gl.LINE_STRIP, 0, spec.points)
       if (comet > 0) {
         const built = this.comet(strip, head, eye, timeSeconds)
-        if (built) comets.push(built)
+        // The ribbon IS the lit stretch, so its glow spans the whole of
+        // it rather than the fraction of a curve the wire's does.
+        if (built) comets.push({ ...built, style: [bead, 1, twinkle, core] })
       }
     }
-    const glowing = [...comets, ...wakes]
-    if (glowing.length > 0) {
+    // A comet is out there with its own wire, behind the same pane, so
+    // it is drawn in the attractors' pass and wears their tint. Only the
+    // wakes, which are in the room with you, get the untinted one.
+    if (comets.length > 0) {
+      gl.bindVertexArray(this.dynamic.vao)
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.dynamic.buffer)
+      gl.uniformMatrix4fv(u.model, false, IDENTITY)
+      for (const comet of comets) this.ribbonDraw(comet)
+    }
+    if (wakes.length > 0) {
       // A wake is light an avatar leaves behind, so it adds to the room
       // rather than covering it, and overlapping wakes brighten. It is
       // also in here with you, not out beyond the glass, so none of the
@@ -170,17 +183,23 @@ export class LineStrips {
       gl.bindVertexArray(this.dynamic.vao)
       gl.bindBuffer(gl.ARRAY_BUFFER, this.dynamic.buffer)
       gl.uniformMatrix4fv(u.model, false, IDENTITY)
-      for (const glow of glowing) {
-        gl.bufferData(gl.ARRAY_BUFFER, glow.data, gl.DYNAMIC_DRAW)
-        gl.uniform1f(u.head, glow.points - 1)
-        gl.uniform1f(u.count, glow.points)
-        gl.uniform3f(u.color, glow.color[0], glow.color[1], glow.color[2])
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, glow.vertices)
-      }
+      for (const wake of wakes) this.ribbonDraw(wake)
     }
     gl.bindVertexArray(null)
     gl.disable(gl.BLEND)
     gl.depthMask(true)
+  }
+
+  // One ribbon, glowing from its newest point. The caller has already
+  // bound the array and set the state the ribbon is drawn under.
+  private ribbonDraw(strip: DynamicStrip): void {
+    const { gl, u } = this
+    if (strip.style) gl.uniform4f(u.style, ...strip.style)
+    gl.bufferData(gl.ARRAY_BUFFER, strip.data, gl.DYNAMIC_DRAW)
+    gl.uniform1f(u.head, strip.points - 1)
+    gl.uniform1f(u.count, strip.points)
+    gl.uniform3f(u.color, strip.color[0], strip.color[1], strip.color[2])
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, strip.vertices)
   }
 
   // The lit stretch of one curve as a ribbon in the world: the model
