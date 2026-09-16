@@ -69,6 +69,31 @@ describe('LineStrips', () => {
     expect(second[0]).not.toEqual(first[0])
   })
 
+  // The head comes round once a loop, and these curves are finite
+  // samples of a chaotic system rather than closed loops: a comet that
+  // ran off the start and round to the end would draw a ribbon clean
+  // across the room between two unrelated places.
+  it('never draws a comet across the gap between a curve\'s two ends', () => {
+    const gl = fakeGl()
+    const lines = LineStrips.create(gl, specs)!
+    const spec = specs.find(s => s.style.comet > 0)!
+    // Just after this curve's head has come round to the start again.
+    const justWrapped = (spec.points + 8) / spec.speed
+    for (const t of [justWrapped, justWrapped + 0.01, 1, 5]) {
+      gl.bufferData.mockClear()
+      lines.draw(vp, eye, t, [0, 0, 0, 0])
+      for (const call of gl.bufferData.mock.calls.filter(c => c[2] === gl.DYNAMIC_DRAW)) {
+        const data = call[1] as Float32Array
+        let longest = 0
+        // Two vertices a point; step point to point down one edge.
+        for (let i = 10; i < data.length; i += 10) {
+          longest = Math.max(longest, Math.hypot(data[i] - data[i - 10], data[i + 1] - data[i - 9], data[i + 2] - data[i - 8]))
+        }
+        expect(longest, `t=${t}`).toBeLessThan(spec.scale / 4)
+      }
+    }
+  })
+
   it('draws a comet in the world, where the wire is drawn by its model', () => {
     const gl = fakeGl()
     LineStrips.create(gl, specs)!.draw(vp, eye, 1.0, [0, 0, 0, 0])

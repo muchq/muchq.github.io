@@ -33,14 +33,21 @@ export interface AttractorStyle {
 export const COMET_LIMIT = 600
 
 // The stretch of a curve just behind its head, oldest first: the indices
-// the comet's ribbon is built over. A curve is a loop, so the stretch
-// wraps round the end of it rather than stopping there.
+// the comet's ribbon is built over.
+//
+// It stops at the start of the curve rather than wrapping round to the
+// end of it. These are finite samples of a chaotic system, not loops:
+// the last point is nowhere near the first, so a stretch that wrapped
+// would draw a ribbon straight across the room between two unrelated
+// places every time the head came round. The comet is short for a
+// moment after the head restarts, which is what the curve actually does.
 export function cometStretch(points: number, head: number, length: number): number[] {
   const span = Math.min(Math.max(Math.round(length), 0), Math.min(points, COMET_LIMIT))
-  if (span < 2) return []
   const last = Math.floor(head) % points
+  const first = Math.max(0, last - span + 1)
+  if (last - first < 1) return []
   const out: number[] = []
-  for (let i = span - 1; i >= 0; i--) out.push((last - i + points * Math.ceil(i / points + 1)) % points)
+  for (let i = first; i <= last; i++) out.push(i)
   return out
 }
 

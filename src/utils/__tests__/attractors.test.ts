@@ -171,22 +171,34 @@ describe('cometStretch', () => {
     expect(cometStretch(10, 6.9, 4)).toEqual([3, 4, 5, 6])
   })
 
-  it('wraps round the end of the curve rather than stopping at it', () => {
-    expect(cometStretch(10, 1, 4)).toEqual([8, 9, 0, 1])
-    expect(cometStretch(10, 0, 3)).toEqual([8, 9, 0])
-    for (const index of cometStretch(10, 0, 3)) {
-      expect(index).toBeGreaterThanOrEqual(0)
-      expect(index).toBeLessThan(10)
+  // These are finite samples of a chaotic system, not loops: the last
+  // point is nowhere near the first. A stretch that ran off the start
+  // and round to the end would draw a ribbon clean across the room
+  // between two unrelated places, once every time the head came round.
+  it('stops at the start of the curve rather than wrapping to its end', () => {
+    expect(cometStretch(10, 1, 4)).toEqual([0, 1])
+    expect(cometStretch(10, 3, 9)).toEqual([0, 1, 2, 3])
+    for (const head of [0, 1, 2, 5, 9]) {
+      const stretch = cometStretch(10, head, 6)
+      for (const index of stretch) {
+        expect(index).toBeGreaterThanOrEqual(0)
+        expect(index).toBeLessThanOrEqual(head)
+      }
+      // Consecutive, so every quad of the ribbon spans one step of the
+      // curve and never a jump across it.
+      stretch.forEach((index, i) => expect(index).toBe(stretch[0] + i))
     }
   })
 
   it('draws nothing where there is no stretch to draw', () => {
     expect(cometStretch(10, 5, 1)).toEqual([])
     expect(cometStretch(10, 5, 0)).toEqual([])
+    // The head at the very start has nothing behind it yet.
+    expect(cometStretch(10, 0, 6)).toEqual([])
   })
 
   it('never asks for more of a curve than there is, or than is worth it', () => {
-    expect(cometStretch(10, 5, 50)).toHaveLength(10)
-    expect(cometStretch(5000, 0, 5000)).toHaveLength(COMET_LIMIT)
+    expect(cometStretch(10, 9, 50)).toHaveLength(10)
+    expect(cometStretch(5000, 4999, 5000)).toHaveLength(COMET_LIMIT)
   })
 })
