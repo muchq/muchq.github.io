@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { attractorTrajectory, ATTRACTOR_KINDS, attractorsOutside, cometStretch, COMET_LIMIT, modelMatrix } from '../attractors'
+import { attractorTrajectory, ATTRACTOR_KINDS, attractorsOutside, cometStretch, COMET_LIMIT, modelMatrix, scaledArcLength } from '../attractors'
 import { transformPoint } from '../projection'
 import { GAME_CONFIG } from '../gameClasses'
 
@@ -141,19 +141,24 @@ describe('attractorsOutside', () => {
   })
 
   // These are scenery a dozen metres past a glass wall: a head that
-  // laps in a couple of seconds reads as a strobe rather than as
-  // something travelling. Written as a lap rather than points per
-  // second, which is why the one that used to be four times faster than
-  // the rest — while its own comment called it slow — stood out.
+  // covers a couple of hundred units a second reads as a strobe rather
+  // than as something travelling. Written as a pace, because a lap
+  // hides it behind the curve's own length — these four differ by four
+  // times in how far they wander, so matching laps still leaves one
+  // head whipping round while another creeps.
   it('walks each head round its curve rather than flinging it', () => {
     for (const s of specs) {
-      expect(s.lapSeconds, `${s.kind}`).toBeGreaterThanOrEqual(10)
-      expect(s.lapSeconds, `${s.kind}`).toBeLessThanOrEqual(40)
+      expect(s.pace, `${s.kind}`).toBeGreaterThanOrEqual(30)
+      expect(s.pace, `${s.kind}`).toBeLessThanOrEqual(100)
     }
-    // Different paces, but none of them an outlier against the rest.
-    const laps = specs.map(s => s.lapSeconds).sort((a, b) => a - b)
-    expect(new Set(laps).size).toBe(specs.length)
-    expect(laps.at(-1)! / laps[0]).toBeLessThan(2.5)
+    // Paces of their own, but none of them an outlier against the rest.
+    const paces = specs.map(s => s.pace).sort((a, b) => a - b)
+    expect(paces.at(-1)! / paces[0]).toBeLessThan(2.5)
+    // Which is a claim about the curves, not about the numbers: the lap
+    // has to follow from the pace and how far the curve actually runs.
+    for (const s of specs) {
+      expect(s.lapSeconds, `${s.kind}`).toBeCloseTo(scaledArcLength(s.kind, s.points, s.scale) / s.pace, 6)
+    }
   })
 
   // The twin: the placement rule, not the fixture, is what holds them out.
