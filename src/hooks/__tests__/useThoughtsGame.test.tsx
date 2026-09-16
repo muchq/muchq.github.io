@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { useThoughtsGame } from '../useThoughtsGame'
 import { fakeGl } from '@/test/fakeGl'
-import { ROOM_HOTKEY } from '@/utils/roomHotkey'
+import { ROOM_HOTKEY, SHAPE_HOTKEY } from '@/utils/hotkeys'
 import { roomById } from '@/utils/roomGeometry'
 import { GAME_CONFIG, Player } from '@/utils/gameClasses'
 import { CALM_SOUND, CHIPTUNE_SOUND, type SoundProfile } from '@/utils/audioSystem'
@@ -191,6 +191,24 @@ describe('useThoughtsGame', () => {
     frame(48)
     expect(gl.useProgram).toHaveBeenLastCalledWith(grid)
     expect(gl.compileShader).toHaveBeenCalledTimes(4)
+  })
+
+  it('cycles the avatar shape on space through the hotkey seam, and tells the hub', () => {
+    const link = { ...worldLink(), isConnected: true }
+    gl = fakeGl()
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => gl as never)
+    const { result } = renderHook(() => useThoughtsGame())
+    const attach = () => link
+    cleanup = result.current.initializeGame(canvas, undefined, undefined, undefined, { attach } as unknown as HubWorldLink)
+    press(SHAPE_HOTKEY)
+    expect(link.sendShapeUpdate).toHaveBeenLastCalledWith(1)
+    // A held key repeating is one press, not one per repeat.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: SHAPE_HOTKEY, bubbles: true, repeat: true }))
+    expect(link.sendShapeUpdate).toHaveBeenCalledTimes(1)
+    cleanup!()
+    cleanup = null
+    press(SHAPE_HOTKEY)
+    expect(link.sendShapeUpdate).toHaveBeenCalledTimes(1)
   })
 
   it('stops listening for the hotkey and frees the rooms on cleanup', () => {
