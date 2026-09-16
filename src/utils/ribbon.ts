@@ -48,7 +48,14 @@ export function ribbon(path: readonly Vec3[], eye: Vec3, shape: RibbonShape): Fl
     const behind = path[Math.max(i - 1, 0)]
     const along = normalize(sub(ahead, behind))
     const toEye = normalize(sub(eye, path[i]))
-    const facing = along && toEye ? normalize(cross(along, toEye)) : null
+    let facing = along && toEye ? normalize(cross(along, toEye)) : null
+    // Doubling back reverses the path's direction and so reverses the
+    // side with it, which would cross a quad's two edges into a bowtie.
+    // The ribbon has no front or back, so take whichever way round
+    // agrees with the point before it.
+    if (facing && side && facing[0] * side[0] + facing[1] * side[1] + facing[2] * side[2] < 0) {
+      facing = [-facing[0], -facing[1], -facing[2]]
+    }
     if (facing) side = facing
     if (!side) continue
     // Widest at the head, where the avatar is, thinning into the tail.

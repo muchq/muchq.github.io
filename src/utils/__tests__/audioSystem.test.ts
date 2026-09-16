@@ -203,8 +203,11 @@ describe('AudioSystem', () => {
         expect.any(Number)
       )
     }
-    // Every kick lands on a beat, four to the bar at four sixteenths each.
+    // Every kick lands ON a beat, not a sixteenth behind one: the first
+    // is the tune's first step, and the rest follow a beat apart.
     const starts = struck.map(kick => kick.start.mock.calls[0][0] as number).sort((a, b) => a - b)
+    const firstNote = Math.min(...oscillators.map(osc => (osc.start.mock.calls[0]?.[0] as number) ?? Infinity))
+    expect(starts[0]).toBeCloseTo(firstNote, 6)
     for (let i = 1; i < starts.length; i++) {
       expect(starts[i] - starts[i - 1]).toBeCloseTo(beat, 6)
     }
@@ -225,6 +228,10 @@ describe('AudioSystem', () => {
     )
     // Saw notes, and never through the kick: that stays a bare sine.
     expect(oscillators.some(osc => osc.type === 'sawtooth')).toBe(true)
+    // And the note actually goes through it, rather than past it.
+    const saw = oscillators.find(osc => osc.type === 'sawtooth')!
+    expect(saw.connect).toHaveBeenCalledWith(pluck)
+    expect(pluck.connect).toHaveBeenCalled()
   })
 
   it('still plays where a context cannot build a filter', () => {
@@ -245,10 +252,37 @@ describe('AudioSystem', () => {
       expect(quiet.pulse).toBeUndefined()
       expect(quiet.filter).toBeUndefined()
     }
-    system.setProfile(CALM_SOUND)
+    // Every roll lands, so the tune is certainly playing: without the
+    // control this passes on a profile that simply made no sound.
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    system.setProfile(CHIPTUNE_SOUND)
     system.startBackgroundMusic()
-    vi.advanceTimersByTime(600)
+    for (let i = 0; i < 12; i++) advance(200)
+    expect(oscillators.length).toBeGreaterThan(4)
     expect(biquads).toHaveLength(0)
+    expect(oscillators.every(osc => osc.type === 'square')).toBe(true)
+  })
+
+  // A room is switched into mid-tune, and the step already queued
+  // belongs to the tune being left: a calm step is two seconds long, so
+  // without moving the clock on you walk into the club and hear nothing.
+  it('starts the new room sounding now, not when the old step was due', () => {
+    system.startBackgroundMusic()
+    advance(200)
+    const before = oscillators.length
+    system.setProfile(TECHNO_SOUND)
+    advance(200)
+    expect(oscillators.length).toBeGreaterThan(before)
+  })
+
+  // A kick every beat only stays on the beat if the tune's loop is a
+  // whole number of beats long.
+  it('loops every drummed tune in whole beats', () => {
+    for (const profile of [CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND]) {
+      if (!profile.pulse) continue
+      const stepsPerPulse = Math.round(profile.pulse.beats / profile.noteBeats)
+      expect(profile.melody.length % stepsPerPulse, `${profile.tempo}bpm`).toBe(0)
+    }
   })
 
   it('keeps the techno minimal: two chords, a saw, and a floor tempo', () => {
@@ -257,13 +291,18 @@ describe('AudioSystem', () => {
     expect(TECHNO_SOUND.tempo).toBeLessThanOrEqual(140)
     // Sixteenths, and a pad that changes every other bar.
     expect(TECHNO_SOUND.noteBeats).toBe(0.25)
-    expect(TECHNO_SOUND.chordBeats).toBe(8)
+    expect(TECHNO_SOUND.chordBeats).toBe(4)
     expect(TECHNO_SOUND.chords).toHaveLength(2)
-    // A minor and G: the melody never leaves them.
-    const allowed = new Set([0, 55, 57, 59, 62, 64, 65, 67, 69, 71, 72, 74, 76, 79, 81])
-    for (const note of TECHNO_SOUND.melody) expect(allowed.has(note)).toBe(true)
-    // Two bars of sixteenths, so the chords change with the loop.
+    // Two bars of sixteenths, a chord to a bar.
     expect(TECHNO_SOUND.melody).toHaveLength(32)
+    // And every note belongs to the chord playing under it: the pad
+    // changes where the melody does, which is what chordBeats decides.
+    const stepsPerChord = Math.round(TECHNO_SOUND.chordBeats / TECHNO_SOUND.noteBeats)
+    TECHNO_SOUND.melody.forEach((note, step) => {
+      if (note === 0) return
+      const under = TECHNO_SOUND.chords[Math.floor(step / stepsPerChord) % TECHNO_SOUND.chords.length]
+      expect(under.map(midi => midi % 12), `step ${step}`).toContain(note % 12)
+    })
     // Written rests, not rolled ones.
     expect(TECHNO_SOUND.melodyChance).toBe(1)
     expect(TECHNO_SOUND.melody.filter(note => note === 0).length).toBeGreaterThan(8)

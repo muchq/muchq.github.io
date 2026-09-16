@@ -84,6 +84,12 @@ describe('the registry', () => {
     const glasshouse = roomFragmentShader(roomById('glasshouse')!)
     expect(glasshouse).toContain('u_objectCenters[i]')
     expect(glasshouse).toContain('u_objectColors[i]')
+    // The numbers, not just the names: a lamp that falls off with
+    // distance and is added to what the room already had.
+    expect(glasshouse).toContain('for (int i = 0; i < u_numObjects && i < 10; i++)')
+    expect(glasshouse).toContain('float fall = 1.0 / (1.0 + dist * dist * 0.06);')
+    expect(glasshouse).toContain('pooled += u_objectColors[i] * max(0.0, dot(normal, dir)) * fall;')
+    expect(glasshouse).toContain('return lit + pooled * 1.4;')
     expect(glasshouse).not.toMatch(/roomFloorShade\([^)]*\)\s*\{\s*return lit;\s*\}/)
     // The other rooms are lit as they were.
     for (const id of ['grid', 'sphere']) {

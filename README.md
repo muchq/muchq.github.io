@@ -83,8 +83,9 @@ block the ray tracer calls for its ground, walls and shading, the attractors hun
 the tint they take on through the glass, the length of the wake an avatar leaves, and a
 sound profile (`src/utils/audioSystem.ts`). Today: the grid the world always had; a
 glasshouse at night, lit by the people in it — every avatar is a lamp the floor and the
-glass take their colour from — where they trail a glowing wake past gigantic attractors to a
-minimal techno floor; and the inside of a sphere, drawn and scored like an SNES platformer. A
+glass take their colour from — where they trail a glowing wake to a minimal techno floor,
+past a different attractor through every pane, each drawn its own way (a comet, a chain of
+beads, a drift of sparks, a hard spark); and the inside of a sphere, drawn and scored like an SNES platformer. A
 new room is a new entry.
 
 A wake is a ribbon, not a wire (`src/utils/ribbon.ts`): two vertices a point, turned to face

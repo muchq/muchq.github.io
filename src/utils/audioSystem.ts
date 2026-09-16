@@ -80,7 +80,8 @@ export const TECHNO_SOUND: SoundProfile = {
   wave: 'sawtooth',
   tempo: 128,
   noteBeats: 0.25,
-  chordBeats: 8,
+  // A bar each, so the pad changes where the melody does.
+  chordBeats: 4,
   melodyChance: 1,
   melody: [
     69, 0, 76, 0, 72, 0, 76, 81, // A  . E  . C . E  A'
@@ -161,6 +162,11 @@ export class AudioSystem implements IAudioSystem {
     this.backgroundMusic.tempo = profile.tempo
     this.backgroundMusic.noteIndex = 0
     this.backgroundMusic.chordIndex = 0
+    // The step already queued belongs to the tune being left, and a slow
+    // one can be seconds out. Walking into a room should not be walking
+    // into silence, so the next step is due now.
+    const clock = this.audioContext?.currentTime ?? 0
+    this.backgroundMusic.nextNoteTime = Math.min(this.backgroundMusic.nextNoteTime, clock)
     if (this.isMobile) {
       this.createMobileBounceSound()
       if (this.backgroundMusic.isPlaying) {

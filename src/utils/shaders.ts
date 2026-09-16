@@ -550,14 +550,24 @@ export const lineVertexShaderSource = `#version 300 es
   uniform mat4 u_model;
   uniform float u_head;
   uniform float u_count;
+  // bead, tail, twinkle, core: how this curve is drawn, as against what
+  // shape it is (attractors.ts's AttractorStyle). Both stages read it,
+  // and a uniform read in both must say the same precision in both or
+  // the program will not link — the vertex stage's default is high and
+  // the fragment stage's is medium.
+  uniform highp vec4 u_style;
   out float v_glow;
   out float v_edge;
+  // A curve has thousands of points, which is more than medium floats
+  // count exactly, and the beads are drawn by counting them.
+  out highp float v_index;
 
   void main() {
     gl_Position = u_viewProj * u_model * vec4(a_position, 1.0);
     float behind = mod(u_head - a_index + u_count, u_count);
-    v_glow = exp(-behind / (u_count * 0.25));
+    v_glow = exp(-behind / (u_count * u_style.y));
     v_edge = a_edge;
+    v_index = a_index;
   }
 `
 
@@ -565,8 +575,11 @@ export const lineFragmentShaderSource = `#version 300 es
   precision mediump float;
   in float v_glow;
   in float v_edge;
+  in highp float v_index;
   uniform vec3 u_color;
   uniform vec4 u_glass;
+  uniform highp vec4 u_style;
+  uniform highp float u_time;
   out vec4 fragColor;
 
   void main() {
@@ -575,8 +588,14 @@ export const lineFragmentShaderSource = `#version 300 es
     // middle.
     float across = 1.0 - v_edge * v_edge;
     float core = across * across;
-    vec3 rgb = mix(u_color * 0.7, vec3(1.0), v_glow * 0.45 + core * 0.15);
+    // Along it: beads at a spacing, and a shimmer that crawls with time.
+    // Both off leaves the solid curve the world always drew.
+    float beaded = u_style.x > 0.0
+      ? 0.12 + 0.88 * pow(abs(sin(3.14159265 * v_index / u_style.x)), 6.0)
+      : 1.0;
+    float shimmer = 1.0 - u_style.z * 0.85 * (0.5 + 0.5 * sin(v_index * 1.7 + u_time * 5.0));
+    vec3 rgb = mix(u_color * 0.7, vec3(1.0), v_glow * u_style.w + core * 0.15);
     rgb = mix(rgb, u_glass.rgb, u_glass.a);
-    fragColor = vec4(rgb, (0.22 + 0.78 * v_glow) * core);
+    fragColor = vec4(rgb, (0.22 + 0.78 * v_glow) * core * beaded * shimmer);
   }
 `

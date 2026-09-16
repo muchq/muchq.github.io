@@ -5,8 +5,23 @@ import type { Vec3, Mat4 } from './projection'
 // glowing head runs along. Deterministic, so every client sees the same
 // shapes; no seed, no randomness.
 
-export const ATTRACTOR_KINDS = ['lorenz', 'rossler'] as const
+export const ATTRACTOR_KINDS = ['lorenz', 'rossler', 'thomas', 'aizawa'] as const
 export type AttractorKind = (typeof ATTRACTOR_KINDS)[number]
+
+// How a curve is drawn, as against what shape it is. One attractor is a
+// comet, the next a chain of beads, the next a drift of sparks: the
+// geometry is the system, the texture is this.
+export interface AttractorStyle {
+  // Beads along the curve, in points per bead; 0 draws it solid.
+  bead: number
+  // How much of the curve the head's glow reaches back along, as a
+  // fraction of its length. Small is a spark, large is a long comet.
+  tail: number
+  // How hard the curve shimmers point by point over time; 0 is steady.
+  twinkle: number
+  // How white the lit part burns; 0 keeps the curve's own colour.
+  core: number
+}
 
 export interface AttractorSpec {
   kind: AttractorKind
@@ -19,6 +34,7 @@ export interface AttractorSpec {
   points: number
   // Points the glowing head advances per second.
   speed: number
+  style: AttractorStyle
 }
 
 interface System {
@@ -37,6 +53,23 @@ const SYSTEMS: Record<AttractorKind, System> = {
     derivative: ([x, y, z]) => [-y - z, x + 0.2 * y, 0.2 + z * (x - 5.7)],
     start: [0.1, 0, 0],
     dt: 0.03,
+  },
+  // Cyclically symmetric: the same rule on all three axes, so it wanders
+  // a lattice instead of orbiting lobes. Nothing else here looks like it.
+  thomas: {
+    derivative: ([x, y, z]) => [Math.sin(y) - 0.19 * x, Math.sin(z) - 0.19 * y, Math.sin(x) - 0.19 * z],
+    start: [1.1, 1.1, -0.01],
+    dt: 0.05,
+  },
+  // A shell with a spike up its axis: round where the others are flat.
+  aizawa: {
+    derivative: ([x, y, z]) => [
+      (z - 0.7) * x - 3.5 * y,
+      3.5 * x + (z - 0.7) * y,
+      0.6 + 0.95 * z - (z * z * z) / 3 - (x * x + y * y) * (1 + 0.25 * z) + 0.1 * z * x * x * x,
+    ],
+    start: [0.1, 0, 0],
+    dt: 0.01,
   },
 }
 
@@ -82,16 +115,57 @@ export function attractorTrajectory(kind: AttractorKind, points: number): Float3
 
 // Where the glasshouse hangs its attractors: one past each wall, close
 // behind the glass and as tall as the room is wide, standing on the
-// outside floor, so from inside they fill the panes.
+// outside floor, so from inside they fill the panes. No two panes show
+// the same thing — a different system behind each, drawn a different
+// way, so which way you are facing is never a guess.
 export function attractorsOutside(boundary: number): AttractorSpec[] {
   const b = boundary
-  const common = { points: 3000, speed: 400 }
   const standing = (scale: number) => scale + 2
   return [
-    { kind: 'lorenz', center: [b + 58, standing(50), 12], scale: 50, color: [1.0, 0.55, 0.25], spin: 0.03, ...common },
-    { kind: 'rossler', center: [-14, standing(44), -(b + 55)], scale: 44, color: [0.45, 0.9, 1.0], spin: -0.04, ...common },
-    { kind: 'lorenz', center: [-(b + 62), standing(56), -18], scale: 56, color: [0.85, 0.5, 1.0], spin: 0.025, ...common },
-    { kind: 'rossler', center: [20, standing(40), b + 52], scale: 40, color: [0.5, 1.0, 0.6], spin: 0.045, ...common },
+    // East: a butterfly, smooth, with a long comet drawn along it.
+    {
+      kind: 'lorenz',
+      center: [b + 58, standing(50), 12],
+      scale: 50,
+      color: [1.0, 0.55, 0.25],
+      spin: 0.03,
+      points: 3000,
+      speed: 400,
+      style: { bead: 0, tail: 0.3, twinkle: 0, core: 0.6 },
+    },
+    // North: a coil, taken coarsely so it reads as a chain of beads.
+    {
+      kind: 'rossler',
+      center: [-14, standing(44), -(b + 55)],
+      scale: 44,
+      color: [0.45, 0.9, 1.0],
+      spin: -0.04,
+      points: 1100,
+      speed: 90,
+      style: { bead: 7, tail: 0.12, twinkle: 0, core: 0.35 },
+    },
+    // West: a lattice, taken finely and shimmering, a drift of sparks.
+    {
+      kind: 'thomas',
+      center: [-(b + 62), standing(56), -18],
+      scale: 56,
+      color: [0.85, 0.5, 1.0],
+      spin: 0.025,
+      points: 4000,
+      speed: 260,
+      style: { bead: 0, tail: 0.06, twinkle: 0.9, core: 0.2 },
+    },
+    // South: a shell, solid and slow, lit by a short hard spark.
+    {
+      kind: 'aizawa',
+      center: [20, standing(40), b + 52],
+      scale: 40,
+      color: [0.5, 1.0, 0.6],
+      spin: 0.045,
+      points: 2600,
+      speed: 700,
+      style: { bead: 0, tail: 0.02, twinkle: 0, core: 1 },
+    },
   ]
 }
 

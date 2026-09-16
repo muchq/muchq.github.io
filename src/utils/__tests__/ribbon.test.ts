@@ -85,6 +85,34 @@ describe('ribbon', () => {
     expect(Math.abs(built[7].at[2])).toBeGreaterThan(0)
   })
 
+  // A wake that doubles back reverses the path's direction under it; the
+  // ribbon has no front or back, so it must not reverse with it or the
+  // quad between those two points crosses into a bowtie.
+  it('keeps its sides the same way round through a turn back on itself', () => {
+    const path: Vec3[] = [
+      [0, 0, 0],
+      [1, 0, 0],
+      [2, 0, 0],
+      [1.6, 0, 0.6],
+      [0.6, 0, 0.6],
+    ]
+    const built = vertices(ribbon(path, [0, 50, 0], shape))
+    for (let i = 1; i < path.length; i++) {
+      const before: Vec3 = [
+        built[(i - 1) * 2 + 1].at[0] - built[(i - 1) * 2].at[0],
+        built[(i - 1) * 2 + 1].at[1] - built[(i - 1) * 2].at[1],
+        built[(i - 1) * 2 + 1].at[2] - built[(i - 1) * 2].at[2],
+      ]
+      const now: Vec3 = [
+        built[i * 2 + 1].at[0] - built[i * 2].at[0],
+        built[i * 2 + 1].at[1] - built[i * 2].at[1],
+        built[i * 2 + 1].at[2] - built[i * 2].at[2],
+      ]
+      const agrees = before[0] * now[0] + before[1] * now[1] + before[2] * now[2]
+      expect(agrees, `point ${i}`).toBeGreaterThan(0)
+    }
+  })
+
   it('draws nothing where the path never moves', () => {
     const still: Vec3[] = [
       [2, 0, 2],

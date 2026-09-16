@@ -91,6 +91,23 @@ describe('LineStrips', () => {
     expect(gl.blendFunc).toHaveBeenLastCalledWith(gl.SRC_ALPHA, gl.ONE)
   })
 
+  // The texture is a uniform, so each curve carries its own: beads and
+  // shimmer and how far its head reaches. A wake takes none of it.
+  it('hands every attractor its own texture, and the wake a plain one', () => {
+    const gl = fakeGl()
+    LineStrips.create(gl, specs)!.draw(vp, 2, [0, 0, 0, 0], [wake(4)])
+    const styles = gl.uniform4f.mock.calls.filter(call => call[0]?.uniform === 'u_style')
+    expect(styles).toHaveLength(specs.length + 1)
+    specs.forEach((spec, i) => {
+      expect(styles[i].slice(1)).toEqual([spec.style.bead, spec.style.tail, spec.style.twinkle, spec.style.core])
+    })
+    const wakeStyle = styles.at(-1)!.slice(1)
+    expect(wakeStyle[0]).toBe(0)
+    expect(wakeStyle[2]).toBe(0)
+    // The shimmer needs the clock the frame is drawn at.
+    expect(gl.uniform1f).toHaveBeenCalledWith({ uniform: 'u_time' }, 2)
+  })
+
   it('keeps the glass off the wake, which is in the room with you', () => {
     const gl = fakeGl()
     LineStrips.create(gl, specs)!.draw(vp, 0, [0.5, 0.8, 1, 0.35], [wake(4)])
@@ -110,5 +127,11 @@ describe('LineStrips', () => {
     const ribbonStride = gl.vertexAttribPointer.mock.calls.filter(call => call[0] === 2)
     expect(ribbonStride).toHaveLength(1)
     expect(ribbonStride[0][4]).toBe(20)
+    // After the three floats of position and the one of index.
+    expect(ribbonStride[0][5]).toBe(16)
+    // What a disabled attribute reads belongs to the context, not the
+    // array, so the wires are told what side they are on every frame.
+    LineStrips.create(gl, specs)!.draw(vp, 0, [0, 0, 0, 0])
+    expect(gl.vertexAttrib1f).toHaveBeenCalledWith(2, 0)
   })
 })

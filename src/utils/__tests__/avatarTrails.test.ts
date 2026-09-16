@@ -41,6 +41,25 @@ describe('AvatarTrails', () => {
     expect(still.strips(orange, above)).toHaveLength(0)
   })
 
+  // The whole claim of a ribbon over a wire: it has width, and the width
+  // goes somewhere. Without this the wake can be zero wide and every
+  // other assertion here still holds, because the path is unchanged.
+  it('leaves a ribbon widest at the avatar and thinning into the tail', () => {
+    const trails = new AvatarTrails(8)
+    for (let i = 0; i < 8; i++) trails.record('a', at(i))
+    const [strip] = trails.strips(orange, above)
+    const widthAt = (point: number) => {
+      const a = point * 2 * RIBBON_FLOATS_PER_VERTEX
+      const b = a + RIBBON_FLOATS_PER_VERTEX
+      return Math.hypot(strip.data[a] - strip.data[b], strip.data[a + 1] - strip.data[b + 1], strip.data[a + 2] - strip.data[b + 2])
+    }
+    const head = widthAt(strip.points - 1)
+    const tail = widthAt(0)
+    expect(head).toBeGreaterThan(0.3)
+    expect(tail).toBeGreaterThan(0)
+    expect(tail).toBeLessThan(head / 2)
+  })
+
   it('keeps each avatar apart', () => {
     const trails = new AvatarTrails(4)
     trails.record('a', at(1))

@@ -25,6 +25,10 @@ interface Strip extends Geometry {
 
 const IDENTITY = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
 
+// How far back along a wake its head still glows, as a fraction of the
+// wake's length.
+const WAKE_TAIL = 0.25
+
 // The line pass after the ray-traced frame: attractors uploaded once,
 // wakes uploaded every frame, all blended over it, tested against the
 // depth it wrote (so players occlude them) and writing none.
@@ -34,7 +38,7 @@ export class LineStrips {
     private readonly program: WebGLProgram,
     private readonly strips: Strip[],
     private readonly dynamic: Geometry,
-    private readonly u: Record<'viewProj' | 'model' | 'head' | 'count' | 'color' | 'glass', WebGLUniformLocation | null>,
+    private readonly u: Record<'viewProj' | 'model' | 'head' | 'count' | 'color' | 'glass' | 'style' | 'time', WebGLUniformLocation | null>,
   ) {}
 
   static create(gl: WebGL2RenderingContext, attractors: AttractorSpec[]): LineStrips | null {
@@ -64,6 +68,8 @@ export class LineStrips {
       count: gl.getUniformLocation(program, 'u_count'),
       color: gl.getUniformLocation(program, 'u_color'),
       glass: gl.getUniformLocation(program, 'u_glass'),
+      style: gl.getUniformLocation(program, 'u_style'),
+      time: gl.getUniformLocation(program, 'u_time'),
     }
     return new LineStrips(gl, program, strips, dynamic, u)
   }
@@ -112,12 +118,19 @@ export class LineStrips {
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
     gl.uniformMatrix4fv(u.viewProj, false, viewProj)
     gl.uniform4f(u.glass, glass[0], glass[1], glass[2], glass[3])
+    gl.uniform1f(u.time, timeSeconds)
+    // A wire has no sides. Which VAO has the edge attribute is per-VAO
+    // state, but the value a disabled one reads is the context's, so it
+    // is set here rather than assumed.
+    gl.vertexAttrib1f(2, 0)
     for (const { spec, vao } of this.strips) {
       gl.bindVertexArray(vao)
       gl.uniformMatrix4fv(u.model, false, modelMatrix(spec.center, spec.scale, spec.spin * timeSeconds))
       gl.uniform1f(u.head, (timeSeconds * spec.speed) % spec.points)
       gl.uniform1f(u.count, spec.points)
       gl.uniform3f(u.color, spec.color[0], spec.color[1], spec.color[2])
+      const { bead, tail, twinkle, core } = spec.style
+      gl.uniform4f(u.style, bead, tail, twinkle, core)
       gl.drawArrays(gl.LINE_STRIP, 0, spec.points)
     }
     if (wakes.length > 0) {
@@ -127,6 +140,9 @@ export class LineStrips {
       // tint that the attractors are seen through touches it.
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE)
       gl.uniform4f(u.glass, 0, 0, 0, 0)
+      // A wake is one steady comet: no beads, no shimmer, and a head
+      // that whitens as it always did.
+      gl.uniform4f(u.style, 0, WAKE_TAIL, 0, 0.45)
       gl.bindVertexArray(this.dynamic.vao)
       gl.bindBuffer(gl.ARRAY_BUFFER, this.dynamic.buffer)
       gl.uniformMatrix4fv(u.model, false, IDENTITY)

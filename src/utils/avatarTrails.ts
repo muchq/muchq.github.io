@@ -4,12 +4,15 @@ import { ribbon, RIBBON_FLOATS_PER_VERTEX, type RibbonShape } from './ribbon'
 
 // How far an avatar moves before its wake takes another point. Without
 // it a slow frame and a fast one leave different paths, and standing
-// still fills the wake with one place over and over.
-const SPACING = 0.15
+// still fills the wake with one place over and over. Kept at least as
+// long as the wake is wide: a ribbon much wider than its step overlaps
+// itself on the inside of every turn, and additive light makes that a
+// bright blob with a notched outer edge.
+const SPACING = 0.3
 
 // The shape of a wake in the world: half this wide where it leaves the
 // avatar, tapering to nothing at the far end.
-const SHAPE: RibbonShape = { width: 0.38, taper: 0.55 }
+const SHAPE: RibbonShape = { width: 0.32, taper: 0.55 }
 
 // The wake behind each avatar: the last `capacity` places it passed
 // through, oldest first, handed to the line pass as a ribbon turned to
