@@ -145,7 +145,7 @@ export class LineStrips {
     gl.vertexAttrib1f(2, 0)
     for (const strip of this.strips) {
       const { spec, vao } = strip
-      const head = (timeSeconds * spec.speed) % spec.points
+      const head = ((timeSeconds / spec.lapSeconds) % 1) * spec.points
       gl.bindVertexArray(vao)
       gl.uniformMatrix4fv(u.model, false, modelMatrix(spec.center, spec.scale, spec.spin * timeSeconds))
       gl.uniform1f(u.head, head)

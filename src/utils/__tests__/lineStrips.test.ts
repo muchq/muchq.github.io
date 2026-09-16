@@ -78,7 +78,7 @@ describe('LineStrips', () => {
     const lines = LineStrips.create(gl, specs)!
     const spec = specs.find(s => s.style.comet > 0)!
     // Just after this curve's head has come round to the start again.
-    const justWrapped = (spec.points + 8) / spec.speed
+    const justWrapped = spec.lapSeconds * (1 + 8 / spec.points)
     for (const t of [justWrapped, justWrapped + 0.01, 1, 5]) {
       gl.bufferData.mockClear()
       lines.draw(vp, eye, t, [0, 0, 0, 0])

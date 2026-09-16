@@ -60,8 +60,13 @@ export interface AttractorSpec {
   // Radians per second about the vertical through the centre.
   spin: number
   points: number
-  // Points the glowing head advances per second.
-  speed: number
+  // World units the glowing head travels a second. Set what you can
+  // see: a lap hides the pace behind the curve's own length, and these
+  // four differ by four times in how far they wander, so matching laps
+  // still leaves one head whipping round while another creeps.
+  pace: number
+  // Seconds for a lap, from the pace and the curve's scaled length.
+  lapSeconds: number
   style: AttractorStyle
 }
 
@@ -141,6 +146,24 @@ export function attractorTrajectory(kind: AttractorKind, points: number): Float3
   return out
 }
 
+// How far the head travels in one lap of a curve, in world units: the
+// curve's own length at unit scale, times the scale it is drawn at.
+// Deterministic in (kind, points), and each one is walked once.
+const arcLengths = new Map<string, number>()
+export function scaledArcLength(kind: AttractorKind, points: number, scale: number): number {
+  const key = `${kind}:${points}`
+  let unit = arcLengths.get(key)
+  if (unit === undefined) {
+    const p = attractorTrajectory(kind, points)
+    unit = 0
+    for (let i = 3; i < p.length; i += 3) {
+      unit += Math.hypot(p[i] - p[i - 3], p[i + 1] - p[i - 2], p[i + 2] - p[i - 1])
+    }
+    arcLengths.set(key, unit)
+  }
+  return unit * scale
+}
+
 // Where the glasshouse hangs its attractors: one past each wall, close
 // behind the glass and as tall as the room is wide, standing on the
 // outside floor, so from inside they fill the panes. No two panes show
@@ -149,52 +172,57 @@ export function attractorTrajectory(kind: AttractorKind, points: number): Float3
 export function attractorsOutside(boundary: number): AttractorSpec[] {
   const b = boundary
   const standing = (scale: number) => scale + 2
+  // A spec names its pace; the lap follows from how far the curve runs.
+  const paced = (spec: Omit<AttractorSpec, 'lapSeconds'>): AttractorSpec => ({
+    ...spec,
+    lapSeconds: scaledArcLength(spec.kind, spec.points, spec.scale) / spec.pace,
+  })
   return [
     // East: a butterfly, smooth, with a long comet drawn along it.
-    {
+    paced({
       kind: 'lorenz',
       center: [b + 58, standing(50), 12],
       scale: 50,
       color: [1.0, 0.55, 0.25],
       spin: 0.03,
       points: 3000,
-      speed: 400,
+      pace: 75,
       style: { bead: 0, tail: 0.3, twinkle: 0, core: 0.6, comet: 0.03 },
-    },
+    }),
     // North: a coil, taken coarsely so it reads as a chain of beads.
-    {
+    paced({
       kind: 'rossler',
       center: [-14, standing(44), -(b + 55)],
       scale: 44,
       color: [0.45, 0.9, 1.0],
       spin: -0.04,
       points: 1100,
-      speed: 90,
+      pace: 40,
       style: { bead: 7, tail: 0.12, twinkle: 0, core: 0.35, comet: 0.014 },
-    },
+    }),
     // West: a lattice, taken finely and shimmering, a drift of sparks.
-    {
+    paced({
       kind: 'thomas',
       center: [-(b + 62), standing(56), -18],
       scale: 56,
       color: [0.85, 0.5, 1.0],
       spin: 0.025,
       points: 4000,
-      speed: 260,
+      pace: 75,
       // Sparks and nothing else: a comet would only smear them.
       style: { bead: 0, tail: 0.06, twinkle: 0.9, core: 0.2, comet: 0 },
-    },
+    }),
     // South: a shell, solid and slow, lit by a short hard spark.
-    {
+    paced({
       kind: 'aizawa',
       center: [20, standing(40), b + 52],
       scale: 40,
       color: [0.5, 1.0, 0.6],
       spin: 0.045,
       points: 2600,
-      speed: 700,
+      pace: 60,
       style: { bead: 0, tail: 0.02, twinkle: 0, core: 1, comet: 0.05 },
-    },
+    }),
   ]
 }
 
