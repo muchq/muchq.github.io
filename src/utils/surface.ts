@@ -173,3 +173,31 @@ export function walk(surface: Surface, frame: Frame, right: number, toCamera: nu
 export function cameraStand(surface: Surface, frame: Frame, distance: number): Vec3 {
   return surface.step(frame.position, scaled(frame.toCamera, distance))
 }
+
+// Where the camera sits and what it looks at. There is no pitch
+// control, so this one pair is the whole of what can ever be on screen:
+// the eye stands back and above, the target is the avatar's waist. Both
+// halves live here because the sky is placed against the frustum they
+// make, and a copy of either in the render loop would drift out of it.
+export interface CameraView {
+  eye: Vec3
+  target: Vec3
+  up: Vec3
+}
+export function cameraView(
+  surface: Surface,
+  frame: Frame,
+  playerPosition: Vec3,
+  camera: { distance: number; height: number },
+  groundLevel: number,
+  waist: number
+): CameraView {
+  const stand = cameraStand(surface, frame, camera.distance)
+  // The camera's own height is measured from the sphere's centre, a
+  // unit below the ground it stands on.
+  return {
+    eye: surface.place(stand, camera.height - 1 - groundLevel),
+    target: surface.place(playerPosition, waist - groundLevel + surface.lookLift),
+    up: surface.up(stand),
+  }
+}

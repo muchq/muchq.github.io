@@ -4,7 +4,7 @@ import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
 import { generateRandomColor, generateRandomSpawnPosition } from '@/utils/gameUtils'
 import { RoomResources } from '@/utils/roomResources'
 import { DEFAULT_ROOM, roomForGeometry, type RoomGeometry, type RoomGeometryId } from '@/utils/roomGeometry'
-import { cameraStand, frameAt, sameGeometry, sphereRadiusOf, surfaceFor, turn, walk, type Frame, type Geometry } from '@/utils/surface'
+import { cameraView, frameAt, sameGeometry, sphereRadiusOf, surfaceFor, turn, walk, type Frame, type Geometry } from '@/utils/surface'
 import { mapHeadingDegrees, mapIsRound, mapPoint } from '@/utils/miniMap'
 import { bindRoomHotkey, bindShapeHotkey } from '@/utils/hotkeys'
 import { AvatarTrails } from '@/utils/avatarTrails'
@@ -547,12 +547,11 @@ export const useThoughtsGame = () => {
 
         // The camera stands its distance behind the avatar along the
         // surface and rises from there, so it is never under the floor.
-        const fixedSphereY = -1.0 // Keep camera at a fixed height relative to sphere's center position
         const playerPos = localPlayer ? localPlayer.position : frame.position
-        const cameraHeight = fixedSphereY + gameState.camera.height - GAME_CONFIG.groundLevel
-        const cameraStandPoint = cameraStand(surface, frame, gameState.camera.distance)
-        const cameraPosition = surface.place(cameraStandPoint, cameraHeight)
-        const cameraUp = surface.up(cameraStandPoint)
+        const waist = (GAME_CONFIG.groundLevel + GAME_CONFIG.sphereRadius) + GAME_CONFIG.bounceHeight / 2
+        const view = cameraView(surface, frame, playerPos, gameState.camera, GAME_CONFIG.groundLevel, waist)
+        const cameraPosition = view.eye
+        const cameraUp = view.up
 
         // Physics simulation for bouncing (used for visual feedback and sound triggers)
 
@@ -608,8 +607,7 @@ export const useThoughtsGame = () => {
         while (objectUps.length < 30) objectUps.push(0.0, 1.0, 0.0)
 
         // Set uniforms for ray tracing
-        const sphereZenith = (GAME_CONFIG.groundLevel + GAME_CONFIG.sphereRadius) + (GAME_CONFIG.bounceHeight / 2) // Midpoint of bounce
-        const cameraTargetPos = surface.place(playerPos, sphereZenith - GAME_CONFIG.groundLevel + surface.lookLift)
+        const cameraTargetPos = view.target
 
         webglContext.uniform2f(u.u_resolution, canvas.width, canvas.height)
         webglContext.uniform3f(u.u_cameraPos, cameraPosition[0], cameraPosition[1], cameraPosition[2])

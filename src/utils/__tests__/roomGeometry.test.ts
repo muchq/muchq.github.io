@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { ROOM_GEOMETRIES, DEFAULT_ROOM, nextRoom, roomById, roomForGeometry, roomFragmentShader, RAY_TRACER_UNIFORMS } from '../roomGeometry'
-import { SHADER_FOV, depthCoefficients } from '../projection'
+import { ROOM_GEOMETRIES, DEFAULT_ROOM, GLASSHOUSE_MOONS, GLASSHOUSE_STARS, nextRoom, roomById, roomForGeometry, roomFragmentShader, RAY_TRACER_UNIFORMS } from '../roomGeometry'
+import { SHADER_FOV, cameraBasis, depthCoefficients, shaderRayDir, type Vec3 } from '../projection'
 import { PALETTE_KEYS, glslFloat, type Palette } from '../shaders'
-import { PLANE_GEOMETRY, SPHERE_RADIUS, sphereGeometry } from '../surface'
+import { PLANE_GEOMETRY, SPHERE_RADIUS, cameraView, frameAt, sphereGeometry, surfaceFor } from '../surface'
 import { CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND } from '../audioSystem'
 import { GAME_CONFIG } from '../gameClasses'
 
@@ -97,6 +97,82 @@ describe('the registry', () => {
     }
   })
 
+  it('hangs a night sky beyond the glass, and only there', () => {
+    const glasshouse = roomFragmentShader(roomById('glasshouse')!)
+    // Stars live on a lattice of directions, so they turn with the
+    // camera and never slide: the sky is meant to read as very far off.
+    // Take the scale out and they would swim as you walk.
+    expect(glasshouse).toContain(`vec3 lattice = rayDir * ${glslFloat(GLASSHOUSE_STARS.lattice)};`)
+    expect(glasshouse).toContain('vec3 cell = floor(lattice);')
+    expect(glasshouse).toContain('float pick = hash(cell.xy + cell.z * 113.0);')
+    // Sparse: a few cells in a hundred carry one.
+    expect(GLASSHOUSE_STARS.threshold).toBeGreaterThan(0.9)
+    expect(glasshouse).toContain(`if (pick > ${glslFloat(GLASSHOUSE_STARS.threshold)}) {`)
+    expect(glasshouse).toContain('float near = length(fract(lattice) - at);')
+    // Only the ray's own cell is hashed, so a disc that reached a face
+    // would be cut off flat against a neighbour holding no star. The
+    // jitter has to leave the radius room on both sides.
+    expect(GLASSHOUSE_STARS.radius).toBeLessThanOrEqual((1 - GLASSHOUSE_STARS.jitter) / 2)
+    expect(glasshouse).toContain(`vec3 at = ${glslFloat((1 - GLASSHOUSE_STARS.jitter) / 2)} + ${glslFloat(GLASSHOUSE_STARS.jitter)} * vec3(`)
+    expect(glasshouse).toContain(`float shape = smoothstep(${glslFloat(GLASSHOUSE_STARS.radius)}, 0.0, near);`)
+    // Twinkle never reaches zero — stars twinkle, they do not blink.
+    expect(glasshouse).toContain('float twinkle = 0.62 + 0.38 * sin(u_time * 1.7 + pick * 320.0);')
+
+    // The moons are traced from where the camera actually is, at a
+    // great but finite distance, which is the whole of what parallaxes
+    // them against the stars. Trace them from the origin instead and
+    // the effect is gone.
+    expect(GLASSHOUSE_MOONS).toHaveLength(2)
+    for (const moon of GLASSHOUSE_MOONS) {
+      expect(glasshouse).toContain(`glasshouseMoon(rayOrigin, rayDir, vec3(${moon.centre.map(glslFloat).join(', ')})`)
+    }
+    expect(glasshouse).toContain('float t = intersectSphere(ro, rd, centre, radius);')
+
+    // Two different sizes, so one reads as nearer than the other.
+    expect(new Set(GLASSHOUSE_MOONS.map(moon => moon.radius)).size).toBe(2)
+
+    // The other rooms keep the plain pass-through.
+    for (const id of ['grid', 'sphere']) {
+      const src = roomFragmentShader(roomById(id)!)
+      expect(src).toMatch(/vec3 roomSky\(vec3 rayOrigin, vec3 rayDir, vec3 base\) \{\s*return base;\s*\}/)
+      expect(src).not.toContain('glasshouseMoon')
+    }
+  })
+
+  // A moon you cannot look at is not in the sky. The camera has no
+  // pitch control — it looks down at the avatar — so the only sky on
+  // screen is a sliver above the horizon, and the first pass put both
+  // moons over the top of it. Measured where the complaint lives: in
+  // the frame, not in degrees. The horizon sits around 0.63 of the way
+  // up, so the whole sky is the top fifth of the picture.
+  it('keeps every moon inside the sliver of sky the camera can actually see', () => {
+    const surface = surfaceFor(PLANE_GEOMETRY)
+    const frame = frameAt(surface, [0, 0, 0])
+    const waist = GAME_CONFIG.groundLevel + GAME_CONFIG.sphereRadius + GAME_CONFIG.bounceHeight / 2
+    const camera = { distance: 7, height: 4 } // GameState's own defaults
+    const { eye, target } = cameraView(surface, frame, frame.position, camera, GAME_CONFIG.groundLevel, waist)
+    const basis = cameraBasis(eye, target)
+    const elevation = (v: Vec3) => Math.atan2(v[1], Math.hypot(v[0], v[2]))
+    // Where an elevation lands up the frame. A ray is forward plus
+    // ndcY * up * fov, so its angle off forward has tangent ndcY * fov;
+    // the top of the frame is 1 whatever the aspect.
+    const pitch = elevation(basis.forward)
+    const upFrame = (radians: number) => Math.tan(radians - pitch) / SHADER_FOV
+    expect(upFrame(elevation(shaderRayDir(0, 1, basis, 16 / 9)))).toBeCloseTo(1, 3)
+
+    const horizon = upFrame(0)
+    expect(horizon).toBeLessThan(1) // else no sky is on screen at all
+    // Half a percent of the frame is the smallest gap that still reads
+    // as a gap at the heights people actually play at.
+    const clear = 0.005
+    for (const moon of GLASSHOUSE_MOONS) {
+      const centre = elevation(moon.centre as unknown as Vec3)
+      const half = Math.atan2(moon.radius, Math.hypot(moon.centre[0], moon.centre[1], moon.centre[2]))
+      expect(upFrame(centre - half), `${moon.centre} bottom`).toBeGreaterThan(horizon + clear)
+      expect(upFrame(centre + half), `${moon.centre} top`).toBeLessThan(1 - clear)
+    }
+  })
+
   it('has no fog in the sphere room, where the far wall is the point', () => {
     expect(roomById('grid')!.fog).toBeGreaterThan(0)
     expect(roomById('sphere')!.fog).toBe(0)
@@ -143,7 +219,21 @@ describe('roomFragmentShader', () => {
         expect(src).toMatch(/Floor ground = roomFloor\(rayOrigin, rayDir\)/)
         expect(src.match(/vec3 roomFloorShade\(/g)).toHaveLength(1)
         expect(src).toMatch(/lighting = roomFloorShade\(lighting, floorColor, hit\.normal, viewDir, hit\.point\)/)
+        expect(src.match(/vec3 roomSky\(vec3 rayOrigin, vec3 rayDir, vec3 base\) \{/g)).toHaveLength(1)
+        expect(src).toMatch(/return roomSky\(rayOrigin, rayDir, baseColor \+ lightningColor\);/)
         expect(src.match(/void main\(\)/g)).toHaveLength(1)
+        // The room block is emitted after the prelude, so the prelude's
+        // own call to roomSky only compiles because a prototype comes
+        // first. Nothing else in the file needs one, which is exactly
+        // why it is easy to drop.
+        expect(src.indexOf('vec3 roomSky(vec3 rayOrigin, vec3 rayDir, vec3 base);')).toBeGreaterThan(-1)
+        expect(src.indexOf('vec3 roomSky(vec3 rayOrigin, vec3 rayDir, vec3 base);')).toBeLessThan(
+          src.indexOf('return roomSky(rayOrigin, rayDir, baseColor + lightningColor);'),
+        )
+        // A reflected ray starts on the floor, not at the eye. Pass the
+        // camera here and anything a room puts at a finite distance
+        // reflects from the wrong place.
+        expect(src).toContain('vec3 skyColor = getSkyColor(rayOrigin, currentRayDir);')
         expect(src).toContain(`const float ROOM_FOG = ${glslFloat(room.fog)};`)
         expect(src).toContain(`const float ROOM_BLOCK = ${glslFloat(room.block)};`)
         expect(src).toContain(`const float ROOM_REFLECT = ${glslFloat(room.reflect)};`)
