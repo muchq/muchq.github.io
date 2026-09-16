@@ -15,7 +15,7 @@ const renderWithRouter = (component: React.ReactElement) => {
 describe('Navigation', () => {
   it('renders navigation logo', () => {
     renderWithRouter(<Navigation />)
-    expect(testingScreen.getAllByText('MuchQ')).toHaveLength(2)
+    expect(testingScreen.getByText('MuchQ')).toBeDefined()
   })
 
   it('renders navigation links', () => {
@@ -23,18 +23,19 @@ describe('Navigation', () => {
     expect(testingScreen.getByText('Projects')).toBeDefined()
     expect(testingScreen.getByText('Data')).toBeDefined()
     expect(testingScreen.getByText('Games')).toBeDefined()
-    expect(testingScreen.getByText('Elsewhere')).toBeDefined()
-    expect(testingScreen.getByText('Code')).toBeDefined()
+    expect(testingScreen.getByText('Hmm')).toBeDefined()
+    expect(testingScreen.queryByText('Code')).toBeNull()
+    expect(testingScreen.queryByText('Elsewhere')).toBeNull()
     expect(testingScreen.getByText('Metrics')).toBeDefined()
   })
 
   // The accessible-name regexes are anchored and include "(external site)" on
   // purpose: they pin that the srOnly text is part of the name AND that the
   // aria-hidden ↗ is excluded from it (its presence would break the anchor).
-  it('links each Elsewhere app to its URL, with its description inside the link', () => {
+  it('links each Hmm app to its URL, with its description inside the link', () => {
     renderWithRouter(<Navigation />)
-    const groupEl = testingScreen.getByText('Elsewhere').closest('li')
-    if (!groupEl) throw new Error('Elsewhere nav group not found')
+    const groupEl = testingScreen.getByText('Hmm').closest('li')
+    if (!groupEl) throw new Error('Hmm nav group not found')
     const group = within(groupEl)
     const expected: Array<[RegExp, string, string]> = [
       [/^Snowbonk\s?\(external site\)/, 'https://snowbonk.com', 'N-body simulation viewer'],
