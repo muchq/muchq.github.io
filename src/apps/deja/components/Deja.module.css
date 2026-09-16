@@ -1,6 +1,90 @@
 /* The tape: one row per scored request, newest on top, bounded to 200
    rows and scrolled inside its own box so the page keeps its shape. Each
-   row's outcome colours its left edge and a wash behind it. */
+   row carries a text outcome label; colour on the left edge is secondary. */
+.tapeBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.legendBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 4px 12px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.65rem;
+}
+
+.legendItem {
+  display: grid;
+  grid-template-columns: 0.5rem auto 1fr;
+  gap: 6px;
+  align-items: baseline;
+  padding: 2px 0 2px 6px;
+  border-left: 3px solid rgba(255, 255, 255, 0.15);
+}
+
+.legendSwatch {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 2px;
+  background: currentColor;
+  justify-self: center;
+  align-self: center;
+}
+
+.legendLabel {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.legendBlurb {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Swatch picks this up via currentColor; row text only colours .outcome. */
+.legendItem.hit,
+.row.hit .outcome {
+  color: #4ade80;
+}
+
+.legendItem.near,
+.row.near .outcome {
+  color: #ffb347;
+}
+
+.legendItem.anomaly,
+.row.anomaly .outcome {
+  color: #ff6b6b;
+}
+
+.legendItem.novel,
+.row.novel .outcome {
+  color: #b388ff;
+}
+
+.legendItem.miss,
+.legendItem.warmup,
+.row.miss .outcome,
+.row.warmup .outcome {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.tapeBound {
+  margin: 0;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
 .tape {
   list-style: none;
   margin: 0;
@@ -11,17 +95,26 @@
   border-radius: 10px;
   background: rgba(26, 31, 53, 0.4);
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 0.75rem;
+  font-size: 0.68rem;
 }
 
 .row {
   display: grid;
-  grid-template-columns: 4.5rem minmax(200px, 1.4fr) minmax(160px, 1fr) minmax(160px, 1fr) minmax(200px, 1.2fr);
-  gap: 12px;
+  grid-template-columns: 4.75rem 3.5rem minmax(120px, 1.3fr) minmax(110px, 1fr) minmax(110px, 1fr) minmax(120px, 1.1fr);
+  gap: 8px;
   align-items: center;
-  padding: 8px 12px;
+  padding: 4px 8px;
   border-left: 3px solid rgba(255, 255, 255, 0.15);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.outcome {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.pred::before {
+  display: none;
 }
 
 .row > * {
@@ -36,33 +129,53 @@
   color: rgba(255, 255, 255, 0.55);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   border-left-color: transparent;
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 
 .hit {
   border-left-color: #4ade80;
-  background: rgba(74, 222, 128, 0.08);
 }
 
 .near {
   border-left-color: #ffb347;
-  background: rgba(255, 179, 71, 0.08);
 }
 
 .anomaly {
   border-left-color: #ff6b6b;
-  background: rgba(255, 107, 107, 0.12);
 }
 
 .novel {
   border-left-color: #b388ff;
-  background: rgba(179, 136, 255, 0.12);
 }
 
 .miss,
 .warmup {
   border-left-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Soft wash only on tape rows — legend shares the left-edge colour class. */
+.row.hit {
+  background: rgba(74, 222, 128, 0.08);
+}
+
+.row.near {
+  background: rgba(255, 179, 71, 0.08);
+}
+
+.row.anomaly {
+  background: rgba(255, 107, 107, 0.12);
+}
+
+.row.novel {
+  background: rgba(179, 136, 255, 0.12);
+}
+
+.row.miss,
+.row.warmup {
+  background: rgba(26, 31, 53, 0.35);
 }
 
 .seq {
@@ -72,14 +185,17 @@
 /* Context chips fade with age: the oldest of the eight is the faintest. */
 .chips {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  flex-wrap: nowrap;
+  gap: 3px;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .chip {
   display: inline-block;
-  max-width: 100%;
-  padding: 1px 6px;
+  flex: 0 0 auto;
+  max-width: 11rem;
+  padding: 0 5px;
   border-radius: 999px;
   border: 1px solid rgba(102, 182, 255, 0.35);
   background: rgba(102, 182, 255, 0.1);
@@ -87,37 +203,40 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.45;
 }
 
 .actual {
   color: white;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* A predictor's likeliest next tokens as bars, the width the probability. */
 .bars {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .barRow {
   display: grid;
-  grid-template-columns: minmax(40px, 40%) 1fr;
-  gap: 6px;
+  grid-template-columns: minmax(36px, 42%) 1fr;
+  gap: 4px;
   align-items: center;
 }
 
 .barTrack {
-  height: 8px;
-  border-radius: 4px;
+  height: 5px;
+  border-radius: 3px;
   background: rgba(255, 255, 255, 0.06);
 }
 
 .bar {
   display: block;
   height: 100%;
-  border-radius: 4px;
+  border-radius: 3px;
   background: rgba(102, 182, 255, 0.7);
   min-width: 2px;
 }
@@ -131,6 +250,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   color: rgba(255, 255, 255, 0.7);
+  font-size: 0.62rem;
 }
 
 .none {
@@ -201,8 +321,8 @@
 
 .answer {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px 32px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px 24px;
   margin-top: 16px;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 0.8rem;
@@ -233,4 +353,126 @@
   margin: 12px 0 0;
   font-size: 0.85rem;
   color: #ff6b6b;
+}
+
+/* Narrow screens: stack each event as a card instead of a 6-column table. */
+@media (max-width: 768px) {
+  .legend {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px 8px;
+  }
+
+  .legendItem {
+    grid-template-columns: 0.45rem auto;
+  }
+
+  .legendBlurb {
+    display: none;
+  }
+
+  .tape {
+    max-height: none;
+    border: none;
+    background: transparent;
+    overflow: visible;
+  }
+
+  .head {
+    display: none;
+  }
+
+  .row {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      'outcome seq'
+      'actual actual'
+      'chips chips'
+      'bigram net';
+    gap: 4px 8px;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    border: 1px solid rgba(102, 182, 255, 0.18);
+    border-left-width: 3px;
+    border-radius: 8px;
+  }
+
+  .outcome {
+    grid-area: outcome;
+  }
+
+  .seq {
+    grid-area: seq;
+    justify-self: end;
+  }
+
+  .chips {
+    grid-area: chips;
+  }
+
+  .pred[data-testid='bigram'] {
+    grid-area: bigram;
+  }
+
+  .pred[data-testid='net'] {
+    grid-area: net;
+  }
+
+  .actual {
+    grid-area: actual;
+    font-size: 0.78rem;
+    font-weight: 500;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .pred {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-top: 2px;
+  }
+
+  .pred::before {
+    display: block;
+    content: attr(data-label);
+    font-size: 0.58rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .chip {
+    max-width: 9.5rem;
+  }
+
+  .askRow {
+    grid-template-columns: 1fr;
+  }
+
+  .askButton {
+    width: 100%;
+  }
+
+  .answer {
+    grid-template-columns: 1fr;
+  }
+
+  .chart {
+    padding: 12px 4px 4px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .row {
+    grid-template-areas:
+      'outcome seq'
+      'actual actual'
+      'chips chips'
+      'bigram bigram'
+      'net net';
+  }
 }
