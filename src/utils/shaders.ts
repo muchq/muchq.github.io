@@ -220,6 +220,11 @@ export const fragmentShaderPrelude = `
     vec3 forward = cross(right, up);
     return mat3(right, up, forward);
   }
+  // What a room hangs beyond its walls, over the palette's own sky.
+  // Declared here because getSkyColor calls it and the room's block
+  // comes after this one; every room defines it, plainly or otherwise.
+  vec3 roomSky(vec3 rayDir, vec3 base);
+
   // Generate stormy sky color with lightning
   vec3 getSkyColor(vec3 rayDir) {
     // Use 3D noise directly from ray direction to avoid seams
@@ -283,7 +288,7 @@ export const fragmentShaderPrelude = `
     vec3 baseColor = mix(noisySkyColor, noisyCloudColor, cloudDensity);
     vec3 lightningColor = PALETTE_lightning * lightningIntensity;
 
-    return baseColor + lightningColor;
+    return roomSky(rayDir, baseColor + lightningColor);
   }
 
   // View-space distance to window depth: the mapping viewProjection()
@@ -512,7 +517,13 @@ export const PLAIN_FLOOR_SHADE_GLSL = `
     return lit;
   }
 `
-export const NO_ROOM_GLSL = NO_WALLS_GLSL + PLANE_FLOOR_GLSL + PLAIN_AVATAR_GLSL + PLAIN_FLOOR_SHADE_GLSL
+export const PLAIN_SKY_GLSL = `
+  vec3 roomSky(vec3 rayDir, vec3 base) {
+    return base;
+  }
+`
+export const NO_ROOM_GLSL =
+  NO_WALLS_GLSL + PLANE_FLOOR_GLSL + PLAIN_AVATAR_GLSL + PLAIN_FLOOR_SHADE_GLSL + PLAIN_SKY_GLSL
 
 export interface RoomLook {
   palette: Palette

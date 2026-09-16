@@ -2,6 +2,7 @@ import {
   composeFragmentShader,
   NO_ROOM_GLSL,
   NO_WALLS_GLSL,
+  PLAIN_SKY_GLSL,
   PLANE_FLOOR_GLSL,
   type Palette,
 } from './shaders'
@@ -132,7 +133,64 @@ const GLASSHOUSE_FLOOR_SHADE_GLSL = `
   }
 `
 
-const GLASSHOUSE_GLSL = PLANE_FLOOR_GLSL + GLASSHOUSE_FLOOR_SHADE_GLSL + `
+// Beyond the glass, a long way out: a sparse field of stars and two
+// moons. The stars are a lattice in direction alone, so they turn with
+// the camera and never slide however far you walk — the sky is that far
+// away. The moons are spheres at a great but finite distance, traced
+// from where the camera actually is, so they do slide, a little, which
+// is the whole of what tells you they are nearer than the stars.
+const GLASSHOUSE_SKY_GLSL = `
+  const vec3 MOON_LIGHT = normalize(vec3(-0.4, 0.3, 0.86));
+  const vec3 MOON_ONE = vec3(-1500.0, 620.0, -2300.0);
+  const vec3 MOON_TWO = vec3(2100.0, 1150.0, 900.0);
+
+  // One moon: a lit disc with a soft limb, a few darker seas, and a
+  // faint ring of light around it. Black where the ray misses.
+  vec3 glasshouseMoon(vec3 ro, vec3 rd, vec3 centre, float radius, vec3 tint) {
+    float t = intersectSphere(ro, rd, centre, radius);
+    if (t > 0.0) {
+      vec3 normal = normalize(ro + rd * t - centre);
+      float lit = max(0.0, dot(normal, MOON_LIGHT));
+      // Seas: slow noise over the face, and a little light either side
+      // of the terminator so the edge is not a knife.
+      float seas = noise(normal.xy * 4.0 + 13.0) * 0.35 + noise(normal.yz * 9.0) * 0.15;
+      float shade = smoothstep(0.0, 0.35, lit) * (1.0 - seas * 0.55) + 0.04;
+      return tint * shade;
+    }
+    // The halo, from how near the ray passed the middle of it.
+    vec3 toMoon = centre - ro;
+    float along = dot(toMoon, rd);
+    if (along <= 0.0) return vec3(0.0);
+    float miss = length(toMoon - rd * along);
+    float halo = exp(-(miss / radius - 1.0) * 3.0);
+    return tint * clamp(halo, 0.0, 1.0) * 0.06;
+  }
+
+  vec3 roomSky(vec3 rayDir, vec3 base) {
+    vec3 sky = base;
+
+    // Stars, on a lattice of directions: one cell in a few hundred
+    // carries one, placed somewhere inside its own cell so the field
+    // reads as scattered rather than as a grid.
+    vec3 lattice = rayDir * 90.0;
+    vec3 cell = floor(lattice);
+    float pick = hash(cell.xy + cell.z * 113.0);
+    if (pick > 0.955) {
+      vec3 at = vec3(hash(cell.xy + 7.0), hash(cell.yz + 19.0), hash(cell.xz + 31.0));
+      float near = length(fract(lattice) - at);
+      float shape = smoothstep(0.30, 0.0, near);
+      // Slow, and never all the way out: stars twinkle, they do not blink.
+      float twinkle = 0.62 + 0.38 * sin(u_time * 1.7 + pick * 320.0);
+      sky += vec3(0.85, 0.9, 1.0) * shape * twinkle * (0.7 + 0.9 * fract(pick * 71.0));
+    }
+
+    sky += glasshouseMoon(u_cameraPos, rayDir, MOON_ONE, 210.0, vec3(0.86, 0.88, 0.95));
+    sky += glasshouseMoon(u_cameraPos, rayDir, MOON_TWO, 95.0, vec3(0.95, 0.74, 0.62));
+    return sky;
+  }
+`
+
+const GLASSHOUSE_GLSL = PLANE_FLOOR_GLSL + GLASSHOUSE_FLOOR_SHADE_GLSL + GLASSHOUSE_SKY_GLSL + `
   vec4 roomWalls(vec3 ro, vec3 rd, float tHit) {
     float b = u_worldBoundary;
     float t = tHit;
@@ -179,7 +237,7 @@ const GLASSHOUSE_GLSL = PLANE_FLOOR_GLSL + GLASSHOUSE_FLOOR_SHADE_GLSL + `
 // the equator as at a pole, and nothing is drawn where the world ends
 // because it does not. Drawn like a cartridge-era platformer: flat
 // colour in a few bands, and an ink outline round every avatar.
-const SPHERE_GLSL = NO_WALLS_GLSL + `
+const SPHERE_GLSL = NO_WALLS_GLSL + PLAIN_SKY_GLSL + `
   const float PI = 3.14159265;
   const vec3 TOON_LIGHT = normalize(vec3(0.4, 1.0, 0.3));
 
