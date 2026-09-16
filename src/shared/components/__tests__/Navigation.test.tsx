@@ -21,6 +21,7 @@ describe('Navigation', () => {
   it('renders navigation links', () => {
     renderWithRouter(<Navigation />)
     expect(testingScreen.getByText('Projects')).toBeDefined()
+    expect(testingScreen.getByText('Data')).toBeDefined()
     expect(testingScreen.getByText('Games')).toBeDefined()
     expect(testingScreen.getByText('Elsewhere')).toBeDefined()
     expect(testingScreen.getByText('Code')).toBeDefined()
@@ -68,19 +69,28 @@ describe('Navigation', () => {
       'Posterize',
       'Wordchains',
       'iili',
-      'Stats',
-      'Deja',
-      'Metrics',
     ])
     expect(links.map(link => link.getAttribute('href'))).toEqual([
       '/tracy',
       '/posterize',
       '/wordchains',
       '/iili',
-      '/stats',
-      '/deja',
-      '/metrics',
     ])
+    for (const link of links) {
+      expect(link.textContent).not.toContain('(external site)')
+      expect(link.querySelector('span')).toBeNull()
+    }
+  })
+
+  it('lists Stats, Deja, and Metrics under Data', () => {
+    renderWithRouter(<Navigation />)
+    const groupEl = testingScreen.getByText('Data').closest('li')
+    if (!groupEl) throw new Error('Data nav group not found')
+    const dropdown = groupEl.querySelector('div')
+    if (!dropdown) throw new Error('Data dropdown not found')
+    const links = within(dropdown).getAllByRole('link')
+    expect(links.map(link => link.textContent)).toEqual(['Stats', 'Deja', 'Metrics'])
+    expect(links.map(link => link.getAttribute('href'))).toEqual(['/stats', '/deja', '/metrics'])
     for (const link of links) {
       expect(link.textContent).not.toContain('(external site)')
       expect(link.querySelector('span')).toBeNull()

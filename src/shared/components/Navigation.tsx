@@ -37,6 +37,12 @@ const MENU: MenuGroup[] = [
       { label: 'Posterize', to: '/posterize' },
       { label: 'Wordchains', to: '/wordchains' },
       { label: 'iili', to: '/iili' },
+    ],
+  },
+  {
+    name: 'data',
+    label: 'Data',
+    links: [
       { label: 'Stats', to: '/stats' },
       { label: 'Deja', to: '/deja' },
       { label: 'Metrics', to: '/metrics' },
