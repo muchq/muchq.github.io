@@ -29,9 +29,9 @@ interface MenuGroup {
 
 const MENU: MenuGroup[] = [
   {
-    name: 'projects',
-    label: 'Projects',
-    // Projects are the house's own; they carry no subtitle, unlike Hmm's.
+    name: 'yep',
+    label: 'Yep',
+    // Yep is the house's own; they carry no subtitle, unlike Hmm's.
     links: [
       { label: 'Tracy', to: '/tracy' },
       { label: 'Posterize', to: '/posterize' },
@@ -40,8 +40,8 @@ const MENU: MenuGroup[] = [
     ],
   },
   {
-    name: 'data',
-    label: 'Data',
+    name: 'ohh',
+    label: 'Ohh',
     links: [
       { label: 'Stats', to: '/stats' },
       { label: 'Deja', to: '/deja' },
@@ -49,8 +49,8 @@ const MENU: MenuGroup[] = [
     ],
   },
   {
-    name: 'games',
-    label: 'Games',
+    name: 'wee',
+    label: 'Wee',
     links: [
       { label: 'Lobby', to: '/games' },
       { label: 'Thoughts', to: '/thoughts' },

@@ -20,11 +20,14 @@ describe('Navigation', () => {
 
   it('renders navigation links', () => {
     renderWithRouter(<Navigation />)
-    expect(testingScreen.getByText('Projects')).toBeDefined()
-    expect(testingScreen.getByText('Data')).toBeDefined()
-    expect(testingScreen.getByText('Games')).toBeDefined()
+    expect(testingScreen.getByText('Yep')).toBeDefined()
+    expect(testingScreen.getByText('Ohh')).toBeDefined()
+    expect(testingScreen.getByText('Wee')).toBeDefined()
     expect(testingScreen.getByText('Hmm')).toBeDefined()
     expect(testingScreen.queryByText('Code')).toBeNull()
+    expect(testingScreen.queryByText('Projects')).toBeNull()
+    expect(testingScreen.queryByText('Data')).toBeNull()
+    expect(testingScreen.queryByText('Games')).toBeNull()
     expect(testingScreen.queryByText('Elsewhere')).toBeNull()
     expect(testingScreen.getByText('Metrics')).toBeDefined()
   })
@@ -57,13 +60,13 @@ describe('Navigation', () => {
     }
   })
 
-  it('lists the Projects in their order, as plain internal links without subtitles', () => {
+  it('lists the Yep apps in their order, as plain internal links without subtitles', () => {
     renderWithRouter(<Navigation />)
-    const groupEl = testingScreen.getByText('Projects').closest('li')
-    if (!groupEl) throw new Error('Projects nav group not found')
+    const groupEl = testingScreen.getByText('Yep').closest('li')
+    if (!groupEl) throw new Error('Yep nav group not found')
     // The dropdown, not the group's own header anchor.
     const dropdown = groupEl.querySelector('div')
-    if (!dropdown) throw new Error('Projects dropdown not found')
+    if (!dropdown) throw new Error('Yep dropdown not found')
     const links = within(dropdown).getAllByRole('link')
     expect(links.map(link => link.textContent)).toEqual([
       'Tracy',
@@ -83,12 +86,12 @@ describe('Navigation', () => {
     }
   })
 
-  it('lists Stats, Deja, and Metrics under Data', () => {
+  it('lists Stats, Deja, and Metrics under Ohh', () => {
     renderWithRouter(<Navigation />)
-    const groupEl = testingScreen.getByText('Data').closest('li')
-    if (!groupEl) throw new Error('Data nav group not found')
+    const groupEl = testingScreen.getByText('Ohh').closest('li')
+    if (!groupEl) throw new Error('Ohh nav group not found')
     const dropdown = groupEl.querySelector('div')
-    if (!dropdown) throw new Error('Data dropdown not found')
+    if (!dropdown) throw new Error('Ohh dropdown not found')
     const links = within(dropdown).getAllByRole('link')
     expect(links.map(link => link.textContent)).toEqual(['Stats', 'Deja', 'Metrics'])
     expect(links.map(link => link.getAttribute('href'))).toEqual(['/stats', '/deja', '/metrics'])
@@ -96,6 +99,22 @@ describe('Navigation', () => {
       expect(link.textContent).not.toContain('(external site)')
       expect(link.querySelector('span')).toBeNull()
     }
+  })
+
+  it('lists the Wee apps in their order', () => {
+    renderWithRouter(<Navigation />)
+    const groupEl = testingScreen.getByText('Wee').closest('li')
+    if (!groupEl) throw new Error('Wee nav group not found')
+    const dropdown = groupEl.querySelector('div')
+    if (!dropdown) throw new Error('Wee dropdown not found')
+    const links = within(dropdown).getAllByRole('link')
+    expect(links.map(link => link.textContent)).toEqual(['Lobby', 'Thoughts', 'Party', 'Resilience'])
+    expect(links.map(link => link.getAttribute('href'))).toEqual([
+      '/games',
+      '/thoughts',
+      '/party',
+      '/resilience',
+    ])
   })
 
   it('marks external links with a visible ↗ kept out of the accessible name', () => {
