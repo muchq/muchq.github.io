@@ -4,7 +4,7 @@ import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
 import { generateRandomColor, generateRandomSpawnPosition } from '@/utils/gameUtils'
 import { RoomResources } from '@/utils/roomResources'
 import { DEFAULT_ROOM } from '@/utils/roomGeometry'
-import { bindRoomHotkey } from '@/utils/roomHotkey'
+import { bindRoomHotkey, bindShapeHotkey } from '@/utils/hotkeys'
 import { AvatarTrails } from '@/utils/avatarTrails'
 import { projectToNdc, viewProjection } from '@/utils/projection'
 import { VirtualJoystick } from '@/utils/virtualJoystick'
@@ -123,17 +123,13 @@ export const useThoughtsGame = () => {
       }
     }
 
-    // Event listeners
+    // Event listeners: movement keys are read per frame; the one-key
+    // commands are bound through the hotkey seam.
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return
       keys[e.key.toLowerCase()] = true
-
-      // Handle spacebar for shape cycling
-      if (e.key === ' ') {
-        e.preventDefault()
-        cyclePlayerShape()
-      }
     }
+    const unbindShapeHotkey = bindShapeHotkey(document, cyclePlayerShape)
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return
@@ -633,6 +629,7 @@ export const useThoughtsGame = () => {
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
       document.removeEventListener('keyup', handleKeyUp)
+      unbindShapeHotkey()
       mobileMenuToggle?.removeEventListener('click', handleMobileMenuToggle)
       soundToggle?.removeEventListener('click', handleSoundToggle)
       if (resizeCanvas) window.removeEventListener('resize', resizeCanvas)
