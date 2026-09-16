@@ -1,5 +1,6 @@
 import {
   composeFragmentShader,
+  glslFloat,
   NO_ROOM_GLSL,
   NO_WALLS_GLSL,
   PLAIN_SKY_GLSL,
@@ -139,10 +140,26 @@ const GLASSHOUSE_FLOOR_SHADE_GLSL = `
 // away. The moons are spheres at a great but finite distance, traced
 // from where the camera actually is, so they do slide, a little, which
 // is the whole of what tells you they are nearer than the stars.
+// Where the moons hang. The camera has no pitch control: it looks down
+// at the avatar, so the only sky you can ever see is a band a dozen
+// degrees deep above the horizon, and a moon placed by eye lands above
+// it. These sit inside that band by construction, and a test holds them
+// there against the camera's own frustum.
+export interface Moon {
+  centre: readonly [number, number, number]
+  radius: number
+  tint: readonly [number, number, number]
+}
+export const GLASSHOUSE_MOONS: readonly Moon[] = [
+  { centre: [-1500, 288, -2300], radius: 150, tint: [0.86, 0.88, 0.95] },
+  { centre: [2100, 128, 900], radius: 95, tint: [0.95, 0.74, 0.62] },
+]
+
+// A GLSL literal for a constant the room needs by value.
+const vec3 = (v: readonly [number, number, number]) => `vec3(${v.map(glslFloat).join(', ')})`
+
 const GLASSHOUSE_SKY_GLSL = `
   const vec3 MOON_LIGHT = normalize(vec3(-0.4, 0.3, 0.86));
-  const vec3 MOON_ONE = vec3(-1500.0, 620.0, -2300.0);
-  const vec3 MOON_TWO = vec3(2100.0, 1150.0, 900.0);
 
   // One moon: a lit disc with a soft limb, a few darker seas, and a
   // faint ring of light around it. Black where the ray misses.
@@ -184,8 +201,9 @@ const GLASSHOUSE_SKY_GLSL = `
       sky += vec3(0.85, 0.9, 1.0) * shape * twinkle * (0.7 + 0.9 * fract(pick * 71.0));
     }
 
-    sky += glasshouseMoon(u_cameraPos, rayDir, MOON_ONE, 210.0, vec3(0.86, 0.88, 0.95));
-    sky += glasshouseMoon(u_cameraPos, rayDir, MOON_TWO, 95.0, vec3(0.95, 0.74, 0.62));
+${GLASSHOUSE_MOONS.map(
+    moon => `    sky += glasshouseMoon(u_cameraPos, rayDir, ${vec3(moon.centre)}, ${glslFloat(moon.radius)}, ${vec3(moon.tint)});`,
+  ).join('\n')}
     return sky;
   }
 `

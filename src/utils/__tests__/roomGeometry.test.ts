@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { ROOM_GEOMETRIES, DEFAULT_ROOM, nextRoom, roomById, roomForGeometry, roomFragmentShader, RAY_TRACER_UNIFORMS } from '../roomGeometry'
-import { SHADER_FOV, depthCoefficients } from '../projection'
+import { ROOM_GEOMETRIES, DEFAULT_ROOM, GLASSHOUSE_MOONS, nextRoom, roomById, roomForGeometry, roomFragmentShader, RAY_TRACER_UNIFORMS } from '../roomGeometry'
+import { SHADER_FOV, cameraBasis, depthCoefficients, shaderRayDir, type Vec3 } from '../projection'
 import { PALETTE_KEYS, glslFloat, type Palette } from '../shaders'
-import { PLANE_GEOMETRY, SPHERE_RADIUS, sphereGeometry } from '../surface'
+import { PLANE_GEOMETRY, SPHERE_RADIUS, cameraView, frameAt, sphereGeometry, surfaceFor } from '../surface'
 import { CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND } from '../audioSystem'
 import { GAME_CONFIG } from '../gameClasses'
 
@@ -115,20 +115,54 @@ describe('the registry', () => {
     // great but finite distance, which is the whole of what parallaxes
     // them against the stars. Trace them from the origin instead and
     // the effect is gone.
-    expect(glasshouse).toContain('const vec3 MOON_ONE = vec3(-1500.0, 620.0, -2300.0);')
-    expect(glasshouse).toContain('const vec3 MOON_TWO = vec3(2100.0, 1150.0, 900.0);')
-    expect(glasshouse.match(/glasshouseMoon\(u_cameraPos, rayDir, MOON_(ONE|TWO)/g)).toHaveLength(2)
+    expect(GLASSHOUSE_MOONS).toHaveLength(2)
+    for (const moon of GLASSHOUSE_MOONS) {
+      expect(glasshouse).toContain(`glasshouseMoon(u_cameraPos, rayDir, vec3(${moon.centre.map(glslFloat).join(', ')})`)
+    }
     expect(glasshouse).toContain('float t = intersectSphere(ro, rd, centre, radius);')
 
     // Two different sizes, so one reads as nearer than the other.
-    expect(glasshouse).toContain('MOON_ONE, 210.0,')
-    expect(glasshouse).toContain('MOON_TWO, 95.0,')
+    expect(new Set(GLASSHOUSE_MOONS.map(moon => moon.radius)).size).toBe(2)
 
     // The other rooms keep the plain pass-through.
     for (const id of ['grid', 'sphere']) {
       const src = roomFragmentShader(roomById(id)!)
       expect(src).toMatch(/vec3 roomSky\(vec3 rayDir, vec3 base\) \{\s*return base;\s*\}/)
       expect(src).not.toContain('glasshouseMoon')
+    }
+  })
+
+  // A moon you cannot look at is not in the sky. The camera has no
+  // pitch control — it looks down at the avatar — so the only sky on
+  // screen is a sliver above the horizon, and the first pass put both
+  // moons over the top of it. Measured where the complaint lives: in
+  // the frame, not in degrees. The horizon sits around 0.63 of the way
+  // up, so the whole sky is the top fifth of the picture.
+  it('keeps every moon inside the sliver of sky the camera can actually see', () => {
+    const surface = surfaceFor(PLANE_GEOMETRY)
+    const frame = frameAt(surface, [0, 0, 0])
+    const waist = GAME_CONFIG.groundLevel + GAME_CONFIG.sphereRadius + GAME_CONFIG.bounceHeight / 2
+    const camera = { distance: 7, height: 4 } // GameState's own defaults
+    const { eye, target } = cameraView(surface, frame, frame.position, camera, GAME_CONFIG.groundLevel, waist)
+    const basis = cameraBasis(eye, target)
+    const elevation = (v: Vec3) => Math.atan2(v[1], Math.hypot(v[0], v[2]))
+    // Where an elevation lands up the frame. A ray is forward plus
+    // ndcY * up * fov, so its angle off forward has tangent ndcY * fov;
+    // the top of the frame is 1 whatever the aspect.
+    const pitch = elevation(basis.forward)
+    const upFrame = (radians: number) => Math.tan(radians - pitch) / SHADER_FOV
+    expect(upFrame(elevation(shaderRayDir(0, 1, basis, 16 / 9)))).toBeCloseTo(1, 3)
+
+    const horizon = upFrame(0)
+    expect(horizon).toBeLessThan(1) // else no sky is on screen at all
+    // Half a percent of the frame is the smallest gap that still reads
+    // as a gap at the heights people actually play at.
+    const clear = 0.005
+    for (const moon of GLASSHOUSE_MOONS) {
+      const centre = elevation(moon.centre as unknown as Vec3)
+      const half = Math.atan2(moon.radius, Math.hypot(moon.centre[0], moon.centre[1], moon.centre[2]))
+      expect(upFrame(centre - half), `${moon.centre} bottom`).toBeGreaterThan(horizon + clear)
+      expect(upFrame(centre + half), `${moon.centre} top`).toBeLessThan(1 - clear)
     }
   })
 
