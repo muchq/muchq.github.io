@@ -49,6 +49,17 @@ export interface SoundProfile {
   filter?: { from: number; to: number; seconds: number; q: number }
   // Optional one-shots and a sample kick layered on the procedural tune.
   samples?: SoundSamples
+  // A second voice on a longer grid than the riff. One entry per
+  // `noteBeats`; 0 is a rest. Absent is no lead.
+  lead?: {
+    wave: OscillatorType
+    noteBeats: number
+    melody: number[]
+    // How long a sounding note hangs, in beats. Absent is noteBeats.
+    sustainBeats?: number
+    // Multiplier on top of the room gain. Absent is 1.
+    gain?: number
+  }
 }
 
 // Peaceful sine arpeggios, the sound the world always had.
@@ -132,6 +143,23 @@ export const TECHNO_SOUND: SoundProfile = {
   pulse: { from: 190, to: 38, duration: 0.19, beats: 1, gain: 0.55 },
   filter: { from: 1600, to: 220, seconds: 0.11, q: 10 },
   gain: 0.5,
+  // One slot a bar for 32 bars (~55s). A handful of notes, long sustain.
+  lead: {
+    wave: 'sine',
+    noteBeats: 4,
+    sustainBeats: 6,
+    gain: 0.55,
+    melody: [
+      69, 0, 0, 0, // A
+      0, 0, 0, 0,
+      0, 0, 72, 0, // C
+      0, 0, 0, 0,
+      0, 0, 0, 0,
+      76, 0, 0, 0, // E
+      0, 0, 0, 71, // B
+      0, 0, 69, 0, // A
+    ],
+  },
   samples: {
     bank: {
       kick: `${GH}/kick.wav`,
@@ -334,6 +362,9 @@ export class AudioSystem implements IAudioSystem {
     tempo: number
     noteIndex: number
     chordIndex: number
+    // Absolute sixteenth (or profile step) since the tune started; the
+    // lead is longer than the riff, so it cannot key off noteIndex alone.
+    stepIndex: number
   }
   lastBounceTime: number
   notesPlayedCount: number
@@ -356,7 +387,8 @@ export class AudioSystem implements IAudioSystem {
       nextNoteTime: 0,
       tempo: profile.tempo,
       noteIndex: 0,
-      chordIndex: 0
+      chordIndex: 0,
+      stepIndex: 0,
     }
 
     // Detect mobile device
@@ -379,6 +411,7 @@ export class AudioSystem implements IAudioSystem {
     this.backgroundMusic.tempo = profile.tempo
     this.backgroundMusic.noteIndex = 0
     this.backgroundMusic.chordIndex = 0
+    this.backgroundMusic.stepIndex = 0
     // The step already queued belongs to the tune being left, and a slow
     // one can be seconds out. Walking into a room should not be walking
     // into silence, so the next step is due now.
@@ -620,6 +653,41 @@ export class AudioSystem implements IAudioSystem {
     }
   }
 
+  // The long voice: no pluck, its own wave, quieter, hangs past the bar.
+  private createLeadNote(frequency: number, startTime: number, duration: number, volume: number, wave: OscillatorType): void {
+    if (!this.audioContext || !this.backgroundMusic.gainNode) return
+    try {
+      const oscillator = this.audioContext.createOscillator()
+      const gainNode = this.audioContext.createGain()
+      oscillator.type = wave
+      oscillator.frequency.setValueAtTime(frequency, startTime)
+      gainNode.gain.setValueAtTime(0, startTime)
+      gainNode.gain.linearRampToValueAtTime(volume, startTime + Math.min(0.4, duration * 0.15))
+      gainNode.gain.setValueAtTime(volume, startTime + duration * 0.7)
+      gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+      oscillator.connect(gainNode)
+      gainNode.connect(this.backgroundMusic.gainNode)
+      oscillator.start(startTime)
+      oscillator.stop(startTime + duration)
+      this.notesPlayedCount++
+    } catch {
+      // Silent failure for lead note
+    }
+  }
+
+  private scheduleLead(stepIndex: number, startTime: number, secondsPerBeat: number, noteBeats: number): void {
+    const lead = this.profile.lead
+    if (!lead || lead.melody.length === 0) return
+    const stepsPerLead = Math.max(1, Math.round(lead.noteBeats / noteBeats))
+    if (stepIndex % stepsPerLead !== 0) return
+    const leadIndex = (stepIndex / stepsPerLead) % lead.melody.length
+    const midi = lead.melody[leadIndex]
+    if (midi <= 0) return
+    const sustainBeats = lead.sustainBeats ?? lead.noteBeats
+    const volume = 0.025 * this.profile.gain * (lead.gain ?? 1)
+    this.createLeadNote(midiToFreq(midi), startTime, secondsPerBeat * sustainBeats, volume, lead.wave)
+  }
+
   // The kick: sample when the bank has one, otherwise a sine drop. Its
   // own voice, under everything, so the melody's wave and filter never
   // touch it.
@@ -741,7 +809,7 @@ export class AudioSystem implements IAudioSystem {
 
     // Schedule ahead by 200ms
     while (this.backgroundMusic.nextNoteTime < currentTime + 0.2) {
-      const { noteIndex, nextNoteTime } = this.backgroundMusic
+      const { noteIndex, nextNoteTime, stepIndex } = this.backgroundMusic
 
       if (pulseEvery > 0 && noteIndex % pulseEvery === 0) {
         this.createPulse(nextNoteTime)
@@ -756,6 +824,8 @@ export class AudioSystem implements IAudioSystem {
         this.createSimpleNote(midiToFreq(melodyMidi), nextNoteTime, noteLength * 1.5)
       }
 
+      this.scheduleLead(stepIndex, nextNoteTime, secondsPerBeat, noteBeats)
+
       if (noteIndex % stepsPerChord === 0) {
         const chord = chords[this.backgroundMusic.chordIndex]
         const chordFreqs = chord.map(midi => midiToFreq(midi + CHORD_OCTAVE))
@@ -767,6 +837,7 @@ export class AudioSystem implements IAudioSystem {
       // Advance to next note
       this.backgroundMusic.nextNoteTime += noteLength
       this.backgroundMusic.noteIndex = (noteIndex + 1) % melody.length
+      this.backgroundMusic.stepIndex = stepIndex + 1
     }
 
     // Schedule next batch
@@ -805,6 +876,7 @@ export class AudioSystem implements IAudioSystem {
     this.backgroundMusic.nextNoteTime = context.currentTime
     this.backgroundMusic.noteIndex = 0
     this.backgroundMusic.chordIndex = 0
+    this.backgroundMusic.stepIndex = 0
 
     this.scheduleNextMusicNotes()
   }
@@ -846,9 +918,9 @@ export class AudioSystem implements IAudioSystem {
   }
 
   private createMobileBackgroundTrack(): ArrayBuffer {
-    // Create a longer track that matches the Web Audio procedural generation
+    // Long enough for one full 32-bar lead at 140 (~55s), plus a little.
     const sampleRate = 44100
-    const duration = 32 // 32 seconds - enough for full chord progression cycle
+    const duration = 64
     const samples = sampleRate * duration
 
     // Create a temporary audio context just for generating the audio
@@ -857,18 +929,20 @@ export class AudioSystem implements IAudioSystem {
     const channelData = buffer.getChannelData(0)
 
     // The same profile the Web Audio version plays
-    const { melody, chords, noteBeats, chordBeats, melodyChance, wave, gain, pulse, filter } = this.profile
+    const { melody, chords, noteBeats, chordBeats, melodyChance, wave, gain, pulse, filter, lead } = this.profile
     const secondsPerBeat = 60.0 / this.profile.tempo
     const noteLength = secondsPerBeat * noteBeats
     const chordLength = secondsPerBeat * chordBeats
     const stepsPerChord = Math.max(1, Math.round(chordBeats / noteBeats))
     const pulseEvery = this.stepsPerPulse(noteBeats)
     const kick = this.loadedKick()
+    const stepsPerLead = lead ? Math.max(1, Math.round(lead.noteBeats / noteBeats)) : 0
 
     // Pre-render the procedural music pattern
     let currentTime = 0
     let noteIndex = 0
     let chordIndex = 0
+    let stepIndex = 0
 
     // Use a seeded random for consistent generation
     let seed = 12345 // Fixed seed for consistent audio
@@ -903,6 +977,20 @@ export class AudioSystem implements IAudioSystem {
         })
       }
 
+      if (lead && stepsPerLead > 0 && stepIndex % stepsPerLead === 0) {
+        const leadMidi = lead.melody[(stepIndex / stepsPerLead) % lead.melody.length]
+        if (leadMidi > 0) {
+          const sustain = secondsPerBeat * (lead.sustainBeats ?? lead.noteBeats)
+          renderNote(channelData, sampleRate, {
+            frequency: midiToFreq(leadMidi),
+            startTime: currentTime,
+            duration: sustain,
+            volume: 0.025 * gain * (lead.gain ?? 1),
+            wave: lead.wave,
+          })
+        }
+      }
+
       if (noteIndex % stepsPerChord === 0) {
         const chord = chords[chordIndex]
         for (const midi of chord) {
@@ -920,6 +1008,7 @@ export class AudioSystem implements IAudioSystem {
       // Advance to next note (same logic as Web Audio)
       currentTime += noteLength
       noteIndex = (noteIndex + 1) % melody.length
+      stepIndex++
     }
 
     // Apply fade-in and fade-out to prevent clicks at loop boundaries

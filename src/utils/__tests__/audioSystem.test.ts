@@ -432,6 +432,32 @@ describe('AudioSystem', () => {
     expect(TECHNO_SOUND.chords.every(c => c.length <= 3)).toBe(true)
   })
 
+  // A second voice over the looping riff: one step a bar for 32 bars,
+  // mostly rests, hanging long enough to feel like space rather than a tune.
+  it('carries a sparse 32-bar lead above the techno riff', () => {
+    const lead = TECHNO_SOUND.lead!
+    expect(lead.noteBeats).toBe(4)
+    expect(lead.melody).toHaveLength(32)
+    const sounding = lead.melody.filter(n => n > 0)
+    expect(sounding.length).toBeGreaterThanOrEqual(4)
+    expect(sounding.length).toBeLessThanOrEqual(10)
+    for (const note of sounding) {
+      expect(note).toBeGreaterThanOrEqual(60)
+    }
+    const loopBars = lead.melody.length
+    expect(loopBars * lead.noteBeats).toBe(128) // 32 bars × 4 beats
+  })
+
+  it('sounds the lead on its own wave, not the saw riff', () => {
+    system.setProfile(TECHNO_SOUND)
+    system.startBackgroundMusic()
+    // First lead note is on bar 0; a sixteenth is ~0.1s at 140, so one
+    // scheduler tick already covers the downbeat.
+    advance(200)
+    const leadWave = TECHNO_SOUND.lead!.wave
+    expect(oscillators.some(o => o.type === leadWave)).toBe(true)
+  })
+
   // The riff is the room, so where it sits matters: a bright lead over
   // the top is a different genre. Everything sounding is below middle C.
   it('keeps the techno riff and its drone down low', () => {
