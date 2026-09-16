@@ -6,6 +6,7 @@ import { HUB_RESUME_TOKEN_KEY } from '@/utils/hubSession'
 import { HubStream, hubPlayUrl } from '@/utils/hubStream'
 import type { HubRoom, HubSessionReady } from '@/utils/hubStream'
 import { HubWorldLink } from '@/utils/hubWorldLink'
+import { PLANE_GEOMETRY } from '@/utils/surface'
 import type { CastleMoveName, CastleUpdate } from '@/apps/castle/wire'
 import type { GolfMoveName, GolfUpdate } from '@/apps/golf/wire'
 import { useCastleTable } from './useCastleTable'
@@ -237,6 +238,9 @@ export const useLobby = ({
 
   const handleRoom = useCallback(
     (next: HubRoom) => {
+      // The room's surface, before its world is joined: the spawn has to
+      // be a point of it or the hub refuses the join (MoonBase#1554).
+      worldRef.current?.roomGeometry(next.geometry ?? PLANE_GEOMETRY)
       const pending = switchRef.current
       if (pending !== null && next.roomId !== pending.roomId) {
         // The resumed room's own state, on the way out of it.

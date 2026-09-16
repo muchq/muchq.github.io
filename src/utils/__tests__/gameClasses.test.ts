@@ -50,7 +50,6 @@ describe('gameClasses', () => {
       
       expect(gameState.players.size).toBe(0)
       expect(gameState.localPlayerId).toBeNull()
-      expect(gameState.camera.angle).toBe(0)
       expect(gameState.camera.distance).toBe(7)
       expect(gameState.camera.height).toBe(4)
     })

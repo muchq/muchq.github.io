@@ -9,17 +9,21 @@ import {
 import { attractorsOutside, type AttractorSpec } from './attractors'
 import { GAME_CONFIG } from './gameClasses'
 import type { Vec3 } from './projection'
-import { planeWorld, sphereWorld, SPHERE_ROOM, type WorldMapping } from './sphereWorld'
+import { PLANE_GEOMETRY, sphereGeometry, SPHERE_RADIUS, sameGeometry, type Geometry } from './surface'
 import { CALM_SOUND, CHIPTUNE_SOUND, type SoundProfile } from './audioSystem'
 
 // The rooms the world can be: each is a palette the sky and floor are
-// painted in, a mapping from the hub's flat world to where the room
-// draws it, how the shared tracer is tuned there (fog, block size,
-// reflections), a GLSL block the ray tracer calls for its ground, walls
-// and shading (see shaders.ts), the attractors hung outside, the tint
-// those take on through the glass, how long a wake an avatar leaves,
-// and what it sounds like. A new room is a new entry here. The hotkey cycles the list in order and
-// the hub will one day name one per room (MoonBase#1554).
+// painted in, the surface the hub keeps its players on (MoonBase#1554),
+// how the shared tracer is tuned there (fog, block size, reflections), a
+// GLSL block the ray tracer calls for its ground, walls and shading (see
+// shaders.ts), the attractors hung outside, the tint those take on
+// through the glass, how long a wake an avatar leaves, and what it
+// sounds like. A new room is a new entry here.
+//
+// Two rooms can stand on one surface: grid and glasshouse are the same
+// plane in different light, so switching between them is this client's
+// own business, while stepping to or from the sphere is the room's and
+// goes through the hub. The hotkey cycles the list in order.
 
 export type RoomGeometryId = 'grid' | 'glasshouse' | 'sphere'
 
@@ -27,7 +31,10 @@ export interface RoomGeometry {
   id: RoomGeometryId
   label: string
   palette: Palette
-  world: WorldMapping
+  // The surface the hub holds this room's players on.
+  geometry: Geometry
+  // Whether the floor has an edge to draw; a sphere closes on itself.
+  bounded: boolean
   // Distance fog density; 0 for none.
   fog: number
   // Side of a checker cell, in plane units.
@@ -144,16 +151,15 @@ const GLASSHOUSE_GLSL = PLANE_FLOOR_GLSL + PLAIN_FLOOR_SHADE_GLSL + `
   }
 `
 
-// The inside of a giant sphere: the hub's plane laid on its wall as a
-// square patch, x as longitude and z as latitude, and the wall going on
-// past the patch's edge all the way round; the red lines are where the
-// hub stops you. Drawn like a cartridge-era platformer: flat colour in
-// a few bands, and an ink outline round every avatar.
+// The inside of a giant sphere, the whole of it: the floor is the wall
+// wherever you are standing, and you can walk to any of it. The checker
+// is laid out in arc length, so a block is the same size underfoot at
+// the equator as at a pole, and nothing is drawn where the world ends
+// because it does not. Drawn like a cartridge-era platformer: flat
+// colour in a few bands, and an ink outline round every avatar.
 const SPHERE_GLSL = NO_WALLS_GLSL + `
   const float PI = 3.14159265;
-  const float SPHERE_RADIUS = ${SPHERE_ROOM.radius.toFixed(1)};
-  const float SPHERE_WRAP = ${SPHERE_ROOM.wrap.toFixed(2)};
-  const float SPHERE_LAT = ${SPHERE_ROOM.latitude.toFixed(2)};
+  const float SPHERE_RADIUS = ${SPHERE_RADIUS.toFixed(1)};
   const vec3 TOON_LIGHT = normalize(vec3(0.4, 1.0, 0.3));
 
   Floor roomFloor(vec3 ro, vec3 rd) {
@@ -163,8 +169,7 @@ const SPHERE_GLSL = NO_WALLS_GLSL + `
     f.normal = -n;
     float lat = asin(clamp(n.y, -1.0, 1.0));
     float lon = atan(n.x, -n.z);
-    float b = u_worldBoundary;
-    f.coord = vec2(lon / (PI * SPHERE_WRAP) * b, lat / (PI * 0.5 * SPHERE_LAT) * b);
+    f.coord = vec2(lon * SPHERE_RADIUS * cos(lat), lat * SPHERE_RADIUS);
     return f;
   }
 
@@ -186,7 +191,8 @@ export const ROOM_GEOMETRIES: readonly RoomGeometry[] = [
     id: 'grid',
     label: 'Grid',
     palette: GRID_PALETTE,
-    world: planeWorld,
+    geometry: PLANE_GEOMETRY,
+    bounded: true,
     fog: 0.05,
     block: 0.5,
     reflect: 1,
@@ -200,7 +206,8 @@ export const ROOM_GEOMETRIES: readonly RoomGeometry[] = [
     id: 'glasshouse',
     label: 'Glasshouse',
     palette: GLASSHOUSE_PALETTE,
-    world: planeWorld,
+    geometry: PLANE_GEOMETRY,
+    bounded: true,
     fog: 0.05,
     block: 0.5,
     reflect: 1,
@@ -214,7 +221,8 @@ export const ROOM_GEOMETRIES: readonly RoomGeometry[] = [
     id: 'sphere',
     label: 'Sphere',
     palette: MARIO_PALETTE,
-    world: sphereWorld(GAME_CONFIG.worldBoundary),
+    geometry: sphereGeometry(),
+    bounded: false,
     fog: 0,
     block: 2.5,
     reflect: 0,
@@ -235,6 +243,16 @@ export function roomById(id: string): RoomGeometry | undefined {
 export function nextRoom(id: RoomGeometryId): RoomGeometry {
   const i = ROOM_GEOMETRIES.findIndex(r => r.id === id)
   return ROOM_GEOMETRIES[(i + 1) % ROOM_GEOMETRIES.length]
+}
+
+// Which room to draw for the surface the hub named. Several rooms can
+// share one, so a room the client was heading for wins; otherwise it is
+// the first that stands on it, and a surface no room draws (a sphere of
+// some other size) is drawn flat rather than not at all.
+export function roomForGeometry(geometry: Geometry, wanted?: RoomGeometryId): RoomGeometry {
+  const preferred = wanted && roomById(wanted)
+  if (preferred && sameGeometry(preferred.geometry, geometry)) return preferred
+  return ROOM_GEOMETRIES.find(r => sameGeometry(r.geometry, geometry)) ?? DEFAULT_ROOM
 }
 
 export function roomFragmentShader(room: RoomGeometry): string {

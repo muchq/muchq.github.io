@@ -3,10 +3,10 @@ import { renderHook } from '@testing-library/react'
 import { useThoughtsGame } from '../useThoughtsGame'
 import { fakeGl } from '@/test/fakeGl'
 import { ROOM_HOTKEY, SHAPE_HOTKEY } from '@/utils/hotkeys'
-import { roomById } from '@/utils/roomGeometry'
+
 import { GAME_CONFIG, Player } from '@/utils/gameClasses'
 import { CALM_SOUND, CHIPTUNE_SOUND, type SoundProfile } from '@/utils/audioSystem'
-import { SPHERE_ROOM } from '@/utils/sphereWorld'
+import { PLANE_GEOMETRY, SPHERE_RADIUS, sphereGeometry } from '@/utils/surface'
 import type { HubWorldLink } from '@/utils/hubWorldLink'
 import type { WorldLink } from '@/utils/worldSync'
 
@@ -30,6 +30,7 @@ const worldLink = (): WorldLink => ({
   isConnected: false,
   sendPositionUpdate: vi.fn(),
   sendShapeUpdate: vi.fn(),
+  sendSetGeometry: vi.fn(),
   sendLeave: vi.fn(),
   disconnect: vi.fn(),
   reconnect: vi.fn(),
@@ -56,6 +57,25 @@ describe('useThoughtsGame', () => {
     const { result } = renderHook(() => useThoughtsGame())
     cleanup = result.current.initializeGame(canvas, undefined, undefined, undefined, offlineLink())
   }
+  // The same, on a link the test keeps hold of: the hook hangs its
+  // geometry callback on it, which is how the hub answers back.
+  const startWith = (link: WorldLink) => {
+    gl = fakeGl()
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => gl as never)
+    const { result } = renderHook(() => useThoughtsGame())
+    cleanup = result.current.initializeGame(
+      canvas,
+      undefined,
+      undefined,
+      undefined,
+      { attach: () => link } as unknown as HubWorldLink
+    )
+  }
+  const avatar = () =>
+    (gl.uniform3fv.mock.calls.filter(c => c[0]?.uniform === 'u_objectCenters').at(-1)![1] as number[]).slice(0, 3)
+  const apart = (a: number[], b: number[]) =>
+    Math.acos(Math.min(1, dot(a, b) / (Math.hypot(...a) * Math.hypot(...b)))) * SPHERE_RADIUS
+
   const quadVao = () => gl.createVertexArray.mock.results[0].value
   const lastQuadDraw = () => {
     const draws = gl.drawArrays.mock.calls
@@ -126,7 +146,7 @@ describe('useThoughtsGame', () => {
     expect(vec('u_cameraPos').at(-1)).toEqual([0, 3, 7])
   })
 
-  it('tilts the camera to the sphere room, lifted, from its own plane point', () => {
+  it('stands the sphere camera on the wall behind the avatar, aimed inward and lifted', () => {
     start()
     frame()
     press(ROOM_HOTKEY)
@@ -134,14 +154,20 @@ describe('useThoughtsGame', () => {
     expect(vec('u_cameraUp').at(-1)).toEqual([0, 1, 0])
     press(ROOM_HOTKEY)
     frame(48)
-    const world = roomById('sphere')!.world
+    const lift = 2.5
     const up = vec('u_cameraUp').at(-1)!
     const pos = vec('u_cameraPos').at(-1)!
-    world.up(0, 7).forEach((v, i) => expect(up[i]).toBeCloseTo(v))
-    world.place(0, 7, 5).forEach((v, i) => expect(pos[i]).toBeCloseTo(v))
-    // Up points at the centre of the sphere.
+    const target = vec('u_cameraTarget').at(-1)!
+    // It stands its distance along the wall and rises 5 off it, so it is
+    // never behind the floor whatever part of the sphere it stands on.
+    expect(Math.hypot(...pos)).toBeCloseTo(SPHERE_RADIUS - 5, 6)
+    expect(Math.hypot(...up)).toBeCloseTo(1, 9)
     expect(dot(up, pos)).toBeLessThan(0)
-    world.place(0, 0, zenithHeight + world.lookLift).forEach((v, i) => expect(vec('u_cameraTarget').at(-1)![i]).toBeCloseTo(v))
+    expect(Math.hypot(...target)).toBeCloseTo(SPHERE_RADIUS - (zenithHeight + lift), 6)
+    // Behind, not on top of: the camera is a walk away from the avatar.
+    const centres = gl.uniform3fv.mock.calls.filter(c => c[0]?.uniform === 'u_objectCenters').at(-1)![1] as number[]
+    const angle = Math.acos(dot(pos, centres.slice(0, 3)) / (Math.hypot(...pos) * Math.hypot(...centres.slice(0, 3))))
+    expect(angle).toBeCloseTo(7 / SPHERE_RADIUS, 2)
   })
 
   it('stands the avatar on the sphere wall, up toward the centre', () => {
@@ -155,7 +181,7 @@ describe('useThoughtsGame', () => {
     const centre = centres.slice(0, 3)
     const up = ups.slice(0, 3)
     const height = new Player('p').getBouncingY(48) - GAME_CONFIG.groundLevel
-    expect(Math.hypot(...centre)).toBeCloseTo(SPHERE_ROOM.radius - height, 3)
+    expect(Math.hypot(...centre)).toBeCloseTo(SPHERE_RADIUS - height, 3)
     expect(Math.hypot(...up)).toBeCloseTo(1)
     expect(dot(up, centre)).toBeLessThan(0)
   })
@@ -193,13 +219,79 @@ describe('useThoughtsGame', () => {
     expect(gl.compileShader).toHaveBeenCalledTimes(4)
   })
 
+  // The sphere is somewhere to walk, not a patch: a step is the same
+  // arc wherever you take it, and there is no edge to stop at — the
+  // avatar keeps going well past where the plane's ±50 wall stood.
+  it('walks the sphere with nothing to stop it', () => {
+    start()
+    frame()
+    press(ROOM_HOTKEY)
+    press(ROOM_HOTKEY)
+    frame(48)
+    const from = avatar()
+    press('w')
+    for (let i = 0; i < 300; i++) frame(64 + i)
+    const to = avatar()
+    expect(apart(from, to)).toBeCloseTo(300 * GAME_CONFIG.moveSpeed, 0)
+    expect(apart(from, to)).toBeGreaterThan(GAME_CONFIG.worldBoundary)
+    // Still standing on the wall, bobbing the height it always bobs.
+    expect(Math.hypot(...to)).toBeGreaterThan(SPHERE_RADIUS - 3)
+    expect(Math.hypot(...to)).toBeLessThan(SPHERE_RADIUS)
+  })
+
+  it('still stops at the edge of the plane', () => {
+    start()
+    frame()
+    const from = avatar()
+    expect(from[0]).toBeCloseTo(0, 6)
+    press('d')
+    for (let i = 0; i < 400; i++) frame(32 + i)
+    expect(avatar()[0]).toBeCloseTo(GAME_CONFIG.worldBoundary, 6)
+  })
+
+  // The room's shape belongs to the room: the key asks the hub, and the
+  // world changes when the hub says so, for everyone at once. Two rooms
+  // standing on one surface are just this client's own light.
+  it('asks the hub to reshape the room and redraws when it answers', () => {
+    const link = { ...worldLink(), isConnected: true }
+    startWith(link)
+    frame()
+    setProfile.mockClear()
+    press(ROOM_HOTKEY)
+    expect(link.sendSetGeometry).not.toHaveBeenCalled()
+    // Drawn here and now: the glasshouse hangs its attractors this frame.
+    frame(32)
+    expect(gl.drawArrays.mock.calls.filter(c => c[0] === gl.LINE_STRIP).length).toBeGreaterThan(0)
+    press(ROOM_HOTKEY)
+    expect(link.sendSetGeometry).toHaveBeenCalledWith(sphereGeometry(SPHERE_RADIUS))
+    // Not yet: the hub decides, and the answer reaches everyone in it.
+    expect(setProfile).not.toHaveBeenLastCalledWith(CHIPTUNE_SOUND)
+    link.onGeometryChange!(sphereGeometry(SPHERE_RADIUS))
+    expect(setProfile).toHaveBeenLastCalledWith(CHIPTUNE_SOUND)
+  })
+
+  it('follows a reshape this client never asked for, and rounds the map for a globe', () => {
+    const map = document.createElement('div')
+    map.id = 'mini-map'
+    document.body.appendChild(map)
+    const link = { ...worldLink(), isConnected: true }
+    startWith(link)
+    frame()
+    link.onGeometryChange!(sphereGeometry(SPHERE_RADIUS))
+    expect(setProfile).toHaveBeenLastCalledWith(CHIPTUNE_SOUND)
+    expect(map.style.borderRadius).toBe('50%')
+    frame(32)
+    expect(Math.hypot(...avatar())).toBeGreaterThan(SPHERE_RADIUS - 3)
+    link.onGeometryChange!(PLANE_GEOMETRY)
+    expect(setProfile).toHaveBeenLastCalledWith(CALM_SOUND)
+    expect(map.style.borderRadius).toBe('')
+    expect(link.sendSetGeometry).not.toHaveBeenCalled()
+    map.remove()
+  })
+
   it('cycles the avatar shape on space through the hotkey seam, and tells the hub', () => {
     const link = { ...worldLink(), isConnected: true }
-    gl = fakeGl()
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => gl as never)
-    const { result } = renderHook(() => useThoughtsGame())
-    const attach = () => link
-    cleanup = result.current.initializeGame(canvas, undefined, undefined, undefined, { attach } as unknown as HubWorldLink)
+    startWith(link)
     press(SHAPE_HOTKEY)
     expect(link.sendShapeUpdate).toHaveBeenLastCalledWith(1)
     // A held key repeating is one press, not one per repeat.

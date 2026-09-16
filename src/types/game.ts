@@ -11,7 +11,6 @@ export interface GameConfig {
 }
 
 export interface Camera {
-  angle: number
   distance: number
   height: number
 }
