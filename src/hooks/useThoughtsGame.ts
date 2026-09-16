@@ -638,6 +638,7 @@ export const useThoughtsGame = () => {
           trails?.prune(gameState.players.keys())
           built.lines.draw(
             viewProjection(cameraPosition, cameraTargetPos, canvas.width / canvas.height, cameraUp),
+            cameraPosition,
             time * 0.001,
             room.behindGlass,
             trails?.strips(id => gameState.players.get(id)?.color ?? [1, 1, 1], cameraPosition) ?? []

@@ -21,6 +21,27 @@ export interface AttractorStyle {
   twinkle: number
   // How white the lit part burns; 0 keeps the curve's own colour.
   core: number
+  // The comet: a ribbon drawn over the lit stretch, as wide as this
+  // fraction of the curve's own radius. 0 leaves the bare wire, which
+  // is its own look next to a curve that has one.
+  comet: number
+}
+
+// The most points a comet is built over, however long the lit stretch
+// is: a ribbon is rebuilt every frame, and past a few hundred points
+// the far end of it is a pixel wide anyway.
+export const COMET_LIMIT = 600
+
+// The stretch of a curve just behind its head, oldest first: the indices
+// the comet's ribbon is built over. A curve is a loop, so the stretch
+// wraps round the end of it rather than stopping there.
+export function cometStretch(points: number, head: number, length: number): number[] {
+  const span = Math.min(Math.max(Math.round(length), 0), Math.min(points, COMET_LIMIT))
+  if (span < 2) return []
+  const last = Math.floor(head) % points
+  const out: number[] = []
+  for (let i = span - 1; i >= 0; i--) out.push((last - i + points * Math.ceil(i / points + 1)) % points)
+  return out
 }
 
 export interface AttractorSpec {
@@ -131,7 +152,7 @@ export function attractorsOutside(boundary: number): AttractorSpec[] {
       spin: 0.03,
       points: 3000,
       speed: 400,
-      style: { bead: 0, tail: 0.3, twinkle: 0, core: 0.6 },
+      style: { bead: 0, tail: 0.3, twinkle: 0, core: 0.6, comet: 0.03 },
     },
     // North: a coil, taken coarsely so it reads as a chain of beads.
     {
@@ -142,7 +163,7 @@ export function attractorsOutside(boundary: number): AttractorSpec[] {
       spin: -0.04,
       points: 1100,
       speed: 90,
-      style: { bead: 7, tail: 0.12, twinkle: 0, core: 0.35 },
+      style: { bead: 7, tail: 0.12, twinkle: 0, core: 0.35, comet: 0.014 },
     },
     // West: a lattice, taken finely and shimmering, a drift of sparks.
     {
@@ -153,7 +174,8 @@ export function attractorsOutside(boundary: number): AttractorSpec[] {
       spin: 0.025,
       points: 4000,
       speed: 260,
-      style: { bead: 0, tail: 0.06, twinkle: 0.9, core: 0.2 },
+      // Sparks and nothing else: a comet would only smear them.
+      style: { bead: 0, tail: 0.06, twinkle: 0.9, core: 0.2, comet: 0 },
     },
     // South: a shell, solid and slow, lit by a short hard spark.
     {
@@ -164,7 +186,7 @@ export function attractorsOutside(boundary: number): AttractorSpec[] {
       spin: 0.045,
       points: 2600,
       speed: 700,
-      style: { bead: 0, tail: 0.02, twinkle: 0, core: 1 },
+      style: { bead: 0, tail: 0.02, twinkle: 0, core: 1, comet: 0.05 },
     },
   ]
 }

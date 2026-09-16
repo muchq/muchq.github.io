@@ -10,7 +10,8 @@ import { fakeGl } from '@/test/fakeGl'
 // occlude them and they occlude nothing.
 
 const specs = attractorsOutside(50)
-const vp = viewProjection([0, 3, 10], [0, 0, 0], 1.5)
+const eye: [number, number, number] = [0, 3, 10]
+const vp = viewProjection(eye, [0, 0, 0], 1.5)
 // A ribbon of `points` places: two vertices each, x, y, z, index, edge.
 const wake = (points: number) => ({
   data: new Float32Array(points * 2 * 5).map((_, i) => (i % 5 === 3 ? Math.floor(i / 10) : i % 5 === 4 ? (i % 10 < 5 ? -1 : 1) : i)),
@@ -20,26 +21,73 @@ const wake = (points: number) => ({
 })
 
 describe('LineStrips', () => {
+  const uploads = (gl: ReturnType<typeof fakeGl>, usage: number) =>
+    gl.bufferData.mock.calls.filter(call => call[2] === usage).length
+
   it('uploads one trajectory per attractor, once', () => {
     const gl = fakeGl()
     const lines = LineStrips.create(gl, specs)!
-    expect(gl.bufferData).toHaveBeenCalledTimes(specs.length)
-    lines.draw(vp, 1.0, [0.5, 0.8, 1, 0.2])
-    lines.draw(vp, 2.0, [0.5, 0.8, 1, 0.2])
-    expect(gl.bufferData).toHaveBeenCalledTimes(specs.length)
+    expect(uploads(gl, gl.STATIC_DRAW)).toBe(specs.length)
+    lines.draw(vp, eye, 1.0, [0.5, 0.8, 1, 0.2])
+    lines.draw(vp, eye, 2.0, [0.5, 0.8, 1, 0.2])
+    // The curve itself never moves in its own ball, so it is sent once
+    // however many frames are drawn over it.
+    expect(uploads(gl, gl.STATIC_DRAW)).toBe(specs.length)
   })
 
   it('draws every attractor as a line strip of its own point count', () => {
     const gl = fakeGl()
-    LineStrips.create(gl, specs)!.draw(vp, 0, [0, 0, 0, 0])
-    expect(gl.drawArrays).toHaveBeenCalledTimes(specs.length)
-    specs.forEach((s, i) => expect(gl.drawArrays).toHaveBeenNthCalledWith(i + 1, gl.LINE_STRIP, 0, s.points))
+    LineStrips.create(gl, specs)!.draw(vp, eye, 0, [0, 0, 0, 0])
+    const wires = gl.drawArrays.mock.calls.filter(call => call[0] === gl.LINE_STRIP)
+    expect(wires).toHaveLength(specs.length)
+    specs.forEach((s, i) => expect(wires[i]).toEqual([gl.LINE_STRIP, 0, s.points]))
+  })
+
+  // The lit stretch of a curve is drawn again as a ribbon, so the head
+  // reads as a comet rather than a bright pixel. It is rebuilt every
+  // frame because it has to face the camera, and a curve that asks for
+  // no comet keeps its bare wire.
+  it('flies a comet along every curve that asks for one', () => {
+    const gl = fakeGl()
+    const lines = LineStrips.create(gl, specs)!
+    lines.draw(vp, eye, 1.0, [0, 0, 0, 0])
+    const wanted = specs.filter(s => s.style.comet > 0)
+    expect(wanted.length).toBeGreaterThan(0)
+    expect(wanted.length).toBeLessThan(specs.length)
+    const ribbons = gl.drawArrays.mock.calls.filter(call => call[0] === gl.TRIANGLE_STRIP)
+    expect(ribbons).toHaveLength(wanted.length)
+    // Two vertices a point, and no longer than the lit stretch it covers.
+    for (const [, , vertices] of ribbons) {
+      expect(vertices % 2).toBe(0)
+      expect(vertices).toBeGreaterThan(2)
+    }
+    expect(uploads(gl, gl.DYNAMIC_DRAW)).toBe(wanted.length)
+    // It moves with the head: a later frame sends different points.
+    const first = gl.bufferData.mock.calls.filter(c => c[2] === gl.DYNAMIC_DRAW).map(c => Array.from(c[1] as Float32Array))
+    lines.draw(vp, eye, 2.0, [0, 0, 0, 0])
+    const second = gl.bufferData.mock.calls.filter(c => c[2] === gl.DYNAMIC_DRAW).map(c => Array.from(c[1] as Float32Array)).slice(wanted.length)
+    expect(second[0]).not.toEqual(first[0])
+  })
+
+  it('draws a comet in the world, where the wire is drawn by its model', () => {
+    const gl = fakeGl()
+    LineStrips.create(gl, specs)!.draw(vp, eye, 1.0, [0, 0, 0, 0])
+    const models = gl.uniformMatrix4fv.mock.calls.filter(call => call[0]?.uniform === 'u_model')
+    // Every wire has its own, then the ribbons share the identity one:
+    // their points were already carried into the world to face the eye.
+    expect(models).toHaveLength(specs.length + 1)
+    expect(Array.from(models.at(-1)![2] as Float32Array)).toEqual([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+    const spec = specs.find(s => s.style.comet > 0)!
+    const sent = gl.bufferData.mock.calls.find(c => c[2] === gl.DYNAMIC_DRAW)![1] as Float32Array
+    // Somewhere out by its own curve, not back at the origin.
+    const distance = Math.hypot(sent[0] - spec.center[0], sent[1] - spec.center[1], sent[2] - spec.center[2])
+    expect(distance).toBeLessThan(spec.scale * 1.2)
   })
 
   it('uploads a wake every frame and runs its glow from the newest point', () => {
     const gl = fakeGl()
     const lines = LineStrips.create(gl, [])!
-    lines.draw(vp, 0, [0, 0, 0, 0], [wake(5), wake(3)])
+    lines.draw(vp, eye, 0, [0, 0, 0, 0], [wake(5), wake(3)])
     expect(gl.bufferData).toHaveBeenCalledTimes(2)
     expect(gl.bufferData).toHaveBeenNthCalledWith(1, gl.ARRAY_BUFFER, expect.any(Float32Array), gl.DYNAMIC_DRAW)
     // A ribbon, two vertices per place, glowing from the newest place.
@@ -48,13 +96,13 @@ describe('LineStrips', () => {
     expect(gl.uniform1f).toHaveBeenCalledWith({ uniform: 'u_head' }, 4)
     expect(gl.uniform1f).toHaveBeenCalledWith({ uniform: 'u_count' }, 5)
     expect(gl.uniform1f).toHaveBeenCalledWith({ uniform: 'u_head' }, 2)
-    lines.draw(vp, 1, [0, 0, 0, 0], [wake(5)])
+    lines.draw(vp, eye, 1, [0, 0, 0, 0], [wake(5)])
     expect(gl.bufferData).toHaveBeenCalledTimes(3)
   })
 
   it('blends over the world without writing depth, and restores depth writes after', () => {
     const gl = fakeGl()
-    LineStrips.create(gl, specs)!.draw(vp, 0, [0, 0, 0, 0])
+    LineStrips.create(gl, specs)!.draw(vp, eye, 0, [0, 0, 0, 0])
     expect(gl.enable).toHaveBeenCalledWith(gl.BLEND)
     expect(gl.depthMask).toHaveBeenNthCalledWith(1, false)
     expect(gl.depthMask).toHaveBeenLastCalledWith(true)
@@ -63,7 +111,7 @@ describe('LineStrips', () => {
 
   it('draws nothing, and touches nothing, when there is nothing to draw', () => {
     const gl = fakeGl()
-    LineStrips.create(gl, [])!.draw(vp, 0, [0, 0, 0, 0], [])
+    LineStrips.create(gl, [])!.draw(vp, eye, 0, [0, 0, 0, 0], [])
     expect(gl.drawArrays).not.toHaveBeenCalled()
     expect(gl.useProgram).not.toHaveBeenCalled()
   })
@@ -86,7 +134,7 @@ describe('LineStrips', () => {
   // through glass and blend over it as they always did.
   it('adds a wake to the frame and blends an attractor over it', () => {
     const gl = fakeGl()
-    LineStrips.create(gl, specs)!.draw(vp, 0, [0, 0, 0, 0], [wake(4)])
+    LineStrips.create(gl, specs)!.draw(vp, eye, 0, [0, 0, 0, 0], [wake(4)])
     expect(gl.blendFunc).toHaveBeenNthCalledWith(1, gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
     expect(gl.blendFunc).toHaveBeenLastCalledWith(gl.SRC_ALPHA, gl.ONE)
   })
@@ -95,7 +143,7 @@ describe('LineStrips', () => {
   // shimmer and how far its head reaches. A wake takes none of it.
   it('hands every attractor its own texture, and the wake a plain one', () => {
     const gl = fakeGl()
-    LineStrips.create(gl, specs)!.draw(vp, 2, [0, 0, 0, 0], [wake(4)])
+    LineStrips.create(gl, specs)!.draw(vp, eye, 2, [0, 0, 0, 0], [wake(4)])
     const styles = gl.uniform4f.mock.calls.filter(call => call[0]?.uniform === 'u_style')
     expect(styles).toHaveLength(specs.length + 1)
     specs.forEach((spec, i) => {
@@ -110,7 +158,7 @@ describe('LineStrips', () => {
 
   it('keeps the glass off the wake, which is in the room with you', () => {
     const gl = fakeGl()
-    LineStrips.create(gl, specs)!.draw(vp, 0, [0.5, 0.8, 1, 0.35], [wake(4)])
+    LineStrips.create(gl, specs)!.draw(vp, eye, 0, [0.5, 0.8, 1, 0.35], [wake(4)])
     const tints = gl.uniform4f.mock.calls.filter(call => call[0]?.uniform === 'u_glass')
     expect(tints[0].slice(1)).toEqual([0.5, 0.8, 1, 0.35])
     expect(tints.at(-1)!.slice(1)).toEqual([0, 0, 0, 0])
@@ -131,7 +179,7 @@ describe('LineStrips', () => {
     expect(ribbonStride[0][5]).toBe(16)
     // What a disabled attribute reads belongs to the context, not the
     // array, so the wires are told what side they are on every frame.
-    LineStrips.create(gl, specs)!.draw(vp, 0, [0, 0, 0, 0])
+    LineStrips.create(gl, specs)!.draw(vp, eye, 0, [0, 0, 0, 0])
     expect(gl.vertexAttrib1f).toHaveBeenCalledWith(2, 0)
   })
 })

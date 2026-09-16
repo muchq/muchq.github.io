@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { attractorTrajectory, ATTRACTOR_KINDS, attractorsOutside, modelMatrix } from '../attractors'
+import { attractorTrajectory, ATTRACTOR_KINDS, attractorsOutside, cometStretch, COMET_LIMIT, modelMatrix } from '../attractors'
 import { transformPoint } from '../projection'
 import { GAME_CONFIG } from '../gameClasses'
 
@@ -130,6 +130,10 @@ describe('attractorsOutside', () => {
     expect(tails.at(-1)! / tails[0]).toBeGreaterThan(5)
     // Taken at different resolutions, so one reads smooth and one coarse.
     expect(new Set(specs.map(s => s.points)).size).toBe(specs.length)
+    // Comets of their own sizes, and one wall with none at all.
+    expect(specs.filter(s => s.style.comet === 0)).toHaveLength(1)
+    const comets = specs.filter(s => s.style.comet > 0).map(s => s.style.comet)
+    expect(new Set(comets).size).toBe(comets.length)
     for (const s of specs) {
       expect(s.style.tail).toBeGreaterThan(0)
       expect(s.style.core).toBeGreaterThan(0)
@@ -156,5 +160,33 @@ describe('modelMatrix', () => {
     expect(x[2]).toBeCloseTo(-24)
     const y = transformPoint(m, [0, 1, 0])
     expect(y[1]).toBeCloseTo(9)
+  })
+})
+
+// The comet is the lit stretch drawn as a ribbon rather than a wire. A
+// curve is a loop, so the stretch behind the head wraps round its end.
+describe('cometStretch', () => {
+  it('reads the points just behind the head, oldest first', () => {
+    expect(cometStretch(10, 6, 4)).toEqual([3, 4, 5, 6])
+    expect(cometStretch(10, 6.9, 4)).toEqual([3, 4, 5, 6])
+  })
+
+  it('wraps round the end of the curve rather than stopping at it', () => {
+    expect(cometStretch(10, 1, 4)).toEqual([8, 9, 0, 1])
+    expect(cometStretch(10, 0, 3)).toEqual([8, 9, 0])
+    for (const index of cometStretch(10, 0, 3)) {
+      expect(index).toBeGreaterThanOrEqual(0)
+      expect(index).toBeLessThan(10)
+    }
+  })
+
+  it('draws nothing where there is no stretch to draw', () => {
+    expect(cometStretch(10, 5, 1)).toEqual([])
+    expect(cometStretch(10, 5, 0)).toEqual([])
+  })
+
+  it('never asks for more of a curve than there is, or than is worth it', () => {
+    expect(cometStretch(10, 5, 50)).toHaveLength(10)
+    expect(cometStretch(5000, 0, 5000)).toHaveLength(COMET_LIMIT)
   })
 })
