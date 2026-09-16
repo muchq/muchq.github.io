@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { renderNote, renderPulse, waveSample, TECHNO_SOUND, CALM_SOUND, CHIPTUNE_SOUND } from '../audioSystem'
+import { renderBounce, renderNote, renderPulse, waveSample, TECHNO_SOUND, CALM_SOUND, CHIPTUNE_SOUND } from '../audioSystem'
 
 // A phone, and any window under 1024px, hears a track rendered ahead of
 // time rather than the scheduler. It has to be the same room: the kick
@@ -70,8 +70,12 @@ describe('renderNote', () => {
     expect(energy(plucked, 0.1, 0.4)).toBeGreaterThan(0)
     // Both windows sit in the note's sustain, one before the sweep has
     // run and one after, so the envelope is not what is being measured.
-    const opening = highness(plucked, 0.14, 0.18)
-    const closing = highness(plucked, 0.26, 0.3)
+    // Taken from the filter's own length rather than pinned to a clock:
+    // a room that sweeps faster still has to sweep.
+    const sustain = note.startTime + note.duration * 0.1 + 0.002
+    const opening = highness(plucked, sustain, sustain + 0.02)
+    const settled = note.startTime + TECHNO_SOUND.filter!.seconds + 0.05
+    const closing = highness(plucked, settled, note.startTime + note.duration * 0.7)
     expect(closing).toBeLessThan(opening * 0.75)
     // And by the end it is near enough a sine at the note's own pitch.
     expect(closing).toBeLessThan(4 * 2 * Math.sin((Math.PI * note.frequency) / RATE))
@@ -114,5 +118,37 @@ describe('waveSample', () => {
     expect(waveSample('sawtooth', 0.25)).toBeCloseTo(0.5, 9)
     expect(waveSample('sawtooth', 0.49)).toBeCloseTo(0.98, 9)
     expect(waveSample('sawtooth', 0.51)).toBeCloseTo(-0.98, 9)
+  })
+})
+
+describe('renderBounce', () => {
+  it('scales a landing by the profile gain and the bounce gain together', () => {
+    const quiet = buffer(0.1)
+    renderBounce(quiet, RATE, TECHNO_SOUND.bounce, TECHNO_SOUND.gain)
+    const loud = buffer(0.1)
+    renderBounce(loud, RATE, { ...TECHNO_SOUND.bounce, gain: undefined }, TECHNO_SOUND.gain)
+    expect(energy(quiet, 0, 0.1)).toBeGreaterThan(0)
+    expect(energy(quiet, 0, 0.1) / energy(loud, 0, 0.1)).toBeCloseTo(TECHNO_SOUND.bounce.gain!, 5)
+  })
+
+  it('falls in pitch across the techno landing, and stays low throughout', () => {
+    const data = buffer(0.09)
+    renderBounce(data, RATE, TECHNO_SOUND.bounce, TECHNO_SOUND.gain)
+    // A swept tone crosses zero less often as it falls.
+    expect(crossings(data, 0, 0.02)).toBeGreaterThan(crossings(data, 0.06, 0.08))
+    // And never gets near where it used to sit. Two crossings a cycle,
+    // so 400Hz over 20ms is 16; the old 1800Hz chirp was 72.
+    expect(crossings(data, 0, 0.02)).toBeLessThan(20)
+  })
+
+  it('leaves a profile that names no bounce gain exactly as it was', () => {
+    for (const profile of [CALM_SOUND, CHIPTUNE_SOUND]) {
+      expect(profile.bounce.gain).toBeUndefined()
+      const withDefault = buffer(0.1)
+      renderBounce(withDefault, RATE, profile.bounce, profile.gain)
+      const spelled = buffer(0.1)
+      renderBounce(spelled, RATE, { ...profile.bounce, gain: 1 }, profile.gain)
+      expect(Array.from(withDefault)).toEqual(Array.from(spelled))
+    }
   })
 })

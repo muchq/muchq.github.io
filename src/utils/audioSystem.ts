@@ -14,8 +14,11 @@ export interface SoundProfile {
   melody: number[]
   chords: number[][]
   // A bounce: a note at `from` (plus up to `spread` at random), swept to
-  // `to` over `duration` seconds when `to` is set.
-  bounce: { wave: OscillatorType; from: number; spread: number; to: number | null; duration: number }
+  // `to` over `duration` seconds when `to` is set. `gain` scales it
+  // against the room's music; a high, bright tick carries much further
+  // than a low one at the same amplitude, so a loud room does not
+  // automatically want a loud landing. Absent is 1.
+  bounce: { wave: OscillatorType; from: number; spread: number; to: number | null; duration: number; gain?: number }
   // Master multiplier; square waves carry more energy than sines.
   gain: number
   // A kick every `beats`, swept from `from` to `to` hertz as it decays:
@@ -73,31 +76,44 @@ export const CHIPTUNE_SOUND: SoundProfile = {
   gain: 0.45,
 }
 
-// Deep night on a dance floor: a saw arpeggio plucked through a falling
-// filter over two chords, a kick under every beat, and a tick when an
-// avatar lands. Minimal on purpose — it repeats for as long as you stay.
+// Industrial hard techno, in the Ueberrest vein: fast, dark, and built
+// out of repetition rather than melody. The riff sits two octaves below
+// where a lead would, hammering a handful of notes through a filter
+// that slams shut on each one; the pad is a sub-heavy power drone; the
+// kick is the loudest thing in the room. Minimal on purpose — it
+// repeats for as long as you stay.
 export const TECHNO_SOUND: SoundProfile = {
   wave: 'sawtooth',
-  tempo: 128,
+  tempo: 146,
   noteBeats: 0.25,
-  // A bar each, so the pad changes where the melody does.
+  // A bar each, so the drone changes where the riff does.
   chordBeats: 4,
   melodyChance: 1,
   melody: [
-    69, 0, 76, 0, 72, 0, 76, 81, // A  . E  . C . E  A'
-    0, 76, 0, 72, 69, 0, 72, 0, //  . E  . C  A . C  .
-    67, 0, 74, 0, 71, 0, 74, 79, // G  . D  . B . D  G'
-    0, 74, 0, 71, 67, 0, 71, 0, //  . D  . B  G . B  .
+    45, 0, 45, 0, 52, 0, 45, 48, // A  . A  . E . A  C
+    0, 45, 0, 52, 45, 0, 48, 0, //  . A  . E  A . C  .
+    43, 0, 43, 0, 50, 0, 43, 47, // G  . G  . D . G  B
+    0, 43, 0, 50, 43, 0, 47, 0, //  . G  . D  G . B  .
   ],
+  // Written an octave above what they sound, like every profile's.
   chords: [
-    [57, 60, 64], // A minor
-    [55, 59, 62], // G major
+    [45, 57, 60, 64], // A minor, sounding A1 A2 C3 E3
+    [43, 55, 59, 62], // G major, sounding G1 G2 B2 D3
   ],
-  bounce: { wave: 'triangle', from: 1800, spread: 200, to: 900, duration: 0.05 },
-  pulse: { from: 150, to: 45, duration: 0.24, beats: 1, gain: 0.5 },
-  filter: { from: 2600, to: 380, seconds: 0.18, q: 9 },
+  // A landing is a dull thud down where the kick lives, not a chirp
+  // over the top of it. It was 1800Hz, which read as a squeak and cut
+  // through everything else in the room.
+  bounce: { wave: 'triangle', from: 240, spread: 40, to: 90, duration: 0.09, gain: 0.3 },
+  pulse: { from: 190, to: 38, duration: 0.19, beats: 1, gain: 0.85 },
+  filter: { from: 1700, to: 190, seconds: 0.11, q: 14 },
   gain: 0.5,
 }
+
+// Chords sound an octave below where a profile writes them, so a pad
+// sits under its own melody without every profile spelling it. Both
+// renderers owe the same offset, and a profile has to be read knowing
+// it: written A2 is a sounding A1.
+export const CHORD_OCTAVE = -12
 
 function midiToFreq(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12)
@@ -150,6 +166,46 @@ export interface RenderedNote {
   // The pluck: one pole of a lowpass whose corner falls over the note,
   // which is what the live path's filter node does to it.
   filter?: SoundProfile['filter']
+}
+
+// A landing, rendered ahead of time for the clients that cannot
+// schedule one: the profile's bounce at the middle of its spread, swept
+// if it sweeps, decaying fast. Shares its numbers with the live path on
+// purpose — the two drifting apart is how a room ends up sounding like
+// a different room on a phone.
+export function renderBounce(
+  channelData: Float32Array,
+  sampleRate: number,
+  bounce: SoundProfile['bounce'],
+  gain: number
+): void {
+  const from = bounce.from + bounce.spread / 2
+  let phase = 0
+  for (let i = 0; i < channelData.length; i++) {
+    const time = i / sampleRate
+    const frequency = bounce.to === null ? from : from * Math.pow(bounce.to / from, Math.min(1, time / bounce.duration))
+    phase += frequency / sampleRate
+    const envelope = Math.exp(-time * BOUNCE_DECAY)
+    channelData[i] = waveSample(bounce.wave, phase % 1) * envelope * 0.05 * gain * bounceGain(bounce)
+  }
+}
+
+// How loud a landing is against its room; absent is unchanged.
+export function bounceGain(bounce: SoundProfile['bounce']): number {
+  return bounce.gain ?? 1
+}
+
+// How fast a landing dies away, per second. Both paths owe it: the
+// pre-rendered one multiplies by it, and the live one ramps down to
+// wherever it leaves off, so a quiet room's landing fades to silence
+// rather than being cut off partway down.
+export const BOUNCE_DECAY = 30
+
+// Where a landing's envelope has fallen to by the time the note stops,
+// as a share of its peak. A gain ramp cannot reach zero, so a quiet
+// landing needs a quieter floor, not the same absolute one.
+export function bounceRelease(peak: number, duration: number): number {
+  return Math.max(peak * Math.exp(-BOUNCE_DECAY * duration), 1e-6)
 }
 
 export function renderNote(
@@ -292,17 +348,7 @@ export class AudioSystem implements IAudioSystem {
       const buffer = tempContext.createBuffer(1, samples, sampleRate)
       const channelData = buffer.getChannelData(0)
 
-      // The profile's bounce, at the middle of its spread, swept if it sweeps.
-      const { bounce, gain } = this.profile
-      const from = bounce.from + bounce.spread / 2
-      let phase = 0
-      for (let i = 0; i < samples; i++) {
-        const time = i / sampleRate
-        const frequency = bounce.to === null ? from : from * Math.pow(bounce.to / from, Math.min(1, time / bounce.duration))
-        phase += frequency / sampleRate
-        const envelope = Math.exp(-time * 30) // Quick decay
-        channelData[i] = waveSample(bounce.wave, phase % 1) * envelope * 0.05 * gain
-      }
+      renderBounce(channelData, sampleRate, this.profile.bounce, this.profile.gain)
 
       const wav = this.encodeWAV(buffer)
       const blob = new Blob([wav], { type: 'audio/wav' })
@@ -510,7 +556,7 @@ export class AudioSystem implements IAudioSystem {
 
       if (this.backgroundMusic.noteIndex % stepsPerChord === 0) {
         const chord = chords[this.backgroundMusic.chordIndex]
-        const chordFreqs = chord.map(midi => midiToFreq(midi - 12))
+        const chordFreqs = chord.map(midi => midiToFreq(midi + CHORD_OCTAVE))
         this.createSimpleChord(chordFreqs, this.backgroundMusic.nextNoteTime, chordLength)
 
         this.backgroundMusic.chordIndex = (this.backgroundMusic.chordIndex + 1) % chords.length
@@ -640,7 +686,7 @@ export class AudioSystem implements IAudioSystem {
       if (noteIndex % stepsPerChord === 0) {
         const chord = chords[chordIndex]
         chord.forEach(midi => {
-          const chordFreq = midiToFreq(midi - 12) // Same octave offset as Web Audio
+          const chordFreq = midiToFreq(midi + CHORD_OCTAVE)
           this.renderNoteToBuffer(channelData, sampleRate, chordFreq, currentTime, chordLength, 0.003 * gain, wave)
         })
         chordIndex = (chordIndex + 1) % chords.length
@@ -747,10 +793,11 @@ export class AudioSystem implements IAudioSystem {
     if (bounce.to !== null) oscillator.frequency.exponentialRampToValueAtTime(bounce.to, now + bounce.duration)
     oscillator.type = bounce.wave
 
-    // Quick attack and decay
+    // Quick attack, then the same decay the pre-rendered landing has.
+    const peak = 0.015 * gain * bounceGain(bounce)
     gainNode.gain.setValueAtTime(0, now)
-    gainNode.gain.linearRampToValueAtTime(0.015 * gain, now + 0.01)
-    gainNode.gain.exponentialRampToValueAtTime(0.001, now + bounce.duration)
+    gainNode.gain.linearRampToValueAtTime(peak, now + 0.01)
+    gainNode.gain.exponentialRampToValueAtTime(bounceRelease(peak, bounce.duration), now + bounce.duration)
 
     oscillator.start(now)
     oscillator.stop(now + bounce.duration)

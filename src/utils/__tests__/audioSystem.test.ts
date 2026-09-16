@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { AudioSystem, CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND } from '../audioSystem'
+import { AudioSystem, BOUNCE_DECAY, CALM_SOUND, CHIPTUNE_SOUND, CHORD_OCTAVE, TECHNO_SOUND, bounceRelease } from '../audioSystem'
 
 // The world's sound is a profile the room supplies: what wave the notes
 // are, how fast, which tune, and what a bounce sounds like. The grid
@@ -160,6 +160,52 @@ describe('AudioSystem', () => {
     )
   })
 
+  // Two clients hear a landing two different ways, and the bounce gain
+  // has to reach both. It reached neither before it existed, and the
+  // pre-rendered path has drifted from the live one before.
+  it('scales the live landing by the room\'s bounce gain', () => {
+    const before = gains.length
+    system.setProfile(CHIPTUNE_SOUND)
+    system.playBoingSound()
+    const plain = gains[before].gain.linearRampToValueAtTime.mock.calls[0][0]
+    expect(plain).toBeCloseTo(0.015 * CHIPTUNE_SOUND.gain, 6)
+
+    const between = gains.length
+    system.setProfile(TECHNO_SOUND)
+    system.lastBounceTime = -Infinity
+    system.playBoingSound()
+    const scaled = gains[between].gain.linearRampToValueAtTime.mock.calls[0][0]
+    expect(scaled).toBeCloseTo(0.015 * TECHNO_SOUND.gain * TECHNO_SOUND.bounce.gain!, 6)
+    expect(scaled).toBeLessThan(plain)
+  })
+
+  // The release used to ramp to a fixed 0.001 whatever the peak was, so
+  // a quiet landing stopped at nearly half its own height and got cut
+  // off there. The floor follows the peak, and follows the decay the
+  // pre-rendered landing already had, so the two end in the same place.
+  it('fades a landing to the same share of its peak however quiet it is', () => {
+    const shares: number[] = []
+    for (const profile of [CHIPTUNE_SOUND, TECHNO_SOUND]) {
+      const before = gains.length
+      system.setProfile(profile)
+      system.lastBounceTime = -Infinity
+      system.playBoingSound()
+      const node = gains[before].gain
+      const [peak] = node.linearRampToValueAtTime.mock.calls[0]
+      const [floor] = node.exponentialRampToValueAtTime.mock.calls[0]
+      expect(floor).toBeGreaterThan(0) // an exponential ramp cannot reach zero
+      expect(floor).toBeLessThan(peak)
+      expect(floor).toBeCloseTo(bounceRelease(peak, profile.bounce.duration), 9)
+      shares.push(floor / peak)
+    }
+    // Both land at exp(-decay * duration) of their own peak, which is
+    // what the offline renderer's envelope reaches at the same moment.
+    shares.forEach((share, i) => {
+      const duration = [CHIPTUNE_SOUND, TECHNO_SOUND][i].bounce.duration
+      expect(share).toBeCloseTo(Math.exp(-BOUNCE_DECAY * duration), 9)
+    })
+  })
+
   it('plays the chiptune on square waves, every step, at its own tempo', () => {
     system.setProfile(CHIPTUNE_SOUND)
     system.startBackgroundMusic()
@@ -306,10 +352,11 @@ describe('AudioSystem', () => {
     }
   })
 
-  it('keeps the techno minimal: two chords, a saw, and a floor tempo', () => {
+  it('keeps the techno minimal: two chords, a saw, and a hard-techno tempo', () => {
     expect(TECHNO_SOUND.wave).toBe('sawtooth')
-    expect(TECHNO_SOUND.tempo).toBeGreaterThanOrEqual(120)
-    expect(TECHNO_SOUND.tempo).toBeLessThanOrEqual(140)
+    // Hard techno runs faster than the four-to-the-floor house band.
+    expect(TECHNO_SOUND.tempo).toBeGreaterThanOrEqual(140)
+    expect(TECHNO_SOUND.tempo).toBeLessThanOrEqual(155)
     // Sixteenths, and a pad that changes every other bar.
     expect(TECHNO_SOUND.noteBeats).toBe(0.25)
     expect(TECHNO_SOUND.chordBeats).toBe(4)
@@ -327,6 +374,43 @@ describe('AudioSystem', () => {
     // Written rests, not rolled ones.
     expect(TECHNO_SOUND.melodyChance).toBe(1)
     expect(TECHNO_SOUND.melody.filter(note => note === 0).length).toBeGreaterThan(8)
+  })
+
+  // The riff is the room, so where it sits matters: a bright lead over
+  // the top is a different genre. Everything sounding is below middle C.
+  it('keeps the techno riff and its drone down low', () => {
+    for (const note of TECHNO_SOUND.melody) {
+      if (note === 0) continue
+      expect(note, `${note}`).toBeLessThan(60)
+      expect(note, `${note}`).toBeGreaterThanOrEqual(36)
+    }
+    // And each chord sounds a further octave under that, which is the
+    // sub the kick sits on.
+    for (const chord of TECHNO_SOUND.chords) {
+      expect(Math.min(...chord) + CHORD_OCTAVE).toBeLessThan(36)
+    }
+  })
+
+  // Chords are written an octave above what they sound. Forget that
+  // while writing a low drone and the root lands under 30Hz, which most
+  // speakers do not reproduce at all: the pad goes missing rather than
+  // going deep. Held for every profile, since the trap is the offset.
+  it('keeps every chord audible once the octave is taken off', () => {
+    const hertz = (midi: number) => 440 * Math.pow(2, (midi + CHORD_OCTAVE - 69) / 12)
+    for (const profile of [CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND]) {
+      for (const chord of profile.chords) {
+        expect(hertz(Math.min(...chord)), `${profile.tempo}bpm ${chord}`).toBeGreaterThan(40)
+      }
+    }
+  })
+
+  // A landing was a 1800Hz triangle: high enough that it cut through
+  // the whole room however quiet the number said it was. Loudness is
+  // not amplitude, so the fix is both — down in pitch and down in gain.
+  it('lands with a thud in the techno room, not a squeak', () => {
+    expect(TECHNO_SOUND.bounce.from + TECHNO_SOUND.bounce.spread).toBeLessThan(400)
+    expect(TECHNO_SOUND.bounce.to!).toBeLessThan(TECHNO_SOUND.bounce.from)
+    expect(TECHNO_SOUND.bounce.gain!).toBeLessThan(0.5)
   })
   // Notes already scheduled keep sounding: a calm chord runs eight
   // seconds, long enough to hang over the techno that replaced it. They
