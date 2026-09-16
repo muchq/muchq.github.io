@@ -419,9 +419,11 @@ export class AudioSystem implements IAudioSystem {
 
   private async ensureSamplesLoaded(): Promise<void> {
     const samples = this.profile.samples
-    if (!samples) return
-    const context = this.initAudioContext()
-    if (!context) return
+    // Wait for a real context (music on / user gesture). Building one
+    // here just to preload would construct AudioContext on every room
+    // switch — including jsdom tests that never stub it.
+    if (!samples || !this.audioContext) return
+    const context = this.audioContext
     const token = ++this.sampleLoadToken
     await Promise.all(
       Object.entries(samples.bank).map(async ([id, url]) => {
@@ -564,7 +566,11 @@ export class AudioSystem implements IAudioSystem {
 
   initAudioContext(): AudioContext | null {
     if (!this.audioContext) {
-      this.audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      try {
+        this.audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      } catch {
+        return null
+      }
     }
     return this.audioContext
   }
@@ -774,8 +780,6 @@ export class AudioSystem implements IAudioSystem {
       return
     }
 
-    void this.ensureSamplesLoaded()
-
     if (this.isMobile) {
       this.startMobileBackgroundMusic()
     } else {
@@ -789,6 +793,8 @@ export class AudioSystem implements IAudioSystem {
     if (!context) {
       return
     }
+
+    void this.ensureSamplesLoaded()
 
     // Create master gain node for background music
     this.backgroundMusic.gainNode = context.createGain()
