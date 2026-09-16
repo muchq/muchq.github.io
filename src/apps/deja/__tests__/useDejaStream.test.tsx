@@ -1,7 +1,8 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { POLL_MS, STATE_REFRESH_MS, STREAM_RETRY_MS, useDejaStream } from '../useDejaStream'
-import { eventOf, stateOf } from './fixtures'
+import type { DejaEvent } from '../types'
+import { PINNED_EVENT_JSON, eventOf, stateOf } from './fixtures'
 import { FakeEventSource, fakeDejaFetch } from './fakeStream'
 
 const events = [1, 2, 3, 4, 5].map((seq) => eventOf({ seq }))
@@ -66,6 +67,63 @@ describe('useDejaStream', () => {
     expect(result.current.status).toBe('live')
     expect(recentCalls().at(-1)).toBe('https://api.muchq.com/deja/v1/recent?after=3')
     expect(result.current.tape.rows.map((r) => r.event.seq)).toEqual([5, 4, 3, 2, 1])
+    // The reconnect landed, so the wait for it is over: nothing polls later.
+    const fetched = recentCalls().length
+    await tick(STREAM_RETRY_MS * 2)
+    expect(result.current.status).toBe('live')
+    expect(recentCalls()).toHaveLength(fetched)
+  })
+
+  it('a dropped stream that never reopens falls to polling after the retry wait', async () => {
+    const { result, recentCalls, script } = mount({ events: events.slice(0, 2), state: stateOf() })
+    await act(async () => FakeEventSource.last().open())
+    await tick(0)
+    const fetched = recentCalls().length
+    script.events = events
+    act(() => FakeEventSource.last().drop())
+    expect(result.current.status).toBe('connecting')
+    await tick(STREAM_RETRY_MS - 1)
+    // The browser is still dialling; the page gives it the whole wait.
+    expect(result.current.status).toBe('connecting')
+    expect(recentCalls()).toHaveLength(fetched)
+    await tick(1)
+    expect(result.current.status).toBe('polling')
+    expect(recentCalls().at(-1)).toBe('https://api.muchq.com/deja/v1/recent?after=2')
+    expect(result.current.tape.rows.map((r) => r.event.seq)).toEqual([5, 4, 3, 2, 1])
+
+    // Once polling, a stream still redialling no longer moves the status —
+    // the poll covers that wait — and the retry it armed still comes.
+    act(() => FakeEventSource.last().drop())
+    expect(result.current.status).toBe('polling')
+    await tick(STREAM_RETRY_MS)
+    expect(FakeEventSource.instances).toHaveLength(2)
+    expect(result.current.status).toBe('polling')
+  })
+
+  it('the pinned wire frame lands as a row; a frame that is not JSON changes nothing', async () => {
+    const { result } = mount({ events: [], state: stateOf() })
+    await act(async () => FakeEventSource.last().open())
+    await tick(0)
+    act(() => FakeEventSource.last().emitRaw(PINNED_EVENT_JSON))
+    expect(result.current.tape.rows.map((r) => [r.event.seq, r.outcome])).toEqual([[2, 'warmup']])
+    const before = result.current.tape
+    act(() => FakeEventSource.last().emitRaw('{'))
+    expect(result.current.tape).toBe(before)
+    expect(result.current.status).toBe('live')
+  })
+
+  it('a poll body mixing a good event and a bad one keeps the good one and the page', async () => {
+    const bad = { seq: 2, verdict: 'expected' } as DejaEvent
+    const { result, script } = mount({ events: [events[0], bad], state: stateOf() })
+    act(() => FakeEventSource.last().fail())
+    await tick(0)
+    expect(result.current.tape.rows.map((r) => r.event.seq)).toEqual([1])
+    expect(result.current.status).toBe('polling')
+    // The bad event comes back on every poll; the good ones after it still land.
+    script.events = [events[0], bad, events[2]]
+    await tick(POLL_MS)
+    expect(result.current.tape.rows.map((r) => r.event.seq)).toEqual([3, 1])
+    expect(result.current.status).toBe('polling')
   })
 
   it('a refused stream falls back to polling every 2 s and retries the stream later', async () => {

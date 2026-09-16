@@ -38,7 +38,12 @@ export class FakeEventSource implements EventSourceLike {
   }
 
   emit(event: DejaEvent) {
-    this.onmessage?.(new MessageEvent('message', { data: JSON.stringify(event) }))
+    this.emitRaw(JSON.stringify(event))
+  }
+
+  // A frame exactly as the wire carries it.
+  emitRaw(data: string) {
+    this.onmessage?.(new MessageEvent('message', { data }))
   }
 
   // The server ended the stream; the browser is already reconnecting.

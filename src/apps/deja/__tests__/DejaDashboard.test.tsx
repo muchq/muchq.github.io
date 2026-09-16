@@ -1,6 +1,7 @@
 import { act, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import DejaDashboard from '../components/DejaDashboard'
+import { Row } from '../components/Tape'
 import { rowId } from '../rows'
 import { TOKENS, anomalyEvent, hitEvent, netEvent, oneOfEach, stateOf } from './fixtures'
 import { FakeEventSource, fakeDejaFetch } from './fakeStream'
@@ -50,8 +51,12 @@ describe('DejaDashboard', () => {
     await goLive()
     expect(onStatusChange).toHaveBeenLastCalledWith('live')
 
-    const tape = screen.getByRole('list', { name: 'Scored requests' })
-    const rows = within(tape).getAllByRole('listitem')
+    const tape = screen.getByRole('table', { name: 'Scored requests' })
+    // The header names the columns for a reader too, so it is not hidden from one.
+    expect(within(tape).getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
+      'outcome', 'seq', 'context', 'bigram', 'net', 'actual',
+    ])
+    const rows = within(tape).getAllByRole('row').filter((row) => row.hasAttribute('data-outcome'))
     expect(rows.map((row) => row.getAttribute('data-outcome'))).toEqual([
       'novel', 'anomaly', 'miss', 'near', 'hit', 'warmup',
     ])
@@ -80,6 +85,11 @@ describe('DejaDashboard', () => {
     const chips = row.getAllByTestId('chip')
     expect(chips.map((c) => c.getAttribute('title'))).toEqual([TOKENS.home, TOKENS.stats, TOKENS.iili])
     expect(chips.map((c) => c.textContent)).toEqual(['GET /', 'GET /stats/v1/summary', 'GET /iili/v1/r/*'])
+    // The oldest chip is the faintest, but stays readable.
+    const opacity = (chip: HTMLElement) => Number(chip.style.opacity)
+    expect(opacity(chips[0])).toBeGreaterThanOrEqual(0.6)
+    expect(opacity(chips[0])).toBeLessThan(opacity(chips[1]))
+    expect(opacity(chips[2])).toBe(1)
     const bigram = within(row.getByTestId('bigram'))
     expect(bigram.getAllByRole('meter').map((m) => m.getAttribute('aria-valuenow'))).toEqual(['0.9', '0.1'])
     expect(row.getByTestId('net')).toHaveTextContent('—')
@@ -90,10 +100,15 @@ describe('DejaDashboard', () => {
     mount({ events: [hitEvent], state: stateOf() })
     await goLive()
     const lineKeys = () => screen.getAllByTestId('line').map((l) => l.getAttribute('data-key'))
-    expect(lineKeys()).not.toContain('net')
+    // Both charts: the threshold behind the bigram, learning curve first.
+    expect(lineKeys()).toEqual(['threshold', 'bigram', 'threshold', 'surpriseBigram'])
     act(() => FakeEventSource.last().emit(netEvent))
     expect(within(within(rowOf(netEvent.seq)).getByTestId('net')).getAllByRole('meter')).toHaveLength(2)
-    expect(lineKeys()).toContain('net')
+    expect(lineKeys()).toEqual(['threshold', 'bigram', 'net', 'threshold', 'surpriseBigram', 'surpriseNet'])
+  })
+
+  it('a tape row is memoised, so the rows the reducer keeps do not re-render', () => {
+    expect(Row).toHaveProperty('$$typeof', Symbol.for('react.memo'))
   })
 
   it('counts from the state and shows warmup progress until the threshold is live', async () => {

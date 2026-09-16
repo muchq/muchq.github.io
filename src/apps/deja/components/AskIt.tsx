@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Select, { type StylesConfig } from 'react-select'
 import styles from '@/apps/metrics-systems/components/MetricsDashboard.module.css'
 import own from './Deja.module.css'
@@ -86,11 +86,26 @@ const AskIt = ({ tokens, ask = askNext }: Props) => {
   const [result, setResult] = useState<NextResult | null>(null)
   const [busy, setBusy] = useState(false)
   const options = useMemo(() => tokens.map((token) => ({ value: token, label: token })), [tokens])
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
 
+  // An ask that throws must still hand the button back, and a page left
+  // while one is in flight must not be written to after it lands.
   const submit = async () => {
     setBusy(true)
-    setResult(await ask(picked.map((option) => option.value)))
-    setBusy(false)
+    try {
+      const next = await ask(picked.map((option) => option.value))
+      if (mounted.current) setResult(next)
+    } catch {
+      if (mounted.current) setResult({ kind: 'unavailable' })
+    } finally {
+      if (mounted.current) setBusy(false)
+    }
   }
 
   return (

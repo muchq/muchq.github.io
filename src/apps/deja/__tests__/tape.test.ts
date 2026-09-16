@@ -105,6 +105,25 @@ describe('applyEvent', () => {
     expect(tape).toBe(full)
   })
 
+  it('keeps the row objects it already holds, so a memoised row need not re-render', () => {
+    const one = applyEvent(emptyTape(), hitEvent)
+    const two = applyEvent(one, nearEvent)
+    expect(two.rows[1]).toBe(one.rows[0])
+  })
+
+  it('an evicted token is seen afresh when it comes back', () => {
+    const tape = applyEvents(emptyTape(2), [hitEvent])
+    expect(tape.tokens).toEqual([TOKENS.stats, TOKENS.iili])
+    const back = applyEvent(tape, eventOf({ seq: 2, context: [], actual: TOKENS.home }))
+    expect(back.tokens).toEqual([TOKENS.iili, TOKENS.home])
+    // The same after the cap shrinks under what is held.
+    const shrunk = withTokenCap(back, 1)
+    expect(applyEvent(shrunk, eventOf({ seq: 3, context: [], actual: TOKENS.iili })).tokens).toEqual([TOKENS.iili])
+    // A token already held is not added twice: the same array comes back.
+    const again = applyEvent(back, eventOf({ seq: 3, context: [TOKENS.home], actual: TOKENS.iili }))
+    expect(again.tokens).toBe(back.tokens)
+  })
+
   it('collects every actual and context token once, first seen first', () => {
     const tape = applyEvents(emptyTape(), [hitEvent, anomalyEvent])
     expect(tape.tokens).toEqual([TOKENS.home, TOKENS.stats, TOKENS.iili, TOKENS.probe])
@@ -116,6 +135,8 @@ describe('applyEvent', () => {
     expect(withTokenCap(tape, 2).tokens).toEqual([TOKENS.iili, TOKENS.probe])
     // Raising the cap keeps what is held; nothing evicted comes back.
     expect(withTokenCap(tape, 10).tokens).toEqual([TOKENS.stats, TOKENS.iili, TOKENS.probe])
+    // The same cap is a no-op, by identity.
+    expect(withTokenCap(tape, tape.tokenCap)).toBe(tape)
   })
 })
 
