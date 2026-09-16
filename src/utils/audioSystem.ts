@@ -1,5 +1,24 @@
 import type { AudioSystem as IAudioSystem } from '@/types/game'
 
+// A one-shot from the room's sample bank: fire every N beats (with an
+// optional offbeat offset), sometimes skip, and optionally start early
+// so a reverse swell peaks on the downbeat.
+export interface SampleHit {
+  id: string
+  everyBeats: number
+  offsetBeats?: number
+  chance: number
+  gain: number
+  // Seconds before the hit time to start the buffer (risers).
+  leadIn?: number
+}
+
+export interface SoundSamples {
+  bank: Record<string, string>
+  kick?: { id: string; gain: number }
+  hits: SampleHit[]
+}
+
 // What a room sounds like: the wave its notes are, how fast, which
 // tune, and what a bounce is. A melody entry of 0 is a rest.
 export interface SoundProfile {
@@ -23,10 +42,13 @@ export interface SoundProfile {
   gain: number
   // A kick every `beats`, swept from `from` to `to` hertz as it decays:
   // what makes a floor four-on-the-floor. Absent is no drum at all.
+  // Used when the sample bank has no kick loaded yet.
   pulse?: { from: number; to: number; duration: number; beats: number; gain: number }
   // A lowpass each melody note is plucked through, falling from `from`
   // to `to` hertz over `seconds`. The sweep is the sound, not the note.
   filter?: { from: number; to: number; seconds: number; q: number }
+  // Optional one-shots and a sample kick layered on the procedural tune.
+  samples?: SoundSamples
 }
 
 // Peaceful sine arpeggios, the sound the world always had.
@@ -76,37 +98,71 @@ export const CHIPTUNE_SOUND: SoundProfile = {
   gain: 0.45,
 }
 
-// Industrial hard techno, in the Ueberrest vein: fast, dark, and built
-// out of repetition rather than melody. The riff sits two octaves below
-// where a lead would, hammering a handful of notes through a filter
-// that slams shut on each one; the pad is a sub-heavy power drone; the
-// kick is the loudest thing in the room. Minimal on purpose — it
-// repeats for as long as you stay.
+const GH = '/audio/glasshouse'
+
+// Industrial techno at 140: eight bars of sixteenths (~13.7s), a thinner
+// pad, a quieter kick, and a bank of one-shots (hats, chops, riser).
 export const TECHNO_SOUND: SoundProfile = {
   wave: 'sawtooth',
-  tempo: 146,
+  tempo: 140,
   noteBeats: 0.25,
-  // A bar each, so the drone changes where the riff does.
   chordBeats: 4,
   melodyChance: 1,
   melody: [
-    45, 0, 45, 0, 52, 0, 45, 48, // A  . A  . E . A  C
-    0, 45, 0, 52, 45, 0, 48, 0, //  . A  . E  A . C  .
-    43, 0, 43, 0, 50, 0, 43, 47, // G  . G  . D . G  B
-    0, 43, 0, 50, 43, 0, 47, 0, //  . G  . D  G . B  .
+    // Bars 1–2: the original A / G riff
+    45, 0, 45, 0, 52, 0, 45, 48, 0, 45, 0, 52, 45, 0, 48, 0,
+    43, 0, 43, 0, 50, 0, 43, 47, 0, 43, 0, 50, 43, 0, 47, 0,
+    // Bars 3–4: same harmony, holes punched differently
+    45, 0, 0, 45, 52, 0, 48, 0, 45, 0, 52, 0, 45, 48, 0, 0,
+    43, 0, 0, 43, 50, 0, 47, 0, 43, 0, 50, 0, 43, 47, 0, 0,
+    // Bars 5–6: denser hammering
+    45, 45, 0, 52, 45, 0, 48, 45, 0, 52, 45, 0, 48, 0, 45, 0,
+    43, 43, 0, 50, 43, 0, 47, 43, 0, 50, 43, 0, 47, 0, 43, 0,
+    // Bars 7–8: sparse, leave room for FX
+    45, 0, 0, 0, 52, 0, 0, 48, 0, 0, 45, 0, 0, 0, 48, 0,
+    43, 0, 0, 0, 50, 0, 0, 47, 0, 0, 43, 0, 47, 0, 0, 0,
   ],
-  // Written an octave above what they sound, like every profile's.
+  // Thinner than four voices: drop the doubled root so the sub has room.
   chords: [
-    [45, 57, 60, 64], // A minor, sounding A1 A2 C3 E3
-    [43, 55, 59, 62], // G major, sounding G1 G2 B2 D3
+    [45, 60, 64], // A minor triad
+    [43, 59, 62], // G major triad
   ],
-  // A landing is a dull thud down where the kick lives, not a chirp
-  // over the top of it. It was 1800Hz, which read as a squeak and cut
-  // through everything else in the room.
   bounce: { wave: 'triangle', from: 240, spread: 40, to: 90, duration: 0.09, gain: 0.3 },
-  pulse: { from: 190, to: 38, duration: 0.19, beats: 1, gain: 0.85 },
-  filter: { from: 1700, to: 190, seconds: 0.11, q: 14 },
+  // Fallback only — the Joker sample takes over once the bank loads.
+  pulse: { from: 190, to: 38, duration: 0.19, beats: 1, gain: 0.55 },
+  filter: { from: 1600, to: 220, seconds: 0.11, q: 10 },
   gain: 0.5,
+  samples: {
+    bank: {
+      kick: `${GH}/kick.wav`,
+      hat: `${GH}/hat.wav`,
+      perc: `${GH}/perc.wav`,
+      huh: `${GH}/huh.wav`,
+      woosh: `${GH}/woosh.wav`,
+      korg0: `${GH}/korg0.wav`,
+      korg1: `${GH}/korg1.wav`,
+      korg2: `${GH}/korg2.wav`,
+      korg3: `${GH}/korg3.wav`,
+      korg4: `${GH}/korg4.wav`,
+      bass0: `${GH}/bass0.wav`,
+      bass1: `${GH}/bass1.wav`,
+      bass2: `${GH}/bass2.wav`,
+      bass3: `${GH}/bass3.wav`,
+      bass4: `${GH}/bass4.wav`,
+    },
+    kick: { id: 'kick', gain: 0.55 },
+    hits: [
+      { id: 'hat', everyBeats: 1, offsetBeats: 0.5, chance: 1, gain: 0.22 },
+      { id: 'perc', everyBeats: 2, offsetBeats: 0.75, chance: 0.45, gain: 0.28 },
+      { id: 'huh', everyBeats: 16, offsetBeats: 0, chance: 0.4, gain: 0.35 },
+      { id: 'korg0', everyBeats: 8, offsetBeats: 1.5, chance: 0.5, gain: 0.2 },
+      { id: 'korg2', everyBeats: 8, offsetBeats: 5.25, chance: 0.4, gain: 0.18 },
+      { id: 'bass1', everyBeats: 8, offsetBeats: 3, chance: 0.35, gain: 0.22 },
+      { id: 'bass3', everyBeats: 16, offsetBeats: 7.5, chance: 0.4, gain: 0.2 },
+      // 3s reverse cymbal: start ~2.9s early so the peak hits the bar.
+      { id: 'woosh', everyBeats: 32, offsetBeats: 0, chance: 1, gain: 0.18, leadIn: 2.9 },
+    ],
+  },
 }
 
 // Chords sound an octave below where a profile writes them, so a pad
@@ -114,6 +170,8 @@ export const TECHNO_SOUND: SoundProfile = {
 // renderers owe the same offset, and a profile has to be read knowing
 // it: written A2 is a sounding A1.
 export const CHORD_OCTAVE = -12
+
+const sampleCache = new Map<string, AudioBuffer>()
 
 function midiToFreq(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12)
@@ -154,6 +212,29 @@ export function renderPulse(
     const envelope = Math.exp(-progress * 5)
     const sample = waveSample('sine', phase) * envelope * pulse.gain * gain * 0.12
     channelData[i] = Math.max(-1, Math.min(1, channelData[i] + sample))
+  }
+}
+
+// Mix a decoded one-shot into an offline track. Same numbers the live
+// BufferSource path uses, so a phone hears the same hits as a desktop.
+export function renderSample(
+  channelData: Float32Array,
+  sampleRate: number,
+  buffer: AudioBuffer,
+  startTime: number,
+  gain: number
+): void {
+  const startSample = Math.floor(startTime * sampleRate)
+  if (startSample >= channelData.length) return
+  const src = buffer.getChannelData(0)
+  const ratio = buffer.sampleRate / sampleRate
+  const frames = Math.floor(src.length / ratio)
+  for (let i = 0; i < frames; i++) {
+    const dest = startSample + i
+    if (dest < 0) continue
+    if (dest >= channelData.length) break
+    const srcIndex = Math.min(src.length - 1, Math.floor(i * ratio))
+    channelData[dest] = Math.max(-1, Math.min(1, channelData[dest] + src[srcIndex] * gain))
   }
 }
 
@@ -260,6 +341,8 @@ export class AudioSystem implements IAudioSystem {
   private isMobile: boolean
   private html5BackgroundAudio: HTMLAudioElement | null
   private mobileBounceAudioUrl: string | null
+  private sampleBuffers: Map<string, AudioBuffer>
+  private sampleLoadToken: number
 
   constructor(profile: SoundProfile = CALM_SOUND) {
     this.audioContext = null
@@ -280,6 +363,8 @@ export class AudioSystem implements IAudioSystem {
     this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 1024
     this.html5BackgroundAudio = null
     this.mobileBounceAudioUrl = null
+    this.sampleBuffers = new Map()
+    this.sampleLoadToken = 0
 
     if (this.isMobile) {
       this.initMobileAudio()
@@ -300,6 +385,8 @@ export class AudioSystem implements IAudioSystem {
     const clock = this.audioContext?.currentTime ?? 0
     this.backgroundMusic.nextNoteTime = Math.min(this.backgroundMusic.nextNoteTime, clock)
     this.retireVoices(clock)
+    this.sampleBuffers.clear()
+    void this.ensureSamplesLoaded()
     if (this.isMobile) {
       this.createMobileBounceSound()
       if (this.backgroundMusic.isPlaying) {
@@ -307,6 +394,58 @@ export class AudioSystem implements IAudioSystem {
         this.startBackgroundMusic()
       }
     }
+  }
+
+  // Tests (and any preloaded path) can skip fetch and drop buffers in.
+  injectSampleBuffers(buffers: Record<string, AudioBuffer>): void {
+    for (const [id, buffer] of Object.entries(buffers)) {
+      this.sampleBuffers.set(id, buffer)
+    }
+  }
+
+  private async decodeSample(context: AudioContext, url: string): Promise<AudioBuffer | undefined> {
+    const cached = sampleCache.get(url)
+    if (cached) return cached
+    try {
+      const response = await fetch(url)
+      if (!response.ok) return
+      const buffer = await context.decodeAudioData((await response.arrayBuffer()).slice(0))
+      sampleCache.set(url, buffer)
+      return buffer
+    } catch {
+      return
+    }
+  }
+
+  private async ensureSamplesLoaded(): Promise<void> {
+    const samples = this.profile.samples
+    if (!samples) return
+    const context = this.initAudioContext()
+    if (!context) return
+    const token = ++this.sampleLoadToken
+    await Promise.all(
+      Object.entries(samples.bank).map(async ([id, url]) => {
+        const buffer = await this.decodeSample(context, url)
+        if (!buffer || token !== this.sampleLoadToken) return
+        this.sampleBuffers.set(id, buffer)
+      })
+    )
+  }
+
+  // Sample kick when loaded; otherwise undefined so the sine pulse can fall through.
+  private loadedKick(): { buffer: AudioBuffer; gain: number } | undefined {
+    const kick = this.profile.samples?.kick
+    if (!kick) return
+    const buffer = this.sampleBuffers.get(kick.id)
+    if (!buffer) return
+    return { buffer, gain: kick.gain }
+  }
+
+  // How many melody steps between kicks. A sample kick is always on the beat
+  // (one beat apart), matching the pulse's usual `beats: 1`.
+  private stepsPerPulse(noteBeats: number): number {
+    const pulseBeats = this.profile.samples?.kick ? 1 : this.profile.pulse?.beats
+    return pulseBeats ? Math.max(1, Math.round(pulseBeats / noteBeats)) : 0
   }
 
   // Notes already scheduled go on sounding whatever the room now is: a
@@ -475,9 +614,15 @@ export class AudioSystem implements IAudioSystem {
     }
   }
 
-  // The kick: a short drop from a click to a thud. Its own sine, under
-  // everything, so the melody's wave and filter never touch it.
+  // The kick: sample when the bank has one, otherwise a sine drop. Its
+  // own voice, under everything, so the melody's wave and filter never
+  // touch it.
   private createPulse(startTime: number): void {
+    const kick = this.loadedKick()
+    if (kick) {
+      this.playSample(kick.buffer, startTime, kick.gain * this.profile.gain)
+      return
+    }
     const pulse = this.profile.pulse
     if (!pulse || !this.audioContext || !this.backgroundMusic.gainNode) return
     try {
@@ -497,6 +642,51 @@ export class AudioSystem implements IAudioSystem {
       this.notesPlayedCount++
     } catch {
       // Silent failure for pulse creation
+    }
+  }
+
+  private playSample(buffer: AudioBuffer, startTime: number, gain: number, leadIn = 0): void {
+    if (!this.audioContext || !this.backgroundMusic.gainNode) return
+    try {
+      const source = this.audioContext.createBufferSource()
+      const gainNode = this.audioContext.createGain()
+      source.buffer = buffer
+      const when = Math.max(0, startTime - leadIn)
+      gainNode.gain.setValueAtTime(gain, when)
+      source.connect(gainNode)
+      gainNode.connect(this.backgroundMusic.gainNode)
+      source.start(when)
+      this.notesPlayedCount++
+    } catch {
+      // Silent failure for sample playback
+    }
+  }
+
+  // Whether this step is a hit for the given schedule, in whole steps so
+  // floating point on the beat clock cannot drift a hat off the offbeat.
+  private hitDue(noteIndex: number, hit: SampleHit, noteBeats: number): boolean {
+    const stepsPerHit = Math.max(1, Math.round(hit.everyBeats / noteBeats))
+    const offsetSteps = Math.round((hit.offsetBeats ?? 0) / noteBeats)
+    if (noteIndex < offsetSteps) return false
+    return (noteIndex - offsetSteps) % stepsPerHit === 0
+  }
+
+  // Shared by the live scheduler and the offline renderer so a phone
+  // rolls the same hits a desktop would.
+  private forEachSampleHit(
+    noteIndex: number,
+    noteBeats: number,
+    roll: () => number,
+    play: (buffer: AudioBuffer, hit: SampleHit) => void
+  ): void {
+    const hits = this.profile.samples?.hits
+    if (!hits) return
+    for (const hit of hits) {
+      if (!this.hitDue(noteIndex, hit, noteBeats)) continue
+      if (roll() >= hit.chance) continue
+      const buffer = this.sampleBuffers.get(hit.id)
+      if (!buffer) continue
+      play(buffer, hit)
     }
   }
 
@@ -536,35 +726,41 @@ export class AudioSystem implements IAudioSystem {
     if (!this.backgroundMusic.isPlaying || !this.audioContext) return
 
     const currentTime = this.audioContext.currentTime
-    const { melody, chords, noteBeats, chordBeats, melodyChance, pulse } = this.profile
+    const { melody, chords, noteBeats, chordBeats, melodyChance } = this.profile
     const secondsPerBeat = 60.0 / this.backgroundMusic.tempo
     const noteLength = secondsPerBeat * noteBeats
     const chordLength = secondsPerBeat * chordBeats
     const stepsPerChord = Math.max(1, Math.round(chordBeats / noteBeats))
-    const stepsPerPulse = pulse ? Math.max(1, Math.round(pulse.beats / noteBeats)) : 0
+    const pulseEvery = this.stepsPerPulse(noteBeats)
 
     // Schedule ahead by 200ms
     while (this.backgroundMusic.nextNoteTime < currentTime + 0.2) {
-      if (stepsPerPulse > 0 && this.backgroundMusic.noteIndex % stepsPerPulse === 0) {
-        this.createPulse(this.backgroundMusic.nextNoteTime)
+      const { noteIndex, nextNoteTime } = this.backgroundMusic
+
+      if (pulseEvery > 0 && noteIndex % pulseEvery === 0) {
+        this.createPulse(nextNoteTime)
       }
 
-      const melodyMidi = melody[this.backgroundMusic.noteIndex]
+      this.forEachSampleHit(noteIndex, noteBeats, () => Math.random(), (buffer, hit) => {
+        this.playSample(buffer, nextNoteTime, hit.gain * this.profile.gain, hit.leadIn ?? 0)
+      })
+
+      const melodyMidi = melody[noteIndex]
       if (melodyMidi > 0 && Math.random() < melodyChance) {
-        this.createSimpleNote(midiToFreq(melodyMidi), this.backgroundMusic.nextNoteTime, noteLength * 1.5)
+        this.createSimpleNote(midiToFreq(melodyMidi), nextNoteTime, noteLength * 1.5)
       }
 
-      if (this.backgroundMusic.noteIndex % stepsPerChord === 0) {
+      if (noteIndex % stepsPerChord === 0) {
         const chord = chords[this.backgroundMusic.chordIndex]
         const chordFreqs = chord.map(midi => midiToFreq(midi + CHORD_OCTAVE))
-        this.createSimpleChord(chordFreqs, this.backgroundMusic.nextNoteTime, chordLength)
+        this.createSimpleChord(chordFreqs, nextNoteTime, chordLength)
 
         this.backgroundMusic.chordIndex = (this.backgroundMusic.chordIndex + 1) % chords.length
       }
 
       // Advance to next note
       this.backgroundMusic.nextNoteTime += noteLength
-      this.backgroundMusic.noteIndex = (this.backgroundMusic.noteIndex + 1) % melody.length
+      this.backgroundMusic.noteIndex = (noteIndex + 1) % melody.length
     }
 
     // Schedule next batch
@@ -577,6 +773,8 @@ export class AudioSystem implements IAudioSystem {
     if (this.backgroundMusic.isPlaying || !this.soundEnabled) {
       return
     }
+
+    void this.ensureSamplesLoaded()
 
     if (this.isMobile) {
       this.startMobileBackgroundMusic()
@@ -658,6 +856,8 @@ export class AudioSystem implements IAudioSystem {
     const noteLength = secondsPerBeat * noteBeats
     const chordLength = secondsPerBeat * chordBeats
     const stepsPerChord = Math.max(1, Math.round(chordBeats / noteBeats))
+    const pulseEvery = this.stepsPerPulse(noteBeats)
+    const kick = this.loadedKick()
 
     // Pre-render the procedural music pattern
     let currentTime = 0
@@ -671,24 +871,43 @@ export class AudioSystem implements IAudioSystem {
       return seed / 233280
     }
 
-    const stepsPerPulse = pulse ? Math.max(1, Math.round(pulse.beats / noteBeats)) : 0
-
     while (currentTime < duration) {
-      if (stepsPerPulse > 0 && noteIndex % stepsPerPulse === 0 && pulse) {
-        this.renderPulseToBuffer(channelData, sampleRate, currentTime, pulse, gain)
+      if (pulseEvery > 0 && noteIndex % pulseEvery === 0) {
+        if (kick) {
+          renderSample(channelData, sampleRate, kick.buffer, currentTime, kick.gain * gain)
+        } else if (pulse) {
+          renderPulse(channelData, sampleRate, currentTime, pulse, gain)
+        }
       }
+
+      // Offline can start before t=0 (lead-in); renderSample skips those frames.
+      this.forEachSampleHit(noteIndex, noteBeats, seededRandom, (hitBuffer, hit) => {
+        renderSample(channelData, sampleRate, hitBuffer, currentTime - (hit.leadIn ?? 0), hit.gain * gain)
+      })
 
       const melodyMidi = melody[noteIndex]
       if (melodyMidi > 0 && seededRandom() < melodyChance) {
-        this.renderNoteToBuffer(channelData, sampleRate, midiToFreq(melodyMidi), currentTime, noteLength * 1.5, 0.005 * gain, wave, filter)
+        renderNote(channelData, sampleRate, {
+          frequency: midiToFreq(melodyMidi),
+          startTime: currentTime,
+          duration: noteLength * 1.5,
+          volume: 0.005 * gain,
+          wave,
+          filter,
+        })
       }
 
       if (noteIndex % stepsPerChord === 0) {
         const chord = chords[chordIndex]
-        chord.forEach(midi => {
-          const chordFreq = midiToFreq(midi + CHORD_OCTAVE)
-          this.renderNoteToBuffer(channelData, sampleRate, chordFreq, currentTime, chordLength, 0.003 * gain, wave)
-        })
+        for (const midi of chord) {
+          renderNote(channelData, sampleRate, {
+            frequency: midiToFreq(midi + CHORD_OCTAVE),
+            startTime: currentTime,
+            duration: chordLength,
+            volume: 0.003 * gain,
+            wave,
+          })
+        }
         chordIndex = (chordIndex + 1) % chords.length
       }
 
@@ -714,29 +933,6 @@ export class AudioSystem implements IAudioSystem {
     }
 
     return this.encodeWAV(buffer)
-  }
-
-  private renderPulseToBuffer(
-    channelData: Float32Array,
-    sampleRate: number,
-    startTime: number,
-    pulse: NonNullable<SoundProfile['pulse']>,
-    gain: number
-  ): void {
-    renderPulse(channelData, sampleRate, startTime, pulse, gain)
-  }
-
-  private renderNoteToBuffer(
-    channelData: Float32Array,
-    sampleRate: number,
-    frequency: number,
-    startTime: number,
-    duration: number,
-    volume: number,
-    wave: OscillatorType = 'sine',
-    filter?: SoundProfile['filter']
-  ): void {
-    renderNote(channelData, sampleRate, { frequency, startTime, duration, volume, wave, filter })
   }
 
 

@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { renderBounce, renderNote, renderPulse, waveSample, TECHNO_SOUND, CALM_SOUND, CHIPTUNE_SOUND } from '../audioSystem'
+import {
+  renderBounce,
+  renderNote,
+  renderPulse,
+  renderSample,
+  waveSample,
+  TECHNO_SOUND,
+  CALM_SOUND,
+  CHIPTUNE_SOUND,
+} from '../audioSystem'
 
 // A phone, and any window under 1024px, hears a track rendered ahead of
 // time rather than the scheduler. It has to be the same room: the kick
@@ -51,6 +60,26 @@ describe('renderPulse', () => {
     renderPulse(data, RATE, 0, pulse, 1)
     expect(data[10]).not.toBeCloseTo(0.2, 6)
     expect(data[data.length - 1]).toBeCloseTo(0.2, 6)
+  })
+})
+
+describe('renderSample', () => {
+  it('mixes a mono buffer into the track at the given gain and time', () => {
+    const samples = new Float32Array([0.5, -0.5, 0.25, -0.25])
+    const fakeBuffer = {
+      numberOfChannels: 1,
+      length: samples.length,
+      sampleRate: RATE,
+      duration: samples.length / RATE,
+      getChannelData: () => samples,
+    } as unknown as AudioBuffer
+    const data = buffer(0.01)
+    data.fill(0.1)
+    renderSample(data, RATE, fakeBuffer, 0.001, 0.5)
+    const start = Math.floor(0.001 * RATE)
+    expect(data[start]).toBeCloseTo(0.1 + 0.5 * 0.5, 5)
+    expect(data[start + 1]).toBeCloseTo(0.1 + -0.5 * 0.5, 5)
+    expect(data[0]).toBeCloseTo(0.1, 5)
   })
 })
 
