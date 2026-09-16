@@ -85,25 +85,51 @@ export const CALM_SOUND: SoundProfile = {
   gain: 1,
 }
 
-// A cartridge: square waves, a brisk original hop in C major with rests
-// on the off-beats, power chords under it, and a rising jump blip.
+// A cartridge: square waves, a leisurely hop in C major with rests on
+// the off-beats, power chords under it, and a rising jump blip. Sixteen
+// bars at 90 so walking the sphere does not hear the same four bars
+// forever.
 export const CHIPTUNE_SOUND: SoundProfile = {
   wave: 'square',
-  tempo: 150,
+  tempo: 90,
   noteBeats: 0.5,
   chordBeats: 2,
   melodyChance: 1,
   melody: [
+    // Bars 1–4: the original hop
     67, 72, 0, 74, 76, 0, 74, 72, // G C  . D E . D C
     69, 0, 72, 69, 67, 0, 64, 0, // A . C A G . E .
     65, 69, 0, 72, 74, 0, 72, 69, // F A . C D . C A
     67, 0, 71, 74, 79, 0, 76, 0, // G . B D G' . E .
+    // Bars 5–8: answer — higher, more air
+    76, 0, 0, 74, 72, 0, 0, 0, // E . . D C . . .
+    74, 0, 76, 0, 79, 0, 76, 74, // D . E . G' . E D
+    72, 0, 0, 69, 67, 0, 64, 0, // C . . A G . E .
+    65, 0, 0, 67, 69, 0, 72, 0, // F . . G A . C .
+    // Bars 9–12: denser return of the hop
+    67, 72, 74, 76, 0, 74, 72, 0, // G C D E . D C .
+    69, 72, 0, 69, 67, 64, 0, 0, // A C . A G E . .
+    65, 0, 69, 72, 74, 72, 69, 0, // F . A C D C A .
+    67, 71, 74, 0, 79, 76, 0, 72, // G B D . G' E . C
+    // Bars 13–16: sparse wind-down
+    76, 0, 0, 0, 74, 0, 0, 0, // E . . . D . . .
+    72, 0, 0, 69, 0, 0, 0, 0, // C . . A . . . .
+    67, 0, 0, 0, 64, 0, 0, 0, // G . . . E . . .
+    65, 0, 67, 0, 72, 0, 0, 0, // F . G . C . . .
   ],
   chords: [
-    [48, 55], // C
-    [53, 60], // F
-    [55, 62], // G
-    [48, 55], // C
+    // Bars 1–4 (original hop): C F G C, twice
+    [48, 55], [53, 60], [55, 62], [48, 55],
+    [48, 55], [53, 60], [55, 62], [48, 55],
+    // Bars 5–8 (answer): C Am F G
+    [48, 55], [48, 55], [45, 52], [45, 52],
+    [53, 60], [53, 60], [55, 62], [55, 62],
+    // Bars 9–12 (dense return): C F G Em
+    [48, 55], [53, 60], [55, 62], [52, 59],
+    [48, 55], [53, 60], [55, 62], [48, 55],
+    // Bars 13–16 (wind-down): F G C hold
+    [53, 60], [53, 60], [55, 62], [55, 62],
+    [48, 55], [48, 55], [48, 55], [48, 55],
   ],
   bounce: { wave: 'square', from: 330, spread: 0, to: 990, duration: 0.12 },
   gain: 0.45,

@@ -260,13 +260,19 @@ describe('AudioSystem', () => {
     expect(system.backgroundMusic.tempo).toBe(CHIPTUNE_SOUND.tempo)
   })
 
-  it('has an original chiptune: square, brisk, in a major key, with rests', () => {
+  it('has an original chiptune: square, leisurely, in a major key, with rests', () => {
     expect(CHIPTUNE_SOUND.wave).toBe('square')
-    expect(CHIPTUNE_SOUND.tempo).toBeGreaterThanOrEqual(120)
-    expect(CHIPTUNE_SOUND.melody.length).toBeGreaterThanOrEqual(16)
+    expect(CHIPTUNE_SOUND.tempo).toBe(90)
+    // Sixteen bars of eighths — long enough to wander the sphere in.
+    expect(CHIPTUNE_SOUND.melody).toHaveLength(128)
+    const loopSeconds =
+      (CHIPTUNE_SOUND.melody.length * CHIPTUNE_SOUND.noteBeats * 60) / CHIPTUNE_SOUND.tempo
+    expect(loopSeconds).toBeGreaterThanOrEqual(40)
     expect(CHIPTUNE_SOUND.melody).toContain(0)
+    expect(CHIPTUNE_SOUND.melody.filter(n => n === 0).length).toBeGreaterThan(24)
     for (const midi of CHIPTUNE_SOUND.melody) if (midi > 0) expect([0, 2, 4, 5, 7, 9, 11]).toContain(midi % 12)
     expect(CHIPTUNE_SOUND.gain).toBeLessThan(1)
+    expect(CHIPTUNE_SOUND.chords.length).toBe(32)
   })
   // A floor, not a tune: a kick under every beat (sample when the bank
   // is loaded, sine pulse as fallback), saw notes plucked through a
