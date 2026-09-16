@@ -22,6 +22,9 @@ export interface Tape {
   // Every token seen in a context or as an actual, first seen first, at
   // most tokenCap. There is no vocabulary endpoint; this is Ask-it's menu.
   tokens: string[]
+  // The same tokens, for the membership test every event does: the tape
+  // holds thousands, and each event checks up to nine of them.
+  tokenSet: ReadonlySet<string>
   tokenCap: number
 }
 
@@ -29,7 +32,13 @@ export const TAPE_ROWS = 200
 // The service's default cap; the state's vocab_cap replaces it once read.
 export const DEFAULT_TOKEN_CAP = 2048
 
-export const emptyTape = (tokenCap = DEFAULT_TOKEN_CAP): Tape => ({ rows: [], lastSeq: 0, tokens: [], tokenCap })
+export const emptyTape = (tokenCap = DEFAULT_TOKEN_CAP): Tape => ({
+  rows: [],
+  lastSeq: 0,
+  tokens: [],
+  tokenSet: new Set(),
+  tokenCap,
+})
 
 export function outcomeOf(event: DejaEvent): Outcome {
   switch (event.verdict) {
@@ -44,10 +53,19 @@ export function outcomeOf(event: DejaEvent): Outcome {
   }
 }
 
-function addTokens(tokens: string[], seen: string[], cap: number): string[] {
-  const fresh = seen.filter((token, i) => !tokens.includes(token) && seen.indexOf(token) === i)
-  if (fresh.length === 0) return tokens
-  return [...tokens, ...fresh].slice(-cap)
+type Tokens = Pick<Tape, 'tokens' | 'tokenSet'>
+
+const capTokens = (tokens: string[], cap: number): Tokens => {
+  const kept = tokens.slice(-cap)
+  return { tokens: kept, tokenSet: new Set(kept) }
+}
+
+// The same arrays come back when nothing is new, so a caller can tell by
+// identity — and a tape that has seen the whole vocabulary allocates nothing.
+function addTokens(tape: Tape, seen: string[]): Tokens {
+  const fresh = seen.filter((token, i) => !tape.tokenSet.has(token) && seen.indexOf(token) === i)
+  if (fresh.length === 0) return { tokens: tape.tokens, tokenSet: tape.tokenSet }
+  return capTokens([...tape.tokens, ...fresh], tape.tokenCap)
 }
 
 // The same tape comes back for an event already held, or one too old for a
@@ -63,7 +81,7 @@ export function applyEvent(tape: Tape, event: DejaEvent): Tape {
   return {
     rows: [...rows.slice(0, at), row, ...rows.slice(at)].slice(0, TAPE_ROWS),
     lastSeq: Math.max(tape.lastSeq, event.seq),
-    tokens: addTokens(tape.tokens, [...event.context, event.actual], tape.tokenCap),
+    ...addTokens(tape, [...event.context, event.actual]),
     tokenCap: tape.tokenCap,
   }
 }
@@ -73,7 +91,7 @@ export const applyEvents = (tape: Tape, events: DejaEvent[]): Tape => events.red
 // Evicted tokens do not come back when the cap rises: they were dropped.
 export function withTokenCap(tape: Tape, tokenCap: number): Tape {
   if (tokenCap === tape.tokenCap) return tape
-  return { ...tape, tokenCap, tokens: tape.tokens.slice(-tokenCap) }
+  return { ...tape, tokenCap, ...capTokens(tape.tokens, tokenCap) }
 }
 
 // One chart point per row, oldest first. A null net or threshold is left

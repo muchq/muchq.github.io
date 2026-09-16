@@ -55,11 +55,17 @@ const isPredictions = (body: unknown): body is NextResponse => {
   return Array.isArray(bigram) && (net === null || Array.isArray(net))
 }
 
+// The service sends `{"error": "..."}`; `message` is read too so either
+// spelling of a rejection reaches the reader.
 async function rejectionMessage(res: Response): Promise<string> {
   const text = await res.text().catch(() => '')
   try {
     const parsed: unknown = JSON.parse(text)
-    if (isRecord(parsed) && typeof parsed.message === 'string') return parsed.message
+    if (isRecord(parsed)) {
+      for (const key of ['error', 'message'] as const) {
+        if (typeof parsed[key] === 'string') return parsed[key]
+      }
+    }
   } catch {
     // not JSON
   }

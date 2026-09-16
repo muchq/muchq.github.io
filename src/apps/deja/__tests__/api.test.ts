@@ -23,7 +23,12 @@ describe('askNext', () => {
     expect(JSON.parse(init.body)).toEqual({ context: ['x', 'y'] })
   })
 
-  it('a 400 is a rejection carrying the server message', async () => {
+  it('a 400 is a rejection carrying the server message, which it sends under `error`', async () => {
+    const result = await askNext(['nope'], respond(400, '{"error":"unknown token \\"nope\\""}'))
+    expect(result).toEqual({ kind: 'rejected', message: 'unknown token "nope"' })
+  })
+
+  it('a 400 under a `message` key reads the same', async () => {
     const result = await askNext(['nope'], respond(400, '{"message":"unknown token: nope"}'))
     expect(result).toEqual({ kind: 'rejected', message: 'unknown token: nope' })
   })

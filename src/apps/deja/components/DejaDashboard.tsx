@@ -2,8 +2,8 @@ import { useEffect, useMemo } from 'react'
 import styles from '@/apps/metrics-systems/components/MetricsDashboard.module.css'
 import AskIt from './AskIt'
 import Counters from './Counters'
-import LearningCurve from './LearningCurve'
-import SurpriseStrip from './SurpriseStrip'
+import DejaChart from './DejaChart'
+import { OutcomeDot } from './OutcomeDot'
 import Tape from './Tape'
 import { curvePoints } from '../tape'
 import { useDejaStream, type StreamDeps, type StreamStatus } from '../useDejaStream'
@@ -39,11 +39,17 @@ const DejaDashboard = ({ onStatusChange, deps }: Props) => {
       <div className={styles.sectionGrid}>
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Learning curve</h2>
-          <LearningCurve points={points} />
+          <DejaChart points={points} keys={{ bigram: 'bigram', net: 'net' }} strokeWidth={2} />
         </div>
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Surprise</h2>
-          <SurpriseStrip points={points} />
+          <DejaChart
+            points={points}
+            keys={{ bigram: 'surpriseBigram', net: 'surpriseNet' }}
+            strokeWidth={1.5}
+            dot={<OutcomeDot />}
+            note="Dots are anomalies and novelties; click one, or press Enter on it, to find its row."
+          />
         </div>
       </div>
 

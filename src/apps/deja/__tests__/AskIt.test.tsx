@@ -62,6 +62,15 @@ describe('AskIt', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/unavailable/i)
   })
 
+  it('an ask that throws reads as an outage and hands the button back', async () => {
+    const { ask, user } = setup({ kind: 'not-deployed' })
+    ask.mockRejectedValue(new Error('bug'))
+    await pick(user, 'beta')
+    await user.click(screen.getByRole('button', { name: 'Ask' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/unavailable/i)
+    expect(screen.getByRole('button', { name: 'Ask' })).toBeEnabled()
+  })
+
   it('takes no more than eight tokens', async () => {
     const { ask, user } = setup({ kind: 'not-deployed' })
     await pick(user, ...tokens)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { DEJA_API_URL, fetchRecent, fetchState, type FetchLike } from './api'
-import { applyEvents, emptyTape, withTokenCap, type Tape } from './tape'
+import { applyEvent, emptyTape, withTokenCap, type Tape } from './tape'
 import type { DejaEvent, DejaState } from './types'
 
 // connecting: the EventSource is dialling, first time or after the server
@@ -58,8 +58,17 @@ export function useDejaStream(deps: StreamDeps = {}): DejaStream {
     let pollTimer: number | undefined
     let retryTimer: number | undefined
 
+    // One malformed event is the server's bug: it is skipped, and the sound
+    // ones around it — from the same frame or the same poll body — still land.
     const apply = (events: DejaEvent[]) => {
-      const next = applyEvents(held, events)
+      let next = held
+      for (const event of events) {
+        try {
+          next = applyEvent(next, event)
+        } catch {
+          // not an event
+        }
+      }
       if (next === held) return
       held = next
       setTape(held)
@@ -71,6 +80,13 @@ export function useDejaStream(deps: StreamDeps = {}): DejaStream {
       if (cancelled || events === null) return false
       apply(events)
       return true
+    }
+
+    // Only one wait is ever pending: the retry that reopens the stream, or
+    // the one that gives up on a reconnect.
+    const armRetry = (then: () => void) => {
+      window.clearTimeout(retryTimer)
+      retryTimer = window.setTimeout(then, STREAM_RETRY_MS)
     }
 
     const stopPolling = () => {
@@ -91,8 +107,7 @@ export function useDejaStream(deps: StreamDeps = {}): DejaStream {
         void poll()
         pollTimer = window.setInterval(poll, POLL_MS)
       }
-      window.clearTimeout(retryTimer)
-      if (Source) retryTimer = window.setTimeout(connect, STREAM_RETRY_MS)
+      if (Source) armRetry(connect)
     }
 
     const connect = () => {
@@ -116,8 +131,17 @@ export function useDejaStream(deps: StreamDeps = {}): DejaStream {
         }
       }
       es.onerror = () => {
-        if (es.readyState === CLOSED) startPolling()
-        else setStatus('connecting')
+        if (es.readyState === CLOSED) {
+          startPolling()
+          return
+        }
+        // CONNECTING: the browser is redialling by itself, and may never
+        // land. Already polling means that wait is covered; otherwise give
+        // it STREAM_RETRY_MS before falling back, so a live stream that
+        // drops is not left showing a page that quietly stopped updating.
+        if (pollTimer !== undefined) return
+        setStatus('connecting')
+        armRetry(startPolling)
       }
     }
 
