@@ -180,7 +180,7 @@ export const TECHNO_SOUND: SoundProfile = {
     },
     kick: { id: 'kick', gain: 0.55 },
     hits: [
-      { id: 'hat', everyBeats: 1, offsetBeats: 0.5, chance: 1, gain: 0.22 },
+      { id: 'hat', everyBeats: 1, offsetBeats: 0.5, chance: 1, gain: 0.12 },
       { id: 'perc', everyBeats: 2, offsetBeats: 0.75, chance: 0.45, gain: 0.28 },
       { id: 'huh', everyBeats: 16, offsetBeats: 0, chance: 0.4, gain: 0.35 },
       { id: 'korg0', everyBeats: 8, offsetBeats: 1.5, chance: 0.5, gain: 0.2 },
