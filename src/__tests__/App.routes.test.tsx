@@ -70,4 +70,11 @@ describe('App routes', () => {
     at('/stats')
     expect(within(screen.getByRole('navigation')).getByText('MuchQ : Stats')).toBeDefined()
   })
+
+  // jsdom has no EventSource, so the page polls; the fake hub's fetch
+  // answers with a session body it must shrug off.
+  it('serves the anomaly detector at /deja', () => {
+    at('/deja')
+    expect(within(screen.getByRole('navigation')).getByText('MuchQ : Deja')).toBeDefined()
+  })
 })

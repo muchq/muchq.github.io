@@ -38,6 +38,7 @@ const MENU: MenuGroup[] = [
       { label: 'Wordchains', to: '/wordchains' },
       { label: 'iili', to: '/iili' },
       { label: 'Stats', to: '/stats' },
+      { label: 'Deja', to: '/deja' },
       { label: 'Metrics', to: '/metrics' },
     ],
   },
