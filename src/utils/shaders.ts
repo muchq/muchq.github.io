@@ -51,6 +51,8 @@ const fragmentShaderHeader = `#version 300 es
   uniform vec3 u_cameraUp;
   uniform float u_time;
   uniform float u_worldBoundary;
+  // The radius of the surface the world stands on; 0 on a plane.
+  uniform float u_surfaceRadius;
 
   // Multiple object support (up to 10 players)
   uniform int u_numObjects;
@@ -447,7 +449,7 @@ export const fragmentShaderMain = `
         float distToEdge = min(distToEdgeX, distToEdgeZ);
 
         // Create boundary line effect
-        if (distToEdge < lineWidth) {
+        if (ROOM_BOUNDED > 0.5 && distToEdge < lineWidth) {
           float lineIntensity = 1.0 - smoothstep(0.0, lineWidth, distToEdge);
           floorColor = mix(floorColor, PALETTE_boundary, lineIntensity * 0.9);
         }
@@ -520,13 +522,17 @@ export interface RoomLook {
   block: number
   // How much a surface reflects the next bounce; 0 keeps colours flat.
   reflect: number
+  // Whether the floor has an edge to draw a line along; a surface that
+  // closes on itself has none, and the line would be a lie.
+  bounded: boolean
 }
 
 export function composeFragmentShader(roomGlsl: string, look: RoomLook): string {
   const constants =
     `  const float ROOM_FOG = ${glslFloat(look.fog)};\n` +
     `  const float ROOM_BLOCK = ${glslFloat(look.block)};\n` +
-    `  const float ROOM_REFLECT = ${glslFloat(look.reflect)};\n`
+    `  const float ROOM_REFLECT = ${glslFloat(look.reflect)};\n` +
+    `  const float ROOM_BOUNDED = ${glslFloat(look.bounded ? 1 : 0)};\n`
   return fragmentShaderHeader + paletteGlsl(look.palette) + constants + fragmentShaderPrelude + roomGlsl + fragmentShaderMain
 }
 

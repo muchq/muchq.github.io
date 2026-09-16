@@ -17,6 +17,7 @@
 
 import type { ChatMessage } from '@/types/roomChat'
 import type { GameStatePlayer } from '@/types/game'
+import type { Geometry } from './surface'
 import { safeLocalStorage } from './safeLocalStorage'
 import { HUB_SUBPROTOCOL, hubPlayUrl, mintHubSession } from './hubSession'
 
@@ -49,13 +50,14 @@ export interface HubRoomPlayer {
 // The world's updates, one key each, as the lobby envelope carries them
 // (thoughts.smithy's LobbyUpdate).
 export type LobbyUpdate =
-  | { worldState: { players: GameStatePlayer[] } }
+  | { worldState: { players: GameStatePlayer[]; geometry?: Geometry } }
+  | { geometryChanged: { geometry: Geometry; players: GameStatePlayer[] } }
   | { playerJoined: { player: GameStatePlayer } }
   | { playerMoved: { playerId: string; position: [number, number, number] } }
   | { shapeChanged: { playerId: string; shape: number } }
   | { playerLeft: { playerId: string } }
 
-export type LobbyActionName = 'join' | 'move' | 'shape' | 'leave'
+export type LobbyActionName = 'join' | 'move' | 'shape' | 'leave' | 'setGeometry'
 
 export interface HubGameSummary {
   gameId: string
@@ -70,6 +72,9 @@ export interface HubRoom {
   roomId: string
   players: HubRoomPlayer[]
   games: HubGameSummary[]
+  // The surface this room's world stands on (MoonBase#1554). A hub from
+  // before it says nothing, and the world is the plane it always was.
+  geometry?: Geometry
 }
 
 export interface HubSessionReady {

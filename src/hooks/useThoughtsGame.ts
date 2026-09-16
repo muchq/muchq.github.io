@@ -3,7 +3,9 @@ import type { MutableRefObject } from 'react'
 import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
 import { generateRandomColor, generateRandomSpawnPosition } from '@/utils/gameUtils'
 import { RoomResources } from '@/utils/roomResources'
-import { DEFAULT_ROOM } from '@/utils/roomGeometry'
+import { DEFAULT_ROOM, roomForGeometry, type RoomGeometry, type RoomGeometryId } from '@/utils/roomGeometry'
+import { cameraStand, frameAt, sameGeometry, sphereRadiusOf, surfaceFor, turn, walk, type Frame, type Geometry } from '@/utils/surface'
+import { mapHeadingDegrees, mapIsRound, mapPoint } from '@/utils/miniMap'
 import { bindRoomHotkey, bindShapeHotkey } from '@/utils/hotkeys'
 import { AvatarTrails } from '@/utils/avatarTrails'
 import { projectToNdc, viewProjection } from '@/utils/projection'
@@ -179,16 +181,61 @@ export const useThoughtsGame = () => {
       let trails = room.trailLength > 0 ? new AvatarTrails(room.trailLength) : null
       audioSystem.setProfile(room.sound)
 
-      unbindRoomHotkey = bindRoomHotkey(document, () => {
-        const next = rooms.next(room.id)
-        const nextBuilt = next && rooms.get(next)
-        if (!next || !nextBuilt) return
+      // Where the local player stands and which way the camera sits from
+      // them, on the surface the hub keeps the room on. One frame carries
+      // what a plane position and a camera angle used to: on a sphere
+      // there is no angle that means anything everywhere.
+      let surface = surfaceFor(room.geometry)
+      let frame: Frame = frameAt(surface, randomSpawnPosition)
+      gameState.getLocalPlayer()?.updatePosition(frame.position)
+      // The room this client asked for, so the hub's answer comes back as
+      // the skin it wanted rather than the first that fits the surface.
+      let wanted: RoomGeometryId = room.id
+
+      // `geometry` is the world's, and the room is only how it is drawn:
+      // the hub may put the room on a sphere no room was written for.
+      const drawRoom = (next: RoomGeometry, geometry: Geometry = next.geometry): boolean => {
+        const nextBuilt = rooms.get(next)
+        if (!nextBuilt) return false
         room = next
         built = nextBuilt
-        trails = room.trailLength > 0 ? new AvatarTrails(room.trailLength) : null
-        audioSystem.setProfile(room.sound)
+        surface = surfaceFor(geometry)
+        trails = next.trailLength > 0 ? new AvatarTrails(next.trailLength) : null
+        audioSystem.setProfile(next.sound)
+        const localPlayer = gameState.getLocalPlayer()
+        if (localPlayer) {
+          frame = frameAt(surface, localPlayer.position, frame.toCamera)
+          localPlayer.updatePosition(frame.position)
+        }
+        const map = document.getElementById('mini-map')
+        // A globe has no corners, and its stylesheet rounds the map, what
+        // it clips and the line round it; the plane's map is the square
+        // it was.
+        if (map) map.dataset.map = mapIsRound(surface) ? 'globe' : 'square'
         // eslint-disable-next-line no-console
         console.log(`🏠 Room: ${room.label}`)
+        return true
+      }
+
+      // The room's shape is the room's, not this client's: the hub names
+      // it on the snapshot a join answers and again whenever a member
+      // reshapes it, and everyone standing there redraws together.
+      networkManager.onGeometryChange = (geometry: Geometry) => {
+        if (sameGeometry(surface.geometry, geometry)) return
+        drawRoom(roomForGeometry(geometry, wanted), geometry)
+      }
+
+      unbindRoomHotkey = bindRoomHotkey(document, () => {
+        const next = rooms.next(room.id)
+        if (!next) return
+        // Two rooms on one surface are a change of light, and this
+        // client's own business; a change of surface is the hub's.
+        if (sameGeometry(next.geometry, room.geometry) || !networkManager.isConnected) {
+          if (drawRoom(next)) wanted = next.id
+          return
+        }
+        wanted = next.id
+        networkManager.sendSetGeometry(next.geometry)
       })
 
       // Create fullscreen quad
@@ -236,12 +283,13 @@ export const useThoughtsGame = () => {
         const localPlayer = gameState.getLocalPlayer()
         if (!localPlayer) return // Skip if no local player yet
 
-        // Calculate camera-relative movement directions
-        const forward = [Math.sin(gameState.camera.angle), 0, Math.cos(gameState.camera.angle)]
-        const right = [Math.cos(gameState.camera.angle), 0, -Math.sin(gameState.camera.angle)]
-
-        // Store current position for boundary checking and network updates
-        const oldPosition: [number, number, number] = [...localPlayer.position]
+        // Anything but a keypress that moved us — the snapshot a join
+        // answers, or a reshape placing everyone — replaced the position
+        // array, and the hub's word wins. Keep facing where we faced.
+        if (localPlayer.position !== frame.position) {
+          frame = frameAt(surface, localPlayer.position, frame.toCamera)
+          localPlayer.position = frame.position
+        }
 
         // Combine keyboard and joystick input for movement
         let moveX = 0, moveZ = 0
@@ -258,28 +306,20 @@ export const useThoughtsGame = () => {
           moveZ += leftJoystick.y // Match WASD behavior
         }
 
-        // Apply movement relative to camera direction
+        // A step along the surface: the plane's square stops you at its
+        // edge, a sphere has no edge to stop you at.
         if (moveX !== 0 || moveZ !== 0) {
-          localPlayer.position[0] += (forward[0] * moveZ + right[0] * moveX) * GAME_CONFIG.moveSpeed
-          localPlayer.position[2] += (forward[2] * moveZ + right[2] * moveX) * GAME_CONFIG.moveSpeed
-        }
-
-        // Boundary collision detection
-        if (Math.abs(localPlayer.position[0]) > GAME_CONFIG.worldBoundary) {
-          localPlayer.position[0] = oldPosition[0] // Revert X movement
-        }
-        if (Math.abs(localPlayer.position[2]) > GAME_CONFIG.worldBoundary) {
-          localPlayer.position[2] = oldPosition[2] // Revert Z movement
-        }
-
-        // Check if position changed and send network update
-        const positionChanged = (
-          Math.abs(localPlayer.position[0] - oldPosition[0]) > 0.01 ||
-          Math.abs(localPlayer.position[2] - oldPosition[2]) > 0.01
-        )
-
-        if (positionChanged && networkManager.isConnected) {
-          networkManager.sendPositionUpdate(localPlayer.position)
+          const before = frame.position
+          frame = walk(surface, frame, moveX * GAME_CONFIG.moveSpeed, moveZ * GAME_CONFIG.moveSpeed)
+          localPlayer.position = frame.position
+          const moved = Math.hypot(
+            frame.position[0] - before[0],
+            frame.position[1] - before[1],
+            frame.position[2] - before[2]
+          )
+          if (moved > 0.01 && networkManager.isConnected) {
+            networkManager.sendPositionUpdate(frame.position)
+          }
         }
 
         // Combine keyboard and joystick input for camera control
@@ -299,7 +339,7 @@ export const useThoughtsGame = () => {
 
         // Apply camera changes
         if (cameraRotate !== 0) {
-          gameState.camera.angle += cameraRotate * GAME_CONFIG.rotateSpeed
+          frame = turn(surface, frame, cameraRotate * GAME_CONFIG.rotateSpeed)
         }
         if (cameraZoom !== 0) {
           gameState.camera.distance = Math.max(2, Math.min(15, gameState.camera.distance + cameraZoom * GAME_CONFIG.zoomSpeed))
@@ -321,16 +361,16 @@ export const useThoughtsGame = () => {
         const mapMargin = isMobile ? 5 : 10  // Mobile uses smaller margin
         const mapCenter = mapSize / 2 + mapMargin
 
-        // Helper function to convert world position to minimap position
+        // The square for a plane; for a sphere a globe seen from over
+        // the local player, with the far side of the world on the rim.
         function worldToMiniMap(worldPos: [number, number, number]): [number, number] {
-          const mapX = mapCenter + (worldPos[0] / GAME_CONFIG.worldBoundary) * (mapSize / 2)
-          const mapZ = mapCenter + (worldPos[2] / GAME_CONFIG.worldBoundary) * (mapSize / 2)
-          return [mapX, mapZ]
+          const [x, y] = mapPoint(surface, frame, worldPos)
+          return [mapCenter + x * (mapSize / 2), mapCenter + y * (mapSize / 2)]
         }
 
         // Update local player position and rotation
         const [localMapX, localMapZ] = worldToMiniMap(localPlayer.position)
-        const directionDegrees = -gameState.camera.angle * 180 / Math.PI // Convert to degrees, pointing forward
+        const directionDegrees = mapHeadingDegrees(surface, frame)
         const miniMapPlayer = document.getElementById('mini-map-player')
         if (miniMapPlayer) {
           miniMapPlayer.style.left = `${localMapX}px`
@@ -435,7 +475,7 @@ export const useThoughtsGame = () => {
             // Project 3D position to 2D screen, through the camera the
             // shader casts its rays from. Only shown in front of the camera.
             const projected = projectToNdc(
-              room.world.place(player.position[0], player.position[2], playerY - GAME_CONFIG.groundLevel),
+              surface.place(player.position, playerY - GAME_CONFIG.groundLevel),
               cameraPosition,
               cameraTarget,
               canvas.width / canvas.height,
@@ -505,18 +545,14 @@ export const useThoughtsGame = () => {
 
         const localPlayer = gameState.getLocalPlayer()
 
-        // Calculate camera position - use default position if no local player yet
+        // The camera stands its distance behind the avatar along the
+        // surface and rises from there, so it is never under the floor.
         const fixedSphereY = -1.0 // Keep camera at a fixed height relative to sphere's center position
-        const playerPos = localPlayer ? localPlayer.position : [0, 0, 0] as [number, number, number]
-        // On the hub's plane, then placed where the room draws that plane.
-        const cameraPlane: [number, number, number] = [
-          playerPos[0] + Math.sin(gameState.camera.angle) * gameState.camera.distance,
-          fixedSphereY + gameState.camera.height,
-          playerPos[2] + Math.cos(gameState.camera.angle) * gameState.camera.distance
-        ]
-        const world = room.world
-        const cameraPosition = world.place(cameraPlane[0], cameraPlane[2], cameraPlane[1] - GAME_CONFIG.groundLevel)
-        const cameraUp = world.up(cameraPlane[0], cameraPlane[2])
+        const playerPos = localPlayer ? localPlayer.position : frame.position
+        const cameraHeight = fixedSphereY + gameState.camera.height - GAME_CONFIG.groundLevel
+        const cameraStandPoint = cameraStand(surface, frame, gameState.camera.distance)
+        const cameraPosition = surface.place(cameraStandPoint, cameraHeight)
+        const cameraUp = surface.up(cameraStandPoint)
 
         // Physics simulation for bouncing (used for visual feedback and sound triggers)
 
@@ -547,10 +583,10 @@ export const useThoughtsGame = () => {
           const playerBobbingY = player.getBouncingY(time)
 
           // Add object center where the room draws this plane point
-          const center = world.place(player.position[0], player.position[2], playerBobbingY - GAME_CONFIG.groundLevel)
+          const center = surface.place(player.position, playerBobbingY - GAME_CONFIG.groundLevel)
           objectCenters.push(center[0], center[1], center[2])
           trails?.record(player.id, center)
-          const up = world.up(player.position[0], player.position[2])
+          const up = surface.up(player.position)
           objectUps.push(up[0], up[1], up[2])
 
           // Add object color
@@ -568,7 +604,7 @@ export const useThoughtsGame = () => {
 
         // Set uniforms for ray tracing
         const sphereZenith = (GAME_CONFIG.groundLevel + GAME_CONFIG.sphereRadius) + (GAME_CONFIG.bounceHeight / 2) // Midpoint of bounce
-        const cameraTargetPos = world.place(playerPos[0], playerPos[2], sphereZenith - GAME_CONFIG.groundLevel + world.lookLift)
+        const cameraTargetPos = surface.place(playerPos, sphereZenith - GAME_CONFIG.groundLevel + surface.lookLift)
 
         webglContext.uniform2f(u.u_resolution, canvas.width, canvas.height)
         webglContext.uniform3f(u.u_cameraPos, cameraPosition[0], cameraPosition[1], cameraPosition[2])
@@ -576,6 +612,7 @@ export const useThoughtsGame = () => {
         webglContext.uniform3f(u.u_cameraUp, cameraUp[0], cameraUp[1], cameraUp[2])
         webglContext.uniform1f(u.u_time, time * 0.001)
         webglContext.uniform1f(u.u_worldBoundary, GAME_CONFIG.worldBoundary)
+        webglContext.uniform1f(u.u_surfaceRadius, sphereRadiusOf(surface.geometry) ?? 0)
 
         // Update player labels after setting up camera
         updatePlayerLabels(cameraPosition, cameraTargetPos, cameraUp)

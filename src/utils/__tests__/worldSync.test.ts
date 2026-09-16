@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { PositionThrottle, WorldSync } from '../worldSync'
 import { GameState } from '../gameClasses'
 import { ShapeType } from '@/types/game'
+import { PLANE_GEOMETRY, sphereGeometry } from '../surface'
 
 // The GameState under the hub's lobby updates, the one place both ways
 // onto the wire (the thoughts page, the lobby) touch it.
@@ -67,6 +68,41 @@ describe('WorldSync', () => {
     sync.apply({ playerJoined: { player: { playerId: 'bob', position: [-3, 0, 4], color: [1, 1, 1], shape: 0 } } })
     sync.forgetRemotePlayers()
     expect([...gameState.players.keys()]).toEqual(['alice'])
+  })
+  // A reshape is the one update that moves the local player: the hub
+  // placed everyone on the new surface, so its list is the truth for the
+  // whole room and the renderer is told what shape to draw.
+  it('takes every placement a reshape carries, the local player included', () => {
+    const heard: unknown[] = []
+    const reshaping = new WorldSync(gameState, geometry => heard.push(geometry))
+    reshaping.rekeyLocal('alice')
+    reshaping.apply({
+      worldState: {
+        geometry: PLANE_GEOMETRY,
+        players: [{ playerId: 'bob', position: [1, 0, 1], color: [0, 1, 0], shape: ShapeType.CUBE }],
+      },
+    })
+    expect(heard).toEqual([PLANE_GEOMETRY])
+
+    reshaping.apply({
+      geometryChanged: {
+        geometry: sphereGeometry(53),
+        players: [
+          { playerId: 'alice', position: [0, 0, -53], color: [0.8, 0.2, 0.6], shape: ShapeType.SPHERE },
+          { playerId: 'bob', position: [0, 53, 0], color: [0, 1, 0], shape: ShapeType.CUBE },
+        ],
+      },
+    })
+    expect(gameState.getLocalPlayer()?.position).toEqual([0, 0, -53])
+    expect(gameState.players.get('bob')?.position).toEqual([0, 53, 0])
+    expect(heard).toEqual([PLANE_GEOMETRY, sphereGeometry(53)])
+  })
+
+  it('says nothing about a shape when the snapshot names none', () => {
+    const heard: unknown[] = []
+    const quiet = new WorldSync(gameState, geometry => heard.push(geometry))
+    quiet.apply({ worldState: { players: [] } })
+    expect(heard).toEqual([])
   })
 })
 

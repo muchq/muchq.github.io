@@ -12,6 +12,7 @@ import type { GameState, ShapeType } from '@/types/game'
 import type { HubStream, LobbyUpdate } from './hubStream'
 import type { ConnectionStatus, WorldLink } from './worldSync'
 import { PositionThrottle, WorldSync } from './worldSync'
+import { PLANE_GEOMETRY, surfaceFor, type Geometry } from './surface'
 
 export class HubWorldLink implements WorldLink {
   // True from the join going out until a leave or a drop: the hub refuses
@@ -20,7 +21,11 @@ export class HubWorldLink implements WorldLink {
   onPlayerIdReceived?: (playerId: string) => void
   onConnectionStateChange?: (status: ConnectionStatus, error?: string) => void
 
+  onGeometryChange?: (geometry: Geometry) => void
   private sync: WorldSync | null = null
+  // The room's surface as the hub last named it, so a join spawns on it
+  // rather than wherever the renderer's plane happened to put us.
+  private geometry: Geometry = PLANE_GEOMETRY
   private playerId: string | null = null
   // The hook has this session in a world: the join goes out now, or as
   // soon as the renderer attaches.
@@ -35,12 +40,22 @@ export class HubWorldLink implements WorldLink {
   // The renderer mounted with its GameState, the local player already
   // spawned in it.
   attach(gameState: GameState): this {
-    this.sync = new WorldSync(gameState)
+    this.sync = new WorldSync(gameState, geometry => {
+      this.geometry = geometry
+      this.onGeometryChange?.(geometry)
+    })
     if (this.due) this.enter()
     return this
   }
 
   // --- from the lobby hook, off the stream ---
+
+  // The room's shape, from its roomState: it arrives before the world
+  // is joined, which is when the spawn has to be legal.
+  roomGeometry(geometry: Geometry): void {
+    this.geometry = geometry
+    this.onGeometryChange?.(geometry)
+  }
 
   sessionReady(playerId: string): void {
     this.playerId = playerId
@@ -80,6 +95,10 @@ export class HubWorldLink implements WorldLink {
     if (this.isConnected) this.stream()?.lobby('shape', { shape })
   }
 
+  sendSetGeometry(geometry: Geometry): void {
+    if (this.isConnected) this.stream()?.lobby('setGeometry', { geometry })
+  }
+
   sendLeave(): void {
     if (!this.isConnected) return
     this.stream()?.lobby('leave', {})
@@ -101,7 +120,8 @@ export class HubWorldLink implements WorldLink {
     this.sync.rekeyLocal(this.playerId)
     const spawn = this.sync.localSpawn()
     if (!spawn) return
-    this.stream()?.lobby('join', spawn)
+    const settled = surfaceFor(this.geometry).settle(spawn.position)
+    this.stream()?.lobby('join', { ...spawn, position: settled })
     this.throttle.reset()
     this.isConnected = true
     this.onConnectionStateChange?.('connected')

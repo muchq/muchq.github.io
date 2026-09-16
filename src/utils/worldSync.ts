@@ -7,6 +7,7 @@
 import type { GameState, GameStatePlayer } from '@/types/game'
 import { ShapeType } from '@/types/game'
 import type { LobbyUpdate } from './hubStream'
+import type { Geometry } from './surface'
 
 export interface WorldSpawn {
   position: [number, number, number]
@@ -15,7 +16,13 @@ export interface WorldSpawn {
 }
 
 export class WorldSync {
-  constructor(private readonly gameState: GameState) {}
+  // `onGeometry` is how the renderer hears what shape the world is: on
+  // the snapshot a join answers, and again whenever a member reshapes
+  // the room. It fires after the positions it came with have landed.
+  constructor(
+    private readonly gameState: GameState,
+    private readonly onGeometry?: (geometry: Geometry) => void
+  ) {}
 
   // The local player under the server's id: the renderer spawned them
   // under a temporary one before the wire answered.
@@ -39,6 +46,15 @@ export class WorldSync {
   apply(update: LobbyUpdate): void {
     if ('worldState' in update) {
       this.replaceWorld(update.worldState.players)
+      if (update.worldState.geometry) this.onGeometry?.(update.worldState.geometry)
+    } else if ('geometryChanged' in update) {
+      // The room changed shape under everyone: the hub placed every
+      // player, the local one included, so its list replaces what we
+      // hold rather than skipping ourselves the way a move does.
+      for (const player of update.geometryChanged.players) {
+        this.gameState.updatePlayer(player.playerId, player.position)
+      }
+      this.onGeometry?.(update.geometryChanged.geometry)
     } else if ('playerJoined' in update) {
       this.addRemotePlayer(update.playerJoined.player)
     } else if ('playerLeft' in update) {
@@ -107,9 +123,13 @@ export class PositionThrottle {
     const now = Date.now()
     if (now - this.lastAt < this.intervalMs) return false
     if (this.last) {
-      const dx = position[0] - this.last[0]
-      const dz = position[2] - this.last[2]
-      if (Math.sqrt(dx * dx + dz * dz) < this.minDistance) return false
+      // All three axes: on a sphere most of a step can be in y.
+      const moved = Math.hypot(
+        position[0] - this.last[0],
+        position[1] - this.last[1],
+        position[2] - this.last[2]
+      )
+      if (moved < this.minDistance) return false
     }
     this.last = [...position]
     this.lastAt = now
@@ -132,8 +152,12 @@ export interface WorldLink {
   readonly isConnected: boolean
   onPlayerIdReceived?: (playerId: string) => void
   onConnectionStateChange?: (status: ConnectionStatus, error?: string) => void
+  onGeometryChange?: (geometry: Geometry) => void
   sendPositionUpdate(position: [number, number, number]): void
   sendShapeUpdate(shape: ShapeType): void
+  // Asks the hub to reshape the room for everyone in it; the answer
+  // comes back through onGeometryChange, the same as a stranger's.
+  sendSetGeometry(geometry: Geometry): void
   sendLeave(): void
   disconnect(): void
   reconnect(): void

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { ROOM_GEOMETRIES, DEFAULT_ROOM, nextRoom, roomById, roomFragmentShader, RAY_TRACER_UNIFORMS } from '../roomGeometry'
+import { ROOM_GEOMETRIES, DEFAULT_ROOM, nextRoom, roomById, roomForGeometry, roomFragmentShader, RAY_TRACER_UNIFORMS } from '../roomGeometry'
 import { SHADER_FOV, depthCoefficients } from '../projection'
 import { PALETTE_KEYS, glslFloat, type Palette } from '../shaders'
-import { SPHERE_ROOM, sphereWorld } from '../sphereWorld'
+import { PLANE_GEOMETRY, SPHERE_RADIUS, sphereGeometry } from '../surface'
 import { CALM_SOUND, CHIPTUNE_SOUND } from '../audioSystem'
 import { GAME_CONFIG } from '../gameClasses'
 
@@ -37,19 +37,27 @@ describe('the registry', () => {
     expect(roomById('torus')).toBeUndefined()
   })
 
-  it('draws the grid and the glasshouse on the plane and the sphere room on a sphere', () => {
+  it('stands the plane rooms on the hub plane and the sphere room on its sphere', () => {
     for (const id of ['grid', 'glasshouse']) {
-      const world = roomById(id)!.world
-      expect(world.place(3, -4, 1)).toEqual([3, GAME_CONFIG.groundLevel + 1, -4])
-      expect(world.up(3, -4)).toEqual([0, 1, 0])
+      expect(roomById(id)!.geometry).toEqual(PLANE_GEOMETRY)
+      // A plane ends somewhere, and the shader draws the edge.
+      expect(roomById(id)!.bounded).toBe(true)
     }
-    const sphere = roomById('sphere')!.world
-    expect(sphere.up(3, -4)).not.toEqual([0, 1, 0])
-    // Built over the same boundary the shader receives in u_worldBoundary.
-    expect(sphere.place(GAME_CONFIG.worldBoundary, 0, 0)).toEqual(
-      sphereWorld(GAME_CONFIG.worldBoundary).place(GAME_CONFIG.worldBoundary, 0, 0)
-    )
-    expect(sphere.place(10, 0, 0)).not.toEqual(sphereWorld(GAME_CONFIG.worldBoundary / 5).place(10, 0, 0))
+    expect(roomById('sphere')!.geometry).toEqual(sphereGeometry(SPHERE_RADIUS))
+    expect(roomById('sphere')!.bounded).toBe(false)
+  })
+
+  it('picks the room for the surface the hub names, honouring the one asked for', () => {
+    // Two rooms stand on the plane: the one being walked toward wins,
+    // and the first is the fallback for anyone else's change.
+    expect(roomForGeometry(PLANE_GEOMETRY, 'glasshouse').id).toBe('glasshouse')
+    expect(roomForGeometry(PLANE_GEOMETRY).id).toBe('grid')
+    expect(roomForGeometry(PLANE_GEOMETRY, 'sphere').id).toBe('grid')
+    expect(roomForGeometry(sphereGeometry(SPHERE_RADIUS), 'grid').id).toBe('sphere')
+    // A room is a look, not a size: one sphere room draws any sphere the
+    // hub allows, and the renderer stands the world on the hub's radius.
+    expect(roomForGeometry(sphereGeometry(7)).id).toBe('sphere')
+    expect(roomForGeometry(sphereGeometry(999), 'glasshouse').id).toBe('sphere')
   })
 
   it('hangs nothing outside the sphere room and trails no wake there', () => {
@@ -194,9 +202,16 @@ describe('roomFragmentShader', () => {
     expect(roomFragmentShader(roomById('glasshouse')!)).toMatch(plane)
     const sphere = roomFragmentShader(roomById('sphere')!)
     expect(sphere).not.toMatch(plane)
-    expect(sphere).toContain(`const float SPHERE_RADIUS = ${SPHERE_ROOM.radius.toFixed(1)};`)
-    expect(sphere).toContain(`const float SPHERE_WRAP = ${SPHERE_ROOM.wrap.toFixed(2)};`)
-    expect(sphere).toContain(`const float SPHERE_LAT = ${SPHERE_ROOM.latitude.toFixed(2)};`)
+    // The wall is wherever the hub put it, not a number baked in here.
+    expect(sphere).not.toContain('const float SPHERE_RADIUS')
+    expect(sphere).toContain('intersectSphere(ro, rd, vec3(0.0), u_surfaceRadius)')
+    expect(RAY_TRACER_UNIFORMS).toContain('u_surfaceRadius')
+    // The whole wall is floor: no patch of it is parameterised, so
+    // nothing bounds where the checker is drawn.
+    expect(sphere).not.toContain('SPHERE_WRAP')
+    expect(sphere).not.toContain('SPHERE_LAT')
+    expect(sphere).toContain('const float ROOM_BOUNDED = 0.0;')
+    expect(roomFragmentShader(roomById('grid')!)).toContain('const float ROOM_BOUNDED = 1.0;')
     // A sphere is a sphere: the wall goes all the way round, and nothing
     // in the shader paints sky on it.
     expect(sphere).not.toMatch(/\.sky\b/)

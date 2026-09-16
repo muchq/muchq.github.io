@@ -6,6 +6,7 @@ import { HUB_RESUME_TOKEN_KEY } from '@/utils/hubSession'
 import { HubStream, hubPlayUrl } from '@/utils/hubStream'
 import type { HubRoom, HubSessionReady } from '@/utils/hubStream'
 import { HubWorldLink } from '@/utils/hubWorldLink'
+import { PLANE_GEOMETRY } from '@/utils/surface'
 import type { CastleMoveName, CastleUpdate } from '@/apps/castle/wire'
 import type { GolfMoveName, GolfUpdate } from '@/apps/golf/wire'
 import { useCastleTable } from './useCastleTable'
@@ -138,6 +139,9 @@ export const useLobby = ({
   const enterWorld = useCallback(
     (roomId: string | null) => {
       if (worldRoomRef.current === roomId) return
+      // The plaza is flat, whatever shape the room being left was: the
+      // spawn has to be a point of the world being joined.
+      if (roomId === null) world.roomGeometry(PLANE_GEOMETRY)
       worldRoomRef.current = roomId
       world.join()
     },
@@ -230,13 +234,18 @@ export const useLobby = ({
       }
       if (wanted.gameId) tablePendingRef.current = wanted.gameId
       if (here !== null && !wanted.roomId) navigate(lobbyRoomPath(here), { replace: true })
-      enterWorld(here)
+      // A resumed room's world waits for its roomState, which names the
+      // surface; handleRoom enters it once that has landed.
+      if (here === null) enterWorld(null)
     },
     [clearTables, enterWorld, navigate, onPlayerIdChange, resetChat, world]
   )
 
   const handleRoom = useCallback(
     (next: HubRoom) => {
+      // The room's surface, before its world is joined: the spawn has to
+      // be a point of it or the hub refuses the join (MoonBase#1554).
+      worldRef.current?.roomGeometry(next.geometry ?? PLANE_GEOMETRY)
       const pending = switchRef.current
       if (pending !== null && next.roomId !== pending.roomId) {
         // The resumed room's own state, on the way out of it.

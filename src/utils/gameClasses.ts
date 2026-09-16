@@ -51,7 +51,6 @@ export class GameState implements IGameState {
     this.players = new Map()
     this.localPlayerId = null
     this.camera = {
-      angle: 0,
       distance: 7,
       height: 4
     }

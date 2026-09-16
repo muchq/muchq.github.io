@@ -107,6 +107,15 @@
   border-radius: 2px;
 }
 
+/* A world that closes on itself is drawn as a globe: the map is round
+   all the way down, and the line that was the plane's edge is the rim,
+   which is the far side of the world rather than a wall. */
+.miniMap[data-map='globe'],
+.miniMap[data-map='globe'] .miniMapContent,
+.miniMap[data-map='globe'] .miniMapBoundary {
+  border-radius: 50%;
+}
+
 .miniMapPlayer {
   position: absolute;
   width: 0;

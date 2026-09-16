@@ -32,6 +32,7 @@ import { HUB_SUBPROTOCOL, hubPlayUrl, mintHubSession } from './hubSession'
 import type { LobbyActionName, LobbyUpdate } from './hubStream'
 import { PositionThrottle, WorldSync } from './worldSync'
 import type { ConnectionStatus, WorldLink } from './worldSync'
+import type { Geometry } from './surface'
 
 export function thoughtsPlayUrl(): string {
   return hubPlayUrl()
@@ -60,6 +61,7 @@ export class NetworkManager implements WorldLink {
   connectionError: string | null = null
   onPlayerIdReceived?: (playerId: string) => void
   onConnectionStateChange?: (status: ConnectionStatus, error?: string) => void
+  onGeometryChange?: (geometry: Geometry) => void
 
   private readonly sync: WorldSync
   private readonly throttle = new PositionThrottle()
@@ -72,7 +74,7 @@ export class NetworkManager implements WorldLink {
   private dialGeneration = 0
 
   constructor(gameState: GameState) {
-    this.sync = new WorldSync(gameState)
+    this.sync = new WorldSync(gameState, geometry => this.onGeometryChange?.(geometry))
   }
 
   connect(url: string): void {
@@ -171,6 +173,11 @@ export class NetworkManager implements WorldLink {
   sendShapeUpdate(shape: ShapeType): void {
     if (!this.isConnected) return
     this.sendCommand('shape', { shape })
+  }
+
+  sendSetGeometry(geometry: Geometry): void {
+    if (!this.isConnected) return
+    this.sendCommand('setGeometry', { geometry })
   }
 
   sendLeave(): void {

@@ -69,19 +69,29 @@ and `useCastleTable` their state over the room stream's game envelopes. Share li
 `/games/room/:roomId` and `/games/room/:roomId/table/:gameId`; the old `/golf` and `/castle`
 links redirect to them.
 
-The world's shape is a room geometry (`src/utils/roomGeometry.ts`, MoonBase#1554): each
-entry is a palette, a mapping from the hub's flat world to where the room draws it
-(`src/utils/sphereWorld.ts`), how the shared tracer is tuned there (fog, block size,
-reflections), a GLSL block the ray tracer calls for its ground, walls and shading, the
-attractors hung outside, the tint they take on through the glass, the length of the wake an
-avatar leaves, and a sound profile (`src/utils/audioSystem.ts`). Today: the grid the world
-always had; a glasshouse at night, where avatars breathe and trail a glow past gigantic
-attractors; and the inside of a sphere, the plane laid on its wall and drawn and scored like
-an SNES platformer. Players move on the same ±50 plane in every room; the hub never knows
-which one is drawn. A new room is a new entry,
-and the hub will name one per room once rooms carry a geometry. `src/utils/projection.ts` is
-the one camera the ray tracer, the player labels, and the line pass share; the shader reads
-its constants rather than carrying copies.
+A position is a point of the surface the hub keeps the room on (`src/utils/surface.ts`,
+MoonBase#1554): the ±50 ground plane, or the inside of a sphere, where the whole wall is
+somewhere to walk. A step goes along the tangent and settles back on the surface, and the
+player carries a frame — where they stand and which way the camera sits — instead of a
+camera angle, so a heading means something at every point and no pole is special. The map
+in the corner follows: the plane's square, or a globe centred on the player with the far
+side of the world on its rim (`src/utils/miniMap.ts`).
+
+A room (`src/utils/roomGeometry.ts`) is how one of those surfaces is drawn: a palette, the
+surface itself, how the shared tracer is tuned there (fog, block size, reflections), a GLSL
+block the ray tracer calls for its ground, walls and shading, the attractors hung outside,
+the tint they take on through the glass, the length of the wake an avatar leaves, and a
+sound profile (`src/utils/audioSystem.ts`). Today: the grid the world always had; a
+glasshouse at night, where avatars breathe and trail a glow past gigantic attractors; and
+the inside of a sphere, drawn and scored like an SNES platformer. A new room is a new entry.
+
+Two rooms can stand on one surface — grid and glasshouse are the same plane in different
+light — so the undocumented `g` cycles them here and now, while stepping to or from the
+sphere is the room's own shape and goes through the hub as `setGeometry`. The hub answers
+everyone in the room with `geometryChanged`, carrying where it placed each player on the new
+surface, and `roomState` names the surface before the world is joined so a spawn lands on
+it. `src/utils/projection.ts` is the one camera the ray tracer, the player labels, and the
+line pass share; the shader reads its constants rather than carrying copies.
 
 The lobby speaks the games hub's one stream (`/games/v2/play` on api.muchq.com; the models
 and the protocol are documented with the service in MoonBase, `domains/games/apis/games_hub`)
