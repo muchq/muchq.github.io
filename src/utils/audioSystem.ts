@@ -95,9 +95,10 @@ export const TECHNO_SOUND: SoundProfile = {
     43, 0, 43, 0, 50, 0, 43, 47, // G  . G  . D . G  B
     0, 43, 0, 50, 43, 0, 47, 0, //  . G  . D  G . B  .
   ],
+  // Written an octave above what they sound, like every profile's.
   chords: [
-    [33, 45, 48, 52], // A minor, over a sub root
-    [31, 43, 47, 50], // G major, over a sub root
+    [45, 57, 60, 64], // A minor, sounding A1 A2 C3 E3
+    [43, 55, 59, 62], // G major, sounding G1 G2 B2 D3
   ],
   // A landing is a dull thud down where the kick lives, not a chirp
   // over the top of it. It was 1800Hz, which read as a squeak and cut
@@ -107,6 +108,12 @@ export const TECHNO_SOUND: SoundProfile = {
   filter: { from: 1700, to: 190, seconds: 0.11, q: 14 },
   gain: 0.5,
 }
+
+// Chords sound an octave below where a profile writes them, so a pad
+// sits under its own melody without every profile spelling it. Both
+// renderers owe the same offset, and a profile has to be read knowing
+// it: written A2 is a sounding A1.
+export const CHORD_OCTAVE = -12
 
 function midiToFreq(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12)
@@ -536,7 +543,7 @@ export class AudioSystem implements IAudioSystem {
 
       if (this.backgroundMusic.noteIndex % stepsPerChord === 0) {
         const chord = chords[this.backgroundMusic.chordIndex]
-        const chordFreqs = chord.map(midi => midiToFreq(midi - 12))
+        const chordFreqs = chord.map(midi => midiToFreq(midi + CHORD_OCTAVE))
         this.createSimpleChord(chordFreqs, this.backgroundMusic.nextNoteTime, chordLength)
 
         this.backgroundMusic.chordIndex = (this.backgroundMusic.chordIndex + 1) % chords.length
@@ -666,7 +673,7 @@ export class AudioSystem implements IAudioSystem {
       if (noteIndex % stepsPerChord === 0) {
         const chord = chords[chordIndex]
         chord.forEach(midi => {
-          const chordFreq = midiToFreq(midi - 12) // Same octave offset as Web Audio
+          const chordFreq = midiToFreq(midi + CHORD_OCTAVE)
           this.renderNoteToBuffer(channelData, sampleRate, chordFreq, currentTime, chordLength, 0.003 * gain, wave)
         })
         chordIndex = (chordIndex + 1) % chords.length

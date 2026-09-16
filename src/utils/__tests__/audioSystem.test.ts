@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { AudioSystem, CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND } from '../audioSystem'
+import { AudioSystem, CALM_SOUND, CHIPTUNE_SOUND, CHORD_OCTAVE, TECHNO_SOUND } from '../audioSystem'
 
 // The world's sound is a profile the room supplies: what wave the notes
 // are, how fast, which tune, and what a bounce sounds like. The grid
@@ -357,10 +357,23 @@ describe('AudioSystem', () => {
       expect(note, `${note}`).toBeLessThan(60)
       expect(note, `${note}`).toBeGreaterThanOrEqual(36)
     }
-    // And each chord is rooted a further octave under that, which is
-    // the sub the kick sits on.
+    // And each chord sounds a further octave under that, which is the
+    // sub the kick sits on.
     for (const chord of TECHNO_SOUND.chords) {
-      expect(Math.min(...chord)).toBeLessThan(36)
+      expect(Math.min(...chord) + CHORD_OCTAVE).toBeLessThan(36)
+    }
+  })
+
+  // Chords are written an octave above what they sound. Forget that
+  // while writing a low drone and the root lands under 30Hz, which most
+  // speakers do not reproduce at all: the pad goes missing rather than
+  // going deep. Held for every profile, since the trap is the offset.
+  it('keeps every chord audible once the octave is taken off', () => {
+    const hertz = (midi: number) => 440 * Math.pow(2, (midi + CHORD_OCTAVE - 69) / 12)
+    for (const profile of [CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND]) {
+      for (const chord of profile.chords) {
+        expect(hertz(Math.min(...chord)), `${profile.tempo}bpm ${chord}`).toBeGreaterThan(40)
+      }
     }
   })
 
