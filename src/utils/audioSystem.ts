@@ -185,7 +185,7 @@ export function renderBounce(
     const time = i / sampleRate
     const frequency = bounce.to === null ? from : from * Math.pow(bounce.to / from, Math.min(1, time / bounce.duration))
     phase += frequency / sampleRate
-    const envelope = Math.exp(-time * 30)
+    const envelope = Math.exp(-time * BOUNCE_DECAY)
     channelData[i] = waveSample(bounce.wave, phase % 1) * envelope * 0.05 * gain * bounceGain(bounce)
   }
 }
@@ -193,6 +193,19 @@ export function renderBounce(
 // How loud a landing is against its room; absent is unchanged.
 export function bounceGain(bounce: SoundProfile['bounce']): number {
   return bounce.gain ?? 1
+}
+
+// How fast a landing dies away, per second. Both paths owe it: the
+// pre-rendered one multiplies by it, and the live one ramps down to
+// wherever it leaves off, so a quiet room's landing fades to silence
+// rather than being cut off partway down.
+export const BOUNCE_DECAY = 30
+
+// Where a landing's envelope has fallen to by the time the note stops,
+// as a share of its peak. A gain ramp cannot reach zero, so a quiet
+// landing needs a quieter floor, not the same absolute one.
+export function bounceRelease(peak: number, duration: number): number {
+  return Math.max(peak * Math.exp(-BOUNCE_DECAY * duration), 1e-6)
 }
 
 export function renderNote(
@@ -780,10 +793,11 @@ export class AudioSystem implements IAudioSystem {
     if (bounce.to !== null) oscillator.frequency.exponentialRampToValueAtTime(bounce.to, now + bounce.duration)
     oscillator.type = bounce.wave
 
-    // Quick attack and decay
+    // Quick attack, then the same decay the pre-rendered landing has.
+    const peak = 0.015 * gain * bounceGain(bounce)
     gainNode.gain.setValueAtTime(0, now)
-    gainNode.gain.linearRampToValueAtTime(0.015 * gain * bounceGain(bounce), now + 0.01)
-    gainNode.gain.exponentialRampToValueAtTime(0.001, now + bounce.duration)
+    gainNode.gain.linearRampToValueAtTime(peak, now + 0.01)
+    gainNode.gain.exponentialRampToValueAtTime(bounceRelease(peak, bounce.duration), now + bounce.duration)
 
     oscillator.start(now)
     oscillator.stop(now + bounce.duration)

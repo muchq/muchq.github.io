@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { AudioSystem, CALM_SOUND, CHIPTUNE_SOUND, CHORD_OCTAVE, TECHNO_SOUND } from '../audioSystem'
+import { AudioSystem, BOUNCE_DECAY, CALM_SOUND, CHIPTUNE_SOUND, CHORD_OCTAVE, TECHNO_SOUND, bounceRelease } from '../audioSystem'
 
 // The world's sound is a profile the room supplies: what wave the notes
 // are, how fast, which tune, and what a bounce sounds like. The grid
@@ -177,6 +177,33 @@ describe('AudioSystem', () => {
     const scaled = gains[between].gain.linearRampToValueAtTime.mock.calls[0][0]
     expect(scaled).toBeCloseTo(0.015 * TECHNO_SOUND.gain * TECHNO_SOUND.bounce.gain!, 6)
     expect(scaled).toBeLessThan(plain)
+  })
+
+  // The release used to ramp to a fixed 0.001 whatever the peak was, so
+  // a quiet landing stopped at nearly half its own height and got cut
+  // off there. The floor follows the peak, and follows the decay the
+  // pre-rendered landing already had, so the two end in the same place.
+  it('fades a landing to the same share of its peak however quiet it is', () => {
+    const shares: number[] = []
+    for (const profile of [CHIPTUNE_SOUND, TECHNO_SOUND]) {
+      const before = gains.length
+      system.setProfile(profile)
+      system.lastBounceTime = -Infinity
+      system.playBoingSound()
+      const node = gains[before].gain
+      const [peak] = node.linearRampToValueAtTime.mock.calls[0]
+      const [floor] = node.exponentialRampToValueAtTime.mock.calls[0]
+      expect(floor).toBeGreaterThan(0) // an exponential ramp cannot reach zero
+      expect(floor).toBeLessThan(peak)
+      expect(floor).toBeCloseTo(bounceRelease(peak, profile.bounce.duration), 9)
+      shares.push(floor / peak)
+    }
+    // Both land at exp(-decay * duration) of their own peak, which is
+    // what the offline renderer's envelope reaches at the same moment.
+    shares.forEach((share, i) => {
+      const duration = [CHIPTUNE_SOUND, TECHNO_SOUND][i].bounce.duration
+      expect(share).toBeCloseTo(Math.exp(-BOUNCE_DECAY * duration), 9)
+    })
   })
 
   it('plays the chiptune on square waves, every step, at its own tempo', () => {
