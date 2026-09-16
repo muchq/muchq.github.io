@@ -60,8 +60,11 @@ export interface AttractorSpec {
   // Radians per second about the vertical through the centre.
   spin: number
   points: number
-  // Points the glowing head advances per second.
-  speed: number
+  // Seconds the glowing head takes to go once round the curve. Set
+  // what you can see: points-per-second hides the lap behind the
+  // point count, and a curve taken finely then runs faster than a
+  // coarse one at the same number.
+  lapSeconds: number
   style: AttractorStyle
 }
 
@@ -158,7 +161,7 @@ export function attractorsOutside(boundary: number): AttractorSpec[] {
       color: [1.0, 0.55, 0.25],
       spin: 0.03,
       points: 3000,
-      speed: 400,
+      lapSeconds: 11,
       style: { bead: 0, tail: 0.3, twinkle: 0, core: 0.6, comet: 0.03 },
     },
     // North: a coil, taken coarsely so it reads as a chain of beads.
@@ -169,7 +172,7 @@ export function attractorsOutside(boundary: number): AttractorSpec[] {
       color: [0.45, 0.9, 1.0],
       spin: -0.04,
       points: 1100,
-      speed: 90,
+      lapSeconds: 17,
       style: { bead: 7, tail: 0.12, twinkle: 0, core: 0.35, comet: 0.014 },
     },
     // West: a lattice, taken finely and shimmering, a drift of sparks.
@@ -180,7 +183,7 @@ export function attractorsOutside(boundary: number): AttractorSpec[] {
       color: [0.85, 0.5, 1.0],
       spin: 0.025,
       points: 4000,
-      speed: 260,
+      lapSeconds: 22,
       // Sparks and nothing else: a comet would only smear them.
       style: { bead: 0, tail: 0.06, twinkle: 0.9, core: 0.2, comet: 0 },
     },
@@ -192,7 +195,7 @@ export function attractorsOutside(boundary: number): AttractorSpec[] {
       color: [0.5, 1.0, 0.6],
       spin: 0.045,
       points: 2600,
-      speed: 700,
+      lapSeconds: 20,
       style: { bead: 0, tail: 0.02, twinkle: 0, core: 1, comet: 0.05 },
     },
   ]

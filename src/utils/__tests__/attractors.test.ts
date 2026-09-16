@@ -140,6 +140,22 @@ describe('attractorsOutside', () => {
     }
   })
 
+  // These are scenery a dozen metres past a glass wall: a head that
+  // laps in a couple of seconds reads as a strobe rather than as
+  // something travelling. Written as a lap rather than points per
+  // second, which is why the one that used to be four times faster than
+  // the rest — while its own comment called it slow — stood out.
+  it('walks each head round its curve rather than flinging it', () => {
+    for (const s of specs) {
+      expect(s.lapSeconds, `${s.kind}`).toBeGreaterThanOrEqual(10)
+      expect(s.lapSeconds, `${s.kind}`).toBeLessThanOrEqual(40)
+    }
+    // Different paces, but none of them an outlier against the rest.
+    const laps = specs.map(s => s.lapSeconds).sort((a, b) => a - b)
+    expect(new Set(laps).size).toBe(specs.length)
+    expect(laps.at(-1)! / laps[0]).toBeLessThan(2.5)
+  })
+
   // The twin: the placement rule, not the fixture, is what holds them out.
   it('moves out with the boundary', () => {
     const wider = attractorsOutside(GAME_CONFIG.worldBoundary * 3)
