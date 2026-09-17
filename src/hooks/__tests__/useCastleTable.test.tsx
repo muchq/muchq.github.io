@@ -125,14 +125,15 @@ describe('useCastleTable', () => {
     expect(result.current.selected).toEqual([])
   })
 
-  it('only your own turn is a toast; the felt shows the rest', () => {
+  it('a turn is not a toast, your own included; the felt lights the seat', () => {
     const move = vi.fn()
     const showNotice = vi.fn()
     const { result } = renderHook(() => useCastleTable({ playerId: 'alice', move, showNotice, onLeft: vi.fn() }))
     act(() => result.current.handleUpdate({ turnChanged: { playerId: 'bob' } }))
-    expect(showNotice).not.toHaveBeenCalled()
     act(() => result.current.handleUpdate({ turnChanged: { playerId: 'alice' } }))
-    expect(showNotice).toHaveBeenCalledWith('Your turn')
+    // The toast is fixed to the foot of the screen, which is where the
+    // hand it was telling you to play is.
+    expect(showNotice).not.toHaveBeenCalled()
   })
 
   it('play again opens another table, and the ending goes with the old one', () => {

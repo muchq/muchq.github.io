@@ -199,26 +199,52 @@ describe('CastleTable', () => {
     expect(screen.getByRole('button', { name: 'Pick up the pile' })).toBeDisabled()
   })
 
-  it('off turn the price is not yours to read', () => {
-    mountWith(view({ currentPlayerId: 'bob' }))
-    expect(screen.queryByText('Play 8 or higher')).toBeNull()
+  it('the price is on the felt whoever is to play, so the middle holds still', () => {
+    const { rerender } = render(<CastleTable playerId="alice" connected view={view({ currentPlayerId: 'bob' })} table={table()} />)
+    expect(screen.getByText('Play 8 or higher')).toBeDefined()
     // The piles and the run still say where the table stands.
     // A group, not an image: an image's children are decoration, and
     // the run inside is the rank to beat.
     expect(screen.getByRole('group', { name: '2 on the pile' })).toBeDefined()
     expect(screen.getByRole('group', { name: 'run on top' })).toBeDefined()
+    rerender(<CastleTable playerId="alice" connected view={view()} table={table()} />)
+    expect(screen.getByText('Play 8 or higher')).toBeDefined()
   })
 
-  it('a failed flip shows the card that did not play, with the pile it brought', () => {
+  it('a failed flip names the card that did not play, with the pile it brought', () => {
     const flipped = view({
       pileCount: 0,
       run: [],
       lastPlay: { playerId: 'alice', cards: [{ rank: '3', suit: '♦' }], burned: false, pickedUp: true }
     })
     mountWith(flipped)
-    const told = screen.getByText('You flipped 3♦ and picked up the pile').parentElement as HTMLElement
+    const told = screen.getByText('You flipped 3♦ and picked up the pile')
     expect(told.className).toContain('pickedUp')
-    expect(within(told).getByRole('img', { name: '3♦' })).toBeDefined()
+  })
+
+  it('the last play reads off the felt, in the header row beside the name', () => {
+    mountWith(view())
+    const told = screen.getByText('bob played 8♥')
+    // Not in the middle, where it was drawn over the pile it describes
+    // and over the viewer's own chair below it, and not in a chair.
+    expect(told.closest('section[aria-label="pile"]')).toBeNull()
+    expect(told.closest('section[aria-label*="alice"]')).toBeNull()
+    // The header row's middle was empty and the felt was paying for a
+    // line of its own underneath it.
+    const header = screen.getByRole('heading', { name: 'Table G1' }).parentElement as HTMLElement
+    expect(header.contains(told)).toBe(true)
+  })
+
+  it('your turn is announced where a toast is not, for a reader who cannot see the chair', () => {
+    // The felt outlines the chair on turn and its name says "to play",
+    // but both are pictures and an aria-label changing is not an
+    // announcement; the toast that used to say it landed on the hand.
+    const { rerender } = render(<CastleTable playerId="alice" connected view={view({ currentPlayerId: 'bob' })} table={table()} />)
+    expect(screen.queryByText('Your turn')).toBeNull()
+    rerender(<CastleTable playerId="alice" connected view={view()} table={table()} />)
+    const said = screen.getByText('Your turn')
+    expect(said.getAttribute('role')).toBe('status')
+    expect(said.className).toContain('srOnly')
   })
 
   it('the last play is one live region that changes, not a new one each play', () => {
@@ -240,7 +266,7 @@ describe('CastleTable', () => {
   it('a faded last play leaves the pile, and the next one is back', () => {
     const t = table()
     const { rerender } = render(<CastleTable playerId="alice" connected view={view()} table={t} />)
-    const moment = screen.getByText('bob played 8♥').parentElement as HTMLElement
+    const moment = screen.getByText('bob played 8♥')
     const region = moment.parentElement as HTMLElement
     endAnimation(moment)
     expect(screen.queryByText('bob played 8♥')).toBeNull()
@@ -248,13 +274,6 @@ describe('CastleTable', () => {
     const next = view({ lastPlay: { playerId: 'alice', cards: [{ rank: '9', suit: '♣' }], burned: false, pickedUp: false } })
     rerender(<CastleTable playerId="alice" connected view={next} table={t} />)
     expect(screen.getByText('You played 9♣')).toBeDefined()
-  })
-
-  it('the flipped card finishing its turn does not take the moment with it', () => {
-    mountWith(view({ pileCount: 0, run: [], lastPlay: { playerId: 'alice', cards: [{ rank: '3', suit: '♦' }], burned: false, pickedUp: true } }))
-    const told = screen.getByText('You flipped 3♦ and picked up the pile')
-    endAnimation(within(told.parentElement as HTMLElement).getByRole('img', { name: '3♦' }))
-    expect(screen.getByText('You flipped 3♦ and picked up the pile')).toBeDefined()
   })
 
   it('an arrival is brought into view; a deal is not', () => {

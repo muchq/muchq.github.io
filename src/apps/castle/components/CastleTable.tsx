@@ -229,6 +229,10 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
     if (showEnding) playAgainRef.current?.focus()
   }, [showEnding])
 
+  // The last play while its moment lasts: gone once it has faded, so
+  // the same play arriving again in a later view does not replay it.
+  const moment = view.lastPlay !== undefined && `${view.gameId}:${playSignature(view.lastPlay)}` !== faded ? view.lastPlay : undefined
+
   const me = seatOf(view, playerId)
   const myTurn = view.currentPlayerId === playerId && view.phase === 'playing'
   const myRow = me === undefined ? 'hand' : rowInPlay(me)
@@ -254,6 +258,46 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
     if (myTurn && myRow === 'faceDown') return 'Flip a face-down card, blind, or pick up the pile.'
     return ''
   })()
+
+  // What the table is saying, in the header row's own middle: the
+  // hint, and the last play. The row holds its height whether either
+  // is there or not, so a sentence arriving never moves the felt.
+  const status = (
+    <div className={styles.status}>
+      {/* The turn, for a reader who cannot see the chair light up. The
+          felt outlines the chair on turn and its name says "to play",
+          but both are pictures, and an aria-label changing is not an
+          announcement. Said here rather than in a toast over the hand,
+          and said quietly: there is nothing to read that the felt is
+          not already showing. */}
+      <p className={styles.srOnly} role="status">
+        {myTurn ? 'Your turn' : ''}
+      </p>
+      <p className={styles.hint} role="status">
+        {hint}
+      </p>
+      {/* The last play, for a moment: a pick-up stays longer, since a
+          handful of cards just arrived and this is why. The sentence
+          names the card that did not play, so it is the whole moment —
+          a picture of that card beside it said the same thing twice,
+          and a line tall enough to hold one had to be held open
+          whether a pick-up came or not. */}
+      {/* One live region for the table's life, so a new play is a
+          change to it rather than a region appearing; the moment
+          itself is the keyed child. */}
+      <p className={styles.lastPlaySlot} role="status">
+        {moment !== undefined && (
+          <span
+            key={playSignature(moment)}
+            className={`${styles.lastPlay} ${moment.pickedUp ? styles.pickedUp : ''}`}
+            onAnimationEnd={() => setFaded(`${view.gameId}:${playSignature(moment)}`)}
+          >
+            {describeLastPlay(moment, playerId)}
+          </span>
+        )}
+      </p>
+    </div>
+  )
 
   const actions = (() => {
     if (view.phase === 'waiting') {
@@ -444,10 +488,16 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
 
   return (
     <div className={styles.table} data-phase={view.phase}>
+      {/* The header row: the table's name, what it is saying, and the
+          way out. The middle of this row was empty and the felt was
+          paying for a line of its own underneath — on a short window
+          that line was the difference between the moves being on
+          screen and being scrolled to. */}
       <div className={styles.tableHeader}>
         <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
           Table {view.gameId}
         </h1>
+        {status}
         {view.phase !== 'ended' && (
           <button type="button" className={styles.link} onClick={table.leaveTable} disabled={!connected}>
             Leave table
@@ -456,9 +506,6 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
       </div>
       <p className={styles.ending} role="status">
         {view.phase === 'ended' && ended !== null ? describeEnding(ended.finished, ended.loser, playerId) : ''}
-      </p>
-      <p className={styles.hint} role="status">
-        {hint}
       </p>
       {showEnding &&
         ended !== null &&
@@ -533,36 +580,11 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
                 {view.pileCount > 0 && <span className={styles.count}>{view.pileCount}</span>}
               </div>
             </div>
-            {/* The price is the mover's to read. Off turn the run shows the
-                rank to beat; how many to play arrives with the turn, since a
-                run can be taller than the play that topped it. */}
-            {myTurn && <p className={styles.price}>{describePile(view)}</p>}
-            {/* The last play, for a moment: a pick-up shows the card that
-                did not play and stays longer, since a handful of cards
-                just arrived and this is why. */}
-            {/* One live region for the table's life, so a new play is a
-                change to it rather than a region appearing; the moment
-                itself is the keyed child. */}
-            <p className={styles.lastPlaySlot} role="status">
-              {view.lastPlay !== undefined && `${view.gameId}:${playSignature(view.lastPlay)}` !== faded && (
-                <span
-                  key={playSignature(view.lastPlay)}
-                  className={`${styles.lastPlay} ${view.lastPlay.pickedUp ? styles.pickedUp : ''}`}
-                  // The flipped card's own animation ends here too; only the
-                  // moment's own end takes it out.
-                  onAnimationEnd={(event) => {
-                    if (event.target === event.currentTarget && view.lastPlay !== undefined) {
-                      setFaded(`${view.gameId}:${playSignature(view.lastPlay)}`)
-                    }
-                  }}
-                >
-                  {view.lastPlay.pickedUp && view.lastPlay.cards[0] !== undefined && (
-                    <CardFace card={view.lastPlay.cards[0]} className={styles.flipped} />
-                  )}
-                  <span>{describeLastPlay(view.lastPlay, playerId)}</span>
-                </span>
-              )}
-            </p>
+            {/* The price, for everyone and always: the rank to beat is on
+                the pile, but how many to play is not, and a line that
+                came and went with the turn moved the middle every time
+                it did. */}
+            <p className={styles.price}>{describePile(view)}</p>
           </section>
         )}
       </div>

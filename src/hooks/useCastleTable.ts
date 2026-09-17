@@ -84,10 +84,10 @@ export const useCastleTable = ({ playerId, move, showNotice, onLeft }: UseCastle
         return
       }
       if (update.turnChanged) {
-        // Only your own turn interrupts. The felt already lights the
-        // seat on turn, and a toast for every other turn lands over the
-        // hand on a phone.
-        if (update.turnChanged.playerId === playerId) showNotice('Your turn')
+        // No toast for a turn, anyone's, your own included: the felt
+        // lights the seat on turn and the moves appear under the hand,
+        // and the toast is fixed to the foot of the screen — right over
+        // the hand it is telling you to play.
         return
       }
       if (update.gameEnded) {
