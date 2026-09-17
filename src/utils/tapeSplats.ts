@@ -54,8 +54,6 @@ export const TAPE_RING_SIZE = 32
 export class TapeRing {
   private held: WallSplat[] = []
 
-  constructor(private readonly size = TAPE_RING_SIZE) {}
-
   // Oldest first, as the hub sends them.
   get splats(): readonly WallSplat[] {
     return this.held
@@ -82,7 +80,7 @@ export class TapeRing {
   private put(splat: TapeSplat, live: boolean): void {
     if (this.held.some(held => held.splat.seq === splat.seq)) return
     this.held.push({ splat, live })
-    if (this.held.length > this.size) this.held = this.held.slice(this.held.length - this.size)
+    if (this.held.length > TAPE_RING_SIZE) this.held = this.held.slice(this.held.length - TAPE_RING_SIZE)
   }
 }
 
@@ -92,36 +90,52 @@ export const VERDICT_COLOURS = {
   near: '#ffb347',
   anomaly: '#ff6b6b',
   novel: '#b388ff',
-  neutral: 'rgba(233, 238, 255, 0.55)',
+  neutral: 'rgba(233, 238, 255, 0.72)',
 } as const
 
-// How a splat reads. The verdict is deja's own call and outranks
-// everything else; among expected events the bigram's top guess decides,
-// exactly as the tape's outcomeOf does — the verdict is judged on the
-// bigram's surprise, so the net's guess must not turn a near green. The
-// wire carries only the top guess, not the top five, so an expected
-// event the bigram did not lead with is amber whether it was in the list
-// or missed it altogether. An unrecognised verdict is neutral: deja may
-// learn to say something this client has never heard of, and the splat
-// still belongs on the glass.
-export function splatColour(splat: TapeSplat): string {
+// How a splat reads. `other` is anything this client has no colour for —
+// a warmup, or a verdict deja learned to say after this was written.
+export type WallOutcome = 'hit' | 'near' | 'anomaly' | 'novel' | 'other'
+
+// The verdict is deja's own call and outranks everything else; among
+// expected events the bigram's top guess decides, and the net's is not
+// consulted, which is how the /deja page judges a row too. It is not
+// quite that page's outcome: only the top guess rides the wire, not the
+// top five, so an expected event the bigram did not lead with is amber
+// here whether that page would have called it a near or a miss.
+export function splatOutcome(splat: TapeSplat): WallOutcome {
   switch (splat.verdict) {
     case 'anomaly':
-      return VERDICT_COLOURS.anomaly
+      return 'anomaly'
     case 'novel':
-      return VERDICT_COLOURS.novel
+      return 'novel'
     case 'expected':
-      return splat.bigram?.token === splat.actual ? VERDICT_COLOURS.hit : VERDICT_COLOURS.near
+      return splat.bigram?.token === splat.actual ? 'hit' : 'near'
     default:
-      return VERDICT_COLOURS.neutral
+      return 'other'
   }
+}
+
+export function splatColour(splat: TapeSplat): string {
+  const outcome = splatOutcome(splat)
+  return outcome === 'other' ? VERDICT_COLOURS.neutral : VERDICT_COLOURS[outcome]
+}
+
+// The word beside the colour, because colour alone is not a reading:
+// this client's own for an outcome it knows, and deja's verdict verbatim
+// for one it does not.
+export function splatLabel(splat: TapeSplat): string {
+  const outcome = splatOutcome(splat)
+  return outcome === 'other' ? splat.verdict : outcome
 }
 
 // How long a splat takes to fade to the faintest it gets, and how faint
 // that is. A joiner is handed a ring minutes old, so age is what tells a
 // wall that is still busy from one that emptied out while nobody looked.
 export const TAPE_FADE_SECONDS = 180
-export const TAPE_FAINTEST = 0.12
+// Faded, and still readable against the glass; the splat sits on a dark
+// plate like a player label, so this is the floor of the whole element.
+export const TAPE_FAINTEST = 0.28
 
 export function splatOpacity(ageSeconds: number): number {
   // A clock skewed the other way is a fresh splat, not a brighter one.

@@ -10,7 +10,7 @@ import {
 import { attractorsOutside, type AttractorSpec } from './attractors'
 import { GAME_CONFIG } from './gameClasses'
 import type { Vec3 } from './projection'
-import { PLANE_GEOMETRY, sphereGeometry, sameSurfaceKind, type Geometry } from './surface'
+import { GLASSHOUSE_GEOMETRY, PLANE_GEOMETRY, sphereGeometry, sameSurfaceKind, type Geometry } from './surface'
 import { CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND, type SoundProfile } from './audioSystem'
 
 // The rooms the world can be: each is a palette the sky and floor are
@@ -21,10 +21,12 @@ import { CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND, type SoundProfile } from './a
 // through the glass, how long a wake an avatar leaves, and what it
 // sounds like. A new room is a new entry here.
 //
-// Two rooms can stand on one surface: grid and glasshouse are the same
-// plane in different light, so switching between them is this client's
-// own business, while stepping to or from the sphere is the room's and
-// goes through the hub. The hotkey cycles the list in order.
+// Every room is a surface the hub knows by name, so stepping between
+// them is the room's business and not this client's: the hotkey asks the
+// hub, and everyone standing there redraws together. The glasshouse
+// walks exactly as the grid does and is still its own surface, because
+// the hub polls deja for a room standing in one. The hotkey cycles the
+// list in order.
 
 export type RoomGeometryId = 'grid' | 'glasshouse' | 'sphere'
 
@@ -333,7 +335,7 @@ export const ROOM_GEOMETRIES: readonly RoomGeometry[] = [
     id: 'glasshouse',
     label: 'Glasshouse',
     palette: GLASSHOUSE_PALETTE,
-    geometry: PLANE_GEOMETRY,
+    geometry: GLASSHOUSE_GEOMETRY,
     bounded: true,
     fog: 0.05,
     block: 0.5,
@@ -377,8 +379,8 @@ export function nextRoom(id: RoomGeometryId): RoomGeometry {
 // Which room to draw for the surface the hub named. A room is a look,
 // not a size: the sphere room draws a sphere of any radius the hub
 // allows, and the renderer stands the world on the hub's own geometry.
-// Several rooms can share a kind, so a room this client was heading for
-// wins; otherwise it is the first of that kind.
+// Should two rooms ever share a surface, the one this client was heading
+// for wins; otherwise it is the first that draws that surface.
 export function roomForGeometry(geometry: Geometry, wanted?: RoomGeometryId): RoomGeometry {
   const preferred = wanted && roomById(wanted)
   if (preferred && sameSurfaceKind(preferred.geometry, geometry)) return preferred

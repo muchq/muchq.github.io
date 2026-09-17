@@ -267,7 +267,8 @@
 .hudRight .miniMap,
 .hudRight .soundToggle,
 .hudRight .fpsCounter,
-.hudRight .mobileJoystick {
+.hudRight .mobileJoystick,
+.hudRight .tapeWallContainer {
   z-index: 5;
 }
 

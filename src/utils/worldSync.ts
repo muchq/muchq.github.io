@@ -7,6 +7,7 @@
 import type { GameState, GameStatePlayer } from '@/types/game'
 import { ShapeType } from '@/types/game'
 import type { LobbyUpdate } from './hubStream'
+import type { TapeSplat } from './tapeSplats'
 import type { Geometry } from './surface'
 
 export interface WorldSpawn {
@@ -46,7 +47,7 @@ export class WorldSync {
   apply(update: LobbyUpdate): void {
     if ('worldState' in update) {
       this.replaceWorld(update.worldState.players)
-      if (update.worldState.tape) this.gameState.tape.seed(update.worldState.tape)
+      this.replaceTape(update.worldState.tape)
       if (update.worldState.geometry) this.onGeometry?.(update.worldState.geometry)
     } else if ('tape' in update) {
       // One deja event, landing now: the hub picked the wall and the
@@ -62,7 +63,7 @@ export class WorldSync {
       }
       // A room that becomes a glasshouse gets its walls filled for the
       // people already standing in it, not only for whoever joins next.
-      if (update.geometryChanged.tape) this.gameState.tape.seed(update.geometryChanged.tape)
+      this.replaceTape(update.geometryChanged.tape)
       this.onGeometry?.(update.geometryChanged.geometry)
     } else if ('playerJoined' in update) {
       this.addRemotePlayer(update.playerJoined.player)
@@ -90,6 +91,15 @@ export class WorldSync {
   // the last room's tape until a snapshot replaces it.
   forgetTape(): void {
     this.gameState.tape.clear()
+  }
+
+  // A snapshot and a reshape both replace the world entire, the glass
+  // with the players: a reshape onto a surface with no glass carries no
+  // tape, and the wall it had goes with it rather than hanging there
+  // over a room that has none.
+  private replaceTape(tape?: TapeSplat[]): void {
+    this.gameState.tape.clear()
+    if (tape) this.gameState.tape.seed(tape)
   }
 
   // The snapshot is authoritative: everyone it lists is here, and everyone

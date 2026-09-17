@@ -1,5 +1,5 @@
 import styles from './Deja.module.css'
-import { displayToken } from '../displayToken'
+import { displayToken } from '@/utils/displayToken'
 import type { Prediction } from '../types'
 
 interface Props {

@@ -6,8 +6,8 @@ import { ROOM_HOTKEY, SHAPE_HOTKEY } from '@/utils/hotkeys'
 
 import { GAME_CONFIG, GameState, Player } from '@/utils/gameClasses'
 import { splat } from '@/test/fakeTape'
-import { CALM_SOUND, CHIPTUNE_SOUND, type SoundProfile } from '@/utils/audioSystem'
-import { PLANE_GEOMETRY, SPHERE_RADIUS, sphereGeometry } from '@/utils/surface'
+import { CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND, type SoundProfile } from '@/utils/audioSystem'
+import { GLASSHOUSE_GEOMETRY, PLANE_GEOMETRY, SPHERE_RADIUS, sphereGeometry } from '@/utils/surface'
 import type { HubWorldLink } from '@/utils/hubWorldLink'
 import type { WorldLink } from '@/utils/worldSync'
 
@@ -261,24 +261,47 @@ describe('useThoughtsGame', () => {
   })
 
   // The room's shape belongs to the room: the key asks the hub, and the
-  // world changes when the hub says so, for everyone at once. Two rooms
-  // standing on one surface are just this client's own light.
-  it('asks the hub to reshape the room and redraws when it answers', () => {
+  // world changes when the hub says so, for everyone at once. The
+  // glasshouse is one of those shapes — the hub polls deja for a room
+  // standing in one, so a private glasshouse would be a wall that never
+  // fills.
+  it('asks the hub for the glasshouse and for the sphere, and redraws when it answers', () => {
     const link = { ...worldLink(), isConnected: true }
     startWith(link)
     frame()
     setProfile.mockClear()
+    const strips = () => gl.drawArrays.mock.calls.filter(c => c[0] === gl.LINE_STRIP).length
     press(ROOM_HOTKEY)
-    expect(link.sendSetGeometry).not.toHaveBeenCalled()
-    // Drawn here and now: the glasshouse hangs its attractors this frame.
-    frame(32)
-    expect(gl.drawArrays.mock.calls.filter(c => c[0] === gl.LINE_STRIP).length).toBeGreaterThan(0)
-    press(ROOM_HOTKEY)
-    expect(link.sendSetGeometry).toHaveBeenCalledWith(sphereGeometry(SPHERE_RADIUS))
+    expect(link.sendSetGeometry).toHaveBeenLastCalledWith(GLASSHOUSE_GEOMETRY)
     // Not yet: the hub decides, and the answer reaches everyone in it.
+    frame(32)
+    expect(setProfile).not.toHaveBeenLastCalledWith(TECHNO_SOUND)
+    expect(strips()).toBe(0)
+    link.onGeometryChange!(GLASSHOUSE_GEOMETRY)
+    frame(48)
+    expect(setProfile).toHaveBeenLastCalledWith(TECHNO_SOUND)
+    // Drawn now: the glasshouse hangs its attractors.
+    expect(strips()).toBeGreaterThan(0)
+    press(ROOM_HOTKEY)
+    expect(link.sendSetGeometry).toHaveBeenLastCalledWith(sphereGeometry(SPHERE_RADIUS))
     expect(setProfile).not.toHaveBeenLastCalledWith(CHIPTUNE_SOUND)
     link.onGeometryChange!(sphereGeometry(SPHERE_RADIUS))
     expect(setProfile).toHaveBeenLastCalledWith(CHIPTUNE_SOUND)
+  })
+
+  // A glasshouse that compared equal to the plane would be dropped here,
+  // and the one room with anything on its walls would never be drawn.
+  it('follows a stranger into the glasshouse, and back out to the plane', () => {
+    const link = { ...worldLink(), isConnected: true }
+    startWith(link)
+    frame()
+    link.onGeometryChange!(GLASSHOUSE_GEOMETRY)
+    expect(setProfile).toHaveBeenLastCalledWith(TECHNO_SOUND)
+    frame(32)
+    expect(link.sendSetGeometry).not.toHaveBeenCalled()
+    // And out again: the plane is the grid, not the glasshouse it was.
+    link.onGeometryChange!(PLANE_GEOMETRY)
+    expect(setProfile).toHaveBeenLastCalledWith(CALM_SOUND)
   })
 
   it('follows a reshape this client never asked for, and rounds the map for a globe', () => {
@@ -352,7 +375,9 @@ describe('useThoughtsGame', () => {
     expect(container.children).toHaveLength(1)
     const element = container.children[0] as HTMLElement
     expect(element.textContent).toContain('GET /splat')
-    expect(parseFloat(element.style.opacity)).toBeGreaterThan(0)
+    // Just landed, so drawn at full strength: a ts read as milliseconds
+    // would put this at the faintest the wall goes.
+    expect(parseFloat(element.style.opacity)).toBeCloseTo(1, 2)
     // And the sphere takes it down again.
     press(ROOM_HOTKEY)
     frame(64)

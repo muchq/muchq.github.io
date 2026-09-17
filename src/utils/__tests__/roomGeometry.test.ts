@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { ROOM_GEOMETRIES, DEFAULT_ROOM, GLASSHOUSE_MOONS, GLASSHOUSE_STARS, nextRoom, roomById, roomForGeometry, roomFragmentShader, RAY_TRACER_UNIFORMS } from '../roomGeometry'
 import { SHADER_FOV, cameraBasis, depthCoefficients, shaderRayDir, type Vec3 } from '../projection'
 import { PALETTE_KEYS, glslFloat, type Palette } from '../shaders'
-import { PLANE_GEOMETRY, SPHERE_RADIUS, cameraView, frameAt, sphereGeometry, surfaceFor } from '../surface'
+import { GLASSHOUSE_GEOMETRY, PLANE_GEOMETRY, SPHERE_RADIUS, cameraView, frameAt, sphereGeometry, surfaceFor } from '../surface'
 import { CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND } from '../audioSystem'
 import { GAME_CONFIG } from '../gameClasses'
 
@@ -37,21 +37,36 @@ describe('the registry', () => {
     expect(roomById('torus')).toBeUndefined()
   })
 
-  it('stands the plane rooms on the hub plane and the sphere room on its sphere', () => {
+  // Every room is a surface the hub knows by name: the glasshouse is not
+  // the plane in different light, because the hub polls deja for a room
+  // standing in a glasshouse and for no other.
+  it('stands each room on the hub surface it is, and the sphere room on its sphere', () => {
+    expect(roomById('grid')!.geometry).toEqual(PLANE_GEOMETRY)
+    expect(roomById('glasshouse')!.geometry).toEqual(GLASSHOUSE_GEOMETRY)
     for (const id of ['grid', 'glasshouse']) {
-      expect(roomById(id)!.geometry).toEqual(PLANE_GEOMETRY)
       // A plane ends somewhere, and the shader draws the edge.
       expect(roomById(id)!.bounded).toBe(true)
+      // And the floor is the plane's either way, so a step is too.
+      expect(surfaceFor(roomById(id)!.geometry).settle([99, 0, 0])).toEqual([GAME_CONFIG.worldBoundary, 0, 0])
     }
     expect(roomById('sphere')!.geometry).toEqual(sphereGeometry(SPHERE_RADIUS))
     expect(roomById('sphere')!.bounded).toBe(false)
   })
 
+  // Only a room with glass has a wall for deja's tape to splat against.
+  it('gives the glasshouse glass to draw on and the other rooms none', () => {
+    expect(roomById('glasshouse')!.wallHeight).toBeGreaterThan(0)
+    expect(roomById('grid')!.wallHeight).toBe(0)
+    expect(roomById('sphere')!.wallHeight).toBe(0)
+  })
+
   it('picks the room for the surface the hub names, honouring the one asked for', () => {
-    // Two rooms stand on the plane: the one being walked toward wins,
-    // and the first is the fallback for anyone else's change.
-    expect(roomForGeometry(PLANE_GEOMETRY, 'glasshouse').id).toBe('glasshouse')
+    // The surface decides the room; the one being walked toward only
+    // breaks a tie between rooms drawing the same surface.
+    expect(roomForGeometry(GLASSHOUSE_GEOMETRY).id).toBe('glasshouse')
+    expect(roomForGeometry(GLASSHOUSE_GEOMETRY, 'grid').id).toBe('glasshouse')
     expect(roomForGeometry(PLANE_GEOMETRY).id).toBe('grid')
+    expect(roomForGeometry(PLANE_GEOMETRY, 'glasshouse').id).toBe('grid')
     expect(roomForGeometry(PLANE_GEOMETRY, 'sphere').id).toBe('grid')
     expect(roomForGeometry(sphereGeometry(SPHERE_RADIUS), 'grid').id).toBe('sphere')
     // A room is a look, not a size: one sphere room draws any sphere the

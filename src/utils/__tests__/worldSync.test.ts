@@ -101,25 +101,33 @@ describe('WorldSync', () => {
 
   // deja's tape on the glass: the hub places every splat, and this ring
   // is all the client keeps of it.
-  it('seeds the glass from a snapshot and from a reshape, and splats what lands live', () => {
+  it('seeds the glass from a snapshot and splats what lands live', () => {
     sync.apply({ worldState: { players: [], tape: [splat({ seq: 1 }), splat({ seq: 2 })] } })
     sync.apply({ tape: splat({ seq: 3 }) })
-    sync.apply({ geometryChanged: { geometry: PLANE_GEOMETRY, players: [], tape: [splat({ seq: 4 })] } })
-    expect(gameState.tape.splats.map(s => s.splat.seq)).toEqual([1, 2, 3, 4])
-    expect(gameState.tape.splats.map(s => s.live)).toEqual([false, false, true, false])
+    expect(gameState.tape.splats.map(s => s.splat.seq)).toEqual([1, 2, 3])
+    expect(gameState.tape.splats.map(s => s.live)).toEqual([false, false, true])
   })
 
   it('holds one splat per seq, however the same event reaches it twice', () => {
-    sync.apply({ tape: splat({ seq: 9 }) })
     sync.apply({ worldState: { players: [], tape: [splat({ seq: 9 }), splat({ seq: 10 })] } })
-    expect(gameState.tape.splats.map(s => s.splat.seq)).toEqual([9, 10])
+    sync.apply({ tape: splat({ seq: 9 }) })
+    sync.apply({ tape: splat({ seq: 11 }) })
+    expect(gameState.tape.splats.map(s => s.splat.seq)).toEqual([9, 10, 11])
+    expect(gameState.tape.splats.map(s => s.live)).toEqual([false, false, true])
   })
 
-  it('leaves the glass alone when a snapshot or a reshape carries no tape', () => {
+  // Both carriers are a full replacement, the tape as much as the player
+  // list: a reshape onto a surface with no glass carries no tape, and
+  // the wall it had goes with it rather than hanging there forever.
+  it('replaces the glass on a snapshot and on a reshape, tape or none', () => {
     sync.apply({ tape: splat({ seq: 1 }) })
+    sync.apply({ geometryChanged: { geometry: PLANE_GEOMETRY, players: [], tape: [splat({ seq: 2 })] } })
+    expect(gameState.tape.splats.map(s => s.splat.seq)).toEqual([2])
+    sync.apply({ geometryChanged: { geometry: sphereGeometry(53), players: [] } })
+    expect(gameState.tape.splats).toEqual([])
+    sync.apply({ tape: splat({ seq: 3 }) })
     sync.apply({ worldState: { players: [] } })
-    sync.apply({ geometryChanged: { geometry: PLANE_GEOMETRY, players: [] } })
-    expect(gameState.tape.splats.map(s => s.splat.seq)).toEqual([1])
+    expect(gameState.tape.splats).toEqual([])
   })
 
   it('wipes the glass when the world is left', () => {

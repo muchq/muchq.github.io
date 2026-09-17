@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { displayToken } from '../displayToken'
-import { TOKENS } from './fixtures'
+import { TOKENS } from '@/apps/deja/__tests__/fixtures'
 
 describe('displayToken', () => {
   it('keeps method and path from an access-log token', () => {
