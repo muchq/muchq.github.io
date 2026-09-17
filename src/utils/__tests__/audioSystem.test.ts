@@ -587,9 +587,12 @@ describe('AudioSystem', () => {
     ])
     expect(new Set(Object.keys(samples.bank))).toEqual(played)
     expect(samples.hits.map(h => h.id)).toEqual(['hat'])
-    // The kick sits under the bass rather than over it: it was 3dB
-    // louder than this and read as the whole room.
-    expect(samples.kick!.gain).toBeLessThan(samples.bass!.gain)
+    // The kick is turned well down. Comparing it to the bass gain says
+    // nothing — the kick sample is half again as hot, so it was louder
+    // than the bass at a lower number — and a test cannot hear the
+    // files, so this pins the decision rather than deriving it.
+    expect(samples.kick!.gain).toBeLessThanOrEqual(0.28)
+    expect(samples.kick!.gain).toBeGreaterThan(0.1)
     // Quieter synthetic fallback so a missing bank does not swamp the room.
     expect(TECHNO_SOUND.pulse!.gain).toBeLessThanOrEqual(0.6)
     expect(TECHNO_SOUND.chords.every(c => c.length <= 3)).toBe(true)

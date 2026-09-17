@@ -205,8 +205,11 @@ export const TECHNO_SOUND: SoundProfile = {
       bassF: `${GH}/bassF.wav`,
       bassBb: `${GH}/bassBb.wav`,
     },
-    // 3dB under where it was, which is a factor of 0.708 in amplitude.
-    kick: { id: 'kick', gain: 0.39 },
+    // Another 3dB down. Measured rather than guessed the second time:
+    // the kick sample is hotter than the bass ones (RMS 0.36 against
+    // 0.24), so at 0.39 it still sat 1.5dB *over* the bass even though
+    // its gain number was lower. A gain is not a loudness.
+    kick: { id: 'kick', gain: 0.276 },
     hits: [{ id: 'hat', everyBeats: 1, offsetBeats: 0.5, chance: 1, gain: 0.12 }],
     // Offbeat eighths under a four-to-the-floor kick: the roll that
     // makes it trance rather than a loop with a bass note on it. The
