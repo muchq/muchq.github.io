@@ -324,6 +324,17 @@ describe('bindRoomTaps', () => {
     expect(onCycle).not.toHaveBeenCalled()
   })
 
+  // Safari zooms on a double tap unless told not to, which would
+  // reframe the page under the finger before the third tap landed. The
+  // preventDefault on that third tap comes far too late to help.
+  it('turns off the double-tap zoom while it is listening, and puts it back', () => {
+    world.style.touchAction = 'pan-y'
+    const unbind = bindRoomTaps(world, vi.fn())
+    expect(world.style.touchAction).toBe('manipulation')
+    unbind()
+    expect(world.style.touchAction).toBe('pan-y')
+  })
+
   it('stops listening once unbound', () => {
     const onCycle = vi.fn()
     bindRoomTaps(world, onCycle)()

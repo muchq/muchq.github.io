@@ -135,11 +135,20 @@ export function bindRoomTaps(target: HTMLElement, onCycle: () => void): () => vo
     onCycle()
   }
 
+  // Safari waits after a tap to see whether a second one follows, and
+  // zooms if it does — so the page would have reframed under the finger
+  // before the third tap ever arrived, and a preventDefault on that one
+  // is far too late. `manipulation` drops the double-tap zoom and keeps
+  // pinch and pan. The joysticks set their own, stricter, `none`.
+  const hadTouchAction = target.style.touchAction
+  target.style.touchAction = 'manipulation'
+
   target.addEventListener('touchstart', began)
   target.addEventListener('touchmove', moved)
   target.addEventListener('touchend', ended, { passive: false })
   target.addEventListener('touchcancel', forget)
   return () => {
+    target.style.touchAction = hadTouchAction
     target.removeEventListener('touchstart', began)
     target.removeEventListener('touchmove', moved)
     target.removeEventListener('touchend', ended)
