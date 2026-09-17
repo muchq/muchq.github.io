@@ -264,6 +264,15 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
   // is there or not, so a sentence arriving never moves the felt.
   const status = (
     <div className={styles.status}>
+      {/* The turn, for a reader who cannot see the chair light up. The
+          felt outlines the chair on turn and its name says "to play",
+          but both are pictures, and an aria-label changing is not an
+          announcement. Said here rather than in a toast over the hand,
+          and said quietly: there is nothing to read that the felt is
+          not already showing. */}
+      <p className={styles.srOnly} role="status">
+        {myTurn ? 'Your turn' : ''}
+      </p>
       <p className={styles.hint} role="status">
         {hint}
       </p>

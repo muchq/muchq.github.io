@@ -235,6 +235,18 @@ describe('CastleTable', () => {
     expect(header.contains(told)).toBe(true)
   })
 
+  it('your turn is announced where a toast is not, for a reader who cannot see the chair', () => {
+    // The felt outlines the chair on turn and its name says "to play",
+    // but both are pictures and an aria-label changing is not an
+    // announcement; the toast that used to say it landed on the hand.
+    const { rerender } = render(<CastleTable playerId="alice" connected view={view({ currentPlayerId: 'bob' })} table={table()} />)
+    expect(screen.queryByText('Your turn')).toBeNull()
+    rerender(<CastleTable playerId="alice" connected view={view()} table={table()} />)
+    const said = screen.getByText('Your turn')
+    expect(said.getAttribute('role')).toBe('status')
+    expect(said.className).toContain('srOnly')
+  })
+
   it('the last play is one live region that changes, not a new one each play', () => {
     const t = table()
     const { rerender } = render(<CastleTable playerId="alice" connected view={view()} table={t} />)
