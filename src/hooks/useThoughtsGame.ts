@@ -3,7 +3,7 @@ import type { MutableRefObject } from 'react'
 import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
 import { generateRandomColor, generateRandomSpawnPosition } from '@/utils/gameUtils'
 import { RoomResources } from '@/utils/roomResources'
-import { DEFAULT_ROOM, roomForGeometry, type RoomGeometry, type RoomGeometryId } from '@/utils/roomGeometry'
+import { DEFAULT_ROOM, paletteCss, roomForGeometry, type RoomGeometry, type RoomGeometryId } from '@/utils/roomGeometry'
 import { cameraView, frameAt, sameGeometry, sphereRadiusOf, surfaceFor, turn, walk, type Frame, type Geometry } from '@/utils/surface'
 import { mapHeadingDegrees, mapIsRound, mapPoint } from '@/utils/miniMap'
 import { bindRoomHotkey, bindRoomTaps, bindShapeHotkey } from '@/utils/hotkeys'
@@ -203,6 +203,10 @@ export const useThoughtsGame = () => {
       // The room this client asked for, so the hub's answer comes back as
       // the skin it wanted rather than the first that fits the surface.
       let wanted: RoomGeometryId = room.id
+      // The glass's own colour, as the tape on it needs it: derived when
+      // the room changes, not per frame, and handed to the DOM layer so
+      // it never reads the room catalogue itself.
+      let glassEdge = paletteCss(room.palette.boundary)
 
       // `next` is how the world is drawn; `shape` is what the hub says it
       // is, and the two are not the same — the hub may put the room on a
@@ -211,6 +215,7 @@ export const useThoughtsGame = () => {
         const nextBuilt = rooms.get(next)
         if (!nextBuilt) return false
         room = next
+        glassEdge = paletteCss(next.palette.boundary)
         built = nextBuilt
         geometry = shape
         surface = surfaceFor(shape)
@@ -651,6 +656,7 @@ export const useThoughtsGame = () => {
           width: window.innerWidth,
           height: window.innerHeight,
           wall: { boundary: GAME_CONFIG.worldBoundary, base: GAME_CONFIG.groundLevel, height: room.wallHeight },
+          edge: glassEdge,
           now: Date.now() / 1000,
         })
 

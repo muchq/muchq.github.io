@@ -59,6 +59,21 @@ describe('TapeRing', () => {
     expect(ring.splats[0].splat.seq).toBe(104)
   })
 
+  // deja's `ts` is the hub's clock. A client a few seconds ahead of it
+  // would read every live event as history and never fly one, so the
+  // ring stamps when this client actually received the splat.
+  it('stamps each splat with this client, not with the hub', () => {
+    let clock = 500
+    const ring = new TapeRing(() => clock)
+    ring.add(splat({ seq: 1, ts: 1_000_000 }))
+    clock = 512
+    ring.add(splat({ seq: 2, ts: 0 }))
+    ring.seed([splat({ seq: 3, ts: 1_000_000 })])
+    expect(ring.splats.map(s => s.at)).toEqual([500, 512, 512])
+    // The hub's own reading is untouched: it is what the wall fades by.
+    expect(ring.splats.map(s => s.splat.ts)).toEqual([1_000_000, 0, 1_000_000])
+  })
+
   it('empties when the world is left', () => {
     const ring = new TapeRing()
     ring.seed([splat({ seq: 1 })])

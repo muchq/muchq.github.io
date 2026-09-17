@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { SMEAR_SECONDS, TapeWall, type TapeView } from '../tapeWall'
+import { COMET_DOT_PX, COMET_MAX_PX, SMEAR_FLOOR_SECONDS, SMEAR_SECONDS, TapeWall, type TapeView } from '../tapeWall'
 import { TAPE_FADE_SECONDS, TAPE_FAINTEST, TapeRing, VERDICT_COLOURS, splatOpacity, splatPoint, type TapeSplat } from '../tapeSplats'
 import { COMET_FLIGHT_SECONDS, cometAt } from '../tapeComet'
 import { projectToNdc, type Vec3 } from '../projection'
@@ -10,6 +10,7 @@ import { splat } from '@/test/fakeTape'
 // all of it projected through the same camera the ray tracer casts from.
 
 const NOW = 1_700_000_000
+const GLASS = 'rgb(77, 230, 255)'
 
 // The camera at the origin looking down -z, so wall 0 (z = -50) is dead
 // ahead and wall 2 (z = +50) is behind it.
@@ -21,6 +22,7 @@ const view = (over: Partial<TapeView> = {}): TapeView => ({
   width: 1000,
   height: 800,
   wall: { boundary: 50, base: -2, height: 16 },
+  edge: GLASS,
   now: NOW,
   ...over,
 })
@@ -39,8 +41,22 @@ describe('TapeWall', () => {
   })
 
   const shown = () => [...container.querySelectorAll<HTMLElement>('.tape-splat')]
+  // The plate is the inner node: it carries the look and the smear's own
+  // transform, so the outer can be moved every frame without restarting
+  // that transition.
+  const plate = (element: HTMLElement) => element.firstElementChild as HTMLElement
   const comets = () => [...container.querySelectorAll<HTMLElement>('[data-comet]')]
+  const head = () => comets().find(e => e.dataset.comet === 'head')!
   const smears = () => shown().filter(e => e.dataset.role === 'smear')
+  // Where a node was put, read back off the transform that put it there.
+  const at = (element: HTMLElement) => {
+    const found = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(element.style.transform)
+    return found ? { left: parseFloat(found[1]), top: parseFloat(found[2]) } : null
+  }
+  const dotSize = (element: HTMLElement) => {
+    const found = /scale\(([\d.]+)\)/.exec(element.style.transform)
+    return (found ? parseFloat(found[1]) : 1) * COMET_DOT_PX
+  }
   // jsdom writes a colour back in its own notation; compare through it
   // rather than pinning the notation.
   const asCss = (colour: string) => {
@@ -49,25 +65,28 @@ describe('TapeWall', () => {
     return probe.style.color
   }
   const seeded = (...splats: TapeSplat[]) => {
-    const ring = new TapeRing()
+    const ring = new TapeRing(() => NOW)
     ring.seed(splats)
     return ring.splats
   }
+  // A ring on the test's own clock: the wall asks when this client
+  // received a splat, never when the hub says it scored it.
+  const ring = (arrivedAt = NOW) => new TapeRing(() => arrivedAt)
   const flying = (over: Partial<TapeSplat> = {}) => {
-    const ring = new TapeRing()
-    ring.add(splat({ ts: NOW, ...over }))
-    return ring
+    const held = ring()
+    held.add(splat({ ts: NOW, ...over }))
+    return held
   }
   // A live event, flown in: the frame it arrives on and the frame it
   // lands on, since a comet is only a smear once it has hit.
-  const land = (ring: TapeRing, over: Partial<TapeView> = {}) => {
-    tapeWall.draw(ring.splats, view({ ...over, now: NOW }))
-    tapeWall.draw(ring.splats, view({ ...over, now: NOW + COMET_FLIGHT_SECONDS }))
+  const land = (held: TapeRing, over: Partial<TapeView> = {}) => {
+    tapeWall.draw(held.splats, view({ ...over, now: NOW }))
+    tapeWall.draw(held.splats, view({ ...over, now: NOW + COMET_FLIGHT_SECONDS }))
   }
   // Where a world point lands on this view's screen.
-  const onScreen = (point: Vec3, at = view()) => {
-    const p = projectToNdc(point, at.cameraPos, at.cameraTarget, at.aspect, at.cameraUp)!
-    return { left: (p.x + 1) * 0.5 * at.width, top: (1 - p.y) * 0.5 * at.height }
+  const onScreen = (point: Vec3, of = view()) => {
+    const p = projectToNdc(point, of.cameraPos, of.cameraTarget, of.aspect, of.cameraUp)!
+    return { left: (p.x + 1) * 0.5 * of.width, top: (1 - p.y) * 0.5 * of.height }
   }
 
   it('draws one element per splat, in the verdict colour, at the token', () => {
@@ -85,14 +104,32 @@ describe('TapeWall', () => {
 
   it('places a splat on the wall the hub picked, through the camera', () => {
     tapeWall.draw(seeded(splat({ seq: 1, wall: 0, u: 0.5, v: 0.125 })), view())
-    const element = shown()[0]
     // Straight ahead on the -z wall: the middle of the screen, at the
     // height the camera looks at.
-    expect(parseFloat(element.style.left)).toBeCloseTo(500, 3)
-    expect(parseFloat(element.style.top)).toBeCloseTo(400, 3)
+    expect(at(shown()[0])!.left).toBeCloseTo(500, 3)
+    expect(at(shown()[0])!.top).toBeCloseTo(400, 3)
     // Half the wall to the right of the middle lands right of centre.
     tapeWall.draw(seeded(splat({ seq: 2, wall: 0, u: 0.75, v: 0.125 })), view())
-    expect(parseFloat(shown()[0].style.left)).toBeGreaterThan(500)
+    expect(at(shown()[0])!.left).toBeGreaterThan(500)
+  })
+
+  // Position is written every frame; the smear's stretch is not. They
+  // live on different nodes so the transition on one cannot restart from
+  // the other, and opacity is never transitioned at all — it is rewritten
+  // from the clock every frame, and a transition on it leaves a splat
+  // that passed behind the camera fading in place at the edge of screen.
+  it('transitions the plate alone, and only its transform', () => {
+    const held = flying({ seq: 1 })
+    held.seed([splat({ seq: 2 })])
+    land(held)
+    const live = plate(smears()[0])
+    const still = plate(shown().find(e => e.dataset.role === 'residue')!)
+    for (const node of [live, still]) {
+      expect(node.style.transitionProperty).toBe('transform')
+      expect(node.style.transition).not.toContain('opacity')
+      expect(node.style.transition).not.toContain('all')
+    }
+    expect(smears()[0].style.transition).toBe('')
   })
 
   it('hides a splat on a wall behind the camera', () => {
@@ -104,9 +141,9 @@ describe('TapeWall', () => {
   })
 
   it('fades a splat by its age, so a minutes-old ring is not a live wall', () => {
-    const ring = new TapeRing()
-    ring.seed([splat({ seq: 1, ts: NOW }), splat({ seq: 2, ts: NOW - TAPE_FADE_SECONDS / 2 }), splat({ seq: 3, ts: NOW - 60 * 60 })])
-    tapeWall.draw(ring.splats, view())
+    const held = ring()
+    held.seed([splat({ seq: 1, ts: NOW }), splat({ seq: 2, ts: NOW - TAPE_FADE_SECONDS / 2 }), splat({ seq: 3, ts: NOW - 60 * 60 })])
+    tapeWall.draw(held.splats, view())
     const [fresh, middling, old] = shown().map(e => parseFloat(e.style.opacity))
     expect(fresh).toBeCloseTo(1, 6)
     expect(middling).toBeCloseTo(splatOpacity(TAPE_FADE_SECONDS / 2), 6)
@@ -114,7 +151,7 @@ describe('TapeWall', () => {
     // Faded, still readable: text on a plate over bright glass.
     expect(TAPE_FAINTEST).toBeGreaterThan(0.2)
     // And it keeps fading as the clock moves, without a new splat.
-    tapeWall.draw(ring.splats, view({ now: NOW + TAPE_FADE_SECONDS / 2 }))
+    tapeWall.draw(held.splats, view({ now: NOW + TAPE_FADE_SECONDS / 2 }))
     expect(parseFloat(shown()[0].style.opacity)).toBeCloseTo(middling, 6)
   })
 
@@ -123,88 +160,161 @@ describe('TapeWall', () => {
   // on the hub's point rather than near it.
   it('flies a live event in as a comet and lands it where the hub put it', () => {
     const event = splat({ seq: 1, wall: 0, u: 0.5, v: 0.125, ts: NOW })
-    const ring = new TapeRing()
-    ring.add(event)
-    tapeWall.draw(ring.splats, view())
+    const held = ring()
+    held.add(event)
+    tapeWall.draw(held.splats, view())
     expect(comets().length).toBeGreaterThan(0)
     // Nothing is on the glass yet: the data arrives with the comet.
-    expect(parseFloat(smears()[0].style.opacity)).toBe(0)
+    expect(shown()[0].dataset.role).toBe('pending')
+    expect(shown()[0].style.opacity).toBe('0')
+    expect(smears()).toEqual([])
 
     const half = view({ now: NOW + COMET_FLIGHT_SECONDS / 2 })
-    tapeWall.draw(ring.splats, half)
-    const head = comets().find(e => e.dataset.comet === 'head')!
+    tapeWall.draw(held.splats, half)
     const expected = onScreen(cometAt(event, half.wall, 0.5), half)
-    expect(parseFloat(head.style.left)).toBeCloseTo(expected.left, 3)
-    expect(parseFloat(head.style.top)).toBeCloseTo(expected.top, 3)
+    expect(at(head())!.left).toBeCloseTo(expected.left, 3)
+    expect(at(head())!.top).toBeCloseTo(expected.top, 3)
     // Out there, not on the glass.
-    expect(parseFloat(head.style.left)).not.toBeCloseTo(500, 1)
+    expect(at(head())!.left).not.toBeCloseTo(500, 1)
 
     const landed = view({ now: NOW + COMET_FLIGHT_SECONDS })
-    tapeWall.draw(ring.splats, landed)
+    tapeWall.draw(held.splats, landed)
     expect(comets()).toEqual([])
-    const smear = smears()[0]
     expect(onScreen(splatPoint(event, landed.wall), landed)).toEqual({ left: 500, top: 400 })
-    expect(parseFloat(smear.style.left)).toBeCloseTo(500, 3)
-    expect(parseFloat(smear.style.top)).toBeCloseTo(400, 3)
-    expect(parseFloat(smear.style.opacity)).toBeCloseTo(splatOpacity(COMET_FLIGHT_SECONDS), 6)
+    expect(at(smears()[0])!.left).toBeCloseTo(500, 3)
+    expect(at(smears()[0])!.top).toBeCloseTo(400, 3)
+    expect(parseFloat(smears()[0].style.opacity)).toBeCloseTo(splatOpacity(COMET_FLIGHT_SECONDS), 6)
+  })
+
+  // A dot of fixed world size grows as it closes, and a head a metre
+  // from the camera would otherwise be a white disc wider than the
+  // screen: a full-screen flash on every impact you stand next to.
+  it('grows the head as it closes, and never past the cap', () => {
+    const event = splat({ seq: 1, wall: 0, u: 0.5, v: 0.125, ts: NOW })
+    const held = ring()
+    held.add(event)
+    tapeWall.draw(held.splats, view())
+    const far = dotSize(head())
+    tapeWall.draw(held.splats, view({ now: NOW + COMET_FLIGHT_SECONDS * 0.9 }))
+    expect(dotSize(head())).toBeGreaterThan(far)
+    // Standing on the impact point, through the last of the flight.
+    const near = view({ cameraPos: [0, 0, -48], cameraTarget: [0, 0, -50] })
+    for (const step of [0.9, 0.96, 0.99, 0.999]) {
+      tapeWall.draw(held.splats, { ...near, now: NOW + COMET_FLIGHT_SECONDS * step })
+      for (const dot of comets()) expect(dotSize(dot)).toBeLessThanOrEqual(COMET_MAX_PX)
+    }
+    // The trail thins and fades behind the head.
+    tapeWall.draw(held.splats, view({ now: NOW + COMET_FLIGHT_SECONDS * 0.8 }))
+    const tail = comets().slice(1)
+    expect(tail.length).toBeGreaterThan(1)
+    for (let i = 1; i < tail.length; i++) {
+      expect(parseFloat(tail[i].style.opacity)).toBeLessThan(parseFloat(tail[i - 1].style.opacity))
+      expect(dotSize(tail[i])).toBeLessThan(dotSize(tail[i - 1]))
+    }
+    // The room's own colour reaches the head through the view, not
+    // through an import of the room catalogue.
+    expect(head().style.background).toBe(asCss(GLASS))
+  })
+
+  // deja's ts is the hub's clock. A client running ahead of it would
+  // read every live event as history: no comet, no smear, feature dead,
+  // and every seq remembered so it can never recover.
+  it('flies by when this client got the splat, not by the hub clock', () => {
+    const skewed = ring(NOW)
+    skewed.add(splat({ seq: 1, ts: NOW - 30 }))
+    tapeWall.draw(skewed.splats, view())
+    expect(comets().length).toBeGreaterThan(0)
+    // The control: one this client received minutes ago — a tab in the
+    // background, frames paused while the socket filled the ring — is
+    // history however fresh the hub's own reading of it looks.
+    const stale = ring(NOW - 120)
+    stale.add(splat({ seq: 2, ts: NOW }))
+    tapeWall.draw(stale.splats, view())
+    expect(comets()).toEqual([])
+    expect(smears()).toEqual([])
   })
 
   // A joiner is handed up to 32 at once. Thirty-two comets is a
   // stampede, so what was already on the glass stays on the glass.
   it('never flies a seeded splat, however fresh the hub says it is', () => {
-    const ring = new TapeRing()
-    ring.seed(Array.from({ length: 32 }, (_, i) => splat({ seq: i + 1, ts: NOW })))
-    tapeWall.draw(ring.splats, view())
+    const held = ring()
+    held.seed(Array.from({ length: 32 }, (_, i) => splat({ seq: i + 1, ts: NOW })))
+    tapeWall.draw(held.splats, view())
     expect(shown()).toHaveLength(32)
     expect(comets()).toEqual([])
     expect(smears()).toEqual([])
     expect(shown().every(e => e.dataset.role === 'residue')).toBe(true)
     // The control: one live event in the same ring does fly.
-    ring.add(splat({ seq: 99, ts: NOW }))
-    tapeWall.draw(ring.splats, view())
+    held.add(splat({ seq: 99, ts: NOW }))
+    tapeWall.draw(held.splats, view())
     expect(comets().length).toBeGreaterThan(0)
-    expect(smears()).toHaveLength(1)
+    expect(shown().filter(e => e.dataset.role === 'pending').map(e => e.dataset.seq)).toEqual(['99'])
   })
 
-  it('retires the last smear as soon as the next comet sails in', () => {
-    const ring = flying({ seq: 1 })
-    land(ring)
+  // Two events between two frames is two comets, one after the other.
+  // Dropping the older one would throw its readout away unseen.
+  it('queues arrivals that share a frame and flies them in turn', () => {
+    const held = ring()
+    held.add(splat({ seq: 1, ts: NOW }))
+    held.add(splat({ seq: 2, ts: NOW }))
+    land(held)
     expect(smears().map(e => e.dataset.seq)).toEqual(['1'])
-    // The next event launches; the glass belongs to it from that frame,
-    // not from the frame it lands on.
-    ring.add(splat({ seq: 2, ts: NOW + COMET_FLIGHT_SECONDS }))
-    tapeWall.draw(ring.splats, view({ now: NOW + COMET_FLIGHT_SECONDS }))
-    // The wall reads as one live impact: the older event is residue on
-    // the glass, still there and no longer shouting.
+    // The queued one is not on the glass yet — it has not hit.
+    const queued = shown().find(e => e.dataset.seq === '2')!
+    expect(queued.dataset.role).toBe('pending')
+    expect(queued.style.opacity).toBe('0')
+    const second = NOW + COMET_FLIGHT_SECONDS + SMEAR_FLOOR_SECONDS
+    tapeWall.draw(held.splats, view({ now: second }))
+    expect(comets().length).toBeGreaterThan(0)
+    tapeWall.draw(held.splats, view({ now: second + COMET_FLIGHT_SECONDS }))
+    expect(smears().map(e => e.dataset.seq)).toEqual(['2'])
+  })
+
+  it('retires the last smear when the next comet sails in, but not before it has been read', () => {
+    const held = flying({ seq: 1 })
+    land(held)
+    expect(smears().map(e => e.dataset.seq)).toEqual(['1'])
+    const impact = NOW + COMET_FLIGHT_SECONDS
+    held.add(splat({ seq: 2, ts: impact }))
+    // Arriving during the floor: the wall is still reading the last one,
+    // so the new comet has not launched and the old smear stands.
+    tapeWall.draw(held.splats, view({ now: impact + SMEAR_FLOOR_SECONDS - 0.1 }))
+    expect(smears().map(e => e.dataset.seq)).toEqual(['1'])
+    expect(comets()).toEqual([])
+    // The floor is up: the comet launches and the glass is its.
+    tapeWall.draw(held.splats, view({ now: impact + SMEAR_FLOOR_SECONDS }))
+    expect(comets().length).toBeGreaterThan(0)
+    expect(shown().map(e => e.dataset.role)).toEqual(['residue', 'pending'])
+    tapeWall.draw(held.splats, view({ now: impact + SMEAR_FLOOR_SECONDS + COMET_FLIGHT_SECONDS }))
     expect(smears().map(e => e.dataset.seq)).toEqual(['2'])
     expect(shown().map(e => e.dataset.role)).toEqual(['residue', 'smear'])
   })
 
   it('fades a smear back to residue after a few seconds on its own', () => {
-    const ring = flying({ seq: 1 })
+    const held = flying({ seq: 1 })
     const impact = NOW + COMET_FLIGHT_SECONDS
-    land(ring)
+    land(held)
     // The control: still the live impact a moment before it times out.
-    tapeWall.draw(ring.splats, view({ now: impact + SMEAR_SECONDS - 0.1 }))
+    tapeWall.draw(held.splats, view({ now: impact + SMEAR_SECONDS - 0.1 }))
     expect(smears()).toHaveLength(1)
-    tapeWall.draw(ring.splats, view({ now: impact + SMEAR_SECONDS }))
+    tapeWall.draw(held.splats, view({ now: impact + SMEAR_SECONDS }))
     expect(smears()).toEqual([])
     expect(shown().map(e => e.dataset.role)).toEqual(['residue'])
     expect(shown()[0].textContent).toContain('GET /c')
+    expect(SMEAR_FLOOR_SECONDS).toBeLessThan(SMEAR_SECONDS)
   })
 
   it('skips the flight entirely for a reader who asked for less motion', () => {
     const matchMedia = vi.fn((query: string) => ({ matches: query.includes('reduced-motion') })) as unknown as typeof window.matchMedia
     vi.stubGlobal('matchMedia', matchMedia)
-    const ring = flying({ seq: 1, wall: 0, u: 0.5, v: 0.125 })
-    tapeWall.draw(ring.splats, view())
+    const held = flying({ seq: 1, wall: 0, u: 0.5, v: 0.125 })
+    tapeWall.draw(held.splats, view())
     // Not a shorter flight: no comet at all, and the data is on the
     // glass on the first frame rather than a second and a half later.
     expect(comets()).toEqual([])
-    const smear = smears()[0]
-    expect(parseFloat(smear.style.opacity)).toBeCloseTo(1, 6)
-    expect(parseFloat(smear.style.left)).toBeCloseTo(500, 3)
-    expect(smear.style.transform).toBe('translate(-50%, -50%)')
+    expect(parseFloat(smears()[0].style.opacity)).toBeCloseTo(1, 6)
+    expect(at(smears()[0])!.left).toBeCloseTo(500, 3)
+    expect(plate(smears()[0]).style.transform).toBe('none')
     vi.unstubAllGlobals()
   })
 
@@ -212,40 +322,33 @@ describe('TapeWall', () => {
   // frames while the socket keeps filling the ring, and a room cycled
   // away and back rebuilds every element: neither is thirty-two arrivals.
   it('flies an event once, and never one that landed while nobody was watching', () => {
-    const ring = flying({ seq: 1 })
-    tapeWall.draw(ring.splats, view())
+    const held = flying({ seq: 1 })
+    tapeWall.draw(held.splats, view())
     expect(comets().length).toBeGreaterThan(0)
     // Out of the room and back: it is already on the glass.
     tapeWall.draw([], view())
-    tapeWall.draw(ring.splats, view())
+    tapeWall.draw(held.splats, view())
     expect(comets()).toEqual([])
     expect(shown().map(e => e.dataset.role)).toEqual(['residue'])
-
-    // Minutes old on its first frame: it was live on the wire, but
-    // nothing about it is arriving now.
-    ring.add(splat({ seq: 2, ts: NOW - 120 }))
-    tapeWall.draw(ring.splats, view())
-    expect(comets()).toEqual([])
-    expect(smears()).toEqual([])
     // The control: one that landed just now still flies.
-    ring.add(splat({ seq: 3, ts: NOW }))
-    tapeWall.draw(ring.splats, view())
+    held.add(splat({ seq: 3, ts: NOW }))
+    tapeWall.draw(held.splats, view())
     expect(comets().length).toBeGreaterThan(0)
   })
 
   // A room with no glass has nothing to splat against; the hook hands
   // the wall an empty list for one, mid-flight or not.
   it('draws nothing at all for a room without glass', () => {
-    const ring = flying({ seq: 1 })
-    tapeWall.draw(ring.splats, view())
+    const held = flying({ seq: 1 })
+    tapeWall.draw(held.splats, view())
     expect(container.children.length).toBeGreaterThan(0)
     tapeWall.draw([], view({ now: NOW + COMET_FLIGHT_SECONDS / 2 }))
     expect(container.children).toHaveLength(0)
   })
 
   it('smears the whole event on the glass: the context, the token and both predictors', () => {
-    const ring = flying({ seq: 1, context: ['GET /a', 'GET /b'], actual: 'GET /c', bigram: { token: 'GET /d', p: 0.42 }, net: { token: 'GET /e', p: 0.31 } })
-    land(ring)
+    const held = flying({ seq: 1, context: ['GET /a', 'GET /b'], actual: 'GET /c', bigram: { token: 'GET /d', p: 0.42 }, net: { token: 'GET /e', p: 0.31 } })
+    land(held)
     const smear = smears()[0]
     const parts = (name: string) => [...smear.querySelectorAll(`[data-part="${name}"]`)].map(e => e.textContent)
     expect(parts('context')).toEqual(['GET /a', 'GET /b'])
@@ -254,24 +357,42 @@ describe('TapeWall', () => {
     expect(smear.querySelector('[data-predictor="net"]')?.textContent).toContain('GET /e')
     // Residue is the quiet version of the same event: the token and the
     // verdict, without the readout.
-    tapeWall.draw(ring.splats, view({ now: NOW + COMET_FLIGHT_SECONDS + SMEAR_SECONDS }))
+    tapeWall.draw(held.splats, view({ now: NOW + COMET_FLIGHT_SECONDS + SMEAR_SECONDS }))
     expect(shown()[0].querySelectorAll('[data-part="context"]')).toHaveLength(0)
     expect(shown()[0].querySelector('[data-part="token"]')?.textContent).toBe('GET /c')
   })
 
+  // The wire bounds nothing about the lane, and a plate as wide as the
+  // context pushes the token and the verdict off a phone screen.
+  it('keeps a long context lane from running off the screen', () => {
+    const lane = Array.from({ length: 12 }, (_, i) => `GET /path/number/${i}`)
+    land(flying({ seq: 1, context: lane }))
+    const smear = smears()[0]
+    const chips = [...smear.querySelectorAll('[data-part="context"]')].map(e => e.textContent)
+    expect(chips.length).toBeLessThan(lane.length)
+    // The last few, not the first few: the lane that led here.
+    expect(chips.at(-1)).toBe('GET /path/number/11')
+    expect(plate(smear).style.maxWidth).not.toBe('')
+    expect(plate(smear).style.overflow).toBe('hidden')
+  })
+
   it('shows a predictor guess when there is one, and none when it led with the request', () => {
-    const guess = () => shown()[0].querySelector('[data-part="guess"]')?.textContent
+    const guess = () => shown()[0].querySelector<HTMLElement>('[data-part="guess"]')
     tapeWall.draw(seeded(splat({ seq: 1, actual: 'GET /c', bigram: { token: 'GET /d', p: 0.4 } })), view())
-    expect(guess()).toBe('GET /d')
+    expect(guess()?.textContent).toBe('GET /d')
+    // Pale text, not the glass's own neon: the plate is lit from behind
+    // and neon on neon is not contrast.
+    expect(guess()!.style.color).toBe(asCss('#e9eeff'))
+    expect(guess()!.style.color).not.toBe(asCss(GLASS))
     // The net's, when the bigram had none to offer.
     tapeWall.draw(seeded(splat({ seq: 2, actual: 'GET /c', bigram: undefined, net: { token: 'GET /e', p: 0.3 } })), view())
-    expect(guess()).toBe('GET /e')
+    expect(guess()?.textContent).toBe('GET /e')
     // Nothing to show: no gap between the guess and the request.
     tapeWall.draw(seeded(splat({ seq: 3, actual: 'GET /c', bigram: { token: 'GET /c', p: 0.9 } })), view())
-    expect(guess()).toBeUndefined()
+    expect(guess()).toBeNull()
     // Nor when neither predictor had anything.
     tapeWall.draw(seeded(splat({ seq: 4, actual: 'GET /c', bigram: undefined, net: undefined })), view())
-    expect(guess()).toBeUndefined()
+    expect(guess()).toBeNull()
     expect(shown()[0].textContent).toContain('GET /c')
   })
 
@@ -299,22 +420,35 @@ describe('TapeWall', () => {
     tapeWall.draw(seeded(splat({ seq: 1 })), view({ width: 1400 }))
     expect(shown()[0].style.fontSize).toBe('13px')
     // The smear is the loud one, and shrinks on the same breakpoint.
-    const ring = flying({ seq: 2 })
-    land(ring, { width: 900 })
+    const held = flying({ seq: 2 })
+    land(held, { width: 900 })
     const phone = parseFloat(smears()[0].style.fontSize)
-    tapeWall.draw(ring.splats, view({ width: 1400, now: NOW + COMET_FLIGHT_SECONDS }))
+    tapeWall.draw(held.splats, view({ width: 1400, now: NOW + COMET_FLIGHT_SECONDS }))
     const desktop = parseFloat(smears()[0].style.fontSize)
     expect(phone).toBeLessThan(desktop)
     expect(desktop).toBeGreaterThan(13)
     // A dark plate under the text of both, over bright glass.
-    expect(smears()[0].style.background).toContain('rgba(0, 0, 0')
-    expect(shown()[0].style.background).toContain('rgba(0, 0, 0')
+    expect(plate(smears()[0]).style.background).toContain('rgba(0, 0, 0')
+    expect(plate(shown()[0]).style.background).toContain('rgba(0, 0, 0')
+  })
+
+  // The data hit the glass and ran, but it has to be readable while it
+  // does: a hard stretch is half a second of illegible headline.
+  it('lands the smear stretched, and not so far that it cannot be read', () => {
+    const held = flying({ seq: 1 })
+    tapeWall.draw(held.splats, view())
+    const stretch = /scaleX\(([\d.]+)\)/.exec(plate(shown()[0]).style.transform)
+    expect(stretch).not.toBeNull()
+    expect(parseFloat(stretch![1])).toBeGreaterThan(1)
+    expect(parseFloat(stretch![1])).toBeLessThanOrEqual(1.5)
+    tapeWall.draw(held.splats, view({ now: NOW + COMET_FLIGHT_SECONDS }))
+    expect(plate(smears()[0]).style.transform).toBe('none')
   })
 
   it('takes down what the ring no longer holds, and everything on clear', () => {
-    const ring = new TapeRing()
-    ring.seed([splat({ seq: 1 }), splat({ seq: 2 })])
-    tapeWall.draw(ring.splats, view())
+    const held = ring()
+    held.seed([splat({ seq: 1 }), splat({ seq: 2 })])
+    tapeWall.draw(held.splats, view())
     const kept = shown()[0]
     tapeWall.draw(seeded(splat({ seq: 1 })), view())
     expect(shown()).toEqual([kept])

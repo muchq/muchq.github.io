@@ -77,7 +77,9 @@ function launchPoint(splat: TapeSplat, wall: GlassWall, impact: Vec3): Vec3 {
 }
 
 // The plane the path bows in, square to the travel so the bow is only
-// ever a detour and never a shortcut or a stall.
+// ever a detour and never a shortcut or a stall. Never downward: the
+// overlay has no depth test, so a comet that dipped under the floor
+// would streak along below the horizon with the room unable to hide it.
 function bowDirection(seq: number, travel: Vec3): Vec3 {
   const dir = norm(travel)
   // Square to the world's up, unless the fall is straight down, in which
@@ -85,11 +87,34 @@ function bowDirection(seq: number, travel: Vec3): Vec3 {
   const first = Math.abs(dir[1]) > 0.99 ? norm(cross(dir, [1, 0, 0])) : norm(cross(dir, [0, 1, 0]))
   const second = cross(dir, first)
   const angle = spread(seq, 3) * Math.PI * 2
-  return [
+  const bow: Vec3 = [
     first[0] * Math.cos(angle) + second[0] * Math.sin(angle),
     first[1] * Math.cos(angle) + second[1] * Math.sin(angle),
     first[2] * Math.cos(angle) + second[2] * Math.sin(angle),
   ]
+  // The mirror image of a bow is a bow: flipping it keeps the detour
+  // square to the travel, and puts every comet over the floor rather
+  // than under it, since a flight only ever falls towards its impact.
+  return bow[1] < 0 ? [-bow[0], -bow[1], -bow[2]] : bow
+}
+
+// One comet's whole path, derived once. The wall reads eight points off
+// this a frame, and none of them re-derives the sky the event came out
+// of.
+export interface CometFlight {
+  impact: Vec3
+  launch: Vec3
+  travel: Vec3
+  // Unit, square to the travel, never downward.
+  bow: Vec3
+  amplitude: number
+}
+
+export function cometFlight(splat: TapeSplat, wall: GlassWall): CometFlight {
+  const impact = splatPoint(splat, wall)
+  const launch = launchPoint(splat, wall, impact)
+  const travel = sub(impact, launch)
+  return { impact, launch, travel, bow: bowDirection(splat.seq, travel), amplitude: wall.boundary * between(splat.seq, 4, BOW) }
 }
 
 // How far through the flight a comet launched at `launchedAt` is, both
@@ -102,31 +127,42 @@ export function cometProgress(launchedAt: number, now: number): number {
 // Where the head is at `t` in [0, 1]. The pace is quadratic — it hangs
 // in the dark and then comes in hard — and the path bows off the
 // straight line, widest around the middle and closed at both ends.
-export function cometAt(splat: TapeSplat, wall: GlassWall, t: number): Vec3 {
-  const impact = splatPoint(splat, wall)
+export function cometPointAt(flight: CometFlight, t: number): Vec3 {
   // The flight is scenery; the impact is the contract. At the end this
   // is the hub's own point, not a number that rounds to it.
   const clamped = Math.max(0, Math.min(1, t))
-  if (clamped >= 1) return impact
-  const launch = launchPoint(splat, wall, impact)
-  const travel = sub(impact, launch)
+  if (clamped >= 1) return flight.impact
+  const { launch, travel, bow } = flight
   const pace = clamped * clamped
-  const bow = Math.sin(Math.PI * pace) * wall.boundary * between(splat.seq, 4, BOW)
-  const straight: Vec3 = [launch[0] + travel[0] * pace, launch[1] + travel[1] * pace, launch[2] + travel[2] * pace]
-  return add(straight, bowDirection(splat.seq, travel), bow)
+  const swing = Math.sin(Math.PI * pace) * flight.amplitude
+  return [
+    launch[0] + travel[0] * pace + bow[0] * swing,
+    launch[1] + travel[1] * pace + bow[1] * swing,
+    launch[2] + travel[2] * pace + bow[2] * swing,
+  ]
 }
 
-// The head's own recent past, nearest first. Empty at launch — nothing
-// has happened yet to leave a trail — and empty once it has landed,
-// because what is on the glass then is the smear.
-export function cometTrail(splat: TapeSplat, wall: GlassWall, t: number): Vec3[] {
-  if (t <= 0 || t >= 1) return []
+// The head, then its own recent past behind it, nearest first. The trail
+// is empty at launch — nothing has happened yet to leave one — and once
+// it has landed, because what is on the glass then is the smear.
+export function cometPoints(flight: CometFlight, t: number): Vec3[] {
+  const points = [cometPointAt(flight, t)]
+  if (t <= 0 || t >= 1) return points
   const step = TRAIL_SPAN / COMET_TRAIL_POINTS
-  const points: Vec3[] = []
   for (let i = 1; i <= COMET_TRAIL_POINTS; i++) {
     const back = t - step * i
     if (back <= 0) break
-    points.push(cometAt(splat, wall, back))
+    points.push(cometPointAt(flight, back))
   }
   return points
+}
+
+// The same path, per splat: what a test reads, and what a caller with no
+// frame to hold a flight in wants.
+export function cometAt(splat: TapeSplat, wall: GlassWall, t: number): Vec3 {
+  return cometPointAt(cometFlight(splat, wall), t)
+}
+
+export function cometTrail(splat: TapeSplat, wall: GlassWall, t: number): Vec3[] {
+  return cometPoints(cometFlight(splat, wall), t).slice(1)
 }

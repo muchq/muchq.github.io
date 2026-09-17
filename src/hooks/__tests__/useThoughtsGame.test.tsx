@@ -8,6 +8,7 @@ import { GAME_CONFIG, GameState, Player } from '@/utils/gameClasses'
 import { splat } from '@/test/fakeTape'
 import { CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND, type SoundProfile } from '@/utils/audioSystem'
 import { GLASSHOUSE_GEOMETRY, PLANE_GEOMETRY, SPHERE_RADIUS, sphereGeometry } from '@/utils/surface'
+import { paletteCss, roomById } from '@/utils/roomGeometry'
 import type { HubWorldLink } from '@/utils/hubWorldLink'
 import type { WorldLink } from '@/utils/worldSync'
 
@@ -398,6 +399,11 @@ describe('useThoughtsGame', () => {
     // space; a seeded one, in the test above, is already on the glass.
     expect(container.querySelectorAll('.tape-splat')).toHaveLength(1)
     expect(container.querySelectorAll('[data-comet]').length).toBeGreaterThan(0)
+    // The head burns in this room's own glass colour: the renderer hands
+    // it to the wall with the geometry, so the DOM layer never reads the
+    // room catalogue itself.
+    const head = container.querySelector<HTMLElement>('[data-comet="head"]')!
+    expect(head.style.background).toBe(paletteCss(roomById('glasshouse')!.palette.boundary))
     cleanup!()
     cleanup = null
     expect(container.children).toHaveLength(0)

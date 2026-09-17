@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { COMET_FLIGHT_SECONDS, COMET_TRAIL_POINTS, cometAt, cometProgress, cometTrail } from '../tapeComet'
+import { COMET_FLIGHT_SECONDS, COMET_TRAIL_POINTS, cometAt, cometFlight, cometPointAt, cometPoints, cometProgress, cometTrail } from '../tapeComet'
 import { splatPoint, type GlassWall } from '../tapeSplats'
 import { splat } from '@/test/fakeTape'
 import type { Vec3 } from '../projection'
@@ -30,17 +30,20 @@ describe('cometAt', () => {
   })
 
   it('starts out in deep space and closes on the glass the whole way', () => {
-    const event = splat({ seq: 41, wall: 1, u: 0.2, v: 0.4 })
-    const impact = splatPoint(event, wall)
-    const launch = cometAt(event, wall, 0)
-    expect(distance(launch, impact)).toBeGreaterThan(wall.boundary * 3)
-    let last = Infinity
-    for (const t of samples(40)) {
-      const here = distance(cometAt(event, wall, t), impact)
-      expect(here).toBeLessThan(last)
-      last = here
+    // Swept, not sampled at one seq: the bow is hashed per event, and a
+    // comet that backed away mid-flight would look like a bug in the room.
+    for (let seq = 0; seq < 200; seq++) {
+      const event = splat({ seq, wall: seq % 4, u: (seq % 7) / 7, v: (seq % 5) / 5 })
+      const impact = splatPoint(event, wall)
+      expect(distance(cometAt(event, wall, 0), impact)).toBeGreaterThan(wall.boundary * 3)
+      let last = Infinity
+      for (const t of samples(40)) {
+        const here = distance(cometAt(event, wall, t), impact)
+        expect(here).toBeLessThan(last)
+        last = here
+      }
+      expect(last).toBe(0)
     }
-    expect(last).toBe(0)
   })
 
   // It hits the outside of the pane: from the floor you watch it come at
@@ -86,6 +89,50 @@ describe('cometAt', () => {
     expect(off(0.5)).toBeGreaterThan(1)
     expect(off(0)).toBeCloseTo(0, 6)
     expect(off(1)).toBeCloseTo(0, 6)
+  })
+})
+
+// A comet that dives under the floor streaks along below the horizon,
+// because the overlay has no depth test and the room cannot hide it.
+describe('the floor', () => {
+  it('is never crossed, out of whatever sky the seq picks', () => {
+    for (let seq = 0; seq < 1200; seq++) {
+      const face = seq % 4
+      const event = splat({ seq, wall: face, u: (seq % 7) / 7, v: (seq % 5) / 5 })
+      for (const t of samples(20)) {
+        expect(cometAt(event, wall, t)[1]).toBeGreaterThanOrEqual(wall.base)
+      }
+    }
+  })
+
+  it('is below every launch, so a comet always comes down rather than up', () => {
+    for (let seq = 0; seq < 1200; seq++) {
+      const event = splat({ seq, wall: seq % 4, u: (seq % 7) / 7, v: (seq % 5) / 5 })
+      const launch = cometAt(event, wall, 0)
+      const impact = splatPoint(event, wall)
+      expect(launch[1]).toBeGreaterThan(impact[1])
+      // And it comes out of a bounded sky: a hash that stopped landing
+      // in [0, 1) would throw the launch off to nowhere.
+      expect(launch.every(n => Number.isFinite(n))).toBe(true)
+      expect(distance(launch, impact)).toBeLessThan(wall.boundary * 12)
+    }
+  })
+})
+
+describe('cometFlight', () => {
+  // The wall derives the flight once a frame and reads eight points off
+  // it; that has to be the same path the per-splat calls describe.
+  it('is the same path, hoisted out of the per-point work', () => {
+    const event = splat({ seq: 17, wall: 3, u: 0.4, v: 0.7 })
+    const flight = cometFlight(event, wall)
+    for (const t of samples(12)) {
+      expect(cometPointAt(flight, t)).toEqual(cometAt(event, wall, t))
+    }
+    const points = cometPoints(flight, 0.6)
+    expect(points[0]).toEqual(cometAt(event, wall, 0.6))
+    expect(points.slice(1)).toEqual(cometTrail(event, wall, 0.6))
+    // The head is always there, the trail only while it is flying.
+    expect(cometPoints(flight, 1)).toEqual([splatPoint(event, wall)])
   })
 })
 
