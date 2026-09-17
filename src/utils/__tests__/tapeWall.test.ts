@@ -597,7 +597,7 @@ describe('TapeWall', () => {
 
     // Look down on it from above and the pane's up foreshortens while
     // its left-to-right, still square to the view, does not.
-    tapeWall.draw(seeded(on), view({ cameraPos: [0, 30, 0], cameraTarget: [0, 2, -50] }))
+    tapeWall.draw(seeded(on), view({ cameraPos: [0, 30, 0], cameraTarget: [0, 2, -46] }))
     const pitched = basisOf(shown()[0])!
     expect(pitched.a / pitched.d).toBeGreaterThan((square.a / square.d) * 1.05)
   })
@@ -628,6 +628,25 @@ describe('TapeWall', () => {
     // glass was thirty-two of these at once.
     const distant = view({ cameraPos: [0, 0, 4000], cameraTarget: [0, 0, -50], width: 200, height: 160 })
     tapeWall.draw(seeded(splat({ seq: 1, wall: 0, u: 0.5, v: 0.25 })), distant)
+    expect(shown()[0].style.opacity).toBe('0')
+  })
+
+
+  // The camera stands back from the avatar, so a slice of the room
+  // behind the player is on screen. Tape painted there is between the
+  // camera and the avatar: it rakes across the middle of the screen
+  // over everything else in the room, and it is behind you. The avatar
+  // is the near plane — the camera's target is their waist, so the wall
+  // already knows where they are.
+  it('drops a splat nearer to the camera than the avatar', () => {
+    const on = splat({ seq: 1, wall: 0, u: 0.5, v: 0.25 })
+    // The avatar between the camera and the pane: the tape is ahead of
+    // them, theirs to read.
+    tapeWall.draw(seeded(on), view({ cameraPos: [0, 0, 0], cameraTarget: [0, 0, -40] }))
+    expect(parseFloat(shown()[0].style.opacity)).toBeGreaterThan(0)
+    // The same pane at the same range and the same angle, with only the
+    // avatar moved past it: the tape is behind them now.
+    tapeWall.draw(seeded(on), view({ cameraPos: [0, 0, 0], cameraTarget: [0, 0, -60] }))
     expect(shown()[0].style.opacity).toBe('0')
   })
 

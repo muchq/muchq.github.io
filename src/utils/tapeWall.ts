@@ -226,6 +226,8 @@ const place = (x: number, y: number, scale = 0) =>
 interface PagePoint {
   x: number
   y: number
+  // How far down the view the point sits, in world units.
+  forward: number
 }
 
 // Where a world point lands on this view's page, in CSS pixels, or null
@@ -233,7 +235,7 @@ interface PagePoint {
 function onScreen(point: Vec3, view: TapeView): PagePoint | null {
   const p = projectToNdc(point, view.cameraPos, view.cameraTarget, view.aspect, view.cameraUp)
   if (!p || p.forward <= 0.1) return null
-  return { x: (p.x + 1) * 0.5 * view.width, y: (1 - p.y) * 0.5 * view.height }
+  return { x: (p.x + 1) * 0.5 * view.width, y: (1 - p.y) * 0.5 * view.height, forward: p.forward }
 }
 
 // A plate lying in the glass rather than facing the camera. The pane's
@@ -251,6 +253,18 @@ function inPane(splat: TapeSplat, view: TapeView, emWorld: number): { transform:
   const origin = splatPoint(splat, view.wall)
   const at = onScreen(origin, view)
   if (!at) return null
+  // The avatar is the near plane. The camera stands back from them, so
+  // a slice of the room behind the player is always on screen, and tape
+  // painted there is between the camera and the avatar: it rakes across
+  // the middle of the screen over everything in front of it, and it is
+  // behind you. The camera's target is the avatar's waist, so how far
+  // down the view they stand is the distance to it.
+  const avatar = Math.hypot(
+    view.cameraTarget[0] - view.cameraPos[0],
+    view.cameraTarget[1] - view.cameraPos[1],
+    view.cameraTarget[2] - view.cameraPos[2]
+  )
+  if (at.forward < avatar) return null
   const { along, up } = wallBasis(splat)
   const right = onScreen([origin[0] + along[0], origin[1] + along[1], origin[2] + along[2]], view)
   const over = onScreen([origin[0] + up[0], origin[1] + up[1], origin[2] + up[2]], view)
@@ -389,7 +403,8 @@ export class TapeWall {
 
       const painted = inPane(splat, view, mode === 'smear' ? SMEAR_EM_WORLD : RESIDUE_EM_WORLD)
       if (!painted) {
-        // Behind the camera, or in its plane: nowhere to put it.
+        // Behind the camera, in its plane, or behind the avatar:
+        // nowhere to put it.
         entry.outer.style.opacity = '0'
         continue
       }
