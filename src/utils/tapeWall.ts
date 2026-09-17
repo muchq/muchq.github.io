@@ -106,10 +106,12 @@ const FONT_PX = 16
 const SMEAR_EM_WORLD = 1.2
 const RESIDUE_EM_WORLD = 0.8
 
-// Under this, on either axis, a splat is a smudge rather than a
-// reading, and it stops being drawn. Both axes matter: distance shrinks
-// the plate evenly, but a pane seen nearly edge-on squashes it to a
-// bright line at full height. Thirty-two of those is the mess.
+// Under this, a splat is a smudge rather than a reading, and it stops
+// being drawn. Measured across the plate's shortest axis on screen:
+// distance shrinks it evenly, a pane seen nearly edge-on squashes it to
+// a bright line at full height, and a pitched view of one can leave
+// both of the plate's own axes long while they fall on nearly the same
+// line. Thirty-two of any of those is the mess.
 const LEGIBLE_PX = 7
 
 // The last few of the lane, and how wide the plate may get, in its own
@@ -158,6 +160,17 @@ const PALE = '#e9eeff'
 
 type Mode = 'residue' | 'smear'
 
+// How old a splat reads. One this client watched arrive is aged from
+// the moment it arrived, on the monotonic clock the frames run on; only
+// tape that was already on the glass when we walked in is aged against
+// the hub's own stamp, which is what makes a joiner's ring look like
+// history. The flight is judged on receipt for the same reason, and the
+// two have to agree: a client running a fade's worth ahead of the hub
+// would otherwise fly the comet and land a fully transparent smear, so
+// the event arrives and nothing is ever shown.
+const ageOf = (held: WallSplat, view: TapeView): number =>
+  held.live ? view.clock - held.at : view.now - held.splat.ts
+
 // The node that is moved: no look, no transition, nothing that a frame's
 // reposition could interrupt.
 const OUTER_STYLE = `
@@ -170,6 +183,12 @@ const OUTER_STYLE = `
   white-space: nowrap;
   pointer-events: none;
   will-change: transform;
+  /* CSS wraps a transform in translate(origin) ... translate(-origin),
+     which a translation commutes with and a matrix does not: left at
+     the default centre, the pane matrix lands the plate at
+     at + o - M*o, most of its own width from the splat. At the corner
+     the declared list is the whole transform. */
+  transform-origin: 0px 0px;
 `
 
 // Both readings sit on a dark plate: the glass behind them is lit, and
@@ -222,6 +241,17 @@ const prefersLessMotion = () =>
 
 const place = (x: number, y: number, scale = 0) =>
   `translate(-50%, -50%) translate(${x}px, ${y}px)${scale ? ` scale(${scale})` : ''}`
+
+// The shortest the 2x2 maps any unit direction to: its smaller
+// singular value. The two column lengths are not this — they are what
+// it does to the plate's own two axes, and those can both stay long
+// while the image between them collapses onto a line.
+function shortestAxis(a: number, b: number, c: number, d: number): number {
+  const frobenius = a * a + b * b + c * c + d * d
+  const area = Math.abs(a * d - b * c)
+  const spread = Math.sqrt(Math.max(0, frobenius * frobenius - 4 * area * area))
+  return Math.sqrt(Math.max(0, (frobenius - spread) / 2))
+}
 
 interface PagePoint {
   x: number
@@ -279,9 +309,7 @@ function inPane(splat: TapeSplat, view: TapeView, emWorld: number): { transform:
   const d = -(over.y - at.y) * k
   return {
     transform: `translate(${at.x}px, ${at.y}px) matrix(${a}, ${b}, ${c}, ${d}, 0, 0) translate(-50%, -50%)`,
-    // The shorter of the plate's two axes on screen, which is what
-    // decides whether there is anything to read.
-    legible: Math.min(Math.hypot(a, b), Math.hypot(c, d)) * FONT_PX,
+    legible: shortestAxis(a, b, c, d) * FONT_PX,
   }
 }
 
@@ -390,7 +418,8 @@ export class TapeWall {
     // The one splat whose comet is still on its way in, taken from the
     // list the wall is drawing: nothing flies that is not on the glass.
     let comet: { splat: TapeSplat; launchedAt: number } | null = null
-    for (const { splat } of splats) {
+    for (const onGlass of splats) {
+      const { splat } = onGlass
       held.add(splat.seq)
       const { mode, pending } = this.stateOf(splat.seq, view.clock)
       const entry = this.entryFor(splat, mode, view.edge)
@@ -398,10 +427,13 @@ export class TapeWall {
       // it reads as pending rather than as something on the glass.
       const role = pending ? 'pending' : mode
       if (entry.outer.dataset.role !== role) entry.outer.dataset.role = role
-      const active = this.active
-      if (pending && active && active.seq === splat.seq) comet = { splat, launchedAt: active.launchedAt }
-
       const painted = inPane(splat, view, mode === 'smear' ? SMEAR_EM_WORLD : RESIDUE_EM_WORLD)
+      // Nothing flies at a pane there is nowhere to land on. The comet
+      // is picked here rather than before the placement because a
+      // flight whose impact is behind the avatar would otherwise cross
+      // the camera-to-avatar region and land on nothing.
+      const active = this.active
+      if (painted && pending && active && active.seq === splat.seq) comet = { splat, launchedAt: active.launchedAt }
       if (!painted) {
         // Behind the camera, in its plane, or behind the avatar:
         // nowhere to put it.
@@ -420,7 +452,7 @@ export class TapeWall {
       // Until it hits, the glass is still clean: the data arrives with
       // the comet, stretched by the impact, and settles from there.
       entry.plate.style.transform = pending && !still ? RUNNING : SETTLED
-      entry.outer.style.opacity = pending ? '0' : String(splatOpacity(view.now - splat.ts))
+      entry.outer.style.opacity = pending ? '0' : String(splatOpacity(ageOf(onGlass, view)))
     }
 
     for (const [seq, { outer }] of this.shown) {

@@ -650,4 +650,76 @@ describe('TapeWall', () => {
     expect(shown()[0].style.opacity).toBe('0')
   })
 
+
+  // CSS wraps a transform in its origin correction, and a matrix does
+  // not commute with that the way a translation does. Left at the
+  // default `50% 50%`, this list lands the plate's centre at
+  // `at + o - M*o` — for a plate a few hundred pixels wide, most of its
+  // own width away from the splat. jsdom lays nothing out, so the
+  // origin is checked where it is declared and the order is pinned.
+  it('puts the plate centre on the splat rather than most of a plate away', () => {
+    tapeWall.draw(seeded(splat({ seq: 1, wall: 0, u: 0.7, v: 0.3 })), view())
+    const outer = shown()[0]
+    expect(outer.style.transformOrigin).toBe('0px 0px')
+    // Carried to the point last, so the matrix only ever turns the box
+    // about its own centre.
+    expect(outer.style.transform).toMatch(/^translate\(-?[\d.]+px, -?[\d.]+px\) matrix\([^)]+\) translate\(-50%, -50%\)$/)
+  })
+
+  // The comet is chosen before the plate is placed, and its trail is
+  // kept by depth alone. An impact behind the avatar would fly anyway:
+  // tape crossing the camera-to-avatar region, landing on nothing.
+  it('does not fly a comet at a pane the avatar is standing past', () => {
+    const behind = ring()
+    behind.add(splat({ seq: 1, wall: 0, u: 0.5, v: 0.25 }))
+    tapeWall.draw(behind.splats, view({ cameraPos: [0, 0, 0], cameraTarget: [0, 0, -60] }))
+    expect(comets()).toEqual([])
+  })
+
+  // The control for the test above, on its own wall: one flight's state
+  // outlives the frame it started in, so a second draw on the same wall
+  // would be answering for the first one's comet and not this one's.
+  it('flies at the same pane once the avatar is in front of it', () => {
+    const ahead = ring()
+    ahead.add(splat({ seq: 1, wall: 0, u: 0.5, v: 0.25 }))
+    tapeWall.draw(ahead.splats, view({ cameraPos: [0, 0, 0], cameraTarget: [0, 0, -40] }))
+    expect(comets().length).toBeGreaterThan(0)
+  })
+
+  // The flight is judged on receipt so a skewed clock cannot strand it,
+  // but the plate's fade was still hub-age. A client running a fade's
+  // worth ahead of the hub flew the comet and landed a fully
+  // transparent smear: the event arrives and nothing is ever shown.
+  it('keeps a live smear visible however far this clock runs ahead of the hub', () => {
+    const held = ring()
+    // Not age. The client received this now; the hub's stamp is behind.
+    held.add(splat({ seq: 1, ts: NOW - TAPE_FADE_SECONDS * 2 }))
+    land(held)
+    expect(smears()).toHaveLength(1)
+    expect(parseFloat(smears()[0].style.opacity)).toBeGreaterThan(0.9)
+  })
+
+
+  // Measuring the two columns separately is not the same as measuring
+  // the plate. A pitched view of a pane can leave both of them long
+  // while they fall nearly on one line, and what gets painted is a
+  // bright sliver at full height — the same mess the cull exists to
+  // stop, arriving by a route the column lengths cannot see. The
+  // smaller singular value is the plate's shortest axis.
+  it('drops a plate a pitched view has collapsed onto one line', () => {
+    // Standing above and inside the -x pane, looking down along it.
+    const collapsed = view({
+      cameraPos: [-46, 22, -32],
+      cameraTarget: [-50, 10, -10],
+      width: 960,
+      height: 540,
+    })
+    tapeWall.draw(seeded(splat({ seq: 1, wall: 3, u: 0.4, v: 0.25 })), collapsed)
+    const m = basisOf(shown()[0])!
+    // Both columns clear the bar, so nothing about their own lengths
+    // was ever going to catch this.
+    expect(Math.min(Math.hypot(m.a, m.b), Math.hypot(m.c, m.d)) * 16).toBeGreaterThan(7)
+    expect(shown()[0].style.opacity).toBe('0')
+  })
+
 })
