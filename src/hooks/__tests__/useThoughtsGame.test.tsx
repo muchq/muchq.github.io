@@ -385,7 +385,7 @@ describe('useThoughtsGame', () => {
     container.remove()
   })
 
-  it('takes the splats down with it on cleanup', () => {
+  it('flies a live event in as a comet, and takes the whole wall down on cleanup', () => {
     const container = document.createElement('div')
     container.id = 'tape-wall-container'
     document.body.appendChild(container)
@@ -394,7 +394,10 @@ describe('useThoughtsGame', () => {
     attached!.tape.add(splat({ seq: 1, wall: 0, u: 0.5, v: 0.2, ts: Date.now() / 1000 }))
     press(ROOM_HOTKEY)
     frame(32)
-    expect(container.children).toHaveLength(1)
+    // An event that landed while we were watching arrives out of deep
+    // space; a seeded one, in the test above, is already on the glass.
+    expect(container.querySelectorAll('.tape-splat')).toHaveLength(1)
+    expect(container.querySelectorAll('[data-comet]').length).toBeGreaterThan(0)
     cleanup!()
     cleanup = null
     expect(container.children).toHaveLength(0)

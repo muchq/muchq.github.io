@@ -115,6 +115,18 @@ const MARIO_PALETTE: Palette = {
 
 const GLASS_TINT: Vec3 = [0.62, 0.86, 1.0]
 
+// A palette colour as CSS, for the parts of a room the browser draws
+// rather than the tracer: the tape on the glass is DOM over the canvas
+// (tapeWall.ts), and this is how it borrows the room's own light instead
+// of inventing a second palette beside this one.
+export function paletteCss(colour: Vec3, alpha = 1): string {
+  const [r, g, b] = colour.map(c => Math.round(Math.max(0, Math.min(1, c)) * 255))
+  return alpha >= 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+// What the shader paints the glasshouse's mullions and pane edges in.
+export const GLASS_EDGE = GLASSHOUSE_PALETTE.boundary
+
 // How much of the endless glass the tape uses: the shader draws the
 // panes from the floor up without end, and this is the band deja's
 // splats are spread over — tall enough to read as a wall from across the
