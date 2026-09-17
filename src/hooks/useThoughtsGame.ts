@@ -6,7 +6,7 @@ import { RoomResources } from '@/utils/roomResources'
 import { DEFAULT_ROOM, roomForGeometry, type RoomGeometry, type RoomGeometryId } from '@/utils/roomGeometry'
 import { cameraView, frameAt, sameGeometry, sphereRadiusOf, surfaceFor, turn, walk, type Frame, type Geometry } from '@/utils/surface'
 import { mapHeadingDegrees, mapIsRound, mapPoint } from '@/utils/miniMap'
-import { bindRoomHotkey, bindShapeHotkey } from '@/utils/hotkeys'
+import { bindRoomHotkey, bindRoomTaps, bindShapeHotkey } from '@/utils/hotkeys'
 import { AvatarTrails } from '@/utils/avatarTrails'
 import { projectToNdc, viewProjection } from '@/utils/projection'
 import { VirtualJoystick } from '@/utils/virtualJoystick'
@@ -101,6 +101,7 @@ export const useThoughtsGame = () => {
     // Set once the canvas is up; cleanup removes the same reference.
     let resizeCanvas: (() => void) | null = null
     let unbindRoomHotkey: (() => void) | null = null
+    let unbindRoomTaps: (() => void) | null = null
     let disposeRooms: (() => void) | null = null
 
     // Function to cycle through shapes
@@ -225,7 +226,7 @@ export const useThoughtsGame = () => {
         drawRoom(roomForGeometry(geometry, wanted), geometry)
       }
 
-      unbindRoomHotkey = bindRoomHotkey(document, () => {
+      const cycleRoom = () => {
         const next = rooms.next(room.id)
         if (!next) return
         // Two rooms on one surface are a change of light, and this
@@ -236,7 +237,14 @@ export const useThoughtsGame = () => {
         }
         wanted = next.id
         networkManager.sendSetGeometry(next.geometry)
-      })
+      }
+      unbindRoomHotkey = bindRoomHotkey(document, cycleRoom)
+      // The phone's way in to the same command; there is no `g` there.
+      // Bound to the canvas's container rather than the canvas, which
+      // is pointer-events: none behind the whole page and never sees a
+      // touch. The container is what the world is tapped through.
+      const world = canvas.parentElement
+      if (world) unbindRoomTaps = bindRoomTaps(world, cycleRoom)
 
       // Create fullscreen quad
       const quadVertices = new Float32Array([
@@ -675,6 +683,7 @@ export const useThoughtsGame = () => {
       soundToggle?.removeEventListener('click', handleSoundToggle)
       if (resizeCanvas) window.removeEventListener('resize', resizeCanvas)
       unbindRoomHotkey?.()
+      unbindRoomTaps?.()
       disposeRooms?.()
       window.removeEventListener('beforeunload', handleBeforeUnload)
 
