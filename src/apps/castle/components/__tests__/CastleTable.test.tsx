@@ -222,13 +222,17 @@ describe('CastleTable', () => {
     expect(told.className).toContain('pickedUp')
   })
 
-  it('the last play reads off the felt, so it lands on neither the pile nor a hand', () => {
+  it('the last play reads off the felt, in the header row beside the name', () => {
     mountWith(view())
     const told = screen.getByText('bob played 8♥')
     // Not in the middle, where it was drawn over the pile it describes
     // and over the viewer's own chair below it, and not in a chair.
     expect(told.closest('section[aria-label="pile"]')).toBeNull()
     expect(told.closest('section[aria-label*="alice"]')).toBeNull()
+    // The header row's middle was empty and the felt was paying for a
+    // line of its own underneath it.
+    const header = screen.getByRole('heading', { name: 'Table G1' }).parentElement as HTMLElement
+    expect(header.contains(told)).toBe(true)
   })
 
   it('the last play is one live region that changes, not a new one each play', () => {

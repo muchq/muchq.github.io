@@ -259,6 +259,37 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
     return ''
   })()
 
+  // What the table is saying, in the header row's own middle: the
+  // hint, and the last play. The row holds its height whether either
+  // is there or not, so a sentence arriving never moves the felt.
+  const status = (
+    <div className={styles.status}>
+      <p className={styles.hint} role="status">
+        {hint}
+      </p>
+      {/* The last play, for a moment: a pick-up stays longer, since a
+          handful of cards just arrived and this is why. The sentence
+          names the card that did not play, so it is the whole moment —
+          a picture of that card beside it said the same thing twice,
+          and a line tall enough to hold one had to be held open
+          whether a pick-up came or not. */}
+      {/* One live region for the table's life, so a new play is a
+          change to it rather than a region appearing; the moment
+          itself is the keyed child. */}
+      <p className={styles.lastPlaySlot} role="status">
+        {moment !== undefined && (
+          <span
+            key={playSignature(moment)}
+            className={`${styles.lastPlay} ${moment.pickedUp ? styles.pickedUp : ''}`}
+            onAnimationEnd={() => setFaded(`${view.gameId}:${playSignature(moment)}`)}
+          >
+            {describeLastPlay(moment, playerId)}
+          </span>
+        )}
+      </p>
+    </div>
+  )
+
   const actions = (() => {
     if (view.phase === 'waiting') {
       return (
@@ -448,10 +479,16 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
 
   return (
     <div className={styles.table} data-phase={view.phase}>
+      {/* The header row: the table's name, what it is saying, and the
+          way out. The middle of this row was empty and the felt was
+          paying for a line of its own underneath — on a short window
+          that line was the difference between the moves being on
+          screen and being scrolled to. */}
       <div className={styles.tableHeader}>
         <h1 ref={headingRef} tabIndex={-1} className={styles.title}>
           Table {view.gameId}
         </h1>
+        {status}
         {view.phase !== 'ended' && (
           <button type="button" className={styles.link} onClick={table.leaveTable} disabled={!connected}>
             Leave table
@@ -461,36 +498,6 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
       <p className={styles.ending} role="status">
         {view.phase === 'ended' && ended !== null ? describeEnding(ended.finished, ended.loser, playerId) : ''}
       </p>
-      {/* One line above the felt for what the table is saying: the
-          hint, and the last play. It keeps its height empty, so a
-          sentence arriving never moves the felt — and the last play
-          reads here rather than in the middle, where it landed on the
-          pile it was describing or on the hand below it. */}
-      <div className={styles.status}>
-        <p className={styles.hint} role="status">
-          {hint}
-        </p>
-        {/* The last play, for a moment: a pick-up stays longer, since a
-            handful of cards just arrived and this is why. The sentence
-            names the card that did not play, so it is the whole moment
-            — a picture of that card beside it said the same thing
-            twice, and a line tall enough to hold one had to be held
-            open above the felt whether a pick-up came or not. */}
-        {/* One live region for the table's life, so a new play is a
-            change to it rather than a region appearing; the moment
-            itself is the keyed child. */}
-        <p className={styles.lastPlaySlot} role="status">
-          {moment !== undefined && (
-            <span
-              key={playSignature(moment)}
-              className={`${styles.lastPlay} ${moment.pickedUp ? styles.pickedUp : ''}`}
-              onAnimationEnd={() => setFaded(`${view.gameId}:${playSignature(moment)}`)}
-            >
-              {describeLastPlay(moment, playerId)}
-            </span>
-          )}
-        </p>
-      </div>
       {showEnding &&
         ended !== null &&
         createPortal(
