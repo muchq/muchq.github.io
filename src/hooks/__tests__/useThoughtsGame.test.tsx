@@ -4,7 +4,8 @@ import { useThoughtsGame } from '../useThoughtsGame'
 import { fakeGl } from '@/test/fakeGl'
 import { ROOM_HOTKEY, SHAPE_HOTKEY } from '@/utils/hotkeys'
 
-import { GAME_CONFIG, Player } from '@/utils/gameClasses'
+import { GAME_CONFIG, GameState, Player } from '@/utils/gameClasses'
+import { splat } from '@/test/fakeTape'
 import { CALM_SOUND, CHIPTUNE_SOUND, type SoundProfile } from '@/utils/audioSystem'
 import { PLANE_GEOMETRY, SPHERE_RADIUS, sphereGeometry } from '@/utils/surface'
 import type { HubWorldLink } from '@/utils/hubWorldLink'
@@ -35,8 +36,17 @@ const worldLink = (): WorldLink => ({
   disconnect: vi.fn(),
   reconnect: vi.fn(),
 })
-// A link that hands the renderer an offline world, so nothing dials out.
-const offlineLink = () => ({ attach: () => worldLink() }) as unknown as HubWorldLink
+// A link that hands the renderer an offline world, so nothing dials out,
+// and keeps the GameState it was handed: the tape on the glass lives
+// there, and only the renderer's own world has one.
+let attached: GameState | null = null
+const offlineLink = () =>
+  ({
+    attach: (gameState: GameState) => {
+      attached = gameState
+      return worldLink()
+    },
+  }) as unknown as HubWorldLink
 
 const press = (key: string) => document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
 
@@ -99,6 +109,7 @@ describe('useThoughtsGame', () => {
     canvas = document.createElement('canvas')
     document.body.appendChild(canvas)
     cleanup = null
+    attached = null
   })
   afterEach(() => {
     cleanup?.()
@@ -321,6 +332,48 @@ describe('useThoughtsGame', () => {
     cleanup = null
     press(SHAPE_HOTKEY)
     expect(link.sendShapeUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  // deja's tape lands on the glass and nowhere else: the glasshouse is
+  // the only room with walls to splat against.
+  it('splats the tape on the glasshouse glass, and draws none in a room without it', () => {
+    const container = document.createElement('div')
+    container.id = 'tape-wall-container'
+    document.body.appendChild(container)
+    start()
+    frame()
+    const now = Date.now() / 1000
+    attached!.tape.seed([splat({ seq: 1, wall: 0, u: 0.5, v: 0.2, ts: now, actual: 'GET /splat' })])
+    // The grid has no glass, whatever the ring holds.
+    frame(32)
+    expect(container.children).toHaveLength(0)
+    press(ROOM_HOTKEY)
+    frame(48)
+    expect(container.children).toHaveLength(1)
+    const element = container.children[0] as HTMLElement
+    expect(element.textContent).toContain('GET /splat')
+    expect(parseFloat(element.style.opacity)).toBeGreaterThan(0)
+    // And the sphere takes it down again.
+    press(ROOM_HOTKEY)
+    frame(64)
+    expect(container.children).toHaveLength(0)
+    container.remove()
+  })
+
+  it('takes the splats down with it on cleanup', () => {
+    const container = document.createElement('div')
+    container.id = 'tape-wall-container'
+    document.body.appendChild(container)
+    start()
+    frame()
+    attached!.tape.add(splat({ seq: 1, wall: 0, u: 0.5, v: 0.2, ts: Date.now() / 1000 }))
+    press(ROOM_HOTKEY)
+    frame(32)
+    expect(container.children).toHaveLength(1)
+    cleanup!()
+    cleanup = null
+    expect(container.children).toHaveLength(0)
+    container.remove()
   })
 
   it('stops listening for the hotkey and frees the rooms on cleanup', () => {

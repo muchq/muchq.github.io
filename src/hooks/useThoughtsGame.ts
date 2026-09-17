@@ -8,6 +8,7 @@ import { cameraView, frameAt, sameGeometry, sphereRadiusOf, surfaceFor, turn, wa
 import { mapHeadingDegrees, mapIsRound, mapPoint } from '@/utils/miniMap'
 import { bindRoomHotkey, bindRoomTaps, bindShapeHotkey } from '@/utils/hotkeys'
 import { AvatarTrails } from '@/utils/avatarTrails'
+import { TapeWall } from '@/utils/tapeWall'
 import { projectToNdc, viewProjection } from '@/utils/projection'
 import { VirtualJoystick } from '@/utils/virtualJoystick'
 import { AudioSystem } from '@/utils/audioSystem'
@@ -76,6 +77,12 @@ export const useThoughtsGame = () => {
 
     // Track player label elements (needs to be accessible in cleanup)
     const playerLabelElements = new Map<string, HTMLElement>()
+
+    // deja's tape on the glass, drawn over the canvas: the ray tracer
+    // has no glyphs, and a splat is a token. Absent its container there
+    // is simply no wall to draw on.
+    const tapeContainer = document.getElementById('tape-wall-container')
+    const tapeWall = tapeContainer ? new TapeWall(tapeContainer) : null
 
     // Initialize virtual joysticks
     const leftJoystickElement = document.getElementById('left-joystick') as HTMLElement
@@ -628,6 +635,19 @@ export const useThoughtsGame = () => {
         // Update player labels after setting up camera
         updatePlayerLabels(cameraPosition, cameraTargetPos, cameraUp)
 
+        // Only a room with glass has anywhere to put deja's tape; the
+        // others hand the wall nothing and it comes down.
+        tapeWall?.draw(room.wallHeight > 0 ? gameState.tape.splats : [], {
+          cameraPos: cameraPosition,
+          cameraTarget: cameraTargetPos,
+          cameraUp,
+          aspect: canvas.width / canvas.height,
+          width: window.innerWidth,
+          height: window.innerHeight,
+          wall: { boundary: GAME_CONFIG.worldBoundary, base: GAME_CONFIG.groundLevel, height: room.wallHeight },
+          now: Date.now() / 1000,
+        })
+
         // Set multiple object data
         webglContext.uniform1i(u.u_numObjects, Math.min(allPlayers.length, 10))
         webglContext.uniform3fv(u.u_objectCenters, objectCenters)
@@ -694,6 +714,7 @@ export const useThoughtsGame = () => {
       // Clean up player labels
       playerLabelElements.forEach(element => element.remove())
       playerLabelElements.clear()
+      tapeWall?.clear()
 
       // Clean up game systems
       audioSystem.cleanup()

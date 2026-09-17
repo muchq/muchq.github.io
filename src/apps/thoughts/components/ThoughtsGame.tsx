@@ -31,6 +31,8 @@ const ThoughtsGame = ({ onPlayerIdReceived, onConnectionStateChange, networkMana
     <div className={`${styles.gameContainer} ${hudSide === 'right' ? styles.hudRight : ''}`}>
       <canvas ref={canvasRef} className={styles.sceneCanvas} id="scene-canvas" />
       
+      <div id="tape-wall-container" className={styles.tapeWallContainer}></div>
+
       <div id="player-labels-container" className={styles.playerLabelsContainer}></div>
       
       <div id="fps-counter" className={styles.fpsCounter}>FPS: --</div>

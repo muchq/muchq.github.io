@@ -46,7 +46,13 @@ export class WorldSync {
   apply(update: LobbyUpdate): void {
     if ('worldState' in update) {
       this.replaceWorld(update.worldState.players)
+      if (update.worldState.tape) this.gameState.tape.seed(update.worldState.tape)
       if (update.worldState.geometry) this.onGeometry?.(update.worldState.geometry)
+    } else if ('tape' in update) {
+      // One deja event, landing now: the hub picked the wall and the
+      // point from its seq, so every client in the room draws it on the
+      // same square inch.
+      this.gameState.tape.add(update.tape)
     } else if ('geometryChanged' in update) {
       // The room changed shape under everyone: the hub placed every
       // player, the local one included, so its list replaces what we
@@ -54,6 +60,9 @@ export class WorldSync {
       for (const player of update.geometryChanged.players) {
         this.gameState.updatePlayer(player.playerId, player.position)
       }
+      // A room that becomes a glasshouse gets its walls filled for the
+      // people already standing in it, not only for whoever joins next.
+      if (update.geometryChanged.tape) this.gameState.tape.seed(update.geometryChanged.tape)
       this.onGeometry?.(update.geometryChanged.geometry)
     } else if ('playerJoined' in update) {
       this.addRemotePlayer(update.playerJoined.player)
@@ -74,6 +83,13 @@ export class WorldSync {
     for (const id of [...this.gameState.players.keys()]) {
       if (id !== this.gameState.localPlayerId) this.gameState.removePlayer(id)
     }
+  }
+
+  // The glass belongs to the world that was standing: off the wire, or
+  // on the way into another world, it starts empty rather than showing
+  // the last room's tape until a snapshot replaces it.
+  forgetTape(): void {
+    this.gameState.tape.clear()
   }
 
   // The snapshot is authoritative: everyone it lists is here, and everyone

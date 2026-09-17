@@ -88,6 +88,15 @@ past a different attractor through every pane, each drawn its own way — a come
 curve on a ribbon, a chain of beads, a drift of sparks, a hard spark; and the inside of a sphere, drawn and scored like an SNES platformer. A
 new room is a new entry.
 
+deja's tape lands on the glasshouse's glass (MoonBase#1563): the hub polls the anomaly
+detector for whoever is standing there and fans each scored request out as a splat, which
+`src/utils/worldSync.ts` keeps as a ring of the last 32 in `GameState` and
+`src/utils/tapeWall.ts` draws — the token and the predictor's guess as elements over the
+canvas, projected through the ray tracer's own camera, in the verdict colours the `/deja`
+page uses. The hub places every splat from its sequence number, so a room sees one event on
+one square inch of glass; the client draws what it is handed, fades it by its age, and never
+subscribes to deja itself. Only a room with glass has a wall to splat against.
+
 A wake is a ribbon, not a wire (`src/utils/ribbon.ts`): two vertices a point, turned to face
 the camera and tapering into the tail, so it has width in the world and thins with distance.
 It takes a point by distance travelled rather than by frame, at a steady height, so a slow

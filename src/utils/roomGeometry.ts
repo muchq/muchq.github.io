@@ -46,6 +46,11 @@ export interface RoomGeometry {
   attractors: AttractorSpec[]
   // rgb and strength of the wall between the camera and the line pass.
   behindGlass: [number, number, number, number]
+  // How tall this room's glass is drawn, in plane units; 0 for a room
+  // with no glass. No height rides the wire — a tape splat's `v` is a
+  // fraction of this — so it is the client's own choice, and a room
+  // without walls has nothing to splat against.
+  wallHeight: number
   // Points in an avatar's wake; 0 for none.
   trailLength: number
   sound: SoundProfile
@@ -107,6 +112,12 @@ const MARIO_PALETTE: Palette = {
 }
 
 const GLASS_TINT: Vec3 = [0.62, 0.86, 1.0]
+
+// How much of the endless glass the tape uses: the shader draws the
+// panes from the floor up without end, and this is the band deja's
+// splats are spread over — tall enough to read as a wall from across the
+// room, low enough that the top of it is in frame from the floor.
+const GLASSHOUSE_WALL_HEIGHT = 16
 const glsl3 = (v: Vec3) => `vec3(${v.map(n => n.toFixed(2)).join(', ')})`
 
 // Four panes of glass on the boundary, from the floor up without end.
@@ -314,6 +325,7 @@ export const ROOM_GEOMETRIES: readonly RoomGeometry[] = [
     glsl: NO_ROOM_GLSL,
     attractors: [],
     behindGlass: [0, 0, 0, 0],
+    wallHeight: 0,
     trailLength: 0,
     sound: CALM_SOUND,
   },
@@ -329,6 +341,7 @@ export const ROOM_GEOMETRIES: readonly RoomGeometry[] = [
     glsl: GLASSHOUSE_GLSL,
     attractors: attractorsOutside(GAME_CONFIG.worldBoundary),
     behindGlass: [...GLASS_TINT, 0.35],
+    wallHeight: GLASSHOUSE_WALL_HEIGHT,
     trailLength: 120,
     sound: TECHNO_SOUND,
   },
@@ -344,6 +357,7 @@ export const ROOM_GEOMETRIES: readonly RoomGeometry[] = [
     glsl: SPHERE_GLSL,
     attractors: [],
     behindGlass: [0, 0, 0, 0],
+    wallHeight: 0,
     trailLength: 0,
     sound: CHIPTUNE_SOUND,
   },
