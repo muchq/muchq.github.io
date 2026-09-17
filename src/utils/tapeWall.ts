@@ -45,8 +45,15 @@ export interface TapeView {
   // rather than being looked up here: the DOM layer draws whatever room
   // it is handed and does not import the catalogue of them.
   edge: string
-  // Now, in epoch seconds, on this client's clock.
+  // Now, in epoch seconds. Read against deja's `ts` and nothing else:
+  // the hub stamps that on the same epoch.
   now: number
+  // The frame's own timestamp, in seconds, on a clock that only goes
+  // forward. Every flight, deadline and freshness reading is on this
+  // one. A system-clock correction backwards mid-flight would otherwise
+  // freeze the comet in the air and wedge the queue behind it, and one
+  // forwards would skip the flight outright.
+  clock: number
 }
 
 // How long the data stays smeared across the glass before it settles
@@ -59,15 +66,27 @@ export const SMEAR_FLOOR_SECONDS = 2
 // Only an event this client received in the last few seconds flies. A
 // backgrounded tab pauses the frames while the socket keeps filling the
 // ring, and what that ring then holds is history, not arrivals. The
-// reading is of `at`, stamped when the ring accepted the splat, never of
-// the hub's `ts`: the two clocks differ, and comparing them would strand
-// a client that ran a few seconds ahead with a wall that never moves.
+// reading is of `at`, stamped on the same monotonic clock when the ring
+// accepted the splat, never of the hub's `ts`: the two clocks differ,
+// and comparing them would strand a client that ran a few seconds ahead
+// with a wall that never moves.
 const ARRIVAL_FRESH_SECONDS = 5
 
 // Arrivals waiting for the glass. Bounded, because a wall is a mood and
 // not a log: a lane faster than the flight drops its oldest waiting
 // event to residue rather than queueing a minute of comets.
 const QUEUED_MAX = 4
+
+// A gap between frames wider than this means nobody was watching. A
+// backgrounded tab stops the frames and not the socket, so the ring
+// keeps filling; what was already queued when the frames stopped is
+// history by the time they start again, and flying it then is a
+// stampede of comets for events a minute old. Freshness cannot say so
+// on its own: a busy lane legitimately keeps an arrival waiting longer
+// than the whole window, one flight and one floor at a time. Half that
+// window, so the worst an arrival can be when it finally flies is a few
+// seconds late and not a minute; frames come every sixteenth of one.
+const FRAME_GAP_SECONDS = ARRIVAL_FRESH_SECONDS / 2
 
 // Seqs that have already had their comet, kept well past the ring so
 // leaving the room and coming back is not a second flight, and bounded
@@ -100,7 +119,16 @@ const SETTLED = 'none'
 // the camera would otherwise be a disc wider than the screen, which is a
 // full-screen flash on every impact you happen to be standing beside.
 export const COMET_DOT_PX = 16
-export const COMET_MAX_PX = 64
+// The glow is most of what is painted, and it rides the same transform
+// the dot does: it reaches its blur plus its spread past every edge, so
+// a ceiling on the dot alone is a ceiling on the hole in the middle of
+// the flash.
+const COMET_GLOW_BLUR = COMET_DOT_PX * 1.6
+const COMET_GLOW_SPREAD = COMET_DOT_PX * 0.4
+const COMET_PAINT_PX = COMET_DOT_PX + 2 * (COMET_GLOW_BLUR + COMET_GLOW_SPREAD)
+// The ceiling, on the whole flash.
+export const COMET_MAX_PX = 128
+const COMET_MAX_DOT_PX = (COMET_MAX_PX * COMET_DOT_PX) / COMET_PAINT_PX
 // The head's world radius, so a comet grows as it comes in rather than
 // being a dot that teleports.
 const COMET_RADIUS = 1.1
@@ -163,6 +191,14 @@ const smearStyle = (edge: string) => `
   box-shadow: 0 0 22px -6px currentColor, inset 0 0 18px -10px ${edge};
 `
 
+// A flex row is only as honest as its shrink policy. The plate has a
+// max width and hides what overruns it, so a row that lets its first
+// item take everything puts the verdict — the result the wall exists to
+// show — past the edge, where it is the verdict that gets cut and not
+// the path. The tokens give; the verdict never does.
+const ELIDES = 'min-width: 0px; overflow: hidden; text-overflow: ellipsis;'
+const KEEPS = 'flex: none;'
+
 const prefersLessMotion = () =>
   typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -179,7 +215,7 @@ const part = (name: string, text: string, css = ''): HTMLElement => {
 
 // A predictor's line in the readout: who guessed, what, and how sure.
 const guessLine = (name: string, guess: TapeGuess): HTMLElement => {
-  const line = part('guess', `${name} ${displayToken(guess.token)} ${guess.p.toFixed(2)}`, `font-size: 0.72em; color: ${PALE}; opacity: 0.86; text-shadow: none;`)
+  const line = part('guess', `${name} ${displayToken(guess.token)} ${guess.p.toFixed(2)}`, `${ELIDES} font-size: 0.72em; color: ${PALE}; opacity: 0.86; text-shadow: none;`)
   line.dataset.predictor = name
   return line
 }
@@ -208,8 +244,8 @@ function render(outer: HTMLElement, plate: HTMLElement, splat: TapeSplat, mode: 
     }
     const headline = document.createElement('div')
     headline.style.cssText = 'display: flex; align-items: baseline; gap: 10px;'
-    headline.appendChild(part('token', displayToken(splat.actual), 'font-size: 1.15em;'))
-    if (label) headline.appendChild(part('verdict', label, 'font-size: 0.68em; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.9;'))
+    headline.appendChild(part('token', displayToken(splat.actual), `${ELIDES} font-size: 1.15em;`))
+    if (label) headline.appendChild(part('verdict', label, `${KEEPS} font-size: 0.68em; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.9;`))
     plate.appendChild(headline)
     const guesses = document.createElement('div')
     guesses.style.cssText = 'display: flex; gap: 10px;'
@@ -217,14 +253,14 @@ function render(outer: HTMLElement, plate: HTMLElement, splat: TapeSplat, mode: 
     if (splat.net) guesses.appendChild(guessLine('net', splat.net))
     if (guesses.childElementCount > 0) plate.appendChild(guesses)
   } else {
-    plate.appendChild(part('token', displayToken(splat.actual)))
+    plate.appendChild(part('token', displayToken(splat.actual), ELIDES))
     // What a predictor led with instead, when it was not the request
     // itself: the gap is the whole reason for the wall.
     if (guess && guess.token !== splat.actual) {
-      plate.appendChild(part('guess', displayToken(guess.token), `opacity: 0.6; font-size: 0.85em; color: ${PALE}; text-shadow: none;`))
+      plate.appendChild(part('guess', displayToken(guess.token), `${ELIDES} opacity: 0.6; font-size: 0.85em; color: ${PALE}; text-shadow: none;`))
     }
     // The verdict in words, so colour is not the only reading of it.
-    if (label) plate.appendChild(part('verdict', label, 'font-size: 0.75em; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.85;'))
+    if (label) plate.appendChild(part('verdict', label, `${KEEPS} font-size: 0.75em; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.85;`))
   }
 
   outer.title = `${splat.verdict} · ${splat.actual}${guess ? ` · guessed ${guess.token}` : ''}`
@@ -246,6 +282,9 @@ export class TapeWall {
   // The one event the wall is currently showing off, and the two
   // instants that decide what it looks like.
   private active: { seq: number; launchedAt: number; impactAt: number } | null = null
+  // The last frame this wall drew, on the frame clock, so it can tell a
+  // busy lane from a tab nobody was looking at.
+  private drawnAt: number | null = null
 
   constructor(private readonly container: HTMLElement) {
     // Thirty-two unlabelled access-log tokens are scenery, not a
@@ -257,7 +296,15 @@ export class TapeWall {
   // Every splat the ring holds, every frame: hand an empty list for a
   // room with no glass and the wall comes down, comet included.
   draw(splats: readonly WallSplat[], view: TapeView): void {
-    this.launch(splats, view)
+    // A reader who asked for less motion gets none of it: no flight, and
+    // no smear either. The plate carries one transition, so parking a
+    // waiting plate at the running transform would play that smear the
+    // moment the glass came free.
+    const still = prefersLessMotion()
+    const gap = this.drawnAt === null ? 0 : view.clock - this.drawnAt
+    this.drawnAt = view.clock
+    if (gap > FRAME_GAP_SECONDS) this.queue = []
+    this.launch(splats, view, still)
 
     const held = new Set<number>()
     // The one splat whose comet is still on its way in, taken from the
@@ -265,7 +312,7 @@ export class TapeWall {
     let comet: { splat: TapeSplat; launchedAt: number } | null = null
     for (const { splat } of splats) {
       held.add(splat.seq)
-      const { mode, pending } = this.stateOf(splat.seq, view.now)
+      const { mode, pending } = this.stateOf(splat.seq, view.clock)
       const entry = this.entryFor(splat, mode, view.edge)
       entry.outer.style.fontSize = this.fontSize(mode, view.width)
       // An event still on its way in is neither: it has not hit yet, so
@@ -284,7 +331,7 @@ export class TapeWall {
       entry.outer.style.transform = place((projected.x + 1) * 0.5 * view.width, (1 - projected.y) * 0.5 * view.height)
       // Until it hits, the glass is still clean: the data arrives with
       // the comet, stretched by the impact, and settles from there.
-      entry.plate.style.transform = pending ? RUNNING : SETTLED
+      entry.plate.style.transform = pending && !still ? RUNNING : SETTLED
       entry.outer.style.opacity = pending ? '0' : String(splatOpacity(view.now - splat.ts))
     }
 
@@ -307,6 +354,7 @@ export class TapeWall {
     this.landed.clear()
     this.queue = []
     this.active = null
+    this.drawnAt = null
     this.retireComet()
   }
 
@@ -314,11 +362,11 @@ export class TapeWall {
   // arriving, then give the glass to at most one of them. Everything it
   // has never seen is marked as history in the same pass, so a joiner's
   // thirty-two are residue rather than a stampede.
-  private launch(splats: readonly WallSplat[], view: TapeView): void {
+  private launch(splats: readonly WallSplat[], view: TapeView, still: boolean): void {
     for (const { splat, live, at } of splats) {
       if (!live || this.landed.has(splat.seq)) continue
       this.remember(splat.seq)
-      if (view.now - at >= ARRIVAL_FRESH_SECONDS) continue
+      if (view.clock - at >= ARRIVAL_FRESH_SECONDS) continue
       this.queue.push(splat)
       if (this.queue.length > QUEUED_MAX) this.queue.shift()
     }
@@ -327,12 +375,11 @@ export class TapeWall {
     // A comet in the air, or a smear that has not had its moment yet,
     // keeps the glass. One launch a frame, and never a cut-off readout.
     const active = this.active
-    if (active && view.now < active.impactAt + SMEAR_FLOOR_SECONDS) return
+    if (active && view.clock < active.impactAt + SMEAR_FLOOR_SECONDS) return
     this.queue.shift()
-    // A reader who asked for less motion gets no flight at all: the data
-    // is on the glass on this frame, not a second and a half later.
-    const flies = !prefersLessMotion()
-    this.active = { seq: next.seq, launchedAt: view.now, impactAt: view.now + (flies ? COMET_FLIGHT_SECONDS : 0) }
+    // Without the flight the data is on the glass on this frame rather
+    // than a second and a half later.
+    this.active = { seq: next.seq, launchedAt: view.clock, impactAt: view.clock + (still ? 0 : COMET_FLIGHT_SECONDS) }
     // One comet at a time, even if the last one never landed.
     this.retireComet()
   }
@@ -384,7 +431,7 @@ export class TapeWall {
       return
     }
     const { splat } = comet
-    const t = cometProgress(comet.launchedAt, view.now)
+    const t = cometProgress(comet.launchedAt, view.clock)
     const points = cometPoints(cometFlight(splat, view.wall), t)
     while (this.trail.length > points.length) this.trail.pop()?.remove()
     const colour = splatColour(splat)
@@ -399,7 +446,7 @@ export class TapeWall {
       // glass, with a ceiling so an impact underfoot is not a flash.
       const world = ((COMET_RADIUS / projected.forward) / (SHADER_FOV * view.aspect)) * view.width * 0.5
       const taper = 1 - i / (COMET_TRAIL_POINTS + 1)
-      const px = Math.min(COMET_MAX_PX, Math.max(2, world)) * (i === 0 ? 1 : taper * 0.8)
+      const px = Math.min(COMET_MAX_DOT_PX, Math.max(2, world)) * (i === 0 ? 1 : taper * 0.8)
       dot.style.transform = place((projected.x + 1) * 0.5 * view.width, (1 - projected.y) * 0.5 * view.height, px / COMET_DOT_PX)
       dot.style.opacity = String(i === 0 ? 1 : taper * 0.7)
     })
@@ -417,7 +464,7 @@ export class TapeWall {
       height: ${COMET_DOT_PX}px;
       border-radius: 50%;
       background: ${colour};
-      box-shadow: 0 0 ${COMET_DOT_PX * 1.6}px ${COMET_DOT_PX * 0.4}px ${colour};
+      box-shadow: 0 0 ${COMET_GLOW_BLUR}px ${COMET_GLOW_SPREAD}px ${colour};
       pointer-events: none;
       will-change: transform;
     `

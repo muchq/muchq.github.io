@@ -25,6 +25,9 @@ const view = (over: Partial<TapeView> = {}): TapeView => ({
   edge: GLASS,
   now: NOW,
   ...over,
+  // Most tests move one clock and mean both; the two only come apart
+  // where the point is that they can.
+  clock: over.clock ?? over.now ?? NOW,
 })
 
 describe('TapeWall', () => {
@@ -56,6 +59,14 @@ describe('TapeWall', () => {
   const dotSize = (element: HTMLElement) => {
     const found = /scale\(([\d.]+)\)/.exec(element.style.transform)
     return (found ? parseFloat(found[1]) : 1) * COMET_DOT_PX
+  }
+  // What a dot actually puts on the screen, read off the element: the
+  // glow reaches its blur plus its spread past every edge of the box,
+  // and rides the same transform the box does.
+  const paintedSize = (element: HTMLElement) => {
+    const glow = /^\S+ \S+ ([\d.]+)px ([\d.]+)px/.exec(element.style.boxShadow)
+    const reach = glow ? parseFloat(glow[1]) + parseFloat(glow[2]) : 0
+    return dotSize(element) + 2 * reach * (dotSize(element) / COMET_DOT_PX)
   }
   // jsdom writes a colour back in its own notation; compare through it
   // rather than pinning the notation.
@@ -198,10 +209,14 @@ describe('TapeWall', () => {
     tapeWall.draw(held.splats, view({ now: NOW + COMET_FLIGHT_SECONDS * 0.9 }))
     expect(dotSize(head())).toBeGreaterThan(far)
     // Standing on the impact point, through the last of the flight.
-    const near = view({ cameraPos: [0, 0, -48], cameraTarget: [0, 0, -50] })
+    // Always built through `view`, never spread from one already built:
+    // the clock a spread would carry over is the one it was built with,
+    // and a comet drawn at t = 0 four times proves nothing.
+    const near: Partial<TapeView> = { cameraPos: [0, 0, -48], cameraTarget: [0, 0, -50] }
     for (const step of [0.9, 0.96, 0.99, 0.999]) {
-      tapeWall.draw(held.splats, { ...near, now: NOW + COMET_FLIGHT_SECONDS * step })
-      for (const dot of comets()) expect(dotSize(dot)).toBeLessThanOrEqual(COMET_MAX_PX)
+      tapeWall.draw(held.splats, view({ ...near, now: NOW + COMET_FLIGHT_SECONDS * step }))
+      // The cap is on the flash, not on the hole in the middle of it.
+      for (const dot of comets()) expect(paintedSize(dot)).toBeLessThanOrEqual(COMET_MAX_PX)
     }
     // The trail thins and fades behind the head.
     tapeWall.draw(held.splats, view({ now: NOW + COMET_FLIGHT_SECONDS * 0.8 }))
@@ -466,4 +481,89 @@ describe('TapeWall', () => {
     tapeWall.clear()
     expect(container.children).toHaveLength(0)
   })
+
+  // Reduced motion is not a shorter flight, and the comet is not the
+  // only thing that moves. The plate's one transition is the smear, so a
+  // queued arrival parked at the running transform plays that smear the
+  // moment the glass comes free: the first event of a batch sat still
+  // and every one behind it animated.
+  it('leaves every plate settled under reduced motion, queued ones included', () => {
+    const matchMedia = vi.fn((query: string) => ({ matches: query.includes('reduced-motion') })) as unknown as typeof window.matchMedia
+    vi.stubGlobal('matchMedia', matchMedia)
+    const held = ring()
+    for (const seq of [1, 2, 3]) held.add(splat({ seq }))
+    const plates = () => shown().map(element => plate(element).style.transform)
+    for (const step of [0, 0.5, SMEAR_FLOOR_SECONDS, SMEAR_FLOOR_SECONDS * 2 + 0.1, SMEAR_FLOOR_SECONDS * 3 + 0.2]) {
+      tapeWall.draw(held.splats, view({ now: NOW + step }))
+      expect(plates()).toEqual(['none', 'none', 'none'])
+      expect(comets()).toEqual([])
+    }
+    vi.unstubAllGlobals()
+  })
+
+  // The plate has a max width and hides what overruns it, and a flex row
+  // with no shrink policy hands the whole row to whatever comes first.
+  // So a long enough path pushed the verdict past the edge and it was
+  // the verdict that got cut, not the path. jsdom lays nothing out, so
+  // what is checked is the policy itself.
+  it('elides a long token rather than pushing the verdict off the plate', () => {
+    const held = ring()
+    held.add(splat({ seq: 1, actual: `GET /${'deep/'.repeat(120)}`, verdict: 'anomaly', bigram: { token: `GET /${'wide/'.repeat(120)}`, p: 0.1 } }))
+    land(held)
+    const policy = (role: string) => {
+      const element = shown().find(e => e.dataset.role === role)!
+      const part = (name: string) => element.querySelector<HTMLElement>(`[data-part="${name}"]`)!
+      return {
+        token: [part('token').style.minWidth, part('token').style.overflow, part('token').style.textOverflow],
+        verdict: part('verdict').style.flex,
+      }
+    }
+    expect(policy('smear')).toEqual({ token: ['0px', 'hidden', 'ellipsis'], verdict: '0 0 auto' })
+    // And again once it is residue, which is a flex row of its own.
+    tapeWall.draw(held.splats, view({ now: NOW + COMET_FLIGHT_SECONDS + SMEAR_SECONDS }))
+    expect(policy('residue')).toEqual({ token: ['0px', 'hidden', 'ellipsis'], verdict: '0 0 auto' })
+  })
+
+  // Every deadline here was a wall-clock reading once. A correction
+  // backwards mid-flight froze the comet in the air and wedged every
+  // arrival queued behind it; one forwards skipped the flight outright.
+  // Only the fade against deja's `ts` belongs on that clock.
+  it('flies on the frame clock, not on the one an NTP correction moves', () => {
+    const held = ring(0)
+    held.add(splat({ seq: 1 }))
+    held.add(splat({ seq: 2 }))
+    tapeWall.draw(held.splats, view({ now: NOW, clock: 0 }))
+    const early = dotSize(head())
+    // The system clock jumps an hour backwards. The frame clock cannot.
+    tapeWall.draw(held.splats, view({ now: NOW - 3600, clock: COMET_FLIGHT_SECONDS * 0.9 }))
+    expect(dotSize(head())).toBeGreaterThan(early)
+    // It lands and holds the glass for its floor, still on that clock.
+    const landed = COMET_FLIGHT_SECONDS + SMEAR_FLOOR_SECONDS
+    tapeWall.draw(held.splats, view({ now: NOW - 3600, clock: landed - 0.1 }))
+    expect(smears().map(e => e.dataset.seq)).toEqual(['1'])
+    // And the one queued behind it gets its turn on schedule.
+    tapeWall.draw(held.splats, view({ now: NOW - 3600, clock: landed }))
+    expect(shown().find(e => e.dataset.seq === '2')!.dataset.role).toBe('pending')
+    expect(comets().length).toBeGreaterThan(0)
+  })
+
+
+  // A backgrounded tab stops the frames and not the socket. An event
+  // that reached the ring while it was hidden is already read as
+  // history; one that was queued before it went quiet was not, and flew
+  // a minute late, because freshness was read on the way into the queue
+  // and never again.
+  it('drops what was queued across a gap in the frames', () => {
+    const held = ring(0)
+    for (const seq of [1, 2, 3]) held.add(splat({ seq }))
+    tapeWall.draw(held.splats, view({ clock: 0 }))
+    expect(comets().length).toBeGreaterThan(0)
+    // Away for a minute, then back.
+    tapeWall.draw(held.splats, view({ clock: 60 }))
+    expect(comets()).toEqual([])
+    expect(shown().map(e => e.dataset.role)).toEqual(['residue', 'residue', 'residue'])
+    // The control is the test above: a lane that keeps drawing still
+    // gives every queued arrival its turn.
+  })
+
 })

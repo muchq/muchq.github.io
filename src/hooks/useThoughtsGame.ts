@@ -657,7 +657,11 @@ export const useThoughtsGame = () => {
           height: window.innerHeight,
           wall: { boundary: GAME_CONFIG.worldBoundary, base: GAME_CONFIG.groundLevel, height: room.wallHeight },
           edge: glassEdge,
+          // Two clocks on purpose: the epoch one only ever meets deja's
+          // own `ts`, and everything the wall animates runs off the
+          // frame timestamp, which no clock correction can move.
           now: Date.now() / 1000,
+          clock: time / 1000,
         })
 
         // Set multiple object data

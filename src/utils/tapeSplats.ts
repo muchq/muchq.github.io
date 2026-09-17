@@ -45,11 +45,13 @@ export interface TapeSplat {
 export interface WallSplat {
   splat: TapeSplat
   live: boolean
-  // When this client received it, on this client's own clock, in
-  // seconds. deja's `ts` is the hub's clock and the two can differ by
-  // seconds either way; a wall that asked `ts` whether an event was
-  // still arriving would stop flying comets the moment a client ran
-  // ahead of the hub, and never start again.
+  // When this client received it, in seconds on the same monotonic
+  // clock the frames run on. deja's `ts` is the hub's wall clock and the
+  // two can differ by seconds either way; a wall that asked `ts` whether
+  // an event was still arriving would stop flying comets the moment a
+  // client ran ahead of the hub, and never start again. Monotonic
+  // because a wall clock is not: a correction backwards would make an
+  // arrival that just happened look like one from the future.
   at: number
 }
 
@@ -60,8 +62,10 @@ export const TAPE_RING_SIZE = 32
 export class TapeRing {
   private held: WallSplat[] = []
 
-  // The clock is the client's, and injectable so a test can drive it.
-  constructor(private readonly clock: () => number = () => Date.now() / 1000) {}
+  // The clock is the client's own and only goes forward, matching the
+  // frame timestamps the wall reads `at` against. Injectable so a test
+  // can drive it.
+  constructor(private readonly clock: () => number = () => performance.now() / 1000) {}
 
   // Oldest first, as the hub sends them.
   get splats(): readonly WallSplat[] {
