@@ -17,6 +17,7 @@
 
 import type { ChatMessage } from '@/types/roomChat'
 import type { GameStatePlayer } from '@/types/game'
+import type { TapeSplat } from './tapeSplats'
 import type { Geometry } from './surface'
 import { safeLocalStorage } from './safeLocalStorage'
 import { HUB_SUBPROTOCOL, hubPlayUrl, mintHubSession } from './hubSession'
@@ -49,13 +50,17 @@ export interface HubRoomPlayer {
 
 // The world's updates, one key each, as the lobby envelope carries them
 // (thoughts.smithy's LobbyUpdate).
+// `tape` is what is already on the glasshouse's glass, oldest first and
+// at most 32 (MoonBase#1563): absent off a glasshouse, and until deja's
+// first event lands. A live event arrives on its own as `tape`.
 export type LobbyUpdate =
-  | { worldState: { players: GameStatePlayer[]; geometry?: Geometry } }
-  | { geometryChanged: { geometry: Geometry; players: GameStatePlayer[] } }
+  | { worldState: { players: GameStatePlayer[]; geometry?: Geometry; tape?: TapeSplat[] } }
+  | { geometryChanged: { geometry: Geometry; players: GameStatePlayer[]; tape?: TapeSplat[] } }
   | { playerJoined: { player: GameStatePlayer } }
   | { playerMoved: { playerId: string; position: [number, number, number] } }
   | { shapeChanged: { playerId: string; shape: number } }
   | { playerLeft: { playerId: string } }
+  | { tape: TapeSplat }
 
 export type LobbyActionName = 'join' | 'move' | 'shape' | 'leave' | 'setGeometry'
 

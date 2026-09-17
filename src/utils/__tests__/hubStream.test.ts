@@ -292,4 +292,28 @@ describe('HubStream', () => {
     expect(callbacks.onLobby).toHaveBeenCalledWith({ playerLeft: { playerId: 'bob' } })
     expect(callbacks.onGame).not.toHaveBeenCalled()
   })
+
+  // One deja event on the glass, as the hub fans it out (lobby.smithy's
+  // TapeSplat): the frame the hub really sends, not a shape of our own.
+  it('carries a tape splat, and a snapshot that arrives with the glass already full', async () => {
+    const [hub, ws] = await connect()
+    const wire = {
+      seq: 41,
+      wall: 2,
+      u: 0.25,
+      v: 0.5,
+      ts: 1_700_000_000.5,
+      context: ['GET /a', 'GET /b'],
+      actual: 'GET /c',
+      verdict: 'anomaly',
+      bigram: { token: 'GET /b', p: 0.42 },
+    }
+    ws.receive('lobby', { update: { tape: wire } })
+    expect(callbacks.onLobby).toHaveBeenCalledWith({ tape: wire })
+    ws.receive('lobby', { update: { worldState: { players: [], geometry: { plane: {} }, tape: [wire] } } })
+    expect(callbacks.onLobby).toHaveBeenLastCalledWith({
+      worldState: { players: [], geometry: { plane: {} }, tape: [wire] },
+    })
+    expect(hub.isConnected).toBe(true)
+  })
 })

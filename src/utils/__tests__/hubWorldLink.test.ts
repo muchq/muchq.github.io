@@ -4,6 +4,7 @@ import type { HubStream } from '../hubStream'
 import { GameState } from '../gameClasses'
 import { ShapeType } from '@/types/game'
 import { PLANE_GEOMETRY, SPHERE_RADIUS, sphereGeometry } from '../surface'
+import { splat } from '@/test/fakeTape'
 
 // The link joins only when the hook says the session stands in a world,
 // and never on a renderer remount under an id the drop retired.
@@ -92,5 +93,32 @@ describe('HubWorldLink', () => {
     link.roomGeometry(PLANE_GEOMETRY)
     link.apply({ geometryChanged: { geometry: sphereGeometry(SPHERE_RADIUS), players: [] } })
     expect(heard).toEqual([PLANE_GEOMETRY, sphereGeometry(SPHERE_RADIUS)])
+  })
+
+  // The glass belongs to the world that was standing: a drop, a leave,
+  // or a step into another world starts it empty, and the next world's
+  // snapshot fills it.
+  it('wipes the glass on the way out of a world, and on the way into the next', () => {
+    const { link, world } = setup()
+    const gameState = world()
+    link.attach(gameState)
+    link.sessionReady('alice')
+    link.join()
+    link.apply({ tape: splat({ seq: 1 }) })
+    expect(gameState.tape.splats).toHaveLength(1)
+    link.dropped()
+    expect(gameState.tape.splats).toEqual([])
+
+    link.attach(gameState)
+    link.sessionReady('alice')
+    link.join()
+    link.apply({ tape: splat({ seq: 2 }) })
+    link.join()
+    expect(gameState.tape.splats).toEqual([])
+
+    link.apply({ tape: splat({ seq: 3 }) })
+    expect(gameState.tape.splats).toHaveLength(1)
+    link.disconnect()
+    expect(gameState.tape.splats).toEqual([])
   })
 })

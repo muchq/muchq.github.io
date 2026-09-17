@@ -2,14 +2,25 @@ import { GAME_CONFIG } from './gameClasses'
 import type { Vec3 } from './projection'
 
 // The shape of a room's world, as the hub names it (MoonBase#1554's
-// lobby Geometry): the ground plane, or the inside of a sphere centred
-// on the origin. A position on the wire is a point OF the surface —
-// three real coordinates, not a plane coordinate the room redraws — so
-// the sphere is somewhere to walk rather than a square patch laid on a
-// wall, and the whole of it is reachable.
-export type Geometry = { plane: Record<string, never> } | { sphere: { radius: number } }
+// lobby Geometry): the ground plane, the same plane inside four glass
+// walls, or the inside of a sphere centred on the origin. A position on
+// the wire is a point OF the surface — three real coordinates, not a
+// plane coordinate the room redraws — so the sphere is somewhere to
+// walk rather than a square patch laid on a wall, and the whole of it
+// is reachable.
+//
+// The glasshouse walks exactly as the plane does: the glass is the
+// boundary the plane already had, not a place to stand. It is a shape of
+// its own all the same, because the hub polls deja for a room standing
+// in a glasshouse and for no other, so a client that calls it a plane
+// gets a wall that never fills.
+export type Geometry =
+  | { plane: Record<string, never> }
+  | { glasshouse: Record<string, never> }
+  | { sphere: { radius: number } }
 
 export const PLANE_GEOMETRY: Geometry = { plane: {} }
+export const GLASSHOUSE_GEOMETRY: Geometry = { glasshouse: {} }
 
 // The sphere this client asks for when it wants one. The hub takes any
 // radius in 2..1000; a room's shader is built for this one.
@@ -21,14 +32,18 @@ export function sphereRadiusOf(geometry: Geometry): number | null {
   return 'sphere' in geometry ? geometry.sphere.radius : null
 }
 
+// Which member of the union this is, whatever it carries.
+const kindOf = (geometry: Geometry): string =>
+  'sphere' in geometry ? 'sphere' : 'glasshouse' in geometry ? 'glasshouse' : 'plane'
+
 export function sameGeometry(a: Geometry, b: Geometry): boolean {
-  return sphereRadiusOf(a) === sphereRadiusOf(b)
+  return kindOf(a) === kindOf(b) && sphereRadiusOf(a) === sphereRadiusOf(b)
 }
 
 // Same kind of surface, whatever its size: which room draws it is a
 // question about the kind, since one sphere room draws any sphere.
 export function sameSurfaceKind(a: Geometry, b: Geometry): boolean {
-  return (sphereRadiusOf(a) === null) === (sphereRadiusOf(b) === null)
+  return kindOf(a) === kindOf(b)
 }
 
 // What the renderer asks of a surface: where to draw a point standing on

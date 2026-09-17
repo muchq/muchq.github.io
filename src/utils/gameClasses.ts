@@ -1,5 +1,6 @@
 import type { Player as IPlayer, GameState as IGameState, GameConfig, Camera } from '@/types/game'
 import { ShapeType } from '@/types/game'
+import { TapeRing } from './tapeSplats'
 
 // Game Configuration
 export const GAME_CONFIG: GameConfig = {
@@ -46,10 +47,12 @@ export class GameState implements IGameState {
   players: Map<string, Player>
   localPlayerId: string | null
   camera: Camera
+  tape: TapeRing
 
   constructor() {
     this.players = new Map()
     this.localPlayerId = null
+    this.tape = new TapeRing()
     this.camera = {
       distance: 7,
       height: 4

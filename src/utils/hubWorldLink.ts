@@ -67,6 +67,7 @@ export class HubWorldLink implements WorldLink {
   join(): void {
     this.isConnected = false
     this.due = true
+    this.sync?.forgetTape()
     this.enter()
   }
 
@@ -81,6 +82,7 @@ export class HubWorldLink implements WorldLink {
     this.due = false
     this.playerId = null
     this.sync?.forgetRemotePlayers()
+    this.sync?.forgetTape()
     this.onConnectionStateChange?.('disconnected')
   }
 
@@ -107,6 +109,7 @@ export class HubWorldLink implements WorldLink {
 
   disconnect(): void {
     this.sendLeave()
+    this.sync?.forgetTape()
     this.sync = null
     this.onConnectionStateChange?.('disconnected')
   }

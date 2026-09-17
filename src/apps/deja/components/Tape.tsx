@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import styles from './Deja.module.css'
 import ProbBars from './ProbBars'
-import { displayToken } from '../displayToken'
+import { displayToken } from '@/utils/displayToken'
 import { OUTCOME_BLURB, OUTCOME_ORDER, TAPE_BOUND_NOTE } from '../outcomes'
 import { rowId } from '../rows'
 import type { TapeRow } from '../tape'

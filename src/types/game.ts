@@ -1,4 +1,6 @@
 // Game types and interfaces
+import type { TapeRing } from '@/utils/tapeSplats'
+
 export interface GameConfig {
   moveSpeed: number
   worldBoundary: number
@@ -64,6 +66,9 @@ export interface GameState {
   players: Map<string, Player>
   localPlayerId: string | null
   camera: Camera
+  // deja's tape, as the glasshouse's walls hold it: the hub places every
+  // splat and this ring is all the client keeps of it.
+  tape: TapeRing
   
   addPlayer(id: string, position: [number, number, number], color: [number, number, number], shape?: ShapeType): Player
   removePlayer(id: string): void

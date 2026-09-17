@@ -3,6 +3,7 @@ import { PositionThrottle, WorldSync } from '../worldSync'
 import { GameState } from '../gameClasses'
 import { ShapeType } from '@/types/game'
 import { PLANE_GEOMETRY, sphereGeometry } from '../surface'
+import { splat } from '@/test/fakeTape'
 
 // The GameState under the hub's lobby updates, the one place both ways
 // onto the wire (the thoughts page, the lobby) touch it.
@@ -96,6 +97,48 @@ describe('WorldSync', () => {
     expect(gameState.getLocalPlayer()?.position).toEqual([0, 0, -53])
     expect(gameState.players.get('bob')?.position).toEqual([0, 53, 0])
     expect(heard).toEqual([PLANE_GEOMETRY, sphereGeometry(53)])
+  })
+
+  // deja's tape on the glass: the hub places every splat, and this ring
+  // is all the client keeps of it.
+  it('seeds the glass from a snapshot and splats what lands live', () => {
+    sync.apply({ worldState: { players: [], tape: [splat({ seq: 1 }), splat({ seq: 2 })] } })
+    sync.apply({ tape: splat({ seq: 3 }) })
+    expect(gameState.tape.splats.map(s => s.splat.seq)).toEqual([1, 2, 3])
+    expect(gameState.tape.splats.map(s => s.live)).toEqual([false, false, true])
+  })
+
+  it('holds one splat per seq, however the same event reaches it twice', () => {
+    sync.apply({ worldState: { players: [], tape: [splat({ seq: 9 }), splat({ seq: 10 })] } })
+    sync.apply({ tape: splat({ seq: 9 }) })
+    sync.apply({ tape: splat({ seq: 11 }) })
+    expect(gameState.tape.splats.map(s => s.splat.seq)).toEqual([9, 10, 11])
+    expect(gameState.tape.splats.map(s => s.live)).toEqual([false, false, true])
+  })
+
+  // Both carriers are a full replacement, the tape as much as the player
+  // list: a reshape onto a surface with no glass carries no tape, and
+  // the wall it had goes with it rather than hanging there forever.
+  it('replaces the glass on a snapshot and on a reshape, tape or none', () => {
+    sync.apply({ tape: splat({ seq: 1 }) })
+    sync.apply({ geometryChanged: { geometry: PLANE_GEOMETRY, players: [], tape: [splat({ seq: 2 })] } })
+    expect(gameState.tape.splats.map(s => s.splat.seq)).toEqual([2])
+    sync.apply({ geometryChanged: { geometry: sphereGeometry(53), players: [] } })
+    expect(gameState.tape.splats).toEqual([])
+    sync.apply({ tape: splat({ seq: 3 }) })
+    sync.apply({ worldState: { players: [] } })
+    expect(gameState.tape.splats).toEqual([])
+  })
+
+  it('wipes the glass when the world is left', () => {
+    sync.apply({ tape: splat({ seq: 1 }) })
+    sync.forgetTape()
+    expect(gameState.tape.splats).toEqual([])
+    // Forgetting the peers is not forgetting the wall: a drop does both,
+    // and each says so.
+    sync.apply({ tape: splat({ seq: 2 }) })
+    sync.forgetRemotePlayers()
+    expect(gameState.tape.splats.map(s => s.splat.seq)).toEqual([2])
   })
 
   it('says nothing about a shape when the snapshot names none', () => {

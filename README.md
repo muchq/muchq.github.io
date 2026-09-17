@@ -88,18 +88,29 @@ past a different attractor through every pane, each drawn its own way — a come
 curve on a ribbon, a chain of beads, a drift of sparks, a hard spark; and the inside of a sphere, drawn and scored like an SNES platformer. A
 new room is a new entry.
 
+deja's tape lands on the glasshouse's glass (MoonBase#1563): the hub fans each scored request
+out as a splat, which `src/utils/worldSync.ts` keeps as a ring of the last 32 in `GameState` and
+`src/utils/tapeWall.ts` draws — the token and the predictor's guess as elements over the
+canvas, projected through the ray tracer's own camera, in the verdict colours the `/deja`
+page uses. The hub places every splat from its sequence number, so a room sees one event on
+one square inch of glass; the client draws what it is handed, fades it by its age, and never
+subscribes to deja itself. Only a room with glass has a wall to splat against.
+
 A wake is a ribbon, not a wire (`src/utils/ribbon.ts`): two vertices a point, turned to face
 the camera and tapering into the tail, so it has width in the world and thins with distance.
 It takes a point by distance travelled rather than by frame, at a steady height, so a slow
 frame and a fast one leave the same path and a bounce does not zigzag it.
 
-Two rooms can stand on one surface — grid and glasshouse are the same plane in different
-light — so the undocumented `g` cycles them here and now, while stepping to or from the
-sphere is the room's own shape and goes through the hub as `setGeometry`. The hub answers
-everyone in the room with `geometryChanged`, carrying where it placed each player on the new
-surface, and `roomState` names the surface before the world is joined so a spawn lands on
-it. `src/utils/projection.ts` is the one camera the ray tracer, the player labels, and the
-line pass share; the shader reads its constants rather than carrying copies.
+Every room is a surface the hub names — plane, glasshouse, sphere — so the undocumented `g`
+asks the hub for the next one as `setGeometry` whenever this client stands in a world, and
+only cycles here and now when it is off the wire. The glasshouse walks exactly as the plane
+does, and is a surface of its own all the same: the hub polls deja for a room standing in
+one and for no other, so a client that called it a plane would draw a wall nothing ever lands
+on. The hub answers everyone in the room with `geometryChanged`, carrying where it placed
+each player on the new surface, and `roomState` names the surface before the world is
+joined so a spawn lands on it. `src/utils/projection.ts` is the one camera the ray tracer,
+the player labels, and the line pass share; the shader reads its constants rather than
+carrying copies.
 
 The lobby speaks the games hub's one stream (`/games/v2/play` on api.muchq.com; the models
 and the protocol are documented with the service in MoonBase, `domains/games/apis/games_hub`)

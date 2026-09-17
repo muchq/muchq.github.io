@@ -4,9 +4,10 @@ import { useThoughtsGame } from '../useThoughtsGame'
 import { fakeGl } from '@/test/fakeGl'
 import { ROOM_HOTKEY, SHAPE_HOTKEY } from '@/utils/hotkeys'
 
-import { GAME_CONFIG, Player } from '@/utils/gameClasses'
-import { CALM_SOUND, CHIPTUNE_SOUND, type SoundProfile } from '@/utils/audioSystem'
-import { PLANE_GEOMETRY, SPHERE_RADIUS, sphereGeometry } from '@/utils/surface'
+import { GAME_CONFIG, GameState, Player } from '@/utils/gameClasses'
+import { splat } from '@/test/fakeTape'
+import { CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND, type SoundProfile } from '@/utils/audioSystem'
+import { GLASSHOUSE_GEOMETRY, PLANE_GEOMETRY, SPHERE_RADIUS, sphereGeometry } from '@/utils/surface'
 import type { HubWorldLink } from '@/utils/hubWorldLink'
 import type { WorldLink } from '@/utils/worldSync'
 
@@ -35,8 +36,17 @@ const worldLink = (): WorldLink => ({
   disconnect: vi.fn(),
   reconnect: vi.fn(),
 })
-// A link that hands the renderer an offline world, so nothing dials out.
-const offlineLink = () => ({ attach: () => worldLink() }) as unknown as HubWorldLink
+// A link that hands the renderer an offline world, so nothing dials out,
+// and keeps the GameState it was handed: the tape on the glass lives
+// there, and only the renderer's own world has one.
+let attached: GameState | null = null
+const offlineLink = () =>
+  ({
+    attach: (gameState: GameState) => {
+      attached = gameState
+      return worldLink()
+    },
+  }) as unknown as HubWorldLink
 
 const press = (key: string) => document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
 
@@ -99,6 +109,7 @@ describe('useThoughtsGame', () => {
     canvas = document.createElement('canvas')
     document.body.appendChild(canvas)
     cleanup = null
+    attached = null
   })
   afterEach(() => {
     cleanup?.()
@@ -250,24 +261,47 @@ describe('useThoughtsGame', () => {
   })
 
   // The room's shape belongs to the room: the key asks the hub, and the
-  // world changes when the hub says so, for everyone at once. Two rooms
-  // standing on one surface are just this client's own light.
-  it('asks the hub to reshape the room and redraws when it answers', () => {
+  // world changes when the hub says so, for everyone at once. The
+  // glasshouse is one of those shapes — the hub polls deja for a room
+  // standing in one, so a private glasshouse would be a wall that never
+  // fills.
+  it('asks the hub for the glasshouse and for the sphere, and redraws when it answers', () => {
     const link = { ...worldLink(), isConnected: true }
     startWith(link)
     frame()
     setProfile.mockClear()
+    const strips = () => gl.drawArrays.mock.calls.filter(c => c[0] === gl.LINE_STRIP).length
     press(ROOM_HOTKEY)
-    expect(link.sendSetGeometry).not.toHaveBeenCalled()
-    // Drawn here and now: the glasshouse hangs its attractors this frame.
-    frame(32)
-    expect(gl.drawArrays.mock.calls.filter(c => c[0] === gl.LINE_STRIP).length).toBeGreaterThan(0)
-    press(ROOM_HOTKEY)
-    expect(link.sendSetGeometry).toHaveBeenCalledWith(sphereGeometry(SPHERE_RADIUS))
+    expect(link.sendSetGeometry).toHaveBeenLastCalledWith(GLASSHOUSE_GEOMETRY)
     // Not yet: the hub decides, and the answer reaches everyone in it.
+    frame(32)
+    expect(setProfile).not.toHaveBeenLastCalledWith(TECHNO_SOUND)
+    expect(strips()).toBe(0)
+    link.onGeometryChange!(GLASSHOUSE_GEOMETRY)
+    frame(48)
+    expect(setProfile).toHaveBeenLastCalledWith(TECHNO_SOUND)
+    // Drawn now: the glasshouse hangs its attractors.
+    expect(strips()).toBeGreaterThan(0)
+    press(ROOM_HOTKEY)
+    expect(link.sendSetGeometry).toHaveBeenLastCalledWith(sphereGeometry(SPHERE_RADIUS))
     expect(setProfile).not.toHaveBeenLastCalledWith(CHIPTUNE_SOUND)
     link.onGeometryChange!(sphereGeometry(SPHERE_RADIUS))
     expect(setProfile).toHaveBeenLastCalledWith(CHIPTUNE_SOUND)
+  })
+
+  // A glasshouse that compared equal to the plane would be dropped here,
+  // and the one room with anything on its walls would never be drawn.
+  it('follows a stranger into the glasshouse, and back out to the plane', () => {
+    const link = { ...worldLink(), isConnected: true }
+    startWith(link)
+    frame()
+    link.onGeometryChange!(GLASSHOUSE_GEOMETRY)
+    expect(setProfile).toHaveBeenLastCalledWith(TECHNO_SOUND)
+    frame(32)
+    expect(link.sendSetGeometry).not.toHaveBeenCalled()
+    // And out again: the plane is the grid, not the glasshouse it was.
+    link.onGeometryChange!(PLANE_GEOMETRY)
+    expect(setProfile).toHaveBeenLastCalledWith(CALM_SOUND)
   })
 
   it('follows a reshape this client never asked for, and rounds the map for a globe', () => {
@@ -321,6 +355,50 @@ describe('useThoughtsGame', () => {
     cleanup = null
     press(SHAPE_HOTKEY)
     expect(link.sendShapeUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  // deja's tape lands on the glass and nowhere else: the glasshouse is
+  // the only room with walls to splat against.
+  it('splats the tape on the glasshouse glass, and draws none in a room without it', () => {
+    const container = document.createElement('div')
+    container.id = 'tape-wall-container'
+    document.body.appendChild(container)
+    start()
+    frame()
+    const now = Date.now() / 1000
+    attached!.tape.seed([splat({ seq: 1, wall: 0, u: 0.5, v: 0.2, ts: now, actual: 'GET /splat' })])
+    // The grid has no glass, whatever the ring holds.
+    frame(32)
+    expect(container.children).toHaveLength(0)
+    press(ROOM_HOTKEY)
+    frame(48)
+    expect(container.children).toHaveLength(1)
+    const element = container.children[0] as HTMLElement
+    expect(element.textContent).toContain('GET /splat')
+    // Just landed, so drawn at full strength: a ts read as milliseconds
+    // would put this at the faintest the wall goes.
+    expect(parseFloat(element.style.opacity)).toBeCloseTo(1, 2)
+    // And the sphere takes it down again.
+    press(ROOM_HOTKEY)
+    frame(64)
+    expect(container.children).toHaveLength(0)
+    container.remove()
+  })
+
+  it('takes the splats down with it on cleanup', () => {
+    const container = document.createElement('div')
+    container.id = 'tape-wall-container'
+    document.body.appendChild(container)
+    start()
+    frame()
+    attached!.tape.add(splat({ seq: 1, wall: 0, u: 0.5, v: 0.2, ts: Date.now() / 1000 }))
+    press(ROOM_HOTKEY)
+    frame(32)
+    expect(container.children).toHaveLength(1)
+    cleanup!()
+    cleanup = null
+    expect(container.children).toHaveLength(0)
+    container.remove()
   })
 
   it('stops listening for the hotkey and frees the rooms on cleanup', () => {

@@ -8,6 +8,7 @@ import { cameraView, frameAt, sameGeometry, sphereRadiusOf, surfaceFor, turn, wa
 import { mapHeadingDegrees, mapIsRound, mapPoint } from '@/utils/miniMap'
 import { bindRoomHotkey, bindRoomTaps, bindShapeHotkey } from '@/utils/hotkeys'
 import { AvatarTrails } from '@/utils/avatarTrails'
+import { TapeWall } from '@/utils/tapeWall'
 import { projectToNdc, viewProjection } from '@/utils/projection'
 import { VirtualJoystick } from '@/utils/virtualJoystick'
 import { AudioSystem } from '@/utils/audioSystem'
@@ -76,6 +77,12 @@ export const useThoughtsGame = () => {
 
     // Track player label elements (needs to be accessible in cleanup)
     const playerLabelElements = new Map<string, HTMLElement>()
+
+    // deja's tape on the glass, drawn over the canvas: the ray tracer
+    // has no glyphs, and a splat is a token. Absent its container there
+    // is simply no wall to draw on.
+    const tapeContainer = document.getElementById('tape-wall-container')
+    const tapeWall = tapeContainer ? new TapeWall(tapeContainer) : null
 
     // Initialize virtual joysticks
     const leftJoystickElement = document.getElementById('left-joystick') as HTMLElement
@@ -187,20 +194,26 @@ export const useThoughtsGame = () => {
       // what a plane position and a camera angle used to: on a sphere
       // there is no angle that means anything everywhere.
       let surface = surfaceFor(room.geometry)
+      // The shape of the world itself, which is not the surface it is
+      // walked on: the glasshouse walks as the plane does, so the
+      // surface cannot say which of the two the hub put the room in.
+      let geometry: Geometry = room.geometry
       let frame: Frame = frameAt(surface, randomSpawnPosition)
       gameState.getLocalPlayer()?.updatePosition(frame.position)
       // The room this client asked for, so the hub's answer comes back as
       // the skin it wanted rather than the first that fits the surface.
       let wanted: RoomGeometryId = room.id
 
-      // `geometry` is the world's, and the room is only how it is drawn:
-      // the hub may put the room on a sphere no room was written for.
-      const drawRoom = (next: RoomGeometry, geometry: Geometry = next.geometry): boolean => {
+      // `next` is how the world is drawn; `shape` is what the hub says it
+      // is, and the two are not the same — the hub may put the room on a
+      // sphere no room was written for.
+      const drawRoom = (next: RoomGeometry, shape: Geometry = next.geometry): boolean => {
         const nextBuilt = rooms.get(next)
         if (!nextBuilt) return false
         room = next
         built = nextBuilt
-        surface = surfaceFor(geometry)
+        geometry = shape
+        surface = surfaceFor(shape)
         trails = next.trailLength > 0 ? new AvatarTrails(next.trailLength) : null
         audioSystem.setProfile(next.sound)
         const localPlayer = gameState.getLocalPlayer()
@@ -221,17 +234,17 @@ export const useThoughtsGame = () => {
       // The room's shape is the room's, not this client's: the hub names
       // it on the snapshot a join answers and again whenever a member
       // reshapes it, and everyone standing there redraws together.
-      networkManager.onGeometryChange = (geometry: Geometry) => {
-        if (sameGeometry(surface.geometry, geometry)) return
-        drawRoom(roomForGeometry(geometry, wanted), geometry)
+      networkManager.onGeometryChange = (shape: Geometry) => {
+        if (sameGeometry(geometry, shape)) return
+        drawRoom(roomForGeometry(shape, wanted), shape)
       }
 
       const cycleRoom = () => {
         const next = rooms.next(room.id)
         if (!next) return
-        // Two rooms on one surface are a change of light, and this
-        // client's own business; a change of surface is the hub's.
-        if (sameGeometry(next.geometry, room.geometry) || !networkManager.isConnected) {
+        // The room's shape is the hub's: every room is a surface it
+        // knows by name, and off the wire there is nobody to ask.
+        if (sameGeometry(next.geometry, geometry) || !networkManager.isConnected) {
           if (drawRoom(next)) wanted = next.id
           return
         }
@@ -628,6 +641,19 @@ export const useThoughtsGame = () => {
         // Update player labels after setting up camera
         updatePlayerLabels(cameraPosition, cameraTargetPos, cameraUp)
 
+        // Only a room with glass has anywhere to put deja's tape; the
+        // others hand the wall nothing and it comes down.
+        tapeWall?.draw(room.wallHeight > 0 ? gameState.tape.splats : [], {
+          cameraPos: cameraPosition,
+          cameraTarget: cameraTargetPos,
+          cameraUp,
+          aspect: canvas.width / canvas.height,
+          width: window.innerWidth,
+          height: window.innerHeight,
+          wall: { boundary: GAME_CONFIG.worldBoundary, base: GAME_CONFIG.groundLevel, height: room.wallHeight },
+          now: Date.now() / 1000,
+        })
+
         // Set multiple object data
         webglContext.uniform1i(u.u_numObjects, Math.min(allPlayers.length, 10))
         webglContext.uniform3fv(u.u_objectCenters, objectCenters)
@@ -694,6 +720,7 @@ export const useThoughtsGame = () => {
       // Clean up player labels
       playerLabelElements.forEach(element => element.remove())
       playerLabelElements.clear()
+      tapeWall?.clear()
 
       // Clean up game systems
       audioSystem.cleanup()

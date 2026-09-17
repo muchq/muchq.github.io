@@ -11,6 +11,9 @@ import {
   turn,
   walk,
   PLANE_GEOMETRY,
+  GLASSHOUSE_GEOMETRY,
+  sameSurfaceKind,
+  sphereRadiusOf,
   type Frame,
 } from '../surface'
 import { GAME_CONFIG } from '../gameClasses'
@@ -122,5 +125,18 @@ describe('geometry', () => {
     expect(sameGeometry(PLANE_GEOMETRY, { plane: {} })).toBe(true)
     expect(sameGeometry(PLANE_GEOMETRY, sphereGeometry(53))).toBe(false)
     expect(sameGeometry(sphereGeometry(53), sphereGeometry(12))).toBe(false)
+  })
+
+  // The glasshouse is the plane's floor inside four glass walls: a
+  // surface of its own on the wire — the hub polls deja only for a room
+  // standing in one — and the plane's underfoot.
+  it('tells the glasshouse from the plane, and still walks it as the plane', () => {
+    expect(sameGeometry(GLASSHOUSE_GEOMETRY, { glasshouse: {} })).toBe(true)
+    expect(sameGeometry(PLANE_GEOMETRY, GLASSHOUSE_GEOMETRY)).toBe(false)
+    expect(sameGeometry(GLASSHOUSE_GEOMETRY, sphereGeometry(53))).toBe(false)
+    expect(sameSurfaceKind(PLANE_GEOMETRY, GLASSHOUSE_GEOMETRY)).toBe(false)
+    expect(sphereRadiusOf(GLASSHOUSE_GEOMETRY)).toBeNull()
+    // The floor really is the plane's, so the walk and the clamp are too.
+    expect(surfaceFor(GLASSHOUSE_GEOMETRY)).toBe(planeSurface)
   })
 })
