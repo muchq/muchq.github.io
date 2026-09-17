@@ -71,6 +71,10 @@ export interface SoundProfile {
   // The pad's own lowpass, opening across the chord rather than shutting
   // over it: a swell under the riff, where the pluck is a stab.
   pad?: { from: number; to: number; q: number }
+  // How loud the chords are voiced. 0 leaves the progression as harmony
+  // the bass follows and nothing plays out loud, which is how a room
+  // can be drums and bass and still know what key it is in. Absent is 1.
+  padGain?: number
   // Optional one-shots and a sample kick layered on the procedural tune.
   samples?: SoundSamples
   // A second voice on a longer grid than the riff. One entry per
@@ -161,34 +165,22 @@ export const CHIPTUNE_SOUND: SoundProfile = {
 
 const GH = '/audio/glasshouse'
 
-// Industrial techno at 140: eight bars of sixteenths (~13.7s), a thinner
-// pad, a quieter kick, and a bank of one-shots (hats, chops, riser).
+// The glasshouse, stripped back to drums and bass while the rest of the
+// sounds are chosen: a kick on the beat, a hat and the bass off it. The
+// progression stays even though nothing voices it — it is what tells
+// the bass which of the three notes to play.
 export const TECHNO_SOUND: SoundProfile = {
   wave: 'sawtooth',
   tempo: 140,
   noteBeats: 0.25,
   chordBeats: 4,
   melodyChance: 1,
-  // Four rhythmic figures, one to a bar, over a progression that holds
-  // rather than seesaws. E Phrygian: the bass samples are E, F and B
-  // flat — root, flat second, flat fifth — which is the dark end of
-  // trance rather than anything in a major key.
-  melody: [
-    // Bars 1-4, all on E minor: the figures are what changes.
-    40, 0, 40, 0, 47, 0, 40, 43, 0, 40, 0, 47, 40, 0, 43, 0,
-    40, 0, 0, 40, 47, 0, 43, 0, 40, 0, 47, 0, 40, 43, 0, 0,
-    40, 40, 0, 47, 40, 0, 43, 40, 0, 47, 40, 0, 43, 0, 40, 0,
-    40, 0, 0, 0, 47, 0, 0, 43, 0, 0, 40, 0, 0, 0, 43, 0,
-    // Bars 5-6 lean on F, a semitone above the root.
-    41, 0, 41, 0, 48, 0, 41, 45, 0, 41, 0, 48, 41, 0, 45, 0,
-    41, 0, 0, 41, 48, 0, 45, 0, 41, 0, 48, 0, 41, 45, 0, 0,
-    // Bars 7-8 go to B flat, the tritone, and fall back to E.
-    46, 46, 0, 53, 46, 0, 58, 46, 0, 53, 46, 0, 58, 0, 46, 0,
-    46, 0, 0, 0, 53, 0, 0, 58, 0, 0, 46, 0, 0, 0, 58, 0,
-  ],
-  // Eight bars, not two: E minor for four of them, which is the half of
-  // the phrase that does nothing, then F and the tritone. B flat carries
-  // no third — a bare fifth is tense enough without choosing a mode.
+  // Eight bars of rests: no riff for now, but the loop still spans the
+  // progression, so a tune dropped in here lands where the harmony is.
+  melody: new Array(128).fill(0),
+  // E Phrygian: the bass samples are E, F and B flat — root, flat
+  // second, flat fifth. Four bars of E, two of F, two of the tritone.
+  // B flat carries no third; a bare fifth is tense enough.
   chords: [
     [40, 55, 59], // E minor
     [40, 55, 59],
@@ -199,57 +191,23 @@ export const TECHNO_SOUND: SoundProfile = {
     [46, 58, 65], // B flat, root and fifth only
     [46, 58, 65],
   ],
+  // Harmony, not a sound: see padGain.
+  padGain: 0,
   bounce: { wave: 'triangle', from: 240, spread: 40, to: 90, duration: 0.09, gain: 0.3 },
-  // Fallback only — the Joker sample takes over once the bank loads.
+  // Fallback only — the sampled kick takes over once the bank loads.
   pulse: { from: 190, to: 38, duration: 0.19, beats: 1, gain: 0.55 },
-  // Eight bars: one open-and-close over the whole progression, so the
-  // riff is dullest where the harmony rests and brightest where it moves.
-  filter: { from: 1600, to: 220, seconds: 0.11, q: 10, sweep: { depth: 0.65, cycleBeats: 32 } },
-  pad: { from: 300, to: 1800, q: 4 },
   gain: 0.5,
-  // A beat a slot for 32 bars: four eight-bar phrases over the eight-bar
-  // progression, so the tune states, answers, falls and settles rather
-  // than hanging one note a bar. Every bar's downbeat is a chord tone;
-  // what happens between them is passing notes, which is the difference
-  // between a melody and an arpeggio.
-  lead: {
-    wave: 'sine',
-    noteBeats: 1,
-    // Just past a beat, so the line joins up without stacking.
-    sustainBeats: 1.5,
-    gain: 0.55,
-    melody: [
-      // Bars 1-8: the statement.
-      76, 0, 79, 0, 83, 0, 0, 0, 79, 77, 0, 76, 0, 0, 0, 0,
-      77, 0, 72, 0, 81, 0, 0, 0, 77, 79, 0, 82, 0, 0, 0, 0,
-      // Bars 9-16: the answer, reaching higher.
-      83, 0, 81, 0, 79, 0, 0, 77, 79, 77, 0, 76, 0, 0, 72, 0,
-      72, 0, 0, 74, 77, 0, 76, 0, 82, 0, 77, 0, 77, 0, 0, 0,
-      // Bars 17-24: coming down, and thinning out.
-      79, 0, 0, 0, 0, 0, 77, 0, 76, 0, 74, 0, 76, 0, 0, 0,
-      0, 0, 0, 0, 72, 74, 0, 72, 77, 0, 0, 0, 0, 0, 82, 0,
-      // Bars 25-32: settling, with the most space of the four.
-      76, 0, 79, 0, 0, 0, 0, 0, 83, 0, 79, 77, 0, 0, 0, 0,
-      77, 0, 0, 0, 0, 72, 0, 69, 82, 0, 77, 0, 0, 0, 0, 77,
-    ],
-  },
   samples: {
     bank: {
       kick: `${GH}/kick.wav`,
+      hat: `${GH}/hat.wav`,
       bassE: `${GH}/bassE.wav`,
       bassF: `${GH}/bassF.wav`,
       bassBb: `${GH}/bassBb.wav`,
-      hat: `${GH}/hat.wav`,
-      perc: `${GH}/perc.wav`,
-      huh: `${GH}/huh.wav`,
-      woosh: `${GH}/woosh.wav`,
-      korg0: `${GH}/korg0.wav`,
-      korg1: `${GH}/korg1.wav`,
-      korg2: `${GH}/korg2.wav`,
-      korg3: `${GH}/korg3.wav`,
-      korg4: `${GH}/korg4.wav`,
     },
-    kick: { id: 'kick', gain: 0.55 },
+    // 3dB under where it was, which is a factor of 0.708 in amplitude.
+    kick: { id: 'kick', gain: 0.39 },
+    hits: [{ id: 'hat', everyBeats: 1, offsetBeats: 0.5, chance: 1, gain: 0.12 }],
     // Offbeat eighths under a four-to-the-floor kick: the roll that
     // makes it trance rather than a loop with a bass note on it. The
     // note is whichever sample belongs to the bar's chord.
@@ -259,15 +217,6 @@ export const TECHNO_SOUND: SoundProfile = {
       steps: [0, 1],
       byRoot: { 40: 'bassE', 41: 'bassF', 46: 'bassBb' },
     },
-    hits: [
-      { id: 'hat', everyBeats: 1, offsetBeats: 0.5, chance: 1, gain: 0.12 },
-      { id: 'perc', everyBeats: 2, offsetBeats: 0.75, chance: 0.45, gain: 0.28 },
-      { id: 'huh', everyBeats: 16, offsetBeats: 0, chance: 0.4, gain: 0.35 },
-      { id: 'korg0', everyBeats: 8, offsetBeats: 1.5, chance: 0.5, gain: 0.2 },
-      { id: 'korg2', everyBeats: 8, offsetBeats: 5.25, chance: 0.4, gain: 0.18 },
-      // 3s reverse cymbal: start ~2.9s early so the peak hits the bar.
-      { id: 'woosh', everyBeats: 32, offsetBeats: 0, chance: 1, gain: 0.18, leadIn: 2.9 },
-    ],
   },
 }
 
@@ -885,6 +834,8 @@ export class AudioSystem implements IAudioSystem {
     if (!this.audioContext || !this.backgroundMusic.gainNode) {
       return
     }
+    // A progression nobody voices is still the harmony the bass reads.
+    if ((this.profile.padGain ?? 1) === 0) return
 
     try {
       frequencies.forEach((freq) => {
@@ -894,7 +845,7 @@ export class AudioSystem implements IAudioSystem {
         oscillator.type = this.profile.wave
         oscillator.frequency.setValueAtTime(freq, startTime)
 
-        const volume = 0.02 * this.profile.gain // Quieter chords
+        const volume = 0.02 * this.profile.gain * (this.profile.padGain ?? 1) // Quieter chords
         gainNode.gain.setValueAtTime(0, startTime)
         gainNode.gain.linearRampToValueAtTime(volume, startTime + Math.min(0.2, duration * 0.2))
         gainNode.gain.setValueAtTime(volume, startTime + duration * 0.7)
