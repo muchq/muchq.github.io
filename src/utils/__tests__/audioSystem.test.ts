@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { AudioSystem, BOUNCE_DECAY, CALM_SOUND, CHIPTUNE_SOUND, CHORD_OCTAVE, TECHNO_SOUND, bounceRelease, filterCeiling } from '../audioSystem'
+import { AudioSystem, BOUNCE_DECAY, CALM_SOUND, CHIPTUNE_SOUND, CHORD_OCTAVE, TECHNO_SOUND, bounceRelease, chordAt, filterCeiling } from '../audioSystem'
 
 // The world's sound is a profile the room supplies: what wave the notes
 // are, how fast, which tune, and what a bounce sounds like. The grid
@@ -486,6 +486,38 @@ describe('AudioSystem', () => {
     expect(TECHNO_SOUND.chords.every(c => c.length <= 3)).toBe(true)
   })
 
+  // The roll that makes it trance rather than a loop with a bass note
+  // on it: eighths on the off-beat, under a kick on the beat. The note
+  // follows the harmony, so the line and the pad cannot disagree about
+  // what bar it is.
+  it('rolls a sampled bass off the beat, on the chord of the bar', () => {
+    const bass = TECHNO_SOUND.samples!.bass!
+    // Off-beat eighths: the second half of each beat, never the first.
+    expect(bass.noteBeats).toBe(0.5)
+    expect(bass.steps).toEqual([0, 1])
+    // Every chord the progression uses has a sample to play it with,
+    // and every sample named is in the bank.
+    for (const chord of TECHNO_SOUND.chords) {
+      const id = bass.byRoot[chord[0]]
+      expect(id, `root ${chord[0]}`).toBeTruthy()
+      expect(TECHNO_SOUND.samples!.bank[id], id).toBeTruthy()
+    }
+    // Three notes, one per chord of the progression.
+    expect(new Set(TECHNO_SOUND.chords.map(c => bass.byRoot[c[0]])).size).toBe(3)
+  })
+
+  // The bar the bass thinks it is has to be the bar the pad is playing.
+  it('reads the same bar as the pad, however far into the tune', () => {
+    const stepsPerBar = TECHNO_SOUND.chordBeats / TECHNO_SOUND.noteBeats
+    expect(chordAt(TECHNO_SOUND, 0)).toBe(TECHNO_SOUND.chords[0])
+    expect(chordAt(TECHNO_SOUND, stepsPerBar)).toBe(TECHNO_SOUND.chords[1])
+    expect(chordAt(TECHNO_SOUND, stepsPerBar * 6)).toBe(TECHNO_SOUND.chords[6])
+    // And it comes round rather than running off the end.
+    expect(chordAt(TECHNO_SOUND, stepsPerBar * 8)).toBe(TECHNO_SOUND.chords[0])
+    expect(chordAt(TECHNO_SOUND, stepsPerBar * 8 + stepsPerBar - 1)).toBe(TECHNO_SOUND.chords[0])
+    expect(chordAt(TECHNO_SOUND, stepsPerBar * 101)).toBe(TECHNO_SOUND.chords[101 % 8])
+  })
+
   // A second voice over the looping riff: a beat a slot for 32 bars, so
   // it can phrase rather than hang one note a bar.
   it('carries a 32-bar tune above the techno riff', () => {
@@ -527,10 +559,11 @@ describe('AudioSystem', () => {
       expect(under.map(midi => midi % 12), `bar ${bar}`).toContain(note % 12)
     })
     expect(downbeats).toBeGreaterThanOrEqual(16)
-    // Off the downbeat it may pass, but never out of the key.
-    const aMinor = [9, 11, 0, 2, 4, 5, 7]
+    // Off the downbeat it may pass, but never out of the key: E
+    // Phrygian, plus the flat fifth the bass samples put under it.
+    const ePhrygian = [4, 5, 7, 9, 11, 0, 2, 10]
     for (const note of lead.melody.filter(n => n > 0)) {
-      expect(aMinor, `${note}`).toContain(note % 12)
+      expect(ePhrygian, `${note}`).toContain(note % 12)
     }
   })
 

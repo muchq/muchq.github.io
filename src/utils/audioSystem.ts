@@ -13,10 +13,22 @@ export interface SampleHit {
   leadIn?: number
 }
 
+// A sampled bassline: one rhythm, and a note that follows the chord.
+// `byRoot` maps a chord's root note to the sample that plays it, so the
+// line moves with the harmony instead of being spelled out twice.
+export interface SoundBass {
+  noteBeats: number
+  gain: number
+  // 1 sounds, 0 rests, repeating every `steps.length` slots.
+  steps: number[]
+  byRoot: Record<number, string>
+}
+
 export interface SoundSamples {
   bank: Record<string, string>
   kick?: { id: string; gain: number }
   hits: SampleHit[]
+  bass?: SoundBass
 }
 
 // What a room sounds like: the wave its notes are, how fast, which
@@ -157,35 +169,35 @@ export const TECHNO_SOUND: SoundProfile = {
   noteBeats: 0.25,
   chordBeats: 4,
   melodyChance: 1,
-  // Four rhythmic figures, one to a bar, laid over a progression that
-  // holds rather than seesaws: the riff moves where the harmony does,
-  // and the harmony sits on A for half the phrase.
+  // Four rhythmic figures, one to a bar, over a progression that holds
+  // rather than seesaws. E Phrygian: the bass samples are E, F and B
+  // flat — root, flat second, flat fifth — which is the dark end of
+  // trance rather than anything in a major key.
   melody: [
-    // Bars 1-4, all on A: the figures are what changes, not the root.
-    45, 0, 45, 0, 52, 0, 45, 48, 0, 45, 0, 52, 45, 0, 48, 0,
-    45, 0, 0, 45, 52, 0, 48, 0, 45, 0, 52, 0, 45, 48, 0, 0,
-    45, 45, 0, 52, 45, 0, 48, 45, 0, 52, 45, 0, 48, 0, 45, 0,
-    45, 0, 0, 0, 52, 0, 0, 48, 0, 0, 45, 0, 0, 0, 48, 0,
-    // Bars 5-6 lift to F, on the first two figures.
+    // Bars 1-4, all on E minor: the figures are what changes.
+    40, 0, 40, 0, 47, 0, 40, 43, 0, 40, 0, 47, 40, 0, 43, 0,
+    40, 0, 0, 40, 47, 0, 43, 0, 40, 0, 47, 0, 40, 43, 0, 0,
+    40, 40, 0, 47, 40, 0, 43, 40, 0, 47, 40, 0, 43, 0, 40, 0,
+    40, 0, 0, 0, 47, 0, 0, 43, 0, 0, 40, 0, 0, 0, 43, 0,
+    // Bars 5-6 lean on F, a semitone above the root.
     41, 0, 41, 0, 48, 0, 41, 45, 0, 41, 0, 48, 41, 0, 45, 0,
     41, 0, 0, 41, 48, 0, 45, 0, 41, 0, 48, 0, 41, 45, 0, 0,
-    // Bars 7-8 fall to G and pull back to A.
-    43, 43, 0, 50, 43, 0, 47, 43, 0, 50, 43, 0, 47, 0, 43, 0,
-    43, 0, 0, 0, 50, 0, 0, 47, 0, 0, 43, 0, 0, 0, 47, 0,
+    // Bars 7-8 go to B flat, the tritone, and fall back to E.
+    46, 46, 0, 53, 46, 0, 58, 46, 0, 53, 46, 0, 58, 0, 46, 0,
+    46, 0, 0, 0, 53, 0, 0, 58, 0, 0, 46, 0, 0, 0, 58, 0,
   ],
-  // Thinner than four voices: drop the doubled root so the sub has room.
-  // Eight bars, not two: A minor for four of them, which is the half of
-  // the phrase that does nothing, then F and G. Two chords a bar apart
-  // came round every 3.4 seconds and the ear had nowhere to go.
+  // Eight bars, not two: E minor for four of them, which is the half of
+  // the phrase that does nothing, then F and the tritone. B flat carries
+  // no third — a bare fifth is tense enough without choosing a mode.
   chords: [
-    [45, 60, 64], // A minor triad
-    [45, 60, 64],
-    [45, 60, 64],
-    [45, 60, 64],
-    [41, 57, 60], // F major triad
+    [40, 55, 59], // E minor
+    [40, 55, 59],
+    [40, 55, 59],
+    [40, 55, 59],
+    [41, 57, 60], // F major
     [41, 57, 60],
-    [43, 59, 62], // G major triad
-    [43, 59, 62],
+    [46, 58, 65], // B flat, root and fifth only
+    [46, 58, 65],
   ],
   bounce: { wave: 'triangle', from: 240, spread: 40, to: 90, duration: 0.09, gain: 0.3 },
   // Fallback only — the Joker sample takes over once the bank loads.
@@ -207,23 +219,26 @@ export const TECHNO_SOUND: SoundProfile = {
     sustainBeats: 1.5,
     gain: 0.55,
     melody: [
-      // Bars 1-8: the statement, low and unhurried.
-      69, 0, 72, 0, 76, 0, 0, 0, 72, 74, 0, 69, 0, 0, 0, 0,
-      77, 0, 72, 0, 69, 0, 0, 0, 71, 74, 0, 79, 0, 0, 0, 0,
-      // Bars 9-16: the answer, with an octave of room above it.
-      81, 0, 79, 0, 76, 0, 0, 77, 76, 74, 0, 72, 0, 0, 69, 0,
-      72, 0, 0, 74, 77, 0, 76, 0, 74, 0, 71, 0, 79, 0, 0, 0,
+      // Bars 1-8: the statement.
+      76, 0, 79, 0, 83, 0, 0, 0, 79, 77, 0, 76, 0, 0, 0, 0,
+      77, 0, 72, 0, 81, 0, 0, 0, 77, 79, 0, 82, 0, 0, 0, 0,
+      // Bars 9-16: the answer, reaching higher.
+      83, 0, 81, 0, 79, 0, 0, 77, 79, 77, 0, 76, 0, 0, 72, 0,
+      72, 0, 0, 74, 77, 0, 76, 0, 82, 0, 77, 0, 77, 0, 0, 0,
       // Bars 17-24: coming down, and thinning out.
-      76, 0, 0, 0, 0, 0, 74, 0, 72, 0, 71, 0, 69, 0, 0, 0,
-      0, 0, 0, 0, 72, 74, 0, 72, 71, 0, 0, 0, 0, 0, 74, 0,
+      79, 0, 0, 0, 0, 0, 77, 0, 76, 0, 74, 0, 76, 0, 0, 0,
+      0, 0, 0, 0, 72, 74, 0, 72, 77, 0, 0, 0, 0, 0, 82, 0,
       // Bars 25-32: settling, with the most space of the four.
-      69, 0, 72, 0, 0, 0, 0, 0, 76, 0, 74, 72, 0, 0, 0, 0,
-      77, 0, 0, 0, 0, 72, 0, 69, 79, 0, 74, 0, 0, 0, 0, 71,
+      76, 0, 79, 0, 0, 0, 0, 0, 83, 0, 79, 77, 0, 0, 0, 0,
+      77, 0, 0, 0, 0, 72, 0, 69, 82, 0, 77, 0, 0, 0, 0, 77,
     ],
   },
   samples: {
     bank: {
       kick: `${GH}/kick.wav`,
+      bassE: `${GH}/bassE.wav`,
+      bassF: `${GH}/bassF.wav`,
+      bassBb: `${GH}/bassBb.wav`,
       hat: `${GH}/hat.wav`,
       perc: `${GH}/perc.wav`,
       huh: `${GH}/huh.wav`,
@@ -233,21 +248,23 @@ export const TECHNO_SOUND: SoundProfile = {
       korg2: `${GH}/korg2.wav`,
       korg3: `${GH}/korg3.wav`,
       korg4: `${GH}/korg4.wav`,
-      bass0: `${GH}/bass0.wav`,
-      bass1: `${GH}/bass1.wav`,
-      bass2: `${GH}/bass2.wav`,
-      bass3: `${GH}/bass3.wav`,
-      bass4: `${GH}/bass4.wav`,
     },
     kick: { id: 'kick', gain: 0.55 },
+    // Offbeat eighths under a four-to-the-floor kick: the roll that
+    // makes it trance rather than a loop with a bass note on it. The
+    // note is whichever sample belongs to the bar's chord.
+    bass: {
+      noteBeats: 0.5,
+      gain: 0.5,
+      steps: [0, 1],
+      byRoot: { 40: 'bassE', 41: 'bassF', 46: 'bassBb' },
+    },
     hits: [
       { id: 'hat', everyBeats: 1, offsetBeats: 0.5, chance: 1, gain: 0.12 },
       { id: 'perc', everyBeats: 2, offsetBeats: 0.75, chance: 0.45, gain: 0.28 },
       { id: 'huh', everyBeats: 16, offsetBeats: 0, chance: 0.4, gain: 0.35 },
       { id: 'korg0', everyBeats: 8, offsetBeats: 1.5, chance: 0.5, gain: 0.2 },
       { id: 'korg2', everyBeats: 8, offsetBeats: 5.25, chance: 0.4, gain: 0.18 },
-      { id: 'bass1', everyBeats: 8, offsetBeats: 3, chance: 0.35, gain: 0.22 },
-      { id: 'bass3', everyBeats: 16, offsetBeats: 7.5, chance: 0.4, gain: 0.2 },
       // 3s reverse cymbal: start ~2.9s early so the peak hits the bar.
       { id: 'woosh', everyBeats: 32, offsetBeats: 0, chance: 1, gain: 0.18, leadIn: 2.9 },
     ],
@@ -275,6 +292,14 @@ export function filterCeiling(filter: NonNullable<SoundProfile['filter']>, beats
   // Darkest at the top of the cycle, brightest halfway through.
   const open = (1 - Math.cos(phase * 2 * Math.PI)) / 2
   return filter.from * (1 - sweep.depth + sweep.depth * open)
+}
+
+// Which chord of the progression is under a given step. Derived rather
+// than counted, because the bass has to agree with the pad about what
+// bar it is and a second counter would drift.
+export function chordAt(profile: SoundProfile, stepIndex: number): number[] {
+  const bar = Math.floor((stepIndex * profile.noteBeats) / profile.chordBeats)
+  return profile.chords[((bar % profile.chords.length) + profile.chords.length) % profile.chords.length]
 }
 
 function midiToFreq(midi: number): number {
@@ -751,6 +776,22 @@ export class AudioSystem implements IAudioSystem {
     }
   }
 
+  // The offbeat bass: one rhythm, and whichever sample belongs to the
+  // chord this bar. A root with no sample is silence rather than the
+  // wrong note.
+  private scheduleBass(stepIndex: number, startTime: number, noteBeats: number): void {
+    const bass = this.profile.samples?.bass
+    if (!bass || bass.steps.length === 0) return
+    const stepsPerBass = Math.max(1, Math.round(bass.noteBeats / noteBeats))
+    if (stepIndex % stepsPerBass !== 0) return
+    const slot = (stepIndex / stepsPerBass) % bass.steps.length
+    if (!bass.steps[slot]) return
+    const id = bass.byRoot[chordAt(this.profile, stepIndex)[0]]
+    const buffer = id ? this.sampleBuffers.get(id) : undefined
+    if (!buffer) return
+    this.playSample(buffer, startTime, bass.gain * this.profile.gain)
+  }
+
   private scheduleLead(stepIndex: number, startTime: number, secondsPerBeat: number, noteBeats: number): void {
     const lead = this.profile.lead
     if (!lead || lead.melody.length === 0) return
@@ -918,6 +959,7 @@ export class AudioSystem implements IAudioSystem {
       }
 
       this.scheduleLead(stepIndex, nextNoteTime, secondsPerBeat, noteBeats)
+      this.scheduleBass(stepIndex, nextNoteTime, noteBeats)
 
       if (noteIndex % stepsPerChord === 0) {
         const chord = chords[this.backgroundMusic.chordIndex]
