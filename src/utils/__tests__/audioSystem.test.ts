@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { AudioSystem, BOUNCE_DECAY, CALM_SOUND, CHIPTUNE_SOUND, CHORD_OCTAVE, TECHNO_SOUND, bounceRelease } from '../audioSystem'
+import type { SoundProfile } from '../audioSystem'
+import { AudioSystem, BOUNCE_DECAY, CALM_SOUND, CHIPTUNE_SOUND, CHORD_OCTAVE, TECHNO_SOUND, bounceRelease, chordAt, filterCeiling } from '../audioSystem'
 
 // The world's sound is a profile the room supplies: what wave the notes
 // are, how fast, which tune, and what a bounce sounds like. The grid
@@ -112,6 +113,22 @@ const fakeContext = ({ filters = true } = {}) => {
     vi.advanceTimersByTime(ms)
   }
   return { context, oscillators, bufferSources, biquads, gains, advance }
+}
+
+// The glasshouse is drums and bass for now, but the riff, pad and lead
+// machinery is still here waiting for its sounds. Exercised against a
+// profile of its own so it cannot rot in the meantime — and so the
+// tests say plainly which behaviour belongs to the room and which
+// belongs to the engine.
+const VOICED: SoundProfile = {
+  ...TECHNO_SOUND,
+  melody: [45, 0, 52, 0, 48, 0, 45, 0, 45, 0, 52, 0, 48, 0, 45, 0],
+  chords: [[45, 60, 64], [43, 59, 62]],
+  padGain: 1,
+  filter: { from: 1600, to: 220, seconds: 0.11, q: 10, sweep: { depth: 0.65, cycleBeats: 32 } },
+  pad: { from: 300, to: 1800, q: 4 },
+  lead: { wave: 'sine', noteBeats: 1, sustainBeats: 1.5, gain: 0.55, melody: [69, 0, 72, 0] },
+  samples: undefined,
 }
 
 describe('AudioSystem', () => {
@@ -328,32 +345,33 @@ describe('AudioSystem', () => {
     expect(sineKicks).toHaveLength(0)
   })
 
-  it('plucks every techno note through a falling lowpass', () => {
-    system.setProfile(TECHNO_SOUND)
+  it('plucks a riff note through a falling lowpass', () => {
+    system.setProfile(VOICED)
     system.startBackgroundMusic()
-    vi.advanceTimersByTime(200)
-    expect(biquads.length).toBeGreaterThan(0)
-    const [pluck] = biquads
+    advance(200)
+    const pluck = biquads.find(b => b.Q.setValueAtTime.mock.calls[0]?.[0] === VOICED.filter!.q)!
+    expect(pluck).toBeTruthy()
     expect(pluck.type).toBe('lowpass')
-    expect(pluck.Q.setValueAtTime).toHaveBeenCalledWith(TECHNO_SOUND.filter!.q, expect.any(Number))
-    expect(pluck.frequency.setValueAtTime).toHaveBeenCalledWith(TECHNO_SOUND.filter!.from, expect.any(Number))
-    expect(pluck.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
-      TECHNO_SOUND.filter!.to,
+    // Opened to wherever the sweep has the ceiling on the first beat,
+    // which is not the profile's `from` — that is the top of the ride.
+    expect(pluck.frequency.setValueAtTime).toHaveBeenCalledWith(
+      filterCeiling(VOICED.filter!, 0),
       expect.any(Number)
     )
-    // Saw notes, and never through the kick: that stays a bare sine.
-    expect(oscillators.some(osc => osc.type === 'sawtooth')).toBe(true)
-    // And the note actually goes through it, rather than past it.
+    expect(pluck.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
+      VOICED.filter!.to,
+      expect.any(Number)
+    )
+    // And the note goes through it rather than past it.
     const saw = oscillators.find(osc => osc.type === 'sawtooth')!
     expect(saw.connect).toHaveBeenCalledWith(pluck)
-    expect(pluck.connect).toHaveBeenCalled()
   })
 
   it('still plays where a context cannot build a filter', () => {
     system.cleanup()
     const bare = fakeContext({ filters: false })
     vi.stubGlobal('AudioContext', function FakeAudioContext() { return bare.context })
-    const plain = new AudioSystem(TECHNO_SOUND)
+    const plain = new AudioSystem(VOICED)
     plain.soundEnabled = true
     plain.initAudioContext()
     plain.startBackgroundMusic()
@@ -425,43 +443,227 @@ describe('AudioSystem', () => {
     expect(TECHNO_SOUND.melody.filter(note => note === 0).length).toBeGreaterThan(32)
   })
 
-  it('ships a glasshouse sample bank: kick, hats, chops, and a riser', () => {
+  // A ceiling that never moves is most of why a loop wears out: every
+  // note is filtered exactly like the last however long you stand there.
+  // A ceiling that never moves is most of why a loop wears out: every
+  // note is filtered exactly like the last however long you stand there.
+  it('rides the pluck ceiling up and down across the phrase', () => {
+    const filter = VOICED.filter!
+    const sweep = filter.sweep!
+    const darkest = filterCeiling(filter, 0)
+    const brightest = filterCeiling(filter, sweep.cycleBeats / 2)
+    expect(darkest).toBeCloseTo(filter.from * (1 - sweep.depth), 6)
+    expect(brightest).toBeCloseTo(filter.from, 6)
+    // Worth having: the two ends are audibly different, and the ceiling
+    // never drops under where the pluck is heading anyway.
+    expect(brightest / darkest).toBeGreaterThan(2)
+    expect(darkest).toBeGreaterThan(filter.to)
+    // It comes back round, and it never leaves the band.
+    expect(filterCeiling(filter, sweep.cycleBeats)).toBeCloseTo(darkest, 6)
+    for (let beat = 0; beat < sweep.cycleBeats; beat += 0.25) {
+      const at = filterCeiling(filter, beat)
+      expect(at).toBeGreaterThanOrEqual(darkest - 1e-6)
+      expect(at).toBeLessThanOrEqual(brightest + 1e-6)
+    }
+    // A profile that asks for no ride is left exactly where it was.
+    expect(filterCeiling({ ...filter, sweep: undefined }, 13)).toBe(filter.from)
+  })
+
+  // The pad was a bare saw triad: same attack, same timbre, every bar.
+  it('swells a voiced pad open rather than leaving it bare', () => {
+    const pad = VOICED.pad!
+    expect(pad.from).toBeLessThan(pad.to)
+    system.setProfile(VOICED)
+    system.startBackgroundMusic()
+    advance(200)
+    const swell = biquads.find(b => b.Q.setValueAtTime.mock.calls[0]?.[0] === pad.q)
+    expect(swell, 'the pad went through no filter').toBeTruthy()
+    expect(swell!.type).toBe('lowpass')
+    expect(swell!.frequency.setValueAtTime).toHaveBeenCalledWith(pad.from, expect.any(Number))
+    expect(swell!.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(pad.to, expect.any(Number))
+  })
+
+  // A progression nobody voices is still the harmony the bass reads, so
+  // silencing the pad must not cost the room its key.
+  it('voices no pad at all when the room asks for none', () => {
+    expect(TECHNO_SOUND.padGain).toBe(0)
+    system.setProfile(TECHNO_SOUND)
+    system.startBackgroundMusic()
+    advance(600)
+    // Nothing is built for a chord that will not sound.
+    expect(biquads).toHaveLength(0)
+    expect(oscillators.every(o => o.type !== 'sawtooth')).toBe(true)
+    // But the progression is still there for the bass to follow.
+    expect(TECHNO_SOUND.chords.length).toBeGreaterThan(1)
+  })
+
+  // The offline track is what a phone hears, and it had drifted into
+  // being a different room: it voiced the pad the live path silences,
+  // and it played no bass at all. Rendered here rather than described,
+  // because this path only ever goes wrong by being written twice.
+  describe('the track a narrow window hears', () => {
+    const RATE = 44100
+    // A one-shot with something in it, so a hit shows up as energy.
+    const oneShot = (seconds: number) => {
+      const data = new Float32Array(Math.floor(RATE * seconds))
+      for (let i = 0; i < data.length; i++) data[i] = Math.sin((i / RATE) * 2 * Math.PI * 200) * 0.8
+      return { duration: seconds, numberOfChannels: 1, length: data.length, sampleRate: RATE, getChannelData: () => data } as unknown as AudioBuffer
+    }
+    const render = (profile: SoundProfile, buffers: Record<string, AudioBuffer> = {}) => {
+      const rendered = new Float32Array(RATE * 64)
+      vi.stubGlobal('AudioContext', function FakeAudioContext() {
+        return { createBuffer: () => ({ getChannelData: () => rendered, length: rendered.length, sampleRate: RATE }) }
+      })
+      const phone = new AudioSystem(profile)
+      phone.injectSampleBuffers(buffers)
+      ;(phone as unknown as { createMobileBackgroundTrack: (c?: unknown) => void }).createMobileBackgroundTrack(null)
+      phone.cleanup()
+      return rendered
+    }
+    // Between one kick and the next. The synthetic kick is 0.19s and the
+    // beat is 0.43s, so this window is silence unless something else is
+    // playing — which makes it a sharper question than total loudness,
+    // where a low saw can phase-cancel the kick and read as quieter.
+    const betweenKicks = (data: Float32Array) => {
+      let sum = 0
+      for (let i = Math.floor(0.25 * RATE); i < Math.floor(0.4 * RATE); i++) sum += Math.abs(data[i])
+      return sum
+    }
+
+    it('voices no pad offline when the room voices none live', () => {
+      // Nothing but the kick, which is over before the window opens.
+      expect(betweenKicks(render(TECHNO_SOUND))).toBeCloseTo(0, 6)
+      // The same room with its pad turned up fills that window.
+      expect(betweenKicks(render({ ...TECHNO_SOUND, padGain: 1 }))).toBeGreaterThan(1)
+    })
+
+    it('lays the bass down offline, like the scheduler does', () => {
+      const withBass = render(TECHNO_SOUND, {
+        bassE: oneShot(0.16),
+        bassF: oneShot(0.16),
+        bassBb: oneShot(0.16),
+      })
+      // The bass falls on the off-beat, halfway between kicks.
+      expect(betweenKicks(withBass)).toBeGreaterThan(1)
+    })
+
+    it('plays the sampled kick offline rather than falling back to a sine', () => {
+      // A long kick sample runs past where the synthetic one has ended.
+      expect(betweenKicks(render(TECHNO_SOUND, { kick: oneShot(0.45) }))).toBeGreaterThan(1)
+    })
+  })
+
+  // A phone never builds a live context, so the bank was decoded against
+  // nothing and never loaded: no kick sample, no hats, no bass, and a
+  // synthetic room in their place.
+  it('loads the sample bank on a narrow window, which has no live context', async () => {
+    const wide = window.innerWidth
+    Object.defineProperty(window, 'innerWidth', { value: 500, configurable: true })
+    const made = fakeContext()
+    vi.stubGlobal('AudioContext', function FakeAudioContext() { return made.context })
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) })))
+    const phone = new AudioSystem(TECHNO_SOUND)
+    phone.soundEnabled = true
+    phone.startBackgroundMusic()
+    await vi.waitFor(() => expect(made.context.decodeAudioData).toHaveBeenCalled())
+    // Every sample the room plays, not just the first.
+    expect(made.context.decodeAudioData.mock.calls.length).toBe(
+      Object.keys(TECHNO_SOUND.samples!.bank).length
+    )
+    phone.cleanup()
+    Object.defineProperty(window, 'innerWidth', { value: wide, configurable: true })
+  })
+
+  it('ships a glasshouse bank of a kick, a hat and three bass notes', () => {
     const samples = TECHNO_SOUND.samples!
     expect(samples.kick?.id).toBe('kick')
-    expect(samples.kick!.gain).toBeLessThan(0.7)
     expect(samples.bank.kick).toMatch(/\/audio\/glasshouse\/kick\.wav$/)
-    expect(samples.bank.hat).toBeTruthy()
-    expect(samples.bank.woosh).toBeTruthy()
-    expect(samples.hits.length).toBeGreaterThan(3)
+    // Drums and bass only while the rest of the sounds are chosen: a
+    // bank entry that nothing plays is a download for nothing.
+    const played = new Set([
+      samples.kick!.id,
+      ...samples.hits.map(h => h.id),
+      ...Object.values(samples.bass!.byRoot),
+    ])
+    expect(new Set(Object.keys(samples.bank))).toEqual(played)
+    expect(samples.hits.map(h => h.id)).toEqual(['hat'])
+    // The kick is turned well down. Comparing it to the bass gain says
+    // nothing — the kick sample is half again as hot, so it was louder
+    // than the bass at a lower number — and a test cannot hear the
+    // files, so this pins the decision rather than deriving it.
+    expect(samples.kick!.gain).toBeLessThanOrEqual(0.28)
+    expect(samples.kick!.gain).toBeGreaterThan(0.1)
     // Quieter synthetic fallback so a missing bank does not swamp the room.
     expect(TECHNO_SOUND.pulse!.gain).toBeLessThanOrEqual(0.6)
     expect(TECHNO_SOUND.chords.every(c => c.length <= 3)).toBe(true)
   })
 
-  // A second voice over the looping riff: one step a bar for 32 bars,
-  // mostly rests, hanging long enough to feel like space rather than a tune.
-  it('carries a sparse 32-bar lead above the techno riff', () => {
-    const lead = TECHNO_SOUND.lead!
-    expect(lead.noteBeats).toBe(4)
-    expect(lead.melody).toHaveLength(32)
-    const sounding = lead.melody.filter(n => n > 0)
-    expect(sounding.length).toBeGreaterThanOrEqual(4)
-    expect(sounding.length).toBeLessThanOrEqual(10)
-    for (const note of sounding) {
-      expect(note).toBeGreaterThanOrEqual(60)
+  // The roll that makes it trance rather than a loop with a bass note
+  // on it: eighths on the off-beat, under a kick on the beat. The note
+  // follows the harmony, so the line and the pad cannot disagree about
+  // what bar it is.
+  it('rolls a sampled bass off the beat, on the chord of the bar', () => {
+    const bass = TECHNO_SOUND.samples!.bass!
+    // Off-beat eighths: the second half of each beat, never the first.
+    expect(bass.noteBeats).toBe(0.5)
+    expect(bass.steps).toEqual([0, 1])
+    // Every chord the progression uses has a sample to play it with,
+    // and every sample named is in the bank.
+    for (const chord of TECHNO_SOUND.chords) {
+      const id = bass.byRoot[chord[0]]
+      expect(id, `root ${chord[0]}`).toBeTruthy()
+      expect(TECHNO_SOUND.samples!.bank[id], id).toBeTruthy()
     }
-    const loopBars = lead.melody.length
-    expect(loopBars * lead.noteBeats).toBe(128) // 32 bars × 4 beats
+    // Three notes, one per chord of the progression.
+    expect(new Set(TECHNO_SOUND.chords.map(c => bass.byRoot[c[0]])).size).toBe(3)
   })
 
-  it('sounds the lead on its own wave, not the saw riff', () => {
-    system.setProfile(TECHNO_SOUND)
+  // The bar the bass thinks it is has to be the bar the pad is playing.
+  it('reads the same bar as the pad, however far into the tune', () => {
+    const stepsPerBar = TECHNO_SOUND.chordBeats / TECHNO_SOUND.noteBeats
+    expect(chordAt(TECHNO_SOUND, 0)).toBe(TECHNO_SOUND.chords[0])
+    expect(chordAt(TECHNO_SOUND, stepsPerBar)).toBe(TECHNO_SOUND.chords[1])
+    expect(chordAt(TECHNO_SOUND, stepsPerBar * 6)).toBe(TECHNO_SOUND.chords[6])
+    // And it comes round rather than running off the end.
+    expect(chordAt(TECHNO_SOUND, stepsPerBar * 8)).toBe(TECHNO_SOUND.chords[0])
+    expect(chordAt(TECHNO_SOUND, stepsPerBar * 8 + stepsPerBar - 1)).toBe(TECHNO_SOUND.chords[0])
+    expect(chordAt(TECHNO_SOUND, stepsPerBar * 101)).toBe(TECHNO_SOUND.chords[101 % 8])
+  })
+
+  // A second voice over the looping riff: a beat a slot for 32 bars, so
+  // it can phrase rather than hang one note a bar.
+
+  // The lead hangs for six beats over whatever the pad is doing, so a
+  // note landing off the chord sits there souring the bar. Its slots
+  // are one to a bar, and the progression is eight bars, so which chord
+  // a lead note meets is pure arithmetic — and easy to get wrong by
+  // moving either one.
+
+  // The complaint this answers: two chords a bar apart came round every
+  // 3.4 seconds, so the room seesawed A, G, A, G for as long as you
+  // stood in it. A phrase needs somewhere to go and somewhere to rest.
+  it('gives the techno a progression rather than a seesaw', () => {
+    const cycleSeconds =
+      (TECHNO_SOUND.chords.length * TECHNO_SOUND.chordBeats * 60) / TECHNO_SOUND.tempo
+    expect(cycleSeconds).toBeGreaterThanOrEqual(10)
+    // And it holds still somewhere, rather than changing every bar.
+    const runs = TECHNO_SOUND.chords.reduce<number[]>((acc, chord, i) => {
+      const previous = TECHNO_SOUND.chords[i - 1]
+      if (previous && chord.every((n, j) => n === previous[j])) acc[acc.length - 1] += 1
+      else acc.push(1)
+      return acc
+    }, [])
+    expect(Math.max(...runs)).toBeGreaterThanOrEqual(3)
+    // The riff comes round with the harmony, not four times inside it.
+    const melodyBars = (TECHNO_SOUND.melody.length * TECHNO_SOUND.noteBeats) / TECHNO_SOUND.chordBeats
+    expect(melodyBars).toBe(TECHNO_SOUND.chords.length)
+  })
+
+  it('sounds a lead on its own wave, not the saw riff', () => {
+    system.setProfile(VOICED)
     system.startBackgroundMusic()
-    // First lead note is on bar 0; a sixteenth is ~0.1s at 140, so one
-    // scheduler tick already covers the downbeat.
     advance(200)
-    const leadWave = TECHNO_SOUND.lead!.wave
-    expect(oscillators.some(o => o.type === leadWave)).toBe(true)
+    expect(oscillators.some(o => o.type === VOICED.lead!.wave)).toBe(true)
   })
 
   // The riff is the room, so where it sits matters: a bright lead over

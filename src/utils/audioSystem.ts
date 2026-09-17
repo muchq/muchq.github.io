@@ -13,10 +13,22 @@ export interface SampleHit {
   leadIn?: number
 }
 
+// A sampled bassline: one rhythm, and a note that follows the chord.
+// `byRoot` maps a chord's root note to the sample that plays it, so the
+// line moves with the harmony instead of being spelled out twice.
+export interface SoundBass {
+  noteBeats: number
+  gain: number
+  // 1 sounds, 0 rests, repeating every `steps.length` slots.
+  steps: number[]
+  byRoot: Record<number, string>
+}
+
 export interface SoundSamples {
   bank: Record<string, string>
   kick?: { id: string; gain: number }
   hits: SampleHit[]
+  bass?: SoundBass
 }
 
 // What a room sounds like: the wave its notes are, how fast, which
@@ -46,7 +58,23 @@ export interface SoundProfile {
   pulse?: { from: number; to: number; duration: number; beats: number; gain: number }
   // A lowpass each melody note is plucked through, falling from `from`
   // to `to` hertz over `seconds`. The sweep is the sound, not the note.
-  filter?: { from: number; to: number; seconds: number; q: number }
+  // `sweep` moves the ceiling itself over `cycleBeats`, so the riff
+  // brightens and dulls across the phrase instead of every note in the
+  // room arriving identical to the last.
+  filter?: {
+    from: number
+    to: number
+    seconds: number
+    q: number
+    sweep?: { depth: number; cycleBeats: number }
+  }
+  // The pad's own lowpass, opening across the chord rather than shutting
+  // over it: a swell under the riff, where the pluck is a stab.
+  pad?: { from: number; to: number; q: number }
+  // How loud the chords are voiced. 0 leaves the progression as harmony
+  // the bass follows and nothing plays out loud, which is how a room
+  // can be drums and bass and still know what key it is in. Absent is 1.
+  padGain?: number
   // Optional one-shots and a sample kick layered on the procedural tune.
   samples?: SoundSamples
   // A second voice on a longer grid than the riff. One entry per
@@ -137,85 +165,61 @@ export const CHIPTUNE_SOUND: SoundProfile = {
 
 const GH = '/audio/glasshouse'
 
-// Industrial techno at 140: eight bars of sixteenths (~13.7s), a thinner
-// pad, a quieter kick, and a bank of one-shots (hats, chops, riser).
+// The glasshouse, stripped back to drums and bass while the rest of the
+// sounds are chosen: a kick on the beat, a hat and the bass off it. The
+// progression stays even though nothing voices it — it is what tells
+// the bass which of the three notes to play.
 export const TECHNO_SOUND: SoundProfile = {
   wave: 'sawtooth',
   tempo: 140,
   noteBeats: 0.25,
   chordBeats: 4,
   melodyChance: 1,
-  melody: [
-    // Bars 1–2: the original A / G riff
-    45, 0, 45, 0, 52, 0, 45, 48, 0, 45, 0, 52, 45, 0, 48, 0,
-    43, 0, 43, 0, 50, 0, 43, 47, 0, 43, 0, 50, 43, 0, 47, 0,
-    // Bars 3–4: same harmony, holes punched differently
-    45, 0, 0, 45, 52, 0, 48, 0, 45, 0, 52, 0, 45, 48, 0, 0,
-    43, 0, 0, 43, 50, 0, 47, 0, 43, 0, 50, 0, 43, 47, 0, 0,
-    // Bars 5–6: denser hammering
-    45, 45, 0, 52, 45, 0, 48, 45, 0, 52, 45, 0, 48, 0, 45, 0,
-    43, 43, 0, 50, 43, 0, 47, 43, 0, 50, 43, 0, 47, 0, 43, 0,
-    // Bars 7–8: sparse, leave room for FX
-    45, 0, 0, 0, 52, 0, 0, 48, 0, 0, 45, 0, 0, 0, 48, 0,
-    43, 0, 0, 0, 50, 0, 0, 47, 0, 0, 43, 0, 47, 0, 0, 0,
-  ],
-  // Thinner than four voices: drop the doubled root so the sub has room.
+  // Eight bars of rests: no riff for now, but the loop still spans the
+  // progression, so a tune dropped in here lands where the harmony is.
+  melody: new Array(128).fill(0),
+  // E Phrygian: the bass samples are E, F and B flat — root, flat
+  // second, flat fifth. Four bars of E, two of F, two of the tritone.
+  // B flat carries no third; a bare fifth is tense enough.
   chords: [
-    [45, 60, 64], // A minor triad
-    [43, 59, 62], // G major triad
+    [40, 55, 59], // E minor
+    [40, 55, 59],
+    [40, 55, 59],
+    [40, 55, 59],
+    [41, 57, 60], // F major
+    [41, 57, 60],
+    [46, 58, 65], // B flat, root and fifth only
+    [46, 58, 65],
   ],
+  // Harmony, not a sound: see padGain.
+  padGain: 0,
   bounce: { wave: 'triangle', from: 240, spread: 40, to: 90, duration: 0.09, gain: 0.3 },
-  // Fallback only — the Joker sample takes over once the bank loads.
+  // Fallback only — the sampled kick takes over once the bank loads.
   pulse: { from: 190, to: 38, duration: 0.19, beats: 1, gain: 0.55 },
-  filter: { from: 1600, to: 220, seconds: 0.11, q: 10 },
   gain: 0.5,
-  // One slot a bar for 32 bars (~55s). A handful of notes, long sustain.
-  lead: {
-    wave: 'sine',
-    noteBeats: 4,
-    sustainBeats: 6,
-    gain: 0.55,
-    melody: [
-      69, 0, 0, 0, // A
-      0, 0, 0, 0,
-      0, 0, 72, 0, // C
-      0, 0, 0, 0,
-      0, 0, 0, 0,
-      76, 0, 0, 0, // E
-      0, 0, 0, 71, // B
-      0, 0, 69, 0, // A
-    ],
-  },
   samples: {
     bank: {
       kick: `${GH}/kick.wav`,
       hat: `${GH}/hat.wav`,
-      perc: `${GH}/perc.wav`,
-      huh: `${GH}/huh.wav`,
-      woosh: `${GH}/woosh.wav`,
-      korg0: `${GH}/korg0.wav`,
-      korg1: `${GH}/korg1.wav`,
-      korg2: `${GH}/korg2.wav`,
-      korg3: `${GH}/korg3.wav`,
-      korg4: `${GH}/korg4.wav`,
-      bass0: `${GH}/bass0.wav`,
-      bass1: `${GH}/bass1.wav`,
-      bass2: `${GH}/bass2.wav`,
-      bass3: `${GH}/bass3.wav`,
-      bass4: `${GH}/bass4.wav`,
+      bassE: `${GH}/bassE.wav`,
+      bassF: `${GH}/bassF.wav`,
+      bassBb: `${GH}/bassBb.wav`,
     },
-    kick: { id: 'kick', gain: 0.55 },
-    hits: [
-      { id: 'hat', everyBeats: 1, offsetBeats: 0.5, chance: 1, gain: 0.12 },
-      { id: 'perc', everyBeats: 2, offsetBeats: 0.75, chance: 0.45, gain: 0.28 },
-      { id: 'huh', everyBeats: 16, offsetBeats: 0, chance: 0.4, gain: 0.35 },
-      { id: 'korg0', everyBeats: 8, offsetBeats: 1.5, chance: 0.5, gain: 0.2 },
-      { id: 'korg2', everyBeats: 8, offsetBeats: 5.25, chance: 0.4, gain: 0.18 },
-      { id: 'bass1', everyBeats: 8, offsetBeats: 3, chance: 0.35, gain: 0.22 },
-      { id: 'bass3', everyBeats: 16, offsetBeats: 7.5, chance: 0.4, gain: 0.2 },
-      // 3s reverse cymbal: start ~2.9s early so the peak hits the bar.
-      { id: 'woosh', everyBeats: 32, offsetBeats: 0, chance: 1, gain: 0.18, leadIn: 2.9 },
-    ],
+    // Another 3dB down. Measured rather than guessed the second time:
+    // the kick sample is hotter than the bass ones (RMS 0.36 against
+    // 0.24), so at 0.39 it still sat 1.5dB *over* the bass even though
+    // its gain number was lower. A gain is not a loudness.
+    kick: { id: 'kick', gain: 0.276 },
+    hits: [{ id: 'hat', everyBeats: 1, offsetBeats: 0.5, chance: 1, gain: 0.12 }],
+    // Offbeat eighths under a four-to-the-floor kick: the roll that
+    // makes it trance rather than a loop with a bass note on it. The
+    // note is whichever sample belongs to the bar's chord.
+    bass: {
+      noteBeats: 0.5,
+      gain: 0.5,
+      steps: [0, 1],
+      byRoot: { 40: 'bassE', 41: 'bassF', 46: 'bassBb' },
+    },
   },
 }
 
@@ -226,6 +230,29 @@ export const TECHNO_SOUND: SoundProfile = {
 export const CHORD_OCTAVE = -12
 
 const sampleCache = new Map<string, AudioBuffer>()
+
+// Where the pluck's ceiling sits this many beats into the tune. A fixed
+// ceiling means every note is filtered identically, which is most of why
+// a loop wears out; this rides it up and down over the phrase so the
+// riff opens and closes without a single note changing. Never falls
+// below `1 - depth` of the ceiling, and returns exactly `from` for a
+// profile that asks for no sweep.
+export function filterCeiling(filter: NonNullable<SoundProfile['filter']>, beats: number): number {
+  const sweep = filter.sweep
+  if (!sweep) return filter.from
+  const phase = (((beats % sweep.cycleBeats) + sweep.cycleBeats) % sweep.cycleBeats) / sweep.cycleBeats
+  // Darkest at the top of the cycle, brightest halfway through.
+  const open = (1 - Math.cos(phase * 2 * Math.PI)) / 2
+  return filter.from * (1 - sweep.depth + sweep.depth * open)
+}
+
+// Which chord of the progression is under a given step. Derived rather
+// than counted, because the bass has to agree with the pad about what
+// bar it is and a second counter would drift.
+export function chordAt(profile: SoundProfile, stepIndex: number): number[] {
+  const bar = Math.floor((stepIndex * profile.noteBeats) / profile.chordBeats)
+  return profile.chords[((bar % profile.chords.length) + profile.chords.length) % profile.chords.length]
+}
 
 function midiToFreq(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12)
@@ -462,7 +489,7 @@ export class AudioSystem implements IAudioSystem {
     }
   }
 
-  private async decodeSample(context: AudioContext, url: string): Promise<AudioBuffer | undefined> {
+  private async decodeSample(context: BaseAudioContext, url: string): Promise<AudioBuffer | undefined> {
     const cached = sampleCache.get(url)
     if (cached) return cached
     try {
@@ -476,13 +503,17 @@ export class AudioSystem implements IAudioSystem {
     }
   }
 
-  private async ensureSamplesLoaded(): Promise<void> {
+  // `into` lets the offline path decode against a context of its own:
+  // a phone never builds a live one, so without this its bank could
+  // never load and it fell back to the synthetic kick with no hats and
+  // no bass — a different room from the one everyone else hears.
+  private async ensureSamplesLoaded(into?: BaseAudioContext): Promise<void> {
     const samples = this.profile.samples
     // Wait for a real context (music on / user gesture). Building one
     // here just to preload would construct AudioContext on every room
     // switch — including jsdom tests that never stub it.
-    if (!samples || !this.audioContext) return
-    const context = this.audioContext
+    const context = into ?? this.audioContext
+    if (!samples || !context) return
     const token = ++this.sampleLoadToken
     await Promise.all(
       Object.entries(samples.bank).map(async ([id, url]) => {
@@ -635,7 +666,7 @@ export class AudioSystem implements IAudioSystem {
   }
 
 
-  private createSimpleNote(frequency: number, startTime: number, duration: number, volume: number = 0.03): void {
+  private createSimpleNote(frequency: number, startTime: number, duration: number, volume: number = 0.03, ceiling?: number): void {
     if (!this.audioContext || !this.backgroundMusic.gainNode) {
       return
     }
@@ -661,7 +692,7 @@ export class AudioSystem implements IAudioSystem {
       if (pluck && filter) {
         filter.type = 'lowpass'
         filter.Q.setValueAtTime(pluck.q, startTime)
-        filter.frequency.setValueAtTime(pluck.from, startTime)
+        filter.frequency.setValueAtTime(ceiling ?? pluck.from, startTime)
         filter.frequency.exponentialRampToValueAtTime(pluck.to, startTime + pluck.seconds)
         oscillator.connect(filter)
         filter.connect(gainNode)
@@ -699,6 +730,29 @@ export class AudioSystem implements IAudioSystem {
     } catch {
       // Silent failure for lead note
     }
+  }
+
+  // The offbeat bass: one rhythm, and whichever sample belongs to the
+  // chord this bar. A root with no sample is silence rather than the
+  // wrong note.
+  // Which bass note falls on this step, if any. Both the scheduler and
+  // the offline renderer ask this same question, because a bassline
+  // spelled out twice is a bassline that will disagree with itself.
+  private bassAt(stepIndex: number, noteBeats: number): { buffer: AudioBuffer; gain: number } | null {
+    const bass = this.profile.samples?.bass
+    if (!bass || bass.steps.length === 0) return null
+    const stepsPerBass = Math.max(1, Math.round(bass.noteBeats / noteBeats))
+    if (stepIndex % stepsPerBass !== 0) return null
+    if (!bass.steps[(stepIndex / stepsPerBass) % bass.steps.length]) return null
+    const id = bass.byRoot[chordAt(this.profile, stepIndex)[0]]
+    const buffer = id ? this.sampleBuffers.get(id) : undefined
+    if (!buffer) return null
+    return { buffer, gain: bass.gain * this.profile.gain }
+  }
+
+  private scheduleBass(stepIndex: number, startTime: number, noteBeats: number): void {
+    const hit = this.bassAt(stepIndex, noteBeats)
+    if (hit) this.playSample(hit.buffer, startTime, hit.gain)
   }
 
   private scheduleLead(stepIndex: number, startTime: number, secondsPerBeat: number, noteBeats: number): void {
@@ -794,6 +848,8 @@ export class AudioSystem implements IAudioSystem {
     if (!this.audioContext || !this.backgroundMusic.gainNode) {
       return
     }
+    // A progression nobody voices is still the harmony the bass reads.
+    if ((this.profile.padGain ?? 1) === 0) return
 
     try {
       frequencies.forEach((freq) => {
@@ -803,13 +859,27 @@ export class AudioSystem implements IAudioSystem {
         oscillator.type = this.profile.wave
         oscillator.frequency.setValueAtTime(freq, startTime)
 
-        const volume = 0.02 * this.profile.gain // Quieter chords
+        const volume = 0.02 * this.profile.gain * (this.profile.padGain ?? 1) // Quieter chords
         gainNode.gain.setValueAtTime(0, startTime)
         gainNode.gain.linearRampToValueAtTime(volume, startTime + Math.min(0.2, duration * 0.2))
         gainNode.gain.setValueAtTime(volume, startTime + duration * 0.7)
         gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
 
-        oscillator.connect(gainNode)
+        // The pad swells rather than stabs: its lowpass opens across the
+        // whole chord, so the bar arrives muffled and blooms under the
+        // riff. A context too old to build one still plays the chord.
+        const pad = this.profile.pad
+        const filter = pad ? this.audioContext!.createBiquadFilter?.() ?? null : null
+        if (pad && filter) {
+          filter.type = 'lowpass'
+          filter.Q.setValueAtTime(pad.q, startTime)
+          filter.frequency.setValueAtTime(pad.from, startTime)
+          filter.frequency.exponentialRampToValueAtTime(pad.to, startTime + duration * 0.8)
+          oscillator.connect(filter)
+          filter.connect(gainNode)
+        } else {
+          oscillator.connect(gainNode)
+        }
         gainNode.connect(this.backgroundMusic.gainNode!)
 
         oscillator.start(startTime)
@@ -847,10 +917,14 @@ export class AudioSystem implements IAudioSystem {
 
       const melodyMidi = melody[noteIndex]
       if (melodyMidi > 0 && Math.random() < melodyChance) {
-        this.createSimpleNote(midiToFreq(melodyMidi), nextNoteTime, noteLength * 1.5)
+        const ceiling = this.profile.filter
+          ? filterCeiling(this.profile.filter, stepIndex * noteBeats)
+          : undefined
+        this.createSimpleNote(midiToFreq(melodyMidi), nextNoteTime, noteLength * 1.5, undefined, ceiling)
       }
 
       this.scheduleLead(stepIndex, nextNoteTime, secondsPerBeat, noteBeats)
+      this.scheduleBass(stepIndex, nextNoteTime, noteBeats)
 
       if (noteIndex % stepsPerChord === 0) {
         const chord = chords[this.backgroundMusic.chordIndex]
@@ -908,10 +982,24 @@ export class AudioSystem implements IAudioSystem {
   }
 
   private startMobileBackgroundMusic(): void {
+    void this.renderMobileBackgroundMusic()
+  }
+
+  // A phone has no live context, so the bank is decoded against the one
+  // the track is built with. Without this the offline path had no kick
+  // sample, no hats and no bass, and fell back to a synthetic room.
+  private async renderMobileBackgroundMusic(): Promise<void> {
+    let context: AudioContext | null = null
+    try {
+      context = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      await this.ensureSamplesLoaded(context)
+    } catch {
+      // No context to decode with; the track still renders, procedurally.
+    }
 
     try {
       // Create a simple looping background music track
-      const musicBuffer = this.createMobileBackgroundTrack()
+      const musicBuffer = this.createMobileBackgroundTrack(context)
       const blob = new Blob([musicBuffer], { type: 'audio/wav' })
       const url = URL.createObjectURL(blob)
 
@@ -943,14 +1031,15 @@ export class AudioSystem implements IAudioSystem {
     }
   }
 
-  private createMobileBackgroundTrack(): ArrayBuffer {
+  private createMobileBackgroundTrack(given?: AudioContext | null): ArrayBuffer {
     // Long enough for one full 32-bar lead at 140 (~55s), plus a little.
     const sampleRate = 44100
     const duration = 64
     const samples = sampleRate * duration
 
-    // Create a temporary audio context just for generating the audio
-    const tempContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+    // The context the bank was decoded against, so the buffers here are
+    // usable; otherwise one of our own just to allocate the track.
+    const tempContext = given ?? new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
     const buffer = tempContext.createBuffer(1, samples, sampleRate)
     const channelData = buffer.getChannelData(0)
 
@@ -1017,6 +1106,11 @@ export class AudioSystem implements IAudioSystem {
         }
       }
 
+      const bassHit = this.bassAt(stepIndex, noteBeats)
+      if (bassHit) {
+        renderSample(channelData, sampleRate, bassHit.buffer, currentTime, bassHit.gain)
+      }
+
       if (noteIndex % stepsPerChord === 0) {
         const chord = chords[chordIndex]
         for (const midi of chord) {
@@ -1024,12 +1118,12 @@ export class AudioSystem implements IAudioSystem {
             frequency: midiToFreq(midi + CHORD_OCTAVE),
             startTime: currentTime,
             duration: chordLength,
-            volume: 0.003 * gain,
+            volume: 0.003 * gain * (this.profile.padGain ?? 1),
             wave,
           })
         }
-        chordIndex = (chordIndex + 1) % chords.length
       }
+      if (noteIndex % stepsPerChord === 0) chordIndex = (chordIndex + 1) % chords.length
 
       // Advance to next note (same logic as Web Audio)
       currentTime += noteLength

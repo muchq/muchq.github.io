@@ -83,6 +83,11 @@ describe('renderSample', () => {
   })
 })
 
+// The pluck the engine can render, kept here rather than read off a
+// room: the glasshouse is drums and bass for now and names no filter,
+// but renderNote still has to shut one over a note when asked.
+const PLUCK = { from: 1600, to: 220, seconds: 0.11, q: 10 }
+
 describe('renderNote', () => {
   // Low enough that a saw's harmonics sit well above the corner the
   // filter sweeps down to, which is the whole point of the pluck.
@@ -92,7 +97,7 @@ describe('renderNote', () => {
     const plain = buffer(0.6)
     const plucked = buffer(0.6)
     renderNote(plain, RATE, note)
-    renderNote(plucked, RATE, { ...note, filter: TECHNO_SOUND.filter })
+    renderNote(plucked, RATE, { ...note, filter: PLUCK })
     // Same note, rounder: a lowpass closing over it moves less sample to
     // sample, and moves less still by the end than at the start.
     expect(highness(plucked, 0.14, 0.38)).toBeLessThan(highness(plain, 0.14, 0.38))
@@ -103,7 +108,7 @@ describe('renderNote', () => {
     // a room that sweeps faster still has to sweep.
     const sustain = note.startTime + note.duration * 0.1 + 0.002
     const opening = highness(plucked, sustain, sustain + 0.02)
-    const settled = note.startTime + TECHNO_SOUND.filter!.seconds + 0.05
+    const settled = note.startTime + PLUCK.seconds + 0.05
     const closing = highness(plucked, settled, note.startTime + note.duration * 0.7)
     expect(closing).toBeLessThan(opening * 0.75)
     // And by the end it is near enough a sine at the note's own pitch.
