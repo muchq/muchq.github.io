@@ -145,24 +145,35 @@ export const TECHNO_SOUND: SoundProfile = {
   noteBeats: 0.25,
   chordBeats: 4,
   melodyChance: 1,
+  // Four rhythmic figures, one to a bar, laid over a progression that
+  // holds rather than seesaws: the riff moves where the harmony does,
+  // and the harmony sits on A for half the phrase.
   melody: [
-    // Bars 1–2: the original A / G riff
+    // Bars 1-4, all on A: the figures are what changes, not the root.
     45, 0, 45, 0, 52, 0, 45, 48, 0, 45, 0, 52, 45, 0, 48, 0,
-    43, 0, 43, 0, 50, 0, 43, 47, 0, 43, 0, 50, 43, 0, 47, 0,
-    // Bars 3–4: same harmony, holes punched differently
     45, 0, 0, 45, 52, 0, 48, 0, 45, 0, 52, 0, 45, 48, 0, 0,
-    43, 0, 0, 43, 50, 0, 47, 0, 43, 0, 50, 0, 43, 47, 0, 0,
-    // Bars 5–6: denser hammering
     45, 45, 0, 52, 45, 0, 48, 45, 0, 52, 45, 0, 48, 0, 45, 0,
-    43, 43, 0, 50, 43, 0, 47, 43, 0, 50, 43, 0, 47, 0, 43, 0,
-    // Bars 7–8: sparse, leave room for FX
     45, 0, 0, 0, 52, 0, 0, 48, 0, 0, 45, 0, 0, 0, 48, 0,
-    43, 0, 0, 0, 50, 0, 0, 47, 0, 0, 43, 0, 47, 0, 0, 0,
+    // Bars 5-6 lift to F, on the first two figures.
+    41, 0, 41, 0, 48, 0, 41, 45, 0, 41, 0, 48, 41, 0, 45, 0,
+    41, 0, 0, 41, 48, 0, 45, 0, 41, 0, 48, 0, 41, 45, 0, 0,
+    // Bars 7-8 fall to G and pull back to A.
+    43, 43, 0, 50, 43, 0, 47, 43, 0, 50, 43, 0, 47, 0, 43, 0,
+    43, 0, 0, 0, 50, 0, 0, 47, 0, 0, 43, 0, 0, 0, 47, 0,
   ],
   // Thinner than four voices: drop the doubled root so the sub has room.
+  // Eight bars, not two: A minor for four of them, which is the half of
+  // the phrase that does nothing, then F and G. Two chords a bar apart
+  // came round every 3.4 seconds and the ear had nowhere to go.
   chords: [
     [45, 60, 64], // A minor triad
+    [45, 60, 64],
+    [45, 60, 64],
+    [45, 60, 64],
+    [41, 57, 60], // F major triad
+    [41, 57, 60],
     [43, 59, 62], // G major triad
+    [43, 59, 62],
   ],
   bounce: { wave: 'triangle', from: 240, spread: 40, to: 90, duration: 0.09, gain: 0.3 },
   // Fallback only — the Joker sample takes over once the bank loads.
@@ -175,15 +186,17 @@ export const TECHNO_SOUND: SoundProfile = {
     noteBeats: 4,
     sustainBeats: 6,
     gain: 0.55,
+    // Placed where the progression can carry them: the E waits for an A
+    // bar and the B for a G bar, four bars later than either used to be.
     melody: [
-      69, 0, 0, 0, // A
+      69, 0, 0, 0, // A, over A minor
       0, 0, 0, 0,
-      0, 0, 72, 0, // C
+      0, 0, 72, 0, // C, over A minor
       0, 0, 0, 0,
+      0, 0, 0, 76, // E, over A minor
+      0, 0, 0, 71, // B, over G
       0, 0, 0, 0,
-      76, 0, 0, 0, // E
-      0, 0, 0, 71, // B
-      0, 0, 69, 0, // A
+      69, 0, 0, 0, // A, over F
     ],
   },
   samples: {

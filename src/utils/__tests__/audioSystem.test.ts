@@ -454,6 +454,42 @@ describe('AudioSystem', () => {
     expect(loopBars * lead.noteBeats).toBe(128) // 32 bars × 4 beats
   })
 
+  // The lead hangs for six beats over whatever the pad is doing, so a
+  // note landing off the chord sits there souring the bar. Its slots
+  // are one to a bar, and the progression is eight bars, so which chord
+  // a lead note meets is pure arithmetic — and easy to get wrong by
+  // moving either one.
+  it('lands every lead note on the chord it hangs over', () => {
+    const lead = TECHNO_SOUND.lead!
+    const barsPerChord = TECHNO_SOUND.chordBeats / lead.noteBeats
+    expect(barsPerChord).toBe(1)
+    lead.melody.forEach((note, bar) => {
+      if (note <= 0) return
+      const under = TECHNO_SOUND.chords[bar % TECHNO_SOUND.chords.length]
+      expect(under.map(midi => midi % 12), `bar ${bar}`).toContain(note % 12)
+    })
+  })
+
+  // The complaint this answers: two chords a bar apart came round every
+  // 3.4 seconds, so the room seesawed A, G, A, G for as long as you
+  // stood in it. A phrase needs somewhere to go and somewhere to rest.
+  it('gives the techno a progression rather than a seesaw', () => {
+    const cycleSeconds =
+      (TECHNO_SOUND.chords.length * TECHNO_SOUND.chordBeats * 60) / TECHNO_SOUND.tempo
+    expect(cycleSeconds).toBeGreaterThanOrEqual(10)
+    // And it holds still somewhere, rather than changing every bar.
+    const runs = TECHNO_SOUND.chords.reduce<number[]>((acc, chord, i) => {
+      const previous = TECHNO_SOUND.chords[i - 1]
+      if (previous && chord.every((n, j) => n === previous[j])) acc[acc.length - 1] += 1
+      else acc.push(1)
+      return acc
+    }, [])
+    expect(Math.max(...runs)).toBeGreaterThanOrEqual(3)
+    // The riff comes round with the harmony, not four times inside it.
+    const melodyBars = (TECHNO_SOUND.melody.length * TECHNO_SOUND.noteBeats) / TECHNO_SOUND.chordBeats
+    expect(melodyBars).toBe(TECHNO_SOUND.chords.length)
+  })
+
   it('sounds the lead on its own wave, not the saw riff', () => {
     system.setProfile(TECHNO_SOUND)
     system.startBackgroundMusic()
