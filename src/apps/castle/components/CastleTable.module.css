@@ -86,8 +86,7 @@
   color: #f0c96a;
 }
 
-.ending:empty,
-.hint:empty {
+.ending:empty {
   display: none;
 }
 
@@ -95,17 +94,50 @@
   color: rgba(255, 255, 255, 0.85);
 }
 
+.hint:empty {
+  display: none;
+}
+
+/* One line, held open: the hint and the last play share it, and either
+   arriving or leaving must not shift the felt below. Held open costs
+   the felt its height once (--chrome), which beats the felt moving
+   every time the table has something to say. */
+.status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  min-height: 1.9rem;
+}
+
 /* The table from above: a round felt, the pile in the middle, the chairs
    on the rim by clock. The felt fits the viewport, so the viewer's own
-   hand and moves are on screen without a scroll — down to the size the
-   chairs and the pile need, under which the overlay scrolls instead of
-   folding them onto each other (a phone on its side has no room for a
-   table this shape, and scrolling beats a pile of chairs). */
+   hand and moves are on screen without a scroll.
+
+   Three rows down the middle — the far chair, the pile, the viewer's
+   chair — so the middle and the chairs cannot be given the same pixels.
+   They were, before: everything on the felt was placed by percentage
+   against a felt with a floor of 30rem, and a short window put a 20rem
+   chair and the pile on top of each other. The rows make the overlap
+   impossible rather than unlikely: where the three will not fit the
+   felt stretches into an oval and the overlay scrolls, which is what a
+   window too short for a table this shape has always done.
+
+   The chairs on the sides stay placed by percentage: they sit in the
+   felt's empty flanks, which is the one place nothing else wants. */
 .ring {
   --felt-min: 30rem;
+  /* What is above and below the felt: the header, the status line, the
+     gaps, and the overlay's own padding. The felt takes what is left. */
+  --chrome: 15rem;
   position: relative;
-  width: min(100%, 52rem, max(var(--felt-min), calc(100dvh - 11rem)));
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  justify-items: center;
+  align-items: center;
+  width: min(100%, 52rem, max(var(--felt-min), calc(100dvh - var(--chrome))));
   aspect-ratio: 1;
+  padding: 1rem;
   margin: 0 auto;
   border-radius: 50%;
   background: radial-gradient(circle at 50% 45%, #2f7d57 0%, #1e5c3e 60%, #16452e 100%);
@@ -116,10 +148,7 @@
 }
 
 .pile {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  grid-row: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -183,40 +212,29 @@
 }
 
 /* The last play: in, a moment to read, and gone. A pick-up stays for
-   longer and shows the card that failed, because that is the moment a
-   handful of cards arrives and needs explaining. */
+   longer, because that is the moment a handful of cards arrives and
+   needs explaining. It reads above the felt rather than on it: in the
+   middle it was drawn over the pile it describes and over the chair
+   below, and there is no room on a short screen's felt to give it. */
 .lastPlaySlot {
   margin: 0;
 }
 
-.lastPlaySlot:empty {
-  display: none;
-}
-
 .lastPlay {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  display: inline-block;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.5rem;
   color: #f0c96a;
   --linger: 3s;
   animation: lastPlay var(--linger) ease-in forwards;
 }
 
+/* Every moment is the same box; a pick-up only lights it up, and stays
+   for longer. Were the padding its own, the line would change height
+   with the kind of play and take the felt down with it. */
 .pickedUp {
   --linger: 6s;
-  padding: 0.3rem 0.5rem;
-  border-radius: 0.5rem;
   background: rgba(240, 201, 106, 0.15);
-}
-
-/* Small beside its sentence; the phone's own card size would win the
-   tie, so this one names its parent. */
-.lastPlay .flipped {
-  flex: 0 0 auto;
-  width: 2.2rem;
-  height: 3.1rem;
-  font-size: 0.85rem;
-  animation: flipOver 0.6s ease-out both;
 }
 
 @keyframes lastPlay {
@@ -236,15 +254,6 @@
     /* Gone for a screen reader too, not just faded; the moment leaves
        the tree when the animation ends. */
     visibility: hidden;
-  }
-}
-
-@keyframes flipOver {
-  from {
-    transform: rotateY(90deg);
-  }
-  to {
-    transform: none;
   }
 }
 
@@ -283,7 +292,6 @@
   --cards-w: 12.9rem;
   --cards-h: 11.1rem;
   --turn: 0deg;
-  position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -339,6 +347,14 @@
   transform: translate(-50%, -50%) rotate(var(--turn));
 }
 
+/* The flanks: placed by percentage, out of the three rows' way. */
+.seat[data-clock='9'],
+.seat[data-clock='3'],
+.seat[data-clock='10'],
+.seat[data-clock='2'] {
+  position: absolute;
+}
+
 .seat[data-clock='9'] {
   --turn: 90deg;
   left: 1rem;
@@ -353,12 +369,13 @@
   transform: translateY(-50%);
 }
 
+/* The viewer's chair at the foot of the felt, the far chair at its
+   head; the pile has the row between them. */
 .seat[data-clock='6'] {
-  left: 50%;
-  bottom: 1rem;
-  transform: translateX(-50%);
+  grid-row: 3;
+  align-self: end;
   /* Capped so a big hand scrolls inside the chair rather than widening it. */
-  max-width: calc(100% - 2rem);
+  max-width: 100%;
 }
 
 .seatFrame,
@@ -367,9 +384,8 @@
 }
 
 .seat[data-clock='12'] {
-  left: 50%;
-  top: 1rem;
-  transform: translateX(-50%);
+  grid-row: 1;
+  align-self: start;
 }
 
 /* Out as far as the felt reaches at that height, so the chair clears
@@ -552,8 +568,8 @@ down and to the right so the back's corner shows under it. */
     0 0 0 1px rgba(0, 0, 0, 0.12);
 }
 
-/* The marks scale with the card's font size, so the small cards and the
-   flipped one in the last-play line carry the same face. */
+/* The marks scale with the card's font size, so a card drawn small at a
+   far chair carries the same face as one in the hand. */
 .index {
   position: absolute;
   top: 0.15em;
@@ -695,7 +711,6 @@ down and to the right so the back's corner shows under it. */
   }
 
   .pile {
-    top: 45%;
     padding: 0.5rem;
     max-width: 11rem;
     font-size: 0.85rem;
@@ -761,8 +776,13 @@ down and to the right so the back's corner shows under it. */
     width: calc(100% - 1rem);
   }
 
+  /* A player's name and a sentence do not fit one line here: the row
+     holds two, so a play landing never takes the felt down with it. */
+  .status {
+    min-height: 3.5rem;
+  }
+
   .pile {
-    top: 38%;
     padding: 0.4rem;
     max-width: 9rem;
     font-size: 0.8rem;
@@ -851,8 +871,7 @@ down and to the right so the back's corner shows under it. */
 @media (prefers-reduced-motion: reduce) {
   .endingOverlay,
   .endingCard,
-  .entered,
-  .lastPlay .flipped {
+  .entered {
     animation: none;
   }
 
