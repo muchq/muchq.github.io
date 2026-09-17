@@ -7,7 +7,9 @@ import {
   bindShapeHotkey,
   ROOM_HOTKEY,
   SHAPE_HOTKEY,
+  isTap,
   TAP_GAP_MS,
+  TAP_HOLD_MS,
   TAP_SLOP,
   TAPS_WANTED,
 } from '../hotkeys'
@@ -159,55 +161,145 @@ describe('afterTap', () => {
   })
 })
 
+describe('isTap', () => {
+  const at = (t: number, x = 0, y = 0) => ({ at: t, x, y })
+
+  it('takes a quick press that stays put', () => {
+    expect(isTap(at(0), at(80, 4, 4))).toBe(true)
+  })
+
+  // A release on its own cannot tell these from a tap: both end where a
+  // tap would. Only where the finger started, and when, can.
+  it('refuses a long press, however still the finger was', () => {
+    expect(isTap(at(0), at(TAP_HOLD_MS + 1))).toBe(false)
+  })
+
+  it('refuses a swipe, however quickly it came back', () => {
+    expect(isTap(at(0), at(80, TAP_SLOP + 1))).toBe(false)
+  })
+})
+
 describe('bindRoomTaps', () => {
-  let canvas: HTMLElement
+  let world: HTMLElement
   beforeEach(() => {
     vi.useFakeTimers()
-    canvas = document.createElement('div')
-    document.body.appendChild(canvas)
+    world = document.createElement('div')
+    document.body.appendChild(world)
   })
   afterEach(() => {
     vi.useRealTimers()
     document.body.innerHTML = ''
   })
 
-  const touch = (x: number, y: number) => ({ clientX: x, clientY: y }) as Touch
-  const lift = (changed: Touch[], held: Touch[] = [], from: HTMLElement = canvas) => {
-    const e = new Event('touchend', { bubbles: true, cancelable: true })
+  const at = (x: number, y: number) => ({ clientX: x, clientY: y }) as Touch
+  const fire = (kind: string, changed: Touch[], held: Touch[], from: HTMLElement = world) => {
+    const e = new Event(kind, { bubbles: true, cancelable: true })
     Object.assign(e, { changedTouches: changed, touches: held })
     from.dispatchEvent(e)
     return e
   }
+  // One finger down and up again in the same place, quickly.
+  const tap = (x = 10, y = 10, from: HTMLElement = world) => {
+    fire('touchstart', [at(x, y)], [at(x, y)], from)
+    vi.advanceTimersByTime(40)
+    return fire('touchend', [at(x, y)], [], from)
+  }
+  const triple = (x = 10, y = 10) => {
+    tap(x, y)
+    tap(x + 2, y + 2)
+    return tap(x + 1, y + 1)
+  }
 
   it('cycles the room on three taps and swallows only the one that lands', () => {
     const onCycle = vi.fn()
-    bindRoomTaps(canvas, onCycle)
-    const first = lift([touch(10, 10)])
+    bindRoomTaps(world, onCycle)
+    const first = tap()
     expect(onCycle).not.toHaveBeenCalled()
     // An ordinary tap is still an ordinary tap.
     expect(first.defaultPrevented).toBe(false)
-    lift([touch(12, 12)])
-    const third = lift([touch(11, 11)])
+    tap(12, 12)
+    const third = tap(11, 11)
     expect(onCycle).toHaveBeenCalledTimes(1)
     expect(third.defaultPrevented).toBe(true)
   })
 
   it('waits out a slow third tap', () => {
     const onCycle = vi.fn()
-    bindRoomTaps(canvas, onCycle)
-    lift([touch(10, 10)])
-    lift([touch(10, 10)])
+    bindRoomTaps(world, onCycle)
+    tap()
+    tap()
     vi.advanceTimersByTime(TAP_GAP_MS + 1)
-    lift([touch(10, 10)])
+    tap()
     expect(onCycle).not.toHaveBeenCalled()
   })
 
-  // A thumb on a joystick leaves a touch behind. Driving and tapping at
-  // once must not reshape the room under everyone standing there.
-  it('ignores a tap made with another finger still down', () => {
+  // The last release of a pinch has one changed touch and none held, so
+  // it looks exactly like a tap from the release alone. Three pinches
+  // must not reshape the room under everyone standing in it.
+  it('never reads the end of a pinch as a tap', () => {
     const onCycle = vi.fn()
-    bindRoomTaps(canvas, onCycle)
-    for (let i = 0; i < TAPS_WANTED; i++) lift([touch(10, 10)], [touch(400, 600)])
+    bindRoomTaps(world, onCycle)
+    for (let i = 0; i < TAPS_WANTED; i++) {
+      fire('touchstart', [at(10, 10)], [at(10, 10)])
+      fire('touchstart', [at(90, 90)], [at(10, 10), at(90, 90)])
+      vi.advanceTimersByTime(40)
+      fire('touchend', [at(10, 10)], [at(90, 90)])
+      fire('touchend', [at(90, 90)], [])
+    }
+    expect(onCycle).not.toHaveBeenCalled()
+  })
+
+  it('never reads a swipe that curls back to where it began as a tap', () => {
+    const onCycle = vi.fn()
+    bindRoomTaps(world, onCycle)
+    for (let i = 0; i < TAPS_WANTED; i++) {
+      fire('touchstart', [at(10, 10)], [at(10, 10)])
+      fire('touchmove', [at(10 + TAP_SLOP * 4, 10)], [at(10 + TAP_SLOP * 4, 10)])
+      vi.advanceTimersByTime(40)
+      fire('touchend', [at(10, 10)], [])
+    }
+    expect(onCycle).not.toHaveBeenCalled()
+  })
+
+  it('never reads a long press as a tap', () => {
+    const onCycle = vi.fn()
+    bindRoomTaps(world, onCycle)
+    for (let i = 0; i < TAPS_WANTED; i++) {
+      fire('touchstart', [at(10, 10)], [at(10, 10)])
+      vi.advanceTimersByTime(TAP_HOLD_MS + 1)
+      fire('touchend', [at(10, 10)], [])
+    }
+    expect(onCycle).not.toHaveBeenCalled()
+  })
+
+  // A finger resting outside the world — on the page header, say —
+  // never reaches this handler, so nothing nulls the candidate. Only
+  // the count of touches still held says the world was not tapped
+  // alone.
+  it('never reads a release as a tap while a finger is down elsewhere', () => {
+    const onCycle = vi.fn()
+    bindRoomTaps(world, onCycle)
+    const elsewhere = at(300, 5)
+    for (let i = 0; i < TAPS_WANTED; i++) {
+      fire('touchstart', [at(10, 10)], [at(10, 10)])
+      vi.advanceTimersByTime(40)
+      fire('touchend', [at(10, 10)], [elsewhere])
+    }
+    expect(onCycle).not.toHaveBeenCalled()
+  })
+
+  // Two good taps, then something that is not a tap, then a third: the
+  // run is broken, not merely un-extended.
+  it('drops a run interrupted by a gesture that is not a tap', () => {
+    const onCycle = vi.fn()
+    bindRoomTaps(world, onCycle)
+    tap()
+    tap()
+    fire('touchstart', [at(10, 10)], [at(10, 10)])
+    fire('touchstart', [at(90, 90)], [at(10, 10), at(90, 90)])
+    fire('touchend', [at(10, 10)], [at(90, 90)])
+    fire('touchend', [at(90, 90)], [])
+    tap()
     expect(onCycle).not.toHaveBeenCalled()
   })
 
@@ -215,27 +307,27 @@ describe('bindRoomTaps', () => {
   // on one of those is aimed at the control, and bubbles up here.
   it('ignores a tap aimed at a control sitting on the world', () => {
     const onCycle = vi.fn()
-    bindRoomTaps(canvas, onCycle)
+    bindRoomTaps(world, onCycle)
     const joystick = document.createElement('div')
-    canvas.appendChild(joystick)
-    for (let i = 0; i < TAPS_WANTED; i++) lift([touch(10, 10)], [], joystick)
+    world.appendChild(joystick)
+    for (let i = 0; i < TAPS_WANTED; i++) tap(10, 10, joystick)
     expect(onCycle).not.toHaveBeenCalled()
   })
 
   it('forgets the run when a touch is cancelled', () => {
     const onCycle = vi.fn()
-    bindRoomTaps(canvas, onCycle)
-    lift([touch(10, 10)])
-    lift([touch(10, 10)])
-    canvas.dispatchEvent(new Event('touchcancel', { bubbles: true }))
-    lift([touch(10, 10)])
+    bindRoomTaps(world, onCycle)
+    tap()
+    tap()
+    world.dispatchEvent(new Event('touchcancel', { bubbles: true }))
+    tap()
     expect(onCycle).not.toHaveBeenCalled()
   })
 
   it('stops listening once unbound', () => {
     const onCycle = vi.fn()
-    bindRoomTaps(canvas, onCycle)()
-    for (let i = 0; i < TAPS_WANTED; i++) lift([touch(10, 10)])
+    bindRoomTaps(world, onCycle)()
+    triple()
     expect(onCycle).not.toHaveBeenCalled()
   })
 })
