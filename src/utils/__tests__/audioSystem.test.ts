@@ -497,6 +497,83 @@ describe('AudioSystem', () => {
     expect(TECHNO_SOUND.chords.length).toBeGreaterThan(1)
   })
 
+  // The offline track is what a phone hears, and it had drifted into
+  // being a different room: it voiced the pad the live path silences,
+  // and it played no bass at all. Rendered here rather than described,
+  // because this path only ever goes wrong by being written twice.
+  describe('the track a narrow window hears', () => {
+    const RATE = 44100
+    // A one-shot with something in it, so a hit shows up as energy.
+    const oneShot = (seconds: number) => {
+      const data = new Float32Array(Math.floor(RATE * seconds))
+      for (let i = 0; i < data.length; i++) data[i] = Math.sin((i / RATE) * 2 * Math.PI * 200) * 0.8
+      return { duration: seconds, numberOfChannels: 1, length: data.length, sampleRate: RATE, getChannelData: () => data } as unknown as AudioBuffer
+    }
+    const render = (profile: SoundProfile, buffers: Record<string, AudioBuffer> = {}) => {
+      const rendered = new Float32Array(RATE * 64)
+      vi.stubGlobal('AudioContext', function FakeAudioContext() {
+        return { createBuffer: () => ({ getChannelData: () => rendered, length: rendered.length, sampleRate: RATE }) }
+      })
+      const phone = new AudioSystem(profile)
+      phone.injectSampleBuffers(buffers)
+      ;(phone as unknown as { createMobileBackgroundTrack: (c?: unknown) => void }).createMobileBackgroundTrack(null)
+      phone.cleanup()
+      return rendered
+    }
+    // Between one kick and the next. The synthetic kick is 0.19s and the
+    // beat is 0.43s, so this window is silence unless something else is
+    // playing — which makes it a sharper question than total loudness,
+    // where a low saw can phase-cancel the kick and read as quieter.
+    const betweenKicks = (data: Float32Array) => {
+      let sum = 0
+      for (let i = Math.floor(0.25 * RATE); i < Math.floor(0.4 * RATE); i++) sum += Math.abs(data[i])
+      return sum
+    }
+
+    it('voices no pad offline when the room voices none live', () => {
+      // Nothing but the kick, which is over before the window opens.
+      expect(betweenKicks(render(TECHNO_SOUND))).toBeCloseTo(0, 6)
+      // The same room with its pad turned up fills that window.
+      expect(betweenKicks(render({ ...TECHNO_SOUND, padGain: 1 }))).toBeGreaterThan(1)
+    })
+
+    it('lays the bass down offline, like the scheduler does', () => {
+      const withBass = render(TECHNO_SOUND, {
+        bassE: oneShot(0.16),
+        bassF: oneShot(0.16),
+        bassBb: oneShot(0.16),
+      })
+      // The bass falls on the off-beat, halfway between kicks.
+      expect(betweenKicks(withBass)).toBeGreaterThan(1)
+    })
+
+    it('plays the sampled kick offline rather than falling back to a sine', () => {
+      // A long kick sample runs past where the synthetic one has ended.
+      expect(betweenKicks(render(TECHNO_SOUND, { kick: oneShot(0.45) }))).toBeGreaterThan(1)
+    })
+  })
+
+  // A phone never builds a live context, so the bank was decoded against
+  // nothing and never loaded: no kick sample, no hats, no bass, and a
+  // synthetic room in their place.
+  it('loads the sample bank on a narrow window, which has no live context', async () => {
+    const wide = window.innerWidth
+    Object.defineProperty(window, 'innerWidth', { value: 500, configurable: true })
+    const made = fakeContext()
+    vi.stubGlobal('AudioContext', function FakeAudioContext() { return made.context })
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) })))
+    const phone = new AudioSystem(TECHNO_SOUND)
+    phone.soundEnabled = true
+    phone.startBackgroundMusic()
+    await vi.waitFor(() => expect(made.context.decodeAudioData).toHaveBeenCalled())
+    // Every sample the room plays, not just the first.
+    expect(made.context.decodeAudioData.mock.calls.length).toBe(
+      Object.keys(TECHNO_SOUND.samples!.bank).length
+    )
+    phone.cleanup()
+    Object.defineProperty(window, 'innerWidth', { value: wide, configurable: true })
+  })
+
   it('ships a glasshouse bank of a kick, a hat and three bass notes', () => {
     const samples = TECHNO_SOUND.samples!
     expect(samples.kick?.id).toBe('kick')

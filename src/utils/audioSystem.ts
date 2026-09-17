@@ -486,7 +486,7 @@ export class AudioSystem implements IAudioSystem {
     }
   }
 
-  private async decodeSample(context: AudioContext, url: string): Promise<AudioBuffer | undefined> {
+  private async decodeSample(context: BaseAudioContext, url: string): Promise<AudioBuffer | undefined> {
     const cached = sampleCache.get(url)
     if (cached) return cached
     try {
@@ -500,13 +500,17 @@ export class AudioSystem implements IAudioSystem {
     }
   }
 
-  private async ensureSamplesLoaded(): Promise<void> {
+  // `into` lets the offline path decode against a context of its own:
+  // a phone never builds a live one, so without this its bank could
+  // never load and it fell back to the synthetic kick with no hats and
+  // no bass — a different room from the one everyone else hears.
+  private async ensureSamplesLoaded(into?: BaseAudioContext): Promise<void> {
     const samples = this.profile.samples
     // Wait for a real context (music on / user gesture). Building one
     // here just to preload would construct AudioContext on every room
     // switch — including jsdom tests that never stub it.
-    if (!samples || !this.audioContext) return
-    const context = this.audioContext
+    const context = into ?? this.audioContext
+    if (!samples || !context) return
     const token = ++this.sampleLoadToken
     await Promise.all(
       Object.entries(samples.bank).map(async ([id, url]) => {
@@ -728,17 +732,24 @@ export class AudioSystem implements IAudioSystem {
   // The offbeat bass: one rhythm, and whichever sample belongs to the
   // chord this bar. A root with no sample is silence rather than the
   // wrong note.
-  private scheduleBass(stepIndex: number, startTime: number, noteBeats: number): void {
+  // Which bass note falls on this step, if any. Both the scheduler and
+  // the offline renderer ask this same question, because a bassline
+  // spelled out twice is a bassline that will disagree with itself.
+  private bassAt(stepIndex: number, noteBeats: number): { buffer: AudioBuffer; gain: number } | null {
     const bass = this.profile.samples?.bass
-    if (!bass || bass.steps.length === 0) return
+    if (!bass || bass.steps.length === 0) return null
     const stepsPerBass = Math.max(1, Math.round(bass.noteBeats / noteBeats))
-    if (stepIndex % stepsPerBass !== 0) return
-    const slot = (stepIndex / stepsPerBass) % bass.steps.length
-    if (!bass.steps[slot]) return
+    if (stepIndex % stepsPerBass !== 0) return null
+    if (!bass.steps[(stepIndex / stepsPerBass) % bass.steps.length]) return null
     const id = bass.byRoot[chordAt(this.profile, stepIndex)[0]]
     const buffer = id ? this.sampleBuffers.get(id) : undefined
-    if (!buffer) return
-    this.playSample(buffer, startTime, bass.gain * this.profile.gain)
+    if (!buffer) return null
+    return { buffer, gain: bass.gain * this.profile.gain }
+  }
+
+  private scheduleBass(stepIndex: number, startTime: number, noteBeats: number): void {
+    const hit = this.bassAt(stepIndex, noteBeats)
+    if (hit) this.playSample(hit.buffer, startTime, hit.gain)
   }
 
   private scheduleLead(stepIndex: number, startTime: number, secondsPerBeat: number, noteBeats: number): void {
@@ -968,10 +979,24 @@ export class AudioSystem implements IAudioSystem {
   }
 
   private startMobileBackgroundMusic(): void {
+    void this.renderMobileBackgroundMusic()
+  }
+
+  // A phone has no live context, so the bank is decoded against the one
+  // the track is built with. Without this the offline path had no kick
+  // sample, no hats and no bass, and fell back to a synthetic room.
+  private async renderMobileBackgroundMusic(): Promise<void> {
+    let context: AudioContext | null = null
+    try {
+      context = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      await this.ensureSamplesLoaded(context)
+    } catch {
+      // No context to decode with; the track still renders, procedurally.
+    }
 
     try {
       // Create a simple looping background music track
-      const musicBuffer = this.createMobileBackgroundTrack()
+      const musicBuffer = this.createMobileBackgroundTrack(context)
       const blob = new Blob([musicBuffer], { type: 'audio/wav' })
       const url = URL.createObjectURL(blob)
 
@@ -1003,14 +1028,15 @@ export class AudioSystem implements IAudioSystem {
     }
   }
 
-  private createMobileBackgroundTrack(): ArrayBuffer {
+  private createMobileBackgroundTrack(given?: AudioContext | null): ArrayBuffer {
     // Long enough for one full 32-bar lead at 140 (~55s), plus a little.
     const sampleRate = 44100
     const duration = 64
     const samples = sampleRate * duration
 
-    // Create a temporary audio context just for generating the audio
-    const tempContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+    // The context the bank was decoded against, so the buffers here are
+    // usable; otherwise one of our own just to allocate the track.
+    const tempContext = given ?? new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
     const buffer = tempContext.createBuffer(1, samples, sampleRate)
     const channelData = buffer.getChannelData(0)
 
@@ -1077,6 +1103,11 @@ export class AudioSystem implements IAudioSystem {
         }
       }
 
+      const bassHit = this.bassAt(stepIndex, noteBeats)
+      if (bassHit) {
+        renderSample(channelData, sampleRate, bassHit.buffer, currentTime, bassHit.gain)
+      }
+
       if (noteIndex % stepsPerChord === 0) {
         const chord = chords[chordIndex]
         for (const midi of chord) {
@@ -1084,12 +1115,12 @@ export class AudioSystem implements IAudioSystem {
             frequency: midiToFreq(midi + CHORD_OCTAVE),
             startTime: currentTime,
             duration: chordLength,
-            volume: 0.003 * gain,
+            volume: 0.003 * gain * (this.profile.padGain ?? 1),
             wave,
           })
         }
-        chordIndex = (chordIndex + 1) % chords.length
       }
+      if (noteIndex % stepsPerChord === 0) chordIndex = (chordIndex + 1) % chords.length
 
       // Advance to next note (same logic as Web Audio)
       currentTime += noteLength
