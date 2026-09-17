@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   TAPE_FADE_SECONDS,
-  TAPE_FAINTEST,
+  wallBasis,
   TAPE_RING_SIZE,
   TapeRing,
   VERDICT_COLOURS,
@@ -10,6 +10,7 @@ import {
   splatPoint,
 } from '../tapeSplats'
 import { splat } from '@/test/fakeTape'
+import type { Vec3 } from '../projection'
 
 // deja's tape as the glass holds it: a bounded ring keyed by seq, the
 // colour a verdict reads in, how a splat fades with its age, and where
@@ -116,15 +117,61 @@ describe('splatColour', () => {
 })
 
 describe('splatOpacity', () => {
-  it('fades a splat over its life and never all the way out', () => {
+  it('fades a splat off the glass rather than down to a floor', () => {
     expect(splatOpacity(0)).toBe(1)
-    // A clock skewed the wrong way is still a fresh splat, not a bright one.
+    // A clock skewed the other way is fresh, not brighter.
     expect(splatOpacity(-30)).toBe(1)
     const half = splatOpacity(TAPE_FADE_SECONDS / 2)
-    expect(half).toBeLessThan(1)
-    expect(half).toBeGreaterThan(TAPE_FAINTEST)
-    expect(splatOpacity(TAPE_FADE_SECONDS)).toBeCloseTo(TAPE_FAINTEST, 6)
-    expect(splatOpacity(TAPE_FADE_SECONDS * 10)).toBeCloseTo(TAPE_FAINTEST, 6)
+    expect(half).toBeCloseTo(0.5, 6)
+    // All the way off. A floor here is what made a room full of ghosts:
+    // thirty-two splats none of which could ever leave.
+    expect(splatOpacity(TAPE_FADE_SECONDS)).toBe(0)
+    expect(splatOpacity(TAPE_FADE_SECONDS * 10)).toBe(0)
+  })
+
+  it('holds the glass for under a minute', () => {
+    expect(TAPE_FADE_SECONDS).toBeLessThanOrEqual(60)
+  })
+})
+
+describe('wallBasis', () => {
+  // Text painted on the glass has to lie in the glass and read the
+  // right way round to someone standing inside the room. A basis that
+  // leaves the plane hangs the plate at an angle to the pane it is
+  // supposed to be painted on; one with the wrong handedness spells the
+  // token backwards on two of the four walls.
+  const INWARD: Record<number, Vec3> = { 0: [0, 0, 1], 1: [-1, 0, 0], 2: [0, 0, -1], 3: [1, 0, 0] }
+  const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+  const cross = (a: Vec3, b: Vec3): Vec3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+
+  it('lies in the pane and reads the right way round from inside', () => {
+    for (const wall of [0, 1, 2, 3]) {
+      const { along, up } = wallBasis(splat({ wall }))
+      const inward = INWARD[wall]
+      expect(dot(along, inward)).toBeCloseTo(0, 12)
+      expect(dot(up, inward)).toBeCloseTo(0, 12)
+      expect(up).toEqual([0, 1, 0])
+      expect(dot(along, along)).toBeCloseTo(1, 12)
+      // Facing the reader rather than away: not mirrored.
+      expect(dot(cross(along, up), inward)).toBeGreaterThan(0)
+    }
+  })
+
+  it('wraps a wall number past the four, the way the placement does', () => {
+    expect(wallBasis(splat({ wall: 7 }))).toEqual(wallBasis(splat({ wall: 3 })))
+  })
+
+  // Reading direction is the placement's own wherever handedness allows
+  // it, so u running rightwards is the common case and not a coincidence.
+  it('runs along the line u runs along', () => {
+    const glass = { boundary: 50, base: -2, height: 16 }
+    for (const wall of [0, 1, 2, 3]) {
+      const { along } = wallBasis(splat({ wall }))
+      const a = splatPoint(splat({ wall, u: 0.4, v: 0.5 }), glass)
+      const b = splatPoint(splat({ wall, u: 0.6, v: 0.5 }), glass)
+      const du: Vec3 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]]
+      expect(Math.abs(dot(along, du))).toBeCloseTo(Math.hypot(du[0], du[1], du[2]), 9)
+    }
   })
 })
 

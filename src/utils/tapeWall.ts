@@ -26,6 +26,7 @@ import {
   splatLabel,
   splatOpacity,
   splatPoint,
+  wallBasis,
   type GlassWall,
   type TapeGuess,
   type TapeSplat,
@@ -93,15 +94,33 @@ const FRAME_GAP_SECONDS = ARRIVAL_FRESH_SECONDS / 2
 // so a long session does not remember every event it ever drew.
 const REMEMBERED = 256
 
-// The phone's breakpoint, where the player labels shrink too: clustered
-// splats at 13px overlap into mush on a narrow screen.
-const PHONE_WIDTH = 1024
+// A plate is painted on the glass, so it is measured in the glass. The
+// element keeps one fixed font size and the wall's own transform does
+// the rest: a splat is small because it is far away, never because the
+// screen is. There is no breakpoint here for the same reason there is
+// none on a sign in a room.
+const FONT_PX = 16
+// A line of text, in world units. The room is a hundred units across
+// and the glass sixteen tall, so a three-line smear is about a fifth of
+// the pane's height and reads from the far side of the floor.
+const SMEAR_EM_WORLD = 1.2
+const RESIDUE_EM_WORLD = 0.8
 
-// The last few of the lane, and how wide the plate may get. The wire
-// bounds neither the number of context tokens nor their length, and a
-// plate as wide as the lane pushes the token off the side of a phone.
+// Under this, a splat is a smudge rather than a reading, and it stops
+// being drawn. Measured across the plate's shortest axis on screen:
+// distance shrinks it evenly, a pane seen nearly edge-on squashes it to
+// a bright line at full height, and a pitched view of one can leave
+// both of the plate's own axes long while they fall on nearly the same
+// line. Thirty-two of any of those is the mess.
+const LEGIBLE_PX = 7
+
+// The last few of the lane, and how wide the plate may get, in its own
+// text rather than in screen pixels: the plate scales with the pane, so
+// a bound in `vw` would have meant something different at every
+// distance. The wire bounds neither the number of context tokens nor
+// their length.
 const CONTEXT_SHOWN = 4
-const PLATE_MAX_WIDTH = 'min(70vw, 460px)'
+const PLATE_MAX_WIDTH = '30em'
 
 // The impact, and the half-second the data takes to stop running. The
 // stretch stays readable: a hard one is half a second of illegible
@@ -141,6 +160,17 @@ const PALE = '#e9eeff'
 
 type Mode = 'residue' | 'smear'
 
+// How old a splat reads. One this client watched arrive is aged from
+// the moment it arrived, on the monotonic clock the frames run on; only
+// tape that was already on the glass when we walked in is aged against
+// the hub's own stamp, which is what makes a joiner's ring look like
+// history. The flight is judged on receipt for the same reason, and the
+// two have to agree: a client running a fade's worth ahead of the hub
+// would otherwise fly the comet and land a fully transparent smear, so
+// the event arrives and nothing is ever shown.
+const ageOf = (held: WallSplat, view: TapeView): number =>
+  held.live ? view.clock - held.at : view.now - held.splat.ts
+
 // The node that is moved: no look, no transition, nothing that a frame's
 // reposition could interrupt.
 const OUTER_STYLE = `
@@ -148,10 +178,17 @@ const OUTER_STYLE = `
   left: 0;
   top: 0;
   font-family: ${MONO};
+  font-size: ${FONT_PX}px;
   font-weight: 400;
   white-space: nowrap;
   pointer-events: none;
   will-change: transform;
+  /* CSS wraps a transform in translate(origin) ... translate(-origin),
+     which a translation commutes with and a matrix does not: left at
+     the default centre, the pane matrix lands the plate at
+     at + o - M*o, most of its own width from the splat. At the corner
+     the declared list is the whole transform. */
+  transform-origin: 0px 0px;
 `
 
 // Both readings sit on a dark plate: the glass behind them is lit, and
@@ -204,6 +241,77 @@ const prefersLessMotion = () =>
 
 const place = (x: number, y: number, scale = 0) =>
   `translate(-50%, -50%) translate(${x}px, ${y}px)${scale ? ` scale(${scale})` : ''}`
+
+// The shortest the 2x2 maps any unit direction to: its smaller
+// singular value. The two column lengths are not this — they are what
+// it does to the plate's own two axes, and those can both stay long
+// while the image between them collapses onto a line.
+function shortestAxis(a: number, b: number, c: number, d: number): number {
+  const frobenius = a * a + b * b + c * c + d * d
+  const area = Math.abs(a * d - b * c)
+  const spread = Math.sqrt(Math.max(0, frobenius * frobenius - 4 * area * area))
+  return Math.sqrt(Math.max(0, (frobenius - spread) / 2))
+}
+
+interface PagePoint {
+  x: number
+  y: number
+  // How far down the view the point sits, in world units.
+  forward: number
+}
+
+// Where a world point lands on this view's page, in CSS pixels, or null
+// when it is behind the camera or in its plane.
+function onScreen(point: Vec3, view: TapeView): PagePoint | null {
+  const p = projectToNdc(point, view.cameraPos, view.cameraTarget, view.aspect, view.cameraUp)
+  if (!p || p.forward <= 0.1) return null
+  return { x: (p.x + 1) * 0.5 * view.width, y: (1 - p.y) * 0.5 * view.height, forward: p.forward }
+}
+
+// A plate lying in the glass rather than facing the camera. The pane's
+// two directions are projected alongside the splat's own point, and the
+// pixels they come back as become the element's 2x2: the plate is then
+// turned, sheared, foreshortened and scaled by exactly what the camera
+// does to the pane it is painted on, with no second projection model to
+// drift out of step with the ray tracer's.
+//
+// Affine, not perspective: the pane's far edge does not converge. At
+// the size a readout ever is against the distance it is ever seen from,
+// that is not a difference anyone can see, and it costs two extra
+// projections a frame instead of a 4x4 and a perspective ancestor.
+function inPane(splat: TapeSplat, view: TapeView, emWorld: number): { transform: string; legible: number } | null {
+  const origin = splatPoint(splat, view.wall)
+  const at = onScreen(origin, view)
+  if (!at) return null
+  // The avatar is the near plane. The camera stands back from them, so
+  // a slice of the room behind the player is always on screen, and tape
+  // painted there is between the camera and the avatar: it rakes across
+  // the middle of the screen over everything in front of it, and it is
+  // behind you. The camera's target is the avatar's waist, so how far
+  // down the view they stand is the distance to it.
+  const avatar = Math.hypot(
+    view.cameraTarget[0] - view.cameraPos[0],
+    view.cameraTarget[1] - view.cameraPos[1],
+    view.cameraTarget[2] - view.cameraPos[2]
+  )
+  if (at.forward < avatar) return null
+  const { along, up } = wallBasis(splat)
+  const right = onScreen([origin[0] + along[0], origin[1] + along[1], origin[2] + along[2]], view)
+  const over = onScreen([origin[0] + up[0], origin[1] + up[1], origin[2] + up[2]], view)
+  if (!right || !over) return null
+  // World units per local pixel, so the element's own font size lands
+  // on the glass as `emWorld` of it.
+  const k = emWorld / FONT_PX
+  const a = (right.x - at.x) * k
+  const b = (right.y - at.y) * k
+  // Local y runs down the page and v runs up the glass.
+  const c = -(over.x - at.x) * k
+  const d = -(over.y - at.y) * k
+  return {
+    transform: `translate(${at.x}px, ${at.y}px) matrix(${a}, ${b}, ${c}, ${d}, 0, 0) translate(-50%, -50%)`,
+    legible: shortestAxis(a, b, c, d) * FONT_PX,
+  }
+}
 
 const part = (name: string, text: string, css = ''): HTMLElement => {
   const span = document.createElement('span')
@@ -310,29 +418,41 @@ export class TapeWall {
     // The one splat whose comet is still on its way in, taken from the
     // list the wall is drawing: nothing flies that is not on the glass.
     let comet: { splat: TapeSplat; launchedAt: number } | null = null
-    for (const { splat } of splats) {
+    for (const onGlass of splats) {
+      const { splat } = onGlass
       held.add(splat.seq)
       const { mode, pending } = this.stateOf(splat.seq, view.clock)
       const entry = this.entryFor(splat, mode, view.edge)
-      entry.outer.style.fontSize = this.fontSize(mode, view.width)
       // An event still on its way in is neither: it has not hit yet, so
       // it reads as pending rather than as something on the glass.
       const role = pending ? 'pending' : mode
       if (entry.outer.dataset.role !== role) entry.outer.dataset.role = role
+      const painted = inPane(splat, view, mode === 'smear' ? SMEAR_EM_WORLD : RESIDUE_EM_WORLD)
+      // Nothing flies at a pane there is nowhere to land on. The comet
+      // is picked here rather than before the placement because a
+      // flight whose impact is behind the avatar would otherwise cross
+      // the camera-to-avatar region and land on nothing.
       const active = this.active
-      if (pending && active && active.seq === splat.seq) comet = { splat, launchedAt: active.launchedAt }
-
-      const projected = projectToNdc(splatPoint(splat, view.wall), view.cameraPos, view.cameraTarget, view.aspect, view.cameraUp)
-      if (!projected || projected.forward <= 0.1) {
-        // Behind the camera, or in its plane: nothing to draw.
+      if (painted && pending && active && active.seq === splat.seq) comet = { splat, launchedAt: active.launchedAt }
+      if (!painted) {
+        // Behind the camera, in its plane, or behind the avatar:
+        // nowhere to put it.
         entry.outer.style.opacity = '0'
         continue
       }
-      entry.outer.style.transform = place((projected.x + 1) * 0.5 * view.width, (1 - projected.y) * 0.5 * view.height)
+      // Placed whether or not it is worth reading, so the frame it
+      // becomes worth reading again does not start from a stale pose.
+      entry.outer.style.transform = painted.transform
+      if (painted.legible < LEGIBLE_PX) {
+        // A smudge rather than a reading. Thirty-two smudges is the
+        // mess this wall is not.
+        entry.outer.style.opacity = '0'
+        continue
+      }
       // Until it hits, the glass is still clean: the data arrives with
       // the comet, stretched by the impact, and settles from there.
       entry.plate.style.transform = pending && !still ? RUNNING : SETTLED
-      entry.outer.style.opacity = pending ? '0' : String(splatOpacity(view.now - splat.ts))
+      entry.outer.style.opacity = pending ? '0' : String(splatOpacity(ageOf(onGlass, view)))
     }
 
     for (const [seq, { outer }] of this.shown) {
@@ -392,12 +512,6 @@ export class TapeWall {
     if (!active || active.seq !== seq) return { mode: 'residue', pending: false }
     if (now < active.impactAt) return { mode: 'smear', pending: true }
     return { mode: now < active.impactAt + SMEAR_SECONDS ? 'smear' : 'residue', pending: false }
-  }
-
-  private fontSize(mode: Mode, width: number): string {
-    const phone = width <= PHONE_WIDTH
-    if (mode === 'smear') return phone ? '13px' : '16px'
-    return phone ? '10px' : '13px'
   }
 
   private entryFor(splat: TapeSplat, mode: Mode, edge: string): Held {

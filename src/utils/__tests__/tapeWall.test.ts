@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { COMET_DOT_PX, COMET_MAX_PX, SMEAR_FLOOR_SECONDS, SMEAR_SECONDS, TapeWall, type TapeView } from '../tapeWall'
-import { TAPE_FADE_SECONDS, TAPE_FAINTEST, TapeRing, VERDICT_COLOURS, splatOpacity, splatPoint, type TapeSplat } from '../tapeSplats'
+import { TAPE_FADE_SECONDS, TapeRing, VERDICT_COLOURS, splatOpacity, splatPoint, type TapeSplat } from '../tapeSplats'
 import { COMET_FLIGHT_SECONDS, cometAt } from '../tapeComet'
 import { projectToNdc, type Vec3 } from '../projection'
 import { splat } from '@/test/fakeTape'
@@ -75,6 +75,18 @@ describe('TapeWall', () => {
     probe.style.color = colour
     return probe.style.color
   }
+  // The plate's own 2x2, read back off the transform that set it. Its
+  // columns are the wall's two directions as the camera sees them, so
+  // everything about how a splat sits on the glass is in these four
+  // numbers: scale, shear, foreshortening, and whether the text faces
+  // the reader or is mirrored.
+  const basisOf = (element: HTMLElement) => {
+    const m = /matrix\(([-\d.e+, ]+)\)/.exec(element.style.transform)
+    if (!m) return null
+    const [a, b, c, d] = m[1].split(',').map(n => parseFloat(n))
+    return { a, b, c, d, det: a * d - b * c, em: Math.hypot(c, d) }
+  }
+
   const seeded = (...splats: TapeSplat[]) => {
     const ring = new TapeRing(() => NOW)
     ring.seed(splats)
@@ -158,9 +170,9 @@ describe('TapeWall', () => {
     const [fresh, middling, old] = shown().map(e => parseFloat(e.style.opacity))
     expect(fresh).toBeCloseTo(1, 6)
     expect(middling).toBeCloseTo(splatOpacity(TAPE_FADE_SECONDS / 2), 6)
-    expect(old).toBeCloseTo(TAPE_FAINTEST, 6)
-    // Faded, still readable: text on a plate over bright glass.
-    expect(TAPE_FAINTEST).toBeGreaterThan(0.2)
+    // All the way off, not down to a floor: thirty-two splats that can
+    // never leave is the ghost-filled room this replaced.
+    expect(old).toBe(0)
     // And it keeps fading as the clock moves, without a new splat.
     tapeWall.draw(held.splats, view({ now: NOW + TAPE_FADE_SECONDS / 2 }))
     expect(parseFloat(shown()[0].style.opacity)).toBeCloseTo(middling, 6)
@@ -428,22 +440,15 @@ describe('TapeWall', () => {
     expect(smears()[0].style.color).toBe(asCss(VERDICT_COLOURS.neutral))
   })
 
-  it('keeps ~32 token strings out of a screen reader and shrinks them at phone width', () => {
+  it('keeps ~32 token strings out of a screen reader, on a plate over the glass', () => {
     expect(container.getAttribute('aria-hidden')).toBe('true')
-    tapeWall.draw(seeded(splat({ seq: 1 })), view({ width: 900 }))
-    expect(shown()[0].style.fontSize).toBe('10px')
-    tapeWall.draw(seeded(splat({ seq: 1 })), view({ width: 1400 }))
-    expect(shown()[0].style.fontSize).toBe('13px')
-    // The smear is the loud one, and shrinks on the same breakpoint.
     const held = flying({ seq: 2 })
-    land(held, { width: 900 })
-    const phone = parseFloat(smears()[0].style.fontSize)
-    tapeWall.draw(held.splats, view({ width: 1400, now: NOW + COMET_FLIGHT_SECONDS }))
-    const desktop = parseFloat(smears()[0].style.fontSize)
-    expect(phone).toBeLessThan(desktop)
-    expect(desktop).toBeGreaterThan(13)
-    // A dark plate under the text of both, over bright glass.
+    land(held)
+    // A dark plate under the text of both, over bright glass. The size
+    // is no longer a breakpoint: it comes from the wall, so a splat is
+    // small because it is far away and not because the screen is.
     expect(plate(smears()[0]).style.background).toContain('rgba(0, 0, 0')
+    tapeWall.draw(seeded(splat({ seq: 1 })), view())
     expect(plate(shown()[0]).style.background).toContain('rgba(0, 0, 0')
   })
 
@@ -564,6 +569,157 @@ describe('TapeWall', () => {
     expect(shown().map(e => e.dataset.role)).toEqual(['residue', 'residue', 'residue'])
     // The control is the test above: a lane that keeps drawing still
     // gives every queued arrival its turn.
+  })
+
+
+  // The data is painted on the glass, not held up on a placard facing
+  // the camera. Its two axes are the pane's own axes projected, so a
+  // wall seen square on is upright, one seen from the side is sheared
+  // and foreshortened, and a far one is small because it is far.
+  it('lies the plate in the pane rather than facing it at the camera', () => {
+    const on = splat({ seq: 1, wall: 0, u: 0.5, v: 0.25 })
+    // Dead ahead and level: upright and unsheared, reading left to
+    // right and up the glass.
+    tapeWall.draw(seeded(on), view())
+    const square = basisOf(shown()[0])!
+    expect(square.b).toBeCloseTo(0, 9)
+    expect(square.c).toBeCloseTo(0, 9)
+    expect(square.a).toBeGreaterThan(0)
+    expect(square.d).toBeGreaterThan(0)
+
+    // Tip the camera and the plate tips with the room. A placard held
+    // facing the camera would stay square to the screen forever; this
+    // is the whole difference.
+    tapeWall.draw(seeded(on), view({ cameraUp: [0.6, 0.8, 0] }))
+    const rolled = basisOf(shown()[0])!
+    expect(Math.abs(rolled.b)).toBeGreaterThan(Math.abs(square.a) * 0.4)
+    expect(Math.abs(rolled.c)).toBeGreaterThan(Math.abs(square.d) * 0.4)
+
+    // Look down on it from above and the pane's up foreshortens while
+    // its left-to-right, still square to the view, does not.
+    tapeWall.draw(seeded(on), view({ cameraPos: [0, 30, 0], cameraTarget: [0, 2, -46] }))
+    const pitched = basisOf(shown()[0])!
+    expect(pitched.a / pitched.d).toBeGreaterThan((square.a / square.d) * 1.05)
+  })
+
+  it('never spells a token backwards, on any of the four panes', () => {
+    // Standing in the middle of the room, turning to each wall in turn.
+    const facing: Array<[number, [number, number, number]]> = [
+      [0, [0, 0, -50]],
+      [1, [50, 0, 0]],
+      [2, [0, 0, 50]],
+      [3, [-50, 0, 0]],
+    ]
+    for (const [wall, target] of facing) {
+      tapeWall.draw(seeded(splat({ seq: 1, wall, u: 0.5, v: 0.25 })), view({ cameraPos: [0, 0, 0], cameraTarget: target }))
+      const seen = basisOf(shown()[0])!
+      expect({ wall, mirrored: seen.det <= 0 }).toEqual({ wall, mirrored: false })
+    }
+  })
+
+  it('shrinks a splat with distance, and stops drawing one too small to read', () => {
+    const near = view({ cameraPos: [0, 0, -40], cameraTarget: [0, 0, -50] })
+    tapeWall.draw(seeded(splat({ seq: 1, wall: 0, u: 0.5, v: 0.25 })), near)
+    const close = basisOf(shown()[0])!.em
+    const far = view({ cameraPos: [0, 0, 45], cameraTarget: [0, 0, -50] })
+    tapeWall.draw(seeded(splat({ seq: 1, wall: 0, u: 0.5, v: 0.25 })), far)
+    expect(basisOf(shown()[0])!.em).toBeLessThan(close)
+    // Far enough and it is a smudge, not a reading: the mess on the
+    // glass was thirty-two of these at once.
+    const distant = view({ cameraPos: [0, 0, 4000], cameraTarget: [0, 0, -50], width: 200, height: 160 })
+    tapeWall.draw(seeded(splat({ seq: 1, wall: 0, u: 0.5, v: 0.25 })), distant)
+    expect(shown()[0].style.opacity).toBe('0')
+  })
+
+
+  // The camera stands back from the avatar, so a slice of the room
+  // behind the player is on screen. Tape painted there is between the
+  // camera and the avatar: it rakes across the middle of the screen
+  // over everything else in the room, and it is behind you. The avatar
+  // is the near plane — the camera's target is their waist, so the wall
+  // already knows where they are.
+  it('drops a splat nearer to the camera than the avatar', () => {
+    const on = splat({ seq: 1, wall: 0, u: 0.5, v: 0.25 })
+    // The avatar between the camera and the pane: the tape is ahead of
+    // them, theirs to read.
+    tapeWall.draw(seeded(on), view({ cameraPos: [0, 0, 0], cameraTarget: [0, 0, -40] }))
+    expect(parseFloat(shown()[0].style.opacity)).toBeGreaterThan(0)
+    // The same pane at the same range and the same angle, with only the
+    // avatar moved past it: the tape is behind them now.
+    tapeWall.draw(seeded(on), view({ cameraPos: [0, 0, 0], cameraTarget: [0, 0, -60] }))
+    expect(shown()[0].style.opacity).toBe('0')
+  })
+
+
+  // CSS wraps a transform in its origin correction, and a matrix does
+  // not commute with that the way a translation does. Left at the
+  // default `50% 50%`, this list lands the plate's centre at
+  // `at + o - M*o` — for a plate a few hundred pixels wide, most of its
+  // own width away from the splat. jsdom lays nothing out, so the
+  // origin is checked where it is declared and the order is pinned.
+  it('puts the plate centre on the splat rather than most of a plate away', () => {
+    tapeWall.draw(seeded(splat({ seq: 1, wall: 0, u: 0.7, v: 0.3 })), view())
+    const outer = shown()[0]
+    expect(outer.style.transformOrigin).toBe('0px 0px')
+    // Carried to the point last, so the matrix only ever turns the box
+    // about its own centre.
+    expect(outer.style.transform).toMatch(/^translate\(-?[\d.]+px, -?[\d.]+px\) matrix\([^)]+\) translate\(-50%, -50%\)$/)
+  })
+
+  // The comet is chosen before the plate is placed, and its trail is
+  // kept by depth alone. An impact behind the avatar would fly anyway:
+  // tape crossing the camera-to-avatar region, landing on nothing.
+  it('does not fly a comet at a pane the avatar is standing past', () => {
+    const behind = ring()
+    behind.add(splat({ seq: 1, wall: 0, u: 0.5, v: 0.25 }))
+    tapeWall.draw(behind.splats, view({ cameraPos: [0, 0, 0], cameraTarget: [0, 0, -60] }))
+    expect(comets()).toEqual([])
+  })
+
+  // The control for the test above, on its own wall: one flight's state
+  // outlives the frame it started in, so a second draw on the same wall
+  // would be answering for the first one's comet and not this one's.
+  it('flies at the same pane once the avatar is in front of it', () => {
+    const ahead = ring()
+    ahead.add(splat({ seq: 1, wall: 0, u: 0.5, v: 0.25 }))
+    tapeWall.draw(ahead.splats, view({ cameraPos: [0, 0, 0], cameraTarget: [0, 0, -40] }))
+    expect(comets().length).toBeGreaterThan(0)
+  })
+
+  // The flight is judged on receipt so a skewed clock cannot strand it,
+  // but the plate's fade was still hub-age. A client running a fade's
+  // worth ahead of the hub flew the comet and landed a fully
+  // transparent smear: the event arrives and nothing is ever shown.
+  it('keeps a live smear visible however far this clock runs ahead of the hub', () => {
+    const held = ring()
+    // Not age. The client received this now; the hub's stamp is behind.
+    held.add(splat({ seq: 1, ts: NOW - TAPE_FADE_SECONDS * 2 }))
+    land(held)
+    expect(smears()).toHaveLength(1)
+    expect(parseFloat(smears()[0].style.opacity)).toBeGreaterThan(0.9)
+  })
+
+
+  // Measuring the two columns separately is not the same as measuring
+  // the plate. A pitched view of a pane can leave both of them long
+  // while they fall nearly on one line, and what gets painted is a
+  // bright sliver at full height — the same mess the cull exists to
+  // stop, arriving by a route the column lengths cannot see. The
+  // smaller singular value is the plate's shortest axis.
+  it('drops a plate a pitched view has collapsed onto one line', () => {
+    // Standing above and inside the -x pane, looking down along it.
+    const collapsed = view({
+      cameraPos: [-46, 22, -32],
+      cameraTarget: [-50, 10, -10],
+      width: 960,
+      height: 540,
+    })
+    tapeWall.draw(seeded(splat({ seq: 1, wall: 3, u: 0.4, v: 0.25 })), collapsed)
+    const m = basisOf(shown()[0])!
+    // Both columns clear the bar, so nothing about their own lengths
+    // was ever going to catch this.
+    expect(Math.min(Math.hypot(m.a, m.b), Math.hypot(m.c, m.d)) * 16).toBeGreaterThan(7)
+    expect(shown()[0].style.opacity).toBe('0')
   })
 
 })
