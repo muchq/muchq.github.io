@@ -46,7 +46,19 @@ export interface SoundProfile {
   pulse?: { from: number; to: number; duration: number; beats: number; gain: number }
   // A lowpass each melody note is plucked through, falling from `from`
   // to `to` hertz over `seconds`. The sweep is the sound, not the note.
-  filter?: { from: number; to: number; seconds: number; q: number }
+  // `sweep` moves the ceiling itself over `cycleBeats`, so the riff
+  // brightens and dulls across the phrase instead of every note in the
+  // room arriving identical to the last.
+  filter?: {
+    from: number
+    to: number
+    seconds: number
+    q: number
+    sweep?: { depth: number; cycleBeats: number }
+  }
+  // The pad's own lowpass, opening across the chord rather than shutting
+  // over it: a swell under the riff, where the pluck is a stab.
+  pad?: { from: number; to: number; q: number }
   // Optional one-shots and a sample kick layered on the procedural tune.
   samples?: SoundSamples
   // A second voice on a longer grid than the riff. One entry per
@@ -178,25 +190,35 @@ export const TECHNO_SOUND: SoundProfile = {
   bounce: { wave: 'triangle', from: 240, spread: 40, to: 90, duration: 0.09, gain: 0.3 },
   // Fallback only — the Joker sample takes over once the bank loads.
   pulse: { from: 190, to: 38, duration: 0.19, beats: 1, gain: 0.55 },
-  filter: { from: 1600, to: 220, seconds: 0.11, q: 10 },
+  // Eight bars: one open-and-close over the whole progression, so the
+  // riff is dullest where the harmony rests and brightest where it moves.
+  filter: { from: 1600, to: 220, seconds: 0.11, q: 10, sweep: { depth: 0.65, cycleBeats: 32 } },
+  pad: { from: 300, to: 1800, q: 4 },
   gain: 0.5,
-  // One slot a bar for 32 bars (~55s). A handful of notes, long sustain.
+  // A beat a slot for 32 bars: four eight-bar phrases over the eight-bar
+  // progression, so the tune states, answers, falls and settles rather
+  // than hanging one note a bar. Every bar's downbeat is a chord tone;
+  // what happens between them is passing notes, which is the difference
+  // between a melody and an arpeggio.
   lead: {
     wave: 'sine',
-    noteBeats: 4,
-    sustainBeats: 6,
+    noteBeats: 1,
+    // Just past a beat, so the line joins up without stacking.
+    sustainBeats: 1.5,
     gain: 0.55,
-    // Placed where the progression can carry them: the E waits for an A
-    // bar and the B for a G bar, four bars later than either used to be.
     melody: [
-      69, 0, 0, 0, // A, over A minor
-      0, 0, 0, 0,
-      0, 0, 72, 0, // C, over A minor
-      0, 0, 0, 0,
-      0, 0, 0, 76, // E, over A minor
-      0, 0, 0, 71, // B, over G
-      0, 0, 0, 0,
-      69, 0, 0, 0, // A, over F
+      // Bars 1-8: the statement, low and unhurried.
+      69, 0, 72, 0, 76, 0, 0, 0, 72, 74, 0, 69, 0, 0, 0, 0,
+      77, 0, 72, 0, 69, 0, 0, 0, 71, 74, 0, 79, 0, 0, 0, 0,
+      // Bars 9-16: the answer, with an octave of room above it.
+      81, 0, 79, 0, 76, 0, 0, 77, 76, 74, 0, 72, 0, 0, 69, 0,
+      72, 0, 0, 74, 77, 0, 76, 0, 74, 0, 71, 0, 79, 0, 0, 0,
+      // Bars 17-24: coming down, and thinning out.
+      76, 0, 0, 0, 0, 0, 74, 0, 72, 0, 71, 0, 69, 0, 0, 0,
+      0, 0, 0, 0, 72, 74, 0, 72, 71, 0, 0, 0, 0, 0, 74, 0,
+      // Bars 25-32: settling, with the most space of the four.
+      69, 0, 72, 0, 0, 0, 0, 0, 76, 0, 74, 72, 0, 0, 0, 0,
+      77, 0, 0, 0, 0, 72, 0, 69, 79, 0, 74, 0, 0, 0, 0, 71,
     ],
   },
   samples: {
@@ -239,6 +261,21 @@ export const TECHNO_SOUND: SoundProfile = {
 export const CHORD_OCTAVE = -12
 
 const sampleCache = new Map<string, AudioBuffer>()
+
+// Where the pluck's ceiling sits this many beats into the tune. A fixed
+// ceiling means every note is filtered identically, which is most of why
+// a loop wears out; this rides it up and down over the phrase so the
+// riff opens and closes without a single note changing. Never falls
+// below `1 - depth` of the ceiling, and returns exactly `from` for a
+// profile that asks for no sweep.
+export function filterCeiling(filter: NonNullable<SoundProfile['filter']>, beats: number): number {
+  const sweep = filter.sweep
+  if (!sweep) return filter.from
+  const phase = (((beats % sweep.cycleBeats) + sweep.cycleBeats) % sweep.cycleBeats) / sweep.cycleBeats
+  // Darkest at the top of the cycle, brightest halfway through.
+  const open = (1 - Math.cos(phase * 2 * Math.PI)) / 2
+  return filter.from * (1 - sweep.depth + sweep.depth * open)
+}
 
 function midiToFreq(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12)
@@ -648,7 +685,7 @@ export class AudioSystem implements IAudioSystem {
   }
 
 
-  private createSimpleNote(frequency: number, startTime: number, duration: number, volume: number = 0.03): void {
+  private createSimpleNote(frequency: number, startTime: number, duration: number, volume: number = 0.03, ceiling?: number): void {
     if (!this.audioContext || !this.backgroundMusic.gainNode) {
       return
     }
@@ -674,7 +711,7 @@ export class AudioSystem implements IAudioSystem {
       if (pluck && filter) {
         filter.type = 'lowpass'
         filter.Q.setValueAtTime(pluck.q, startTime)
-        filter.frequency.setValueAtTime(pluck.from, startTime)
+        filter.frequency.setValueAtTime(ceiling ?? pluck.from, startTime)
         filter.frequency.exponentialRampToValueAtTime(pluck.to, startTime + pluck.seconds)
         oscillator.connect(filter)
         filter.connect(gainNode)
@@ -822,7 +859,21 @@ export class AudioSystem implements IAudioSystem {
         gainNode.gain.setValueAtTime(volume, startTime + duration * 0.7)
         gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
 
-        oscillator.connect(gainNode)
+        // The pad swells rather than stabs: its lowpass opens across the
+        // whole chord, so the bar arrives muffled and blooms under the
+        // riff. A context too old to build one still plays the chord.
+        const pad = this.profile.pad
+        const filter = pad ? this.audioContext!.createBiquadFilter?.() ?? null : null
+        if (pad && filter) {
+          filter.type = 'lowpass'
+          filter.Q.setValueAtTime(pad.q, startTime)
+          filter.frequency.setValueAtTime(pad.from, startTime)
+          filter.frequency.exponentialRampToValueAtTime(pad.to, startTime + duration * 0.8)
+          oscillator.connect(filter)
+          filter.connect(gainNode)
+        } else {
+          oscillator.connect(gainNode)
+        }
         gainNode.connect(this.backgroundMusic.gainNode!)
 
         oscillator.start(startTime)
@@ -860,7 +911,10 @@ export class AudioSystem implements IAudioSystem {
 
       const melodyMidi = melody[noteIndex]
       if (melodyMidi > 0 && Math.random() < melodyChance) {
-        this.createSimpleNote(midiToFreq(melodyMidi), nextNoteTime, noteLength * 1.5)
+        const ceiling = this.profile.filter
+          ? filterCeiling(this.profile.filter, stepIndex * noteBeats)
+          : undefined
+        this.createSimpleNote(midiToFreq(melodyMidi), nextNoteTime, noteLength * 1.5, undefined, ceiling)
       }
 
       this.scheduleLead(stepIndex, nextNoteTime, secondsPerBeat, noteBeats)

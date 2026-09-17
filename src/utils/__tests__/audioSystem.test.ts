@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { AudioSystem, BOUNCE_DECAY, CALM_SOUND, CHIPTUNE_SOUND, CHORD_OCTAVE, TECHNO_SOUND, bounceRelease } from '../audioSystem'
+import { AudioSystem, BOUNCE_DECAY, CALM_SOUND, CHIPTUNE_SOUND, CHORD_OCTAVE, TECHNO_SOUND, bounceRelease, filterCeiling } from '../audioSystem'
 
 // The world's sound is a profile the room supplies: what wave the notes
 // are, how fast, which tune, and what a bounce sounds like. The grid
@@ -333,10 +333,18 @@ describe('AudioSystem', () => {
     system.startBackgroundMusic()
     vi.advanceTimersByTime(200)
     expect(biquads.length).toBeGreaterThan(0)
-    const [pluck] = biquads
+    // The pad has a lowpass of its own now, so pick the pluck by its Q
+    // rather than by being first out of the context.
+    const pluck = biquads.find(b => b.Q.setValueAtTime.mock.calls[0]?.[0] === TECHNO_SOUND.filter!.q)!
+    expect(pluck).toBeTruthy()
     expect(pluck.type).toBe('lowpass')
     expect(pluck.Q.setValueAtTime).toHaveBeenCalledWith(TECHNO_SOUND.filter!.q, expect.any(Number))
-    expect(pluck.frequency.setValueAtTime).toHaveBeenCalledWith(TECHNO_SOUND.filter!.from, expect.any(Number))
+    // Opened to wherever the sweep has the ceiling on the first beat,
+    // which is not the profile's `from` — that is the top of the ride.
+    expect(pluck.frequency.setValueAtTime).toHaveBeenCalledWith(
+      filterCeiling(TECHNO_SOUND.filter!, 0),
+      expect.any(Number)
+    )
     expect(pluck.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
       TECHNO_SOUND.filter!.to,
       expect.any(Number)
@@ -425,6 +433,46 @@ describe('AudioSystem', () => {
     expect(TECHNO_SOUND.melody.filter(note => note === 0).length).toBeGreaterThan(32)
   })
 
+  // A ceiling that never moves is most of why a loop wears out: every
+  // note is filtered exactly like the last however long you stand there.
+  it('rides the pluck ceiling up and down across the phrase', () => {
+    const filter = TECHNO_SOUND.filter!
+    const sweep = filter.sweep!
+    // A full open and close over the progression, not per bar.
+    expect(sweep.cycleBeats).toBe(TECHNO_SOUND.chords.length * TECHNO_SOUND.chordBeats)
+    const darkest = filterCeiling(filter, 0)
+    const brightest = filterCeiling(filter, sweep.cycleBeats / 2)
+    expect(darkest).toBeCloseTo(filter.from * (1 - sweep.depth), 6)
+    expect(brightest).toBeCloseTo(filter.from, 6)
+    // Worth having: the two ends are audibly different, and the ceiling
+    // never drops under where the pluck is heading anyway.
+    expect(brightest / darkest).toBeGreaterThan(2)
+    expect(darkest).toBeGreaterThan(filter.to)
+    // It comes back round, and it never leaves the band.
+    expect(filterCeiling(filter, sweep.cycleBeats)).toBeCloseTo(darkest, 6)
+    for (let beat = 0; beat < sweep.cycleBeats; beat += 0.25) {
+      const at = filterCeiling(filter, beat)
+      expect(at).toBeGreaterThanOrEqual(darkest - 1e-6)
+      expect(at).toBeLessThanOrEqual(brightest + 1e-6)
+    }
+    // A profile that asks for no ride is left exactly where it was.
+    expect(filterCeiling({ ...filter, sweep: undefined }, 13)).toBe(filter.from)
+  })
+
+  // The pad was a bare saw triad: same attack, same timbre, every bar.
+  it('swells the pad open rather than leaving it bare', () => {
+    const pad = TECHNO_SOUND.pad!
+    expect(pad.from).toBeLessThan(pad.to)
+    system.setProfile(TECHNO_SOUND)
+    system.startBackgroundMusic()
+    advance(200)
+    const swell = biquads.find(b => b.Q.setValueAtTime.mock.calls[0]?.[0] === pad.q)
+    expect(swell, 'the pad went through no filter').toBeTruthy()
+    expect(swell!.type).toBe('lowpass')
+    expect(swell!.frequency.setValueAtTime).toHaveBeenCalledWith(pad.from, expect.any(Number))
+    expect(swell!.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(pad.to, expect.any(Number))
+  })
+
   it('ships a glasshouse sample bank: kick, hats, chops, and a riser', () => {
     const samples = TECHNO_SOUND.samples!
     expect(samples.kick?.id).toBe('kick')
@@ -438,20 +486,28 @@ describe('AudioSystem', () => {
     expect(TECHNO_SOUND.chords.every(c => c.length <= 3)).toBe(true)
   })
 
-  // A second voice over the looping riff: one step a bar for 32 bars,
-  // mostly rests, hanging long enough to feel like space rather than a tune.
-  it('carries a sparse 32-bar lead above the techno riff', () => {
+  // A second voice over the looping riff: a beat a slot for 32 bars, so
+  // it can phrase rather than hang one note a bar.
+  it('carries a 32-bar tune above the techno riff', () => {
     const lead = TECHNO_SOUND.lead!
-    expect(lead.noteBeats).toBe(4)
-    expect(lead.melody).toHaveLength(32)
+    expect(lead.noteBeats).toBe(1)
+    expect(lead.melody).toHaveLength(128)
+    expect(lead.melody.length * lead.noteBeats).toBe(128) // 32 bars × 4 beats
     const sounding = lead.melody.filter(n => n > 0)
-    expect(sounding.length).toBeGreaterThanOrEqual(4)
-    expect(sounding.length).toBeLessThanOrEqual(10)
+    // Enough notes to be a tune, enough rests to still be techno.
+    expect(sounding.length).toBeGreaterThanOrEqual(30)
+    expect(sounding.length).toBeLessThanOrEqual(80)
     for (const note of sounding) {
       expect(note).toBeGreaterThanOrEqual(60)
     }
-    const loopBars = lead.melody.length
-    expect(loopBars * lead.noteBeats).toBe(128) // 32 bars × 4 beats
+    // A line, not an arpeggio: it covers ground, and most of the moves
+    // between notes are steps rather than leaps.
+    expect(Math.max(...sounding) - Math.min(...sounding)).toBeGreaterThanOrEqual(10)
+    const steps = sounding.slice(1).map((n, i) => Math.abs(n - sounding[i]))
+    expect(steps.filter(gap => gap <= 2).length / steps.length).toBeGreaterThan(0.4)
+    // And it does not sit still: no eight-bar phrase repeats another.
+    const phrases = [0, 32, 64, 96].map(i => lead.melody.slice(i, i + 32).join(','))
+    expect(new Set(phrases).size).toBe(4)
   })
 
   // The lead hangs for six beats over whatever the pad is doing, so a
@@ -459,15 +515,23 @@ describe('AudioSystem', () => {
   // are one to a bar, and the progression is eight bars, so which chord
   // a lead note meets is pure arithmetic — and easy to get wrong by
   // moving either one.
-  it('lands every lead note on the chord it hangs over', () => {
+  it('lands every lead downbeat on the chord it opens', () => {
     const lead = TECHNO_SOUND.lead!
-    const barsPerChord = TECHNO_SOUND.chordBeats / lead.noteBeats
-    expect(barsPerChord).toBe(1)
-    lead.melody.forEach((note, bar) => {
-      if (note <= 0) return
+    const slotsPerBar = TECHNO_SOUND.chordBeats / lead.noteBeats
+    let downbeats = 0
+    lead.melody.forEach((note, slot) => {
+      if (note <= 0 || slot % slotsPerBar !== 0) return
+      downbeats += 1
+      const bar = slot / slotsPerBar
       const under = TECHNO_SOUND.chords[bar % TECHNO_SOUND.chords.length]
       expect(under.map(midi => midi % 12), `bar ${bar}`).toContain(note % 12)
     })
+    expect(downbeats).toBeGreaterThanOrEqual(16)
+    // Off the downbeat it may pass, but never out of the key.
+    const aMinor = [9, 11, 0, 2, 4, 5, 7]
+    for (const note of lead.melody.filter(n => n > 0)) {
+      expect(aMinor, `${note}`).toContain(note % 12)
+    }
   })
 
   // The complaint this answers: two chords a bar apart came round every
