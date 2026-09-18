@@ -147,9 +147,9 @@ describe('useThoughtsGame', () => {
     expect(lastQuadBind()).toBeGreaterThan(gl.bindVertexArray.mock.invocationCallOrder[0])
   })
 
-  // Undocumented like g: s walks the glasshouse's tunes and nowhere
+  // Undocumented like g: y walks the glasshouse's tunes and nowhere
   // else, and always hard-cuts rather than fading.
-  it('cycles glasshouse music on s and ignores it in other rooms', () => {
+  it('cycles glasshouse music on y and ignores it in other rooms', () => {
     start()
     frame()
     cutToProfile.mockClear()

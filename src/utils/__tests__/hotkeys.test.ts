@@ -76,7 +76,7 @@ describe('bindMusicHotkey', () => {
     document.body.innerHTML = ''
   })
 
-  it('cycles on s, either case, and not on other keys', () => {
+  it('cycles on y, either case, and not on other keys', () => {
     const onCycle = vi.fn()
     unbind = bindMusicHotkey(document, onCycle)
     press(MUSIC_HOTKEY)

@@ -31,7 +31,7 @@ export function bindRoomHotkey(target: Document | HTMLElement, onCycle: () => vo
 
 // Cycles a room's music options when it has more than one. Undocumented
 // like the room key.
-export const MUSIC_HOTKEY = 's'
+export const MUSIC_HOTKEY = 'y'
 
 export function bindMusicHotkey(target: Document | HTMLElement, onCycle: () => void): () => void {
   return bindHotkey(target, MUSIC_HOTKEY, onCycle)

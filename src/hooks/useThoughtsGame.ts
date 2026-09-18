@@ -6,7 +6,7 @@ import { RoomResources } from '@/utils/roomResources'
 import { DEFAULT_ROOM, nextSound, roomForGeometry, type RoomGeometry, type RoomGeometryId } from '@/utils/roomGeometry'
 import { cameraView, frameAt, sameGeometry, sphereRadiusOf, surfaceFor, turn, walk, type Frame, type Geometry } from '@/utils/surface'
 import { mapHeadingDegrees, mapIsRound, mapPoint } from '@/utils/miniMap'
-import { bindMusicHotkey, bindRoomHotkey, bindRoomTaps, bindShapeHotkey, MUSIC_HOTKEY } from '@/utils/hotkeys'
+import { bindMusicHotkey, bindRoomHotkey, bindRoomTaps, bindShapeHotkey } from '@/utils/hotkeys'
 import { AvatarTrails } from '@/utils/avatarTrails'
 import { TapeWall } from '@/utils/tapeWall'
 import { projectToNdc, viewProjection } from '@/utils/projection'
@@ -254,14 +254,11 @@ export const useThoughtsGame = () => {
       }
       unbindRoomHotkey = bindRoomHotkey(document, cycleRoom)
       // Undocumented like g: walks a room's tunes when it has more than
-      // one. Hard cut — no fade between options. Shares the letter with
-      // walk-back, so a press that actually switches tunes drops the
-      // movement key for this frame; a held s still walks on repeat.
+      // one. Hard cut — no fade between options.
       const cycleMusic = () => {
         const next = nextSound(room, audioSystem.profile)
         if (next === audioSystem.profile) return
         audioSystem.cutToProfile(next)
-        keys[MUSIC_HOTKEY] = false
       }
       unbindMusicHotkey = bindMusicHotkey(document, cycleMusic)
       // The phone's way in to the same command; there is no `g` there.
