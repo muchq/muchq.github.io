@@ -629,7 +629,7 @@ describe('AudioSystem', () => {
     expect(oscillators).toHaveLength(0)
   })
 
-  // s switches tunes in-place: stop the old one immediately and start
+  // y switches tunes in-place: stop the old one immediately and start
   // the new, no fade. Room changes still use setProfile's soft handoff.
   it('cuts hard to another profile when asked', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) })))
