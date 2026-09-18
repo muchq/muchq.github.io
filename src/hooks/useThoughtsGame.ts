@@ -5,7 +5,7 @@ import { generateRandomColor, generateRandomSpawnPosition } from '@/utils/gameUt
 import { RoomResources } from '@/utils/roomResources'
 import { DEFAULT_ROOM, nextSound, paletteCss, roomForGeometry, type RoomGeometry, type RoomGeometryId } from '@/utils/roomGeometry'
 import { cameraView, frameAt, sameGeometry, sphereRadiusOf, surfaceFor, turn, walk, type Frame, type Geometry } from '@/utils/surface'
-import { mapHeadingDegrees, mapIsRound, mapPoint } from '@/utils/miniMap'
+import { globeMarks, mapHeadingDegrees, mapIsRound, mapPoint, type MapPole } from '@/utils/miniMap'
 import { bindMusicHotkey, bindRoomHotkey, bindRoomTaps, bindShapeHotkey } from '@/utils/hotkeys'
 import { AvatarTrails } from '@/utils/avatarTrails'
 import { TapeWall } from '@/utils/tapeWall'
@@ -403,6 +403,35 @@ export const useThoughtsGame = () => {
           return [mapCenter + x * (mapSize / 2), mapCenter + y * (mapSize / 2)]
         }
 
+        // A globe turns with the player, so it has nothing fixed to
+        // read a heading against: the poles and the prime meridian are
+        // drawn in map units straight into the overlay's viewBox. A
+        // square room has none, and its overlay stays empty.
+        const marks = globeMarks(surface, frame)
+        const meridian = document.getElementById('mini-map-meridian')
+        if (meridian) {
+          meridian.setAttribute(
+            'd',
+            (marks?.meridian ?? [])
+              .map(run => run.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(4)} ${y.toFixed(4)}`).join(''))
+              .join('')
+          )
+        }
+        const putPole = (id: string, mark: MapPole | undefined) => {
+          const dot = document.getElementById(id)
+          const label = document.getElementById(`${id}-label`)
+          if (dot && mark) {
+            dot.setAttribute('cx', String(mark.at[0]))
+            dot.setAttribute('cy', String(mark.at[1]))
+          }
+          if (label && mark) {
+            label.setAttribute('x', String(mark.label[0]))
+            label.setAttribute('y', String(mark.label[1]))
+          }
+        }
+        putPole('mini-map-north', marks?.north)
+        putPole('mini-map-south', marks?.south)
+
         // Update local player position and rotation
         const [localMapX, localMapZ] = worldToMiniMap(localPlayer.position)
         const directionDegrees = mapHeadingDegrees(surface, frame)
@@ -666,10 +695,9 @@ export const useThoughtsGame = () => {
           height: window.innerHeight,
           wall: { boundary: GAME_CONFIG.worldBoundary, base: GAME_CONFIG.groundLevel, height: room.wallHeight },
           edge: glassEdge,
-          // Two clocks on purpose: the epoch one only ever meets deja's
-          // own `ts`, and everything the wall animates runs off the
-          // frame timestamp, which no clock correction can move.
-          now: Date.now() / 1000,
+          // The frame timestamp, which no clock correction can move.
+          // deja's own `ts` meets the wall clock once, where the ring
+          // takes a splat in, and never again.
           clock: time / 1000,
         })
 

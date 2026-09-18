@@ -62,3 +62,69 @@ export function mapHeadingDegrees(surface: Surface, viewer: Frame): number {
 export function mapIsRound(surface: Surface): boolean {
   return sphereRadiusOf(surface.geometry) !== null
 }
+
+// A pole on the map: where it sits, and where its letter goes. The
+// letter is pulled toward the centre so a pole on the rim keeps its
+// label on the map rather than half of it under the bezel.
+export interface MapPole {
+  at: MapPoint
+  label: MapPoint
+}
+
+// What a globe is drawn with besides its people. A plane has none of
+// this: it is a square with north up, and it already reads.
+export interface GlobeMarks {
+  north: MapPole
+  south: MapPole
+  // The prime meridian, in the runs the map can draw as one stroke. A
+  // line that leaves the rim comes back on the opposite side of it —
+  // the rim is one point, the far side of the world — and a single
+  // stroke through that jump would be a chord straight across the map.
+  meridian: MapPoint[][]
+}
+
+// The globe turns with the player, so nothing on it stays put: without
+// a landmark, walking is the same picture at every heading. The poles
+// are the world's own up and down, and the prime meridian is the half
+// circle between them through -z, which is where the sphere room's
+// shader puts longitude zero (roomGeometry's SPHERE_GLSL) — so the line
+// on the map falls on the seam of the checker underfoot, and points the
+// way the plane's map calls north.
+const MERIDIAN_SAMPLES = 64
+// Two samples of a smooth curve are a sixty-fourth of the map apart at
+// most. Anything wider is the rim being crossed, not a curve.
+const RIM_JUMP = 0.5
+// How far a pole's letter sits from it, in map units.
+const LABEL_GAP = 0.15
+
+export function globeMarks(surface: Surface, viewer: Frame): GlobeMarks | null {
+  const radius = sphereRadiusOf(surface.geometry)
+  if (radius === null) return null
+  const runs: MapPoint[][] = []
+  let run: MapPoint[] = []
+  for (let i = 0; i <= MERIDIAN_SAMPLES; i++) {
+    const t = (i / MERIDIAN_SAMPLES) * Math.PI
+    const point = mapPoint(surface, viewer, [0, Math.cos(t) * radius, -Math.sin(t) * radius])
+    const last = run.at(-1)
+    if (last && Math.hypot(point[0] - last[0], point[1] - last[1]) > RIM_JUMP) {
+      runs.push(run)
+      run = []
+    }
+    run.push(point)
+  }
+  runs.push(run)
+  return {
+    north: pole(mapPoint(surface, viewer, [0, radius, 0])),
+    south: pole(mapPoint(surface, viewer, [0, -radius, 0])),
+    // A run of one is a dot, and a stroke through it draws nothing.
+    meridian: runs.filter(points => points.length > 1),
+  }
+}
+
+// A pole standing on the player's own spot has no direction to be
+// labelled off; the letter goes below it, where a label goes.
+function pole(at: MapPoint): MapPole {
+  const away = Math.hypot(at[0], at[1])
+  if (away < 1e-9) return { at, label: [0, LABEL_GAP] }
+  return { at, label: [at[0] - (at[0] / away) * LABEL_GAP, at[1] - (at[1] / away) * LABEL_GAP] }
+}

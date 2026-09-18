@@ -23,11 +23,8 @@ const view = (over: Partial<TapeView> = {}): TapeView => ({
   height: 800,
   wall: { boundary: 50, base: -2, height: 16 },
   edge: GLASS,
-  now: NOW,
+  clock: NOW,
   ...over,
-  // Most tests move one clock and mean both; the two only come apart
-  // where the point is that they can.
-  clock: over.clock ?? over.now ?? NOW,
 })
 
 describe('TapeWall', () => {
@@ -87,14 +84,16 @@ describe('TapeWall', () => {
     return { a, b, c, d, det: a * d - b * c, em: Math.hypot(c, d) }
   }
 
+  // A ring whose two clocks read the same number, so seeded tape is as
+  // old as deja says it is and nothing is backdated by skew.
   const seeded = (...splats: TapeSplat[]) => {
-    const ring = new TapeRing(() => NOW)
-    ring.seed(splats)
-    return ring.splats
+    const held = ring()
+    held.seed(splats)
+    return held.splats
   }
-  // A ring on the test's own clock: the wall asks when this client
-  // received a splat, never when the hub says it scored it.
-  const ring = (arrivedAt = NOW) => new TapeRing(() => arrivedAt)
+  // A ring on the test's own clock: the wall asks how long a splat has
+  // been fading, which is the frame clock and never the hub's stamp.
+  const ring = (arrivedAt = NOW, hubNow = NOW) => new TapeRing(() => arrivedAt, () => hubNow)
   const flying = (over: Partial<TapeSplat> = {}) => {
     const held = ring()
     held.add(splat({ ts: NOW, ...over }))
@@ -103,8 +102,8 @@ describe('TapeWall', () => {
   // A live event, flown in: the frame it arrives on and the frame it
   // lands on, since a comet is only a smear once it has hit.
   const land = (held: TapeRing, over: Partial<TapeView> = {}) => {
-    tapeWall.draw(held.splats, view({ ...over, now: NOW }))
-    tapeWall.draw(held.splats, view({ ...over, now: NOW + COMET_FLIGHT_SECONDS }))
+    tapeWall.draw(held.splats, view({ ...over, clock: NOW }))
+    tapeWall.draw(held.splats, view({ ...over, clock: NOW + COMET_FLIGHT_SECONDS }))
   }
   // Where a world point lands on this view's screen.
   const onScreen = (point: Vec3, of = view()) => {
@@ -167,15 +166,32 @@ describe('TapeWall', () => {
     const held = ring()
     held.seed([splat({ seq: 1, ts: NOW }), splat({ seq: 2, ts: NOW - TAPE_FADE_SECONDS / 2 }), splat({ seq: 3, ts: NOW - 60 * 60 })])
     tapeWall.draw(held.splats, view())
-    const [fresh, middling, old] = shown().map(e => parseFloat(e.style.opacity))
+    // The hour-old one never reaches the glass: the ring let go of it.
+    expect(shown().map(e => e.dataset.seq)).toEqual(['1', '2'])
+    const [fresh, middling] = shown().map(e => parseFloat(e.style.opacity))
     expect(fresh).toBeCloseTo(1, 6)
     expect(middling).toBeCloseTo(splatOpacity(TAPE_FADE_SECONDS / 2), 6)
-    // All the way off, not down to a floor: thirty-two splats that can
-    // never leave is the ghost-filled room this replaced.
-    expect(old).toBe(0)
-    // And it keeps fading as the clock moves, without a new splat.
-    tapeWall.draw(held.splats, view({ now: NOW + TAPE_FADE_SECONDS / 2 }))
+    // And it keeps fading as the clock moves, without a new splat: the
+    // fresh one is the middling one half a window later.
+    tapeWall.draw(held.splats, view({ clock: NOW + TAPE_FADE_SECONDS / 2 }))
     expect(parseFloat(shown()[0].style.opacity)).toBeCloseTo(middling, 6)
+  })
+
+  // Thirty-two splats that can never leave is the ghost-filled glass
+  // this replaced: the ring drops what has finished fading, and the
+  // wall takes its node down with it rather than holding an invisible
+  // row until thirty-two newer events push it out.
+  it('takes a fully faded splat off the glass rather than holding it at nothing', () => {
+    // The ring and the frames read the one clock, so what the wall is
+    // handed is what is still on the glass.
+    let clock = NOW
+    const held = new TapeRing(() => clock, () => NOW)
+    held.add(splat({ seq: 1 }))
+    tapeWall.draw(held.splats, view({ clock }))
+    expect(shown()).toHaveLength(1)
+    clock = NOW + TAPE_FADE_SECONDS
+    tapeWall.draw(held.splats, view({ clock }))
+    expect(shown()).toEqual([])
   })
 
   // The flight itself is tapeComet's; what the wall owes is that the
@@ -192,7 +208,7 @@ describe('TapeWall', () => {
     expect(shown()[0].style.opacity).toBe('0')
     expect(smears()).toEqual([])
 
-    const half = view({ now: NOW + COMET_FLIGHT_SECONDS / 2 })
+    const half = view({ clock: NOW + COMET_FLIGHT_SECONDS / 2 })
     tapeWall.draw(held.splats, half)
     const expected = onScreen(cometAt(event, half.wall, 0.5), half)
     expect(at(head())!.left).toBeCloseTo(expected.left, 3)
@@ -200,7 +216,7 @@ describe('TapeWall', () => {
     // Out there, not on the glass.
     expect(at(head())!.left).not.toBeCloseTo(500, 1)
 
-    const landed = view({ now: NOW + COMET_FLIGHT_SECONDS })
+    const landed = view({ clock: NOW + COMET_FLIGHT_SECONDS })
     tapeWall.draw(held.splats, landed)
     expect(comets()).toEqual([])
     expect(onScreen(splatPoint(event, landed.wall), landed)).toEqual({ left: 500, top: 400 })
@@ -218,7 +234,7 @@ describe('TapeWall', () => {
     held.add(event)
     tapeWall.draw(held.splats, view())
     const far = dotSize(head())
-    tapeWall.draw(held.splats, view({ now: NOW + COMET_FLIGHT_SECONDS * 0.9 }))
+    tapeWall.draw(held.splats, view({ clock: NOW + COMET_FLIGHT_SECONDS * 0.9 }))
     expect(dotSize(head())).toBeGreaterThan(far)
     // Standing on the impact point, through the last of the flight.
     // Always built through `view`, never spread from one already built:
@@ -226,12 +242,12 @@ describe('TapeWall', () => {
     // and a comet drawn at t = 0 four times proves nothing.
     const near: Partial<TapeView> = { cameraPos: [0, 0, -48], cameraTarget: [0, 0, -50] }
     for (const step of [0.9, 0.96, 0.99, 0.999]) {
-      tapeWall.draw(held.splats, view({ ...near, now: NOW + COMET_FLIGHT_SECONDS * step }))
+      tapeWall.draw(held.splats, view({ ...near, clock: NOW + COMET_FLIGHT_SECONDS * step }))
       // The cap is on the flash, not on the hole in the middle of it.
       for (const dot of comets()) expect(paintedSize(dot)).toBeLessThanOrEqual(COMET_MAX_PX)
     }
     // The trail thins and fades behind the head.
-    tapeWall.draw(held.splats, view({ now: NOW + COMET_FLIGHT_SECONDS * 0.8 }))
+    tapeWall.draw(held.splats, view({ clock: NOW + COMET_FLIGHT_SECONDS * 0.8 }))
     const tail = comets().slice(1)
     expect(tail.length).toBeGreaterThan(1)
     for (let i = 1; i < tail.length; i++) {
@@ -291,9 +307,9 @@ describe('TapeWall', () => {
     expect(queued.dataset.role).toBe('pending')
     expect(queued.style.opacity).toBe('0')
     const second = NOW + COMET_FLIGHT_SECONDS + SMEAR_FLOOR_SECONDS
-    tapeWall.draw(held.splats, view({ now: second }))
+    tapeWall.draw(held.splats, view({ clock: second }))
     expect(comets().length).toBeGreaterThan(0)
-    tapeWall.draw(held.splats, view({ now: second + COMET_FLIGHT_SECONDS }))
+    tapeWall.draw(held.splats, view({ clock: second + COMET_FLIGHT_SECONDS }))
     expect(smears().map(e => e.dataset.seq)).toEqual(['2'])
   })
 
@@ -305,14 +321,14 @@ describe('TapeWall', () => {
     held.add(splat({ seq: 2, ts: impact }))
     // Arriving during the floor: the wall is still reading the last one,
     // so the new comet has not launched and the old smear stands.
-    tapeWall.draw(held.splats, view({ now: impact + SMEAR_FLOOR_SECONDS - 0.1 }))
+    tapeWall.draw(held.splats, view({ clock: impact + SMEAR_FLOOR_SECONDS - 0.1 }))
     expect(smears().map(e => e.dataset.seq)).toEqual(['1'])
     expect(comets()).toEqual([])
     // The floor is up: the comet launches and the glass is its.
-    tapeWall.draw(held.splats, view({ now: impact + SMEAR_FLOOR_SECONDS }))
+    tapeWall.draw(held.splats, view({ clock: impact + SMEAR_FLOOR_SECONDS }))
     expect(comets().length).toBeGreaterThan(0)
     expect(shown().map(e => e.dataset.role)).toEqual(['residue', 'pending'])
-    tapeWall.draw(held.splats, view({ now: impact + SMEAR_FLOOR_SECONDS + COMET_FLIGHT_SECONDS }))
+    tapeWall.draw(held.splats, view({ clock: impact + SMEAR_FLOOR_SECONDS + COMET_FLIGHT_SECONDS }))
     expect(smears().map(e => e.dataset.seq)).toEqual(['2'])
     expect(shown().map(e => e.dataset.role)).toEqual(['residue', 'smear'])
   })
@@ -322,9 +338,9 @@ describe('TapeWall', () => {
     const impact = NOW + COMET_FLIGHT_SECONDS
     land(held)
     // The control: still the live impact a moment before it times out.
-    tapeWall.draw(held.splats, view({ now: impact + SMEAR_SECONDS - 0.1 }))
+    tapeWall.draw(held.splats, view({ clock: impact + SMEAR_SECONDS - 0.1 }))
     expect(smears()).toHaveLength(1)
-    tapeWall.draw(held.splats, view({ now: impact + SMEAR_SECONDS }))
+    tapeWall.draw(held.splats, view({ clock: impact + SMEAR_SECONDS }))
     expect(smears()).toEqual([])
     expect(shown().map(e => e.dataset.role)).toEqual(['residue'])
     expect(shown()[0].textContent).toContain('GET /c')
@@ -369,7 +385,7 @@ describe('TapeWall', () => {
     const held = flying({ seq: 1 })
     tapeWall.draw(held.splats, view())
     expect(container.children.length).toBeGreaterThan(0)
-    tapeWall.draw([], view({ now: NOW + COMET_FLIGHT_SECONDS / 2 }))
+    tapeWall.draw([], view({ clock: NOW + COMET_FLIGHT_SECONDS / 2 }))
     expect(container.children).toHaveLength(0)
   })
 
@@ -384,7 +400,7 @@ describe('TapeWall', () => {
     expect(smear.querySelector('[data-predictor="net"]')?.textContent).toContain('GET /e')
     // Residue is the quiet version of the same event: the token and the
     // verdict, without the readout.
-    tapeWall.draw(held.splats, view({ now: NOW + COMET_FLIGHT_SECONDS + SMEAR_SECONDS }))
+    tapeWall.draw(held.splats, view({ clock: NOW + COMET_FLIGHT_SECONDS + SMEAR_SECONDS }))
     expect(shown()[0].querySelectorAll('[data-part="context"]')).toHaveLength(0)
     expect(shown()[0].querySelector('[data-part="token"]')?.textContent).toBe('GET /c')
   })
@@ -461,7 +477,7 @@ describe('TapeWall', () => {
     expect(stretch).not.toBeNull()
     expect(parseFloat(stretch![1])).toBeGreaterThan(1)
     expect(parseFloat(stretch![1])).toBeLessThanOrEqual(1.5)
-    tapeWall.draw(held.splats, view({ now: NOW + COMET_FLIGHT_SECONDS }))
+    tapeWall.draw(held.splats, view({ clock: NOW + COMET_FLIGHT_SECONDS }))
     expect(plate(smears()[0]).style.transform).toBe('none')
   })
 
@@ -499,7 +515,7 @@ describe('TapeWall', () => {
     for (const seq of [1, 2, 3]) held.add(splat({ seq }))
     const plates = () => shown().map(element => plate(element).style.transform)
     for (const step of [0, 0.5, SMEAR_FLOOR_SECONDS, SMEAR_FLOOR_SECONDS * 2 + 0.1, SMEAR_FLOOR_SECONDS * 3 + 0.2]) {
-      tapeWall.draw(held.splats, view({ now: NOW + step }))
+      tapeWall.draw(held.splats, view({ clock: NOW + step }))
       expect(plates()).toEqual(['none', 'none', 'none'])
       expect(comets()).toEqual([])
     }
@@ -525,29 +541,30 @@ describe('TapeWall', () => {
     }
     expect(policy('smear')).toEqual({ token: ['0px', 'hidden', 'ellipsis'], verdict: '0 0 auto' })
     // And again once it is residue, which is a flex row of its own.
-    tapeWall.draw(held.splats, view({ now: NOW + COMET_FLIGHT_SECONDS + SMEAR_SECONDS }))
+    tapeWall.draw(held.splats, view({ clock: NOW + COMET_FLIGHT_SECONDS + SMEAR_SECONDS }))
     expect(policy('residue')).toEqual({ token: ['0px', 'hidden', 'ellipsis'], verdict: '0 0 auto' })
   })
 
   // Every deadline here was a wall-clock reading once. A correction
   // backwards mid-flight froze the comet in the air and wedged every
   // arrival queued behind it; one forwards skipped the flight outright.
-  // Only the fade against deja's `ts` belongs on that clock.
+  // The view carries no wall clock at all now — deja's `ts` meets one
+  // in the ring and nowhere else — so there is nothing left for a
+  // correction to move.
   it('flies on the frame clock, not on the one an NTP correction moves', () => {
     const held = ring(0)
     held.add(splat({ seq: 1 }))
     held.add(splat({ seq: 2 }))
-    tapeWall.draw(held.splats, view({ now: NOW, clock: 0 }))
+    tapeWall.draw(held.splats, view({ clock: 0 }))
     const early = dotSize(head())
-    // The system clock jumps an hour backwards. The frame clock cannot.
-    tapeWall.draw(held.splats, view({ now: NOW - 3600, clock: COMET_FLIGHT_SECONDS * 0.9 }))
+    tapeWall.draw(held.splats, view({ clock: COMET_FLIGHT_SECONDS * 0.9 }))
     expect(dotSize(head())).toBeGreaterThan(early)
-    // It lands and holds the glass for its floor, still on that clock.
+    // It lands and holds the glass for its floor, on that clock.
     const landed = COMET_FLIGHT_SECONDS + SMEAR_FLOOR_SECONDS
-    tapeWall.draw(held.splats, view({ now: NOW - 3600, clock: landed - 0.1 }))
+    tapeWall.draw(held.splats, view({ clock: landed - 0.1 }))
     expect(smears().map(e => e.dataset.seq)).toEqual(['1'])
     // And the one queued behind it gets its turn on schedule.
-    tapeWall.draw(held.splats, view({ now: NOW - 3600, clock: landed }))
+    tapeWall.draw(held.splats, view({ clock: landed }))
     expect(shown().find(e => e.dataset.seq === '2')!.dataset.role).toBe('pending')
     expect(comets().length).toBeGreaterThan(0)
   })

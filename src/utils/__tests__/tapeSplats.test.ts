@@ -18,17 +18,24 @@ import type { Vec3 } from '../projection'
 
 const wall = { boundary: 50, base: -2, height: 16 }
 
+// The hub's clock and this client's, reading the same number: what the
+// ring does with the gap between them is its own describe below.
+const NOW = 1_700_000_000
+// A ring on a stopped clock, so nothing ages out from under a test that
+// is about what the ring holds rather than about when it lets go.
+const held = (at = NOW, hubNow = NOW) => new TapeRing(() => at, () => hubNow)
+
 describe('TapeRing', () => {
   it('keeps what it seeds, oldest first, as already on the glass', () => {
-    const ring = new TapeRing()
-    ring.seed([splat({ seq: 1 }), splat({ seq: 2 })])
+    const ring = held()
+    ring.seed([splat({ seq: 1, ts: NOW }), splat({ seq: 2, ts: NOW })])
     expect(ring.splats.map(s => s.splat.seq)).toEqual([1, 2])
     expect(ring.splats.every(s => !s.live)).toBe(true)
   })
 
   it('appends a live event as live, after what was already there', () => {
-    const ring = new TapeRing()
-    ring.seed([splat({ seq: 1 })])
+    const ring = held()
+    ring.seed([splat({ seq: 1, ts: NOW })])
     ring.add(splat({ seq: 2 }))
     expect(ring.splats.map(s => [s.splat.seq, s.live])).toEqual([
       [1, false],
@@ -37,10 +44,10 @@ describe('TapeRing', () => {
   })
 
   it('holds one splat per seq however it arrives', () => {
-    const ring = new TapeRing()
+    const ring = held()
     ring.add(splat({ seq: 7, actual: 'GET /first' }))
     ring.add(splat({ seq: 7, actual: 'GET /again' }))
-    ring.seed([splat({ seq: 7, actual: 'GET /snapshot' }), splat({ seq: 8 })])
+    ring.seed([splat({ seq: 7, actual: 'GET /snapshot', ts: NOW }), splat({ seq: 8, ts: NOW })])
     expect(ring.splats.map(s => s.splat.seq)).toEqual([7, 8])
     // The one we already drew, not a second animation of the same event.
     expect(ring.splats[0].splat.actual).toBe('GET /first')
@@ -48,36 +55,80 @@ describe('TapeRing', () => {
   })
 
   it('never holds more than the bound, dropping the oldest', () => {
-    const ring = new TapeRing()
+    const ring = held()
     for (let seq = 1; seq <= TAPE_RING_SIZE + 5; seq++) ring.add(splat({ seq }))
     expect(ring.splats).toHaveLength(TAPE_RING_SIZE)
     expect(ring.splats[0].splat.seq).toBe(6)
     expect(ring.splats.at(-1)!.splat.seq).toBe(TAPE_RING_SIZE + 5)
     // A seed past the bound is bounded too, and a dropped seq is gone
     // rather than remembered as a duplicate.
-    ring.seed(Array.from({ length: TAPE_RING_SIZE + 4 }, (_, i) => splat({ seq: 100 + i })))
+    ring.seed(Array.from({ length: TAPE_RING_SIZE + 4 }, (_, i) => splat({ seq: 100 + i, ts: NOW })))
     expect(ring.splats).toHaveLength(TAPE_RING_SIZE)
     expect(ring.splats[0].splat.seq).toBe(104)
   })
 
-  // deja's `ts` is the hub's clock. A client a few seconds ahead of it
-  // would read every live event as history and never fly one, so the
-  // ring stamps when this client actually received the splat.
-  it('stamps each splat with this client, not with the hub', () => {
+  // deja's `ts` is the hub's clock, and the wall never reads it: a
+  // client a few seconds ahead of it would read every live event as
+  // history and never fly one. The ring stamps when this client
+  // received the splat, and that is the only clock downstream.
+  it('stamps a live event with this client, not with the hub', () => {
     let clock = 500
-    const ring = new TapeRing(() => clock)
-    ring.add(splat({ seq: 1, ts: 1_000_000 }))
+    const ring = new TapeRing(() => clock, () => NOW)
+    ring.add(splat({ seq: 1, ts: NOW - 1_000 }))
     clock = 512
-    ring.add(splat({ seq: 2, ts: 0 }))
-    ring.seed([splat({ seq: 3, ts: 1_000_000 })])
-    expect(ring.splats.map(s => s.at)).toEqual([500, 512, 512])
-    // The hub's own reading is untouched: it is what the wall fades by.
-    expect(ring.splats.map(s => s.splat.ts)).toEqual([1_000_000, 0, 1_000_000])
+    ring.add(splat({ seq: 2, ts: NOW + 1_000 }))
+    expect(ring.splats.map(s => s.at)).toEqual([500, 512])
+    // The hub's own reading rides along untouched; nothing fades by it.
+    expect(ring.splats.map(s => s.splat.ts)).toEqual([NOW - 1_000, NOW + 1_000])
+  })
+
+  // Tape that was on the glass before we walked in is already part
+  // faded, and the hub's stamp is the only thing that says how much.
+  it('backdates seeded tape by the age the hub gives it', () => {
+    const ring = new TapeRing(() => 500, () => NOW)
+    ring.seed([splat({ seq: 1, ts: NOW - 10 })])
+    expect(ring.splats.map(s => s.at)).toEqual([490])
+  })
+
+  // A client whose clock trails the hub's used to hand itself a splat
+  // from the future: `now - ts` went negative, the fade clamped to
+  // nothing, and that splat sat on the glass at full strength for the
+  // rest of the session. Skew makes tape no younger than it arrived.
+  it('never backdates a splat forwards, however far this clock trails the hub', () => {
+    const ring = new TapeRing(() => 500, () => NOW - 3_600)
+    ring.seed([splat({ seq: 1, ts: NOW })])
+    expect(ring.splats.map(s => s.at)).toEqual([500])
+  })
+
+  // A wall is the last minute of traffic, not the session's history:
+  // what has finished fading leaves the ring rather than waiting for
+  // thirty-two newer events to push it out. A lane that goes quiet
+  // after a burst empties its glass.
+  it('lets go of a splat that has finished fading', () => {
+    let clock = 0
+    const ring = new TapeRing(() => clock, () => NOW)
+    ring.add(splat({ seq: 1 }))
+    clock = TAPE_FADE_SECONDS - 0.1
+    ring.add(splat({ seq: 2 }))
+    expect(ring.splats.map(s => s.splat.seq)).toEqual([1, 2])
+    clock = TAPE_FADE_SECONDS
+    expect(ring.splats.map(s => s.splat.seq)).toEqual([2])
+    clock = TAPE_FADE_SECONDS * 2
+    expect(ring.splats).toEqual([])
+  })
+
+  // Seeded tape is aged the same way, so a joiner handed a ring the hub
+  // has been holding since nobody was in the room walks into clean
+  // glass rather than into thirty-two ghosts.
+  it('drops seeded tape the hub has held past the fade', () => {
+    const ring = new TapeRing(() => 500, () => NOW)
+    ring.seed([splat({ seq: 1, ts: NOW - TAPE_FADE_SECONDS - 1 }), splat({ seq: 2, ts: NOW - 1 })])
+    expect(ring.splats.map(s => s.splat.seq)).toEqual([2])
   })
 
   it('empties when the world is left', () => {
-    const ring = new TapeRing()
-    ring.seed([splat({ seq: 1 })])
+    const ring = held()
+    ring.seed([splat({ seq: 1, ts: NOW })])
     ring.clear()
     expect(ring.splats).toEqual([])
     // And the next world starts over: a seq the old world used draws again.
@@ -121,8 +172,12 @@ describe('splatOpacity', () => {
     expect(splatOpacity(0)).toBe(1)
     // A clock skewed the other way is fresh, not brighter.
     expect(splatOpacity(-30)).toBe(1)
+    // Not linear: half way through the window a splat is a quarter
+    // there, so the tail is short and the glass reads as the last few
+    // seconds of traffic rather than the last minute of it.
     const half = splatOpacity(TAPE_FADE_SECONDS / 2)
-    expect(half).toBeCloseTo(0.5, 6)
+    expect(half).toBeCloseTo(0.25, 6)
+    expect(half).toBeLessThan(splatOpacity(TAPE_FADE_SECONDS / 4))
     // All the way off. A floor here is what made a room full of ghosts:
     // thirty-two splats none of which could ever leave.
     expect(splatOpacity(TAPE_FADE_SECONDS)).toBe(0)
