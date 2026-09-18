@@ -11,7 +11,7 @@ import { attractorsOutside, type AttractorSpec } from './attractors'
 import { GAME_CONFIG } from './gameClasses'
 import type { Vec3 } from './projection'
 import { GLASSHOUSE_GEOMETRY, PLANE_GEOMETRY, sphereGeometry, sameSurfaceKind, type Geometry } from './surface'
-import { CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND, type SoundProfile } from './audioSystem'
+import { BREAK_SOUND, CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND, type SoundProfile } from './audioSystem'
 
 // The rooms the world can be: each is a palette the sky and floor are
 // painted in, the surface the hub keeps its players on (MoonBase#1554),
@@ -55,7 +55,25 @@ export interface RoomGeometry {
   wallHeight: number
   // Points in an avatar's wake; 0 for none.
   trailLength: number
+  // Default music for this room.
   sound: SoundProfile
+  // Extra tunes the undocumented music hotkey cycles through, after
+  // `sound`. Absent means the room has only one.
+  altSounds?: SoundProfile[]
+}
+
+// Every tune a room can play, default first.
+export function roomSounds(room: RoomGeometry): SoundProfile[] {
+  return [room.sound, ...(room.altSounds ?? [])]
+}
+
+// The next option after `current`, wrapping. A room with one tune is a
+// no-op; an unknown current falls back to the default.
+export function nextSound(room: RoomGeometry, current: SoundProfile): SoundProfile {
+  const opts = roomSounds(room)
+  if (opts.length < 2) return opts[0]
+  const i = Math.max(0, opts.indexOf(current))
+  return opts[(i + 1) % opts.length]
 }
 
 // The uniforms the render loop sets every frame; every room's shader
@@ -346,6 +364,7 @@ export const ROOM_GEOMETRIES: readonly RoomGeometry[] = [
     wallHeight: GLASSHOUSE_WALL_HEIGHT,
     trailLength: 120,
     sound: TECHNO_SOUND,
+    altSounds: [BREAK_SOUND],
   },
   {
     id: 'sphere',

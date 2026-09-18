@@ -2,9 +2,11 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import {
   afterTap,
   bindHotkey,
+  bindMusicHotkey,
   bindRoomHotkey,
   bindRoomTaps,
   bindShapeHotkey,
+  MUSIC_HOTKEY,
   ROOM_HOTKEY,
   SHAPE_HOTKEY,
   isTap,
@@ -61,6 +63,36 @@ describe('bindHotkey', () => {
     document.dispatchEvent(x)
     expect(x.defaultPrevented).toBe(false)
     unbind()
+  })
+})
+
+// Undocumented like the room key: cycles a room's music options when
+// it has more than one.
+describe('bindMusicHotkey', () => {
+  let unbind: (() => void) | null = null
+  afterEach(() => {
+    unbind?.()
+    unbind = null
+    document.body.innerHTML = ''
+  })
+
+  it('cycles on s, either case, and not on other keys', () => {
+    const onCycle = vi.fn()
+    unbind = bindMusicHotkey(document, onCycle)
+    press(MUSIC_HOTKEY)
+    press(MUSIC_HOTKEY.toUpperCase())
+    press('g')
+    press(' ')
+    expect(onCycle).toHaveBeenCalledTimes(2)
+  })
+
+  it('stands aside while a text field has focus', () => {
+    const onCycle = vi.fn()
+    unbind = bindMusicHotkey(document, onCycle)
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+    press(MUSIC_HOTKEY, {}, input)
+    expect(onCycle).not.toHaveBeenCalled()
   })
 })
 

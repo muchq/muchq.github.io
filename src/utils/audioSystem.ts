@@ -77,6 +77,9 @@ export interface SoundProfile {
   padGain?: number
   // Optional one-shots and a sample kick layered on the procedural tune.
   samples?: SoundSamples
+  // A looping bed that replaces the procedural scheduler when set: the
+  // glasshouse's second tune is one long sample, not a pattern.
+  loop?: { url: string; gain: number }
   // A second voice on a longer grid than the riff. One entry per
   // `noteBeats`; 0 is a rest. Absent is no lead.
   lead?: {
@@ -221,6 +224,22 @@ export const TECHNO_SOUND: SoundProfile = {
       byRoot: { 40: 'bassE', 41: 'bassF', 46: 'bassBb' },
     },
   },
+}
+
+// The glasshouse's other tune: one looping break instead of the
+// drum/bass bank. Bounce matches techno so landings still belong here.
+export const BREAK_SOUND: SoundProfile = {
+  wave: 'sawtooth',
+  tempo: 174,
+  noteBeats: 0.25,
+  chordBeats: 4,
+  melodyChance: 0,
+  melody: [0],
+  chords: [[40]],
+  padGain: 0,
+  bounce: TECHNO_SOUND.bounce,
+  gain: 0.5,
+  loop: { url: `${GH}/break10.mp3`, gain: 0.45 },
 }
 
 // Chords sound an octave below where a profile writes them, so a pad
@@ -427,6 +446,8 @@ export class AudioSystem implements IAudioSystem {
   private mobileBounceAudioUrl: string | null
   private sampleBuffers: Map<string, AudioBuffer>
   private sampleLoadToken: number
+  private loopSource: AudioBufferSourceNode | null
+  private loopBuffer: AudioBuffer | null
 
   constructor(profile: SoundProfile = CALM_SOUND) {
     this.audioContext = null
@@ -450,28 +471,45 @@ export class AudioSystem implements IAudioSystem {
     this.mobileBounceAudioUrl = null
     this.sampleBuffers = new Map()
     this.sampleLoadToken = 0
+    this.loopSource = null
+    this.loopBuffer = null
 
     if (this.isMobile) {
       this.initMobileAudio()
     }
   }
 
-  // The room's sound, from now on. A tune in progress starts the new one
-  // from the top; on mobile the pre-rendered track is rebuilt.
-  setProfile(profile: SoundProfile): void {
-    if (profile === this.profile) return
+  // Swap the active profile and rewind its counters. Does not touch
+  // playback, buffers, or the loop bed — callers own those.
+  private adoptProfile(profile: SoundProfile): void {
     this.profile = profile
     this.backgroundMusic.tempo = profile.tempo
     this.backgroundMusic.noteIndex = 0
     this.backgroundMusic.chordIndex = 0
     this.backgroundMusic.stepIndex = 0
+  }
+
+  // Drop decoded assets so the next load belongs to the profile just
+  // adopted, not the one left behind.
+  private clearSampleState(): void {
+    this.loopBuffer = null
+    this.sampleBuffers.clear()
+  }
+
+  // The room's sound, from now on. A tune in progress starts the new one
+  // from the top; on mobile the pre-rendered track is rebuilt.
+  setProfile(profile: SoundProfile): void {
+    if (profile === this.profile) return
+    const wasLoop = !!this.profile.loop
+    this.adoptProfile(profile)
     // The step already queued belongs to the tune being left, and a slow
     // one can be seconds out. Walking into a room should not be walking
     // into silence, so the next step is due now.
     const clock = this.audioContext?.currentTime ?? 0
     this.backgroundMusic.nextNoteTime = Math.min(this.backgroundMusic.nextNoteTime, clock)
     this.retireVoices(clock)
-    this.sampleBuffers.clear()
+    this.stopLoopBed()
+    this.clearSampleState()
     void this.ensureSamplesLoaded()
     if (this.isMobile) {
       this.createMobileBounceSound()
@@ -479,7 +517,38 @@ export class AudioSystem implements IAudioSystem {
         this.stopBackgroundMusic()
         this.startBackgroundMusic()
       }
+      return
     }
+    if (!this.backgroundMusic.isPlaying) return
+    // A loop bed parks the scheduler; entering or leaving one has to
+    // start the right voice. Ordinary profile swaps keep the existing
+    // schedule tick.
+    if (profile.loop) {
+      void this.ensureSamplesLoaded().then(() => {
+        if (this.backgroundMusic.isPlaying && this.profile.loop) this.startLoopBed()
+      })
+    } else if (wasLoop) {
+      this.scheduleNextMusicNotes()
+    }
+  }
+
+  // Hard cut to another profile: stop whatever is sounding and start
+  // the new one immediately. Used when cycling a room's music options;
+  // room changes keep setProfile's soft handoff.
+  cutToProfile(profile: SoundProfile): void {
+    // Resume if sound is on and something was already sounding or still
+    // loading — a mobile loop sets isPlaying only after play() resolves.
+    const resume =
+      this.soundEnabled &&
+      (this.backgroundMusic.isPlaying || !!this.html5BackgroundAudio || !!this.loopSource)
+    this.stopBackgroundMusic()
+    if (profile !== this.profile) {
+      this.adoptProfile(profile)
+      this.clearSampleState()
+      void this.ensureSamplesLoaded()
+      if (this.isMobile) this.createMobileBounceSound()
+    }
+    if (resume) this.startBackgroundMusic()
   }
 
   // Tests (and any preloaded path) can skip fetch and drop buffers in.
@@ -508,20 +577,67 @@ export class AudioSystem implements IAudioSystem {
   // never load and it fell back to the synthetic kick with no hats and
   // no bass — a different room from the one everyone else hears.
   private async ensureSamplesLoaded(into?: BaseAudioContext): Promise<void> {
-    const samples = this.profile.samples
     // Wait for a real context (music on / user gesture). Building one
     // here just to preload would construct AudioContext on every room
     // switch — including jsdom tests that never stub it.
     const context = into ?? this.audioContext
-    if (!samples || !context) return
+    if (!context) return
     const token = ++this.sampleLoadToken
-    await Promise.all(
-      Object.entries(samples.bank).map(async ([id, url]) => {
-        const buffer = await this.decodeSample(context, url)
-        if (!buffer || token !== this.sampleLoadToken) return
-        this.sampleBuffers.set(id, buffer)
-      })
-    )
+    const samples = this.profile.samples
+    if (samples) {
+      await Promise.all(
+        Object.entries(samples.bank).map(async ([id, url]) => {
+          const buffer = await this.decodeSample(context, url)
+          if (!buffer || token !== this.sampleLoadToken) return
+          this.sampleBuffers.set(id, buffer)
+        })
+      )
+    }
+    const loop = this.profile.loop
+    if (loop) {
+      const buffer = await this.decodeSample(context, loop.url)
+      if (buffer && token === this.sampleLoadToken) this.loopBuffer = buffer
+    }
+  }
+
+  private stopLoopBed(): void {
+    const source = this.loopSource
+    if (!source) return
+    this.loopSource = null
+    try {
+      source.stop()
+    } catch {
+      // Already stopped.
+    }
+    try {
+      source.disconnect()
+    } catch {
+      // Already disconnected.
+    }
+  }
+
+  // A looping bed for profiles that bring their own track. Gain rides
+  // the room's master so mute/stop still cut it.
+  private startLoopBed(): boolean {
+    const { audioContext, loopBuffer } = this
+    const master = this.backgroundMusic.gainNode
+    const loop = this.profile.loop
+    if (!audioContext || !master || !loop || !loopBuffer) return false
+    this.stopLoopBed()
+    try {
+      const source = audioContext.createBufferSource()
+      const gainNode = audioContext.createGain()
+      source.buffer = loopBuffer
+      source.loop = true
+      gainNode.gain.setValueAtTime(loop.gain * this.profile.gain, audioContext.currentTime)
+      source.connect(gainNode)
+      gainNode.connect(master)
+      source.start()
+      this.loopSource = source
+      return true
+    } catch {
+      return false
+    }
   }
 
   // Sample kick when loaded; otherwise undefined so the sine pulse can fall through.
@@ -894,6 +1010,9 @@ export class AudioSystem implements IAudioSystem {
 
   private scheduleNextMusicNotes(): void {
     if (!this.backgroundMusic.isPlaying || !this.audioContext) return
+    // A looping bed owns the room; the scheduler would just stack notes
+    // on top of it.
+    if (this.profile.loop) return
 
     const currentTime = this.audioContext.currentTime
     const { melody, chords, noteBeats, chordBeats, melodyChance } = this.profile
@@ -965,8 +1084,6 @@ export class AudioSystem implements IAudioSystem {
       return
     }
 
-    void this.ensureSamplesLoaded()
-
     // Create master gain node for background music
     this.backgroundMusic.gainNode = context.createGain()
     this.backgroundMusic.gainNode.gain.setValueAtTime(0.1, context.currentTime) // Much quieter
@@ -978,11 +1095,53 @@ export class AudioSystem implements IAudioSystem {
     this.backgroundMusic.chordIndex = 0
     this.backgroundMusic.stepIndex = 0
 
+    if (this.profile.loop) {
+      void this.ensureSamplesLoaded().then(() => {
+        if (!this.backgroundMusic.isPlaying || !this.profile.loop) return
+        this.startLoopBed()
+      })
+      return
+    }
+
+    void this.ensureSamplesLoaded()
     this.scheduleNextMusicNotes()
   }
 
   private startMobileBackgroundMusic(): void {
+    if (this.profile.loop) {
+      void this.startMobileLoopBed()
+      return
+    }
     void this.renderMobileBackgroundMusic()
+  }
+
+  // A phone plays the looping bed as the file itself — no need to bake
+  // a WAV of a track that is already a track.
+  private async startMobileLoopBed(): Promise<void> {
+    const loop = this.profile.loop
+    if (!loop) return
+    try {
+      const url = loop.url
+      const audio = new Audio(url)
+      this.html5BackgroundAudio = audio
+      audio.loop = true
+      audio.volume = Math.min(1, loop.gain * this.profile.gain * 0.3)
+      audio.addEventListener('canplaythrough', () => {
+        // A fast cut may have replaced or cleared this element.
+        if (this.html5BackgroundAudio !== audio || this.profile.loop?.url !== url) return
+        const playPromise = audio.play()
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            if (this.html5BackgroundAudio === audio) this.backgroundMusic.isPlaying = true
+          }).catch(() => {
+            // Silent failure for mobile audio play
+          })
+        }
+      })
+      audio.load()
+    } catch {
+      // Silent failure for mobile loop
+    }
   }
 
   // A phone has no live context, so the bank is decoded against the one
@@ -1152,23 +1311,22 @@ export class AudioSystem implements IAudioSystem {
 
 
   stopBackgroundMusic(): void {
-    if (!this.backgroundMusic.isPlaying) return
-
-    this.backgroundMusic.isPlaying = false
-
-    if (this.isMobile && this.html5BackgroundAudio) {
-      // Stop HTML5 audio
+    // Tear down a looping bed and any HTML5 element even if isPlaying is
+    // still false (mobile sets that flag only after play() resolves).
+    this.stopLoopBed()
+    if (this.html5BackgroundAudio) {
       this.html5BackgroundAudio.pause()
       this.html5BackgroundAudio.currentTime = 0
       this.html5BackgroundAudio = null
-    } else {
-      // Clean up Web Audio gain node
-      if (this.backgroundMusic.gainNode) {
-        this.backgroundMusic.gainNode.disconnect()
-        this.backgroundMusic.gainNode = null
-      }
     }
 
+    if (!this.backgroundMusic.isPlaying) return
+    this.backgroundMusic.isPlaying = false
+
+    if (!this.isMobile && this.backgroundMusic.gainNode) {
+      this.backgroundMusic.gainNode.disconnect()
+      this.backgroundMusic.gainNode = null
+    }
   }
 
   playBoingSound(): void {
