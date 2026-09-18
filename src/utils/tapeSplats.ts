@@ -45,6 +45,14 @@ export interface TapeSplat {
 export interface WallSplat {
   splat: TapeSplat
   live: boolean
+  // When this client received it, in seconds on the same monotonic
+  // clock the frames run on. deja's `ts` is the hub's wall clock and the
+  // two can differ by seconds either way; a wall that asked `ts` whether
+  // an event was still arriving would stop flying comets the moment a
+  // client ran ahead of the hub, and never start again. Monotonic
+  // because a wall clock is not: a correction backwards would make an
+  // arrival that just happened look like one from the future.
+  at: number
 }
 
 // What the hub sends a joiner, and all the wall is ever worth: a wall is
@@ -53,6 +61,11 @@ export const TAPE_RING_SIZE = 32
 
 export class TapeRing {
   private held: WallSplat[] = []
+
+  // The clock is the client's own and only goes forward, matching the
+  // frame timestamps the wall reads `at` against. Injectable so a test
+  // can drive it.
+  constructor(private readonly clock: () => number = () => performance.now() / 1000) {}
 
   // Oldest first, as the hub sends them.
   get splats(): readonly WallSplat[] {
@@ -79,7 +92,7 @@ export class TapeRing {
   // redrawing it would animate an arrival that already happened.
   private put(splat: TapeSplat, live: boolean): void {
     if (this.held.some(held => held.splat.seq === splat.seq)) return
-    this.held.push({ splat, live })
+    this.held.push({ splat, live, at: this.clock() })
     if (this.held.length > TAPE_RING_SIZE) this.held = this.held.slice(this.held.length - TAPE_RING_SIZE)
   }
 }
@@ -132,15 +145,18 @@ export function splatLabel(splat: TapeSplat): string {
 // How long a splat takes to fade to the faintest it gets, and how faint
 // that is. A joiner is handed a ring minutes old, so age is what tells a
 // wall that is still busy from one that emptied out while nobody looked.
-export const TAPE_FADE_SECONDS = 180
-// Faded, and still readable against the glass; the splat sits on a dark
-// plate like a player label, so this is the floor of the whole element.
-export const TAPE_FAINTEST = 0.28
+// How long a splat stays on the glass, and it leaves completely. A
+// floor here is what made the room a mess: the ring holds thirty-two,
+// the hub hands a joiner all of them at once, and none of them could
+// ever finish leaving — so every pane carried a crowd of ghosts that
+// were still legible enough to read over whatever had just landed. The
+// wall is the last minute of traffic, not the session's history.
+export const TAPE_FADE_SECONDS = 45
 
 export function splatOpacity(ageSeconds: number): number {
   // A clock skewed the other way is a fresh splat, not a brighter one.
   const age = Math.max(0, Math.min(1, ageSeconds / TAPE_FADE_SECONDS))
-  return 1 - age * (1 - TAPE_FAINTEST)
+  return 1 - age
 }
 
 // The glass this client draws: the boundary the four panes stand on, the
@@ -157,6 +173,40 @@ export interface GlassWall {
 // and in z for the walls square to x. A wall number past the four wraps
 // rather than falling to the origin: an event from a hub that numbers
 // more walls than this client draws belongs on the glass somewhere.
+// Which way text runs on a pane, and which way is up it. `up` is the
+// world's own up: the glass stands vertically, so a readout painted on
+// it does too.
+export interface WallBasis {
+  along: Vec3
+  up: Vec3
+}
+
+const GLASS_UP: Vec3 = [0, 1, 0]
+
+// The two directions of a pane's own plane, oriented for a reader
+// standing inside the room. `along` is the line u runs along, turned
+// around on the panes where that would spell the token backwards: the
+// same line either way, so the placement is untouched, and it is only
+// ever u increasing leftwards, which nobody can see. Nothing here reads
+// the glass's size — a pane's plane does not depend on how tall the
+// client draws it.
+export function wallBasis(splat: TapeSplat): WallBasis {
+  const face = ((splat.wall % 4) + 4) % 4
+  const along: Vec3 = face % 2 === 0 ? [1, 0, 0] : [0, 0, 1]
+  // Into the room, off this pane.
+  const inward: Vec3 = face === 0 ? [0, 0, 1] : face === 1 ? [-1, 0, 0] : face === 2 ? [0, 0, -1] : [1, 0, 0]
+  // Text faces a reader when `along` crossed with up points back at
+  // them. With `up` the world's own, that cross product is in the floor
+  // plane and one dot product settles it.
+  const facing: Vec3 = [
+    along[1] * GLASS_UP[2] - along[2] * GLASS_UP[1],
+    along[2] * GLASS_UP[0] - along[0] * GLASS_UP[2],
+    along[0] * GLASS_UP[1] - along[1] * GLASS_UP[0],
+  ]
+  const towards = facing[0] * inward[0] + facing[1] * inward[1] + facing[2] * inward[2]
+  return { along: towards < 0 ? [-along[0], -along[1], -along[2]] : along, up: GLASS_UP }
+}
+
 export function splatPoint(splat: TapeSplat, wall: GlassWall): Vec3 {
   const face = ((splat.wall % 4) + 4) % 4
   const along = (splat.u * 2 - 1) * wall.boundary

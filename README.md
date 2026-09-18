@@ -89,12 +89,18 @@ curve on a ribbon, a chain of beads, a drift of sparks, a hard spark; and the in
 new room is a new entry.
 
 deja's tape lands on the glasshouse's glass (MoonBase#1563): the hub fans each scored request
-out as a splat, which `src/utils/worldSync.ts` keeps as a ring of the last 32 in `GameState` and
-`src/utils/tapeWall.ts` draws — the token and the predictor's guess as elements over the
-canvas, projected through the ray tracer's own camera, in the verdict colours the `/deja`
-page uses. The hub places every splat from its sequence number, so a room sees one event on
-one square inch of glass; the client draws what it is handed, fades it by its age, and never
-subscribes to deja itself. Only a room with glass has a wall to splat against.
+out as a splat, which `src/utils/worldSync.ts` keeps as a ring of the last 32 in `GameState`.
+A live event flies in as a comet out of deep space — `src/utils/tapeComet.ts`, a pure function
+of the event's sequence number and how far into the flight it is — hits the outside of the
+pane, and smears the whole event down the glass: the lane's context, the token, both
+predictors, in the verdict colours the `/deja` page uses. A smear settles back to residue
+after a few seconds or as soon as the next comet sails in, so the wall reads as one live
+impact at a time. `src/utils/tapeWall.ts` draws all of it as elements over the canvas,
+projected through the ray tracer's own camera. The hub places every splat from its sequence
+number, so every client in a room sees one event on the same square inch of glass; a joiner's
+thirty-two are residue already on the glass rather than thirty-two comets. The client draws
+what it is handed, fades it by its age, and never subscribes to deja itself. Only a room with
+glass has a wall to splat against.
 
 A wake is a ribbon, not a wire (`src/utils/ribbon.ts`): two vertices a point, turned to face
 the camera and tapering into the tail, so it has width in the world and thins with distance.

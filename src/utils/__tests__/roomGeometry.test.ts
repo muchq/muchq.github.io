@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ROOM_GEOMETRIES, DEFAULT_ROOM, GLASSHOUSE_MOONS, GLASSHOUSE_STARS, nextRoom, nextSound, roomById, roomForGeometry, roomFragmentShader, roomSounds, RAY_TRACER_UNIFORMS } from '../roomGeometry'
+import { ROOM_GEOMETRIES, DEFAULT_ROOM, GLASSHOUSE_MOONS, GLASSHOUSE_STARS, nextRoom, nextSound, paletteCss, roomById, roomForGeometry, roomFragmentShader, roomSounds, RAY_TRACER_UNIFORMS } from '../roomGeometry'
 import { SHADER_FOV, cameraBasis, depthCoefficients, shaderRayDir, type Vec3 } from '../projection'
 import { PALETTE_KEYS, glslFloat, type Palette } from '../shaders'
 import { GLASSHOUSE_GEOMETRY, PLANE_GEOMETRY, SPHERE_RADIUS, cameraView, frameAt, sphereGeometry, surfaceFor } from '../surface'
@@ -379,5 +379,18 @@ describe('roomFragmentShader', () => {
     expect(grid).toMatch(noRim)
     expect(glass).not.toMatch(noWalls)
     expect(glass).not.toMatch(noRim)
+  })
+})
+
+// The tape on the glass is DOM over the canvas, so it needs the room's
+// colours as CSS rather than as floats bound for a uniform.
+describe('a palette in the browser', () => {
+  it('hands the DOM the same glass the shader paints', () => {
+    expect(paletteCss(roomById('glasshouse')!.palette.boundary)).toBe('rgb(77, 230, 255)')
+    expect(paletteCss(roomById('glasshouse')!.palette.boundary, 0.5)).toBe('rgba(77, 230, 255, 0.5)')
+    // A full alpha is plain rgb, not rgba(..., 1).
+    expect(paletteCss([0, 0.5, 1], 1)).toBe('rgb(0, 128, 255)')
+    // Out of range is clamped, not emitted as nonsense a browser drops.
+    expect(paletteCss([-1, 2, 0.5])).toBe('rgb(0, 255, 128)')
   })
 })
