@@ -41,6 +41,17 @@ const ThoughtsGame = ({ onPlayerIdReceived, onConnectionStateChange, networkMana
         <div id="mini-map-content" className={styles.miniMapContent}>
           <div className={styles.miniMapGrid}></div>
           <div className={styles.miniMapBoundary}></div>
+          {/* A globe turns with the player, so it needs landmarks to be
+              read against: the poles and the prime meridian, in map
+              units, which is what this viewBox is. Empty and hidden in
+              a room that is a square. */}
+          <svg id="mini-map-globe" className={styles.miniMapGlobe} viewBox="-1 -1 2 2" aria-hidden="true">
+            <path id="mini-map-meridian" className={styles.miniMapMeridian} d="" />
+            <circle id="mini-map-north" className={styles.miniMapNorth} r="0.07" cx="0" cy="0" />
+            <circle id="mini-map-south" className={styles.miniMapSouth} r="0.07" cx="0" cy="0" />
+            <text id="mini-map-north-label" className={styles.miniMapNorth} x="0" y="0">N</text>
+            <text id="mini-map-south-label" className={styles.miniMapSouth} x="0" y="0">S</text>
+          </svg>
           <div className={styles.miniMapPlayer} id="mini-map-player"></div>
         </div>
       </div>

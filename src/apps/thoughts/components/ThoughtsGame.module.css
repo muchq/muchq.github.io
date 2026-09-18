@@ -128,6 +128,57 @@
   border-radius: 50%;
 }
 
+/* The globe's landmarks, over the same box the rim is drawn on: the
+   viewBox is map units, so the render loop writes the numbers the map
+   works in and nothing here has to know the map's size. A square room
+   has no poles. */
+.miniMapGlobe {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 130px;
+  height: 130px;
+  overflow: visible;
+  /* Hidden until a room says it is a globe, rather than shown until one
+     says it is not: the map carries no shape at all until the first
+     room is drawn, and two poles stacked on the centre of a square is
+     not a landmark. */
+  display: none;
+}
+
+.miniMap[data-map='globe'] .miniMapGlobe {
+  display: block;
+}
+
+.miniMapMeridian {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.45);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Two colours and two letters: the letters are the reading, and they go
+   when the map is too small to hold them, which is why the colours are
+   not both white. */
+.miniMapNorth {
+  fill: #ffd166;
+}
+
+.miniMapSouth {
+  fill: #6fd3ff;
+}
+
+.miniMapGlobe text {
+  font-size: 0.22px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.8);
+  stroke-width: 0.06px;
+}
+
 .miniMapPlayer {
   position: absolute;
   width: 0;
@@ -240,6 +291,18 @@
   
   .miniMapGrid {
     background-size: 7.5px 7.5px;
+  }
+
+  .miniMapGlobe {
+    top: 5px;
+    left: 5px;
+    width: 65px;
+    height: 65px;
+  }
+
+  /* Seven pixels of letter is a smudge; the two colours carry it. */
+  .miniMapGlobe text {
+    display: none;
   }
   
   .soundToggle {
