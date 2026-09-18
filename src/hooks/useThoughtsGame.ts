@@ -3,10 +3,10 @@ import type { MutableRefObject } from 'react'
 import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
 import { generateRandomColor, generateRandomSpawnPosition } from '@/utils/gameUtils'
 import { RoomResources } from '@/utils/roomResources'
-import { DEFAULT_ROOM, paletteCss, roomForGeometry, type RoomGeometry, type RoomGeometryId } from '@/utils/roomGeometry'
+import { DEFAULT_ROOM, nextSound, paletteCss, roomForGeometry, type RoomGeometry, type RoomGeometryId } from '@/utils/roomGeometry'
 import { cameraView, frameAt, sameGeometry, sphereRadiusOf, surfaceFor, turn, walk, type Frame, type Geometry } from '@/utils/surface'
 import { mapHeadingDegrees, mapIsRound, mapPoint } from '@/utils/miniMap'
-import { bindRoomHotkey, bindRoomTaps, bindShapeHotkey } from '@/utils/hotkeys'
+import { bindMusicHotkey, bindRoomHotkey, bindRoomTaps, bindShapeHotkey } from '@/utils/hotkeys'
 import { AvatarTrails } from '@/utils/avatarTrails'
 import { TapeWall } from '@/utils/tapeWall'
 import { projectToNdc, viewProjection } from '@/utils/projection'
@@ -108,6 +108,7 @@ export const useThoughtsGame = () => {
     // Set once the canvas is up; cleanup removes the same reference.
     let resizeCanvas: (() => void) | null = null
     let unbindRoomHotkey: (() => void) | null = null
+    let unbindMusicHotkey: (() => void) | null = null
     let unbindRoomTaps: (() => void) | null = null
     let disposeRooms: (() => void) | null = null
 
@@ -257,6 +258,14 @@ export const useThoughtsGame = () => {
         networkManager.sendSetGeometry(next.geometry)
       }
       unbindRoomHotkey = bindRoomHotkey(document, cycleRoom)
+      // Undocumented like g: walks a room's tunes when it has more than
+      // one. Hard cut — no fade between options.
+      const cycleMusic = () => {
+        const next = nextSound(room, audioSystem.profile)
+        if (next === audioSystem.profile) return
+        audioSystem.cutToProfile(next)
+      }
+      unbindMusicHotkey = bindMusicHotkey(document, cycleMusic)
       // The phone's way in to the same command; there is no `g` there.
       // Bound to the canvas's container rather than the canvas, which
       // is pointer-events: none behind the whole page and never sees a
@@ -719,6 +728,7 @@ export const useThoughtsGame = () => {
       soundToggle?.removeEventListener('click', handleSoundToggle)
       if (resizeCanvas) window.removeEventListener('resize', resizeCanvas)
       unbindRoomHotkey?.()
+      unbindMusicHotkey?.()
       unbindRoomTaps?.()
       disposeRooms?.()
       window.removeEventListener('beforeunload', handleBeforeUnload)

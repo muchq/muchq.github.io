@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { ROOM_GEOMETRIES, DEFAULT_ROOM, GLASSHOUSE_MOONS, GLASSHOUSE_STARS, nextRoom, paletteCss, roomById, roomForGeometry, roomFragmentShader, RAY_TRACER_UNIFORMS } from '../roomGeometry'
+import { ROOM_GEOMETRIES, DEFAULT_ROOM, GLASSHOUSE_MOONS, GLASSHOUSE_STARS, nextRoom, nextSound, paletteCss, roomById, roomForGeometry, roomFragmentShader, roomSounds, RAY_TRACER_UNIFORMS } from '../roomGeometry'
 import { SHADER_FOV, cameraBasis, depthCoefficients, shaderRayDir, type Vec3 } from '../projection'
 import { PALETTE_KEYS, glslFloat, type Palette } from '../shaders'
 import { GLASSHOUSE_GEOMETRY, PLANE_GEOMETRY, SPHERE_RADIUS, cameraView, frameAt, sphereGeometry, surfaceFor } from '../surface'
-import { CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND } from '../audioSystem'
+import { BREAK_SOUND, CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND } from '../audioSystem'
 import { GAME_CONFIG } from '../gameClasses'
 
 // The room registry is the seam a new geometry lands in: one entry, a
@@ -91,6 +91,18 @@ describe('the registry', () => {
     // A glass room at night with things circling outside is a club.
     expect(roomById('glasshouse')!.sound).toBe(TECHNO_SOUND)
     expect(roomById('sphere')!.sound).toBe(CHIPTUNE_SOUND)
+  })
+
+  // The glasshouse alone has a second tune; s cycles it, and leaving
+  // the room always lands back on the default.
+  it('offers the glasshouse a second music option and nowhere else', () => {
+    const glass = roomById('glasshouse')!
+    expect(roomSounds(glass)).toEqual([TECHNO_SOUND, BREAK_SOUND])
+    expect(nextSound(glass, TECHNO_SOUND)).toBe(BREAK_SOUND)
+    expect(nextSound(glass, BREAK_SOUND)).toBe(TECHNO_SOUND)
+    expect(roomSounds(roomById('grid')!)).toEqual([CALM_SOUND])
+    expect(roomSounds(roomById('sphere')!)).toEqual([CHIPTUNE_SOUND])
+    expect(nextSound(roomById('grid')!, CALM_SOUND)).toBe(CALM_SOUND)
   })
 
   // The room is lit by the people in it, which is why its floor is

@@ -29,6 +29,14 @@ export function bindRoomHotkey(target: Document | HTMLElement, onCycle: () => vo
   return bindHotkey(target, ROOM_HOTKEY, onCycle)
 }
 
+// Cycles a room's music options when it has more than one. Undocumented
+// like the room key.
+export const MUSIC_HOTKEY = 'y'
+
+export function bindMusicHotkey(target: Document | HTMLElement, onCycle: () => void): () => void {
+  return bindHotkey(target, MUSIC_HOTKEY, onCycle)
+}
+
 // The same command on a phone, which has no `g`: three taps in the same
 // spot in quick succession. Still undocumented — this is the easter egg
 // the key is, not a control.

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { SoundProfile } from '../audioSystem'
-import { AudioSystem, BOUNCE_DECAY, CALM_SOUND, CHIPTUNE_SOUND, CHORD_OCTAVE, TECHNO_SOUND, bounceRelease, chordAt, filterCeiling } from '../audioSystem'
+import { AudioSystem, BOUNCE_DECAY, BREAK_SOUND, CALM_SOUND, CHIPTUNE_SOUND, CHORD_OCTAVE, TECHNO_SOUND, bounceRelease, chordAt, filterCeiling } from '../audioSystem'
 
 // The world's sound is a profile the room supplies: what wave the notes
 // are, how fast, which tune, and what a bounce sounds like. The grid
@@ -35,6 +35,7 @@ interface FakeOscillator {
 
 interface FakeBufferSource {
   buffer: AudioBuffer | null
+  loop: boolean
   connect: ReturnType<typeof vi.fn>
   start: ReturnType<typeof vi.fn>
   stop: ReturnType<typeof vi.fn>
@@ -84,6 +85,7 @@ const fakeContext = ({ filters = true } = {}) => {
     createBufferSource: vi.fn(() => {
       const source: FakeBufferSource = {
         buffer: null,
+        loop: false,
         connect: vi.fn(),
         start: vi.fn(),
         stop: vi.fn(),
@@ -91,7 +93,15 @@ const fakeContext = ({ filters = true } = {}) => {
       bufferSources.push(source)
       return source
     }),
-    decodeAudioData: vi.fn(() => Promise.resolve({ duration: 0.1 } as AudioBuffer)),
+    decodeAudioData: vi.fn(() =>
+      Promise.resolve({
+        duration: 1,
+        numberOfChannels: 2,
+        length: 44100,
+        sampleRate: 44100,
+        getChannelData: () => new Float32Array(44100),
+      } as unknown as AudioBuffer)
+    ),
     resume: vi.fn(() => Promise.resolve()),
     ...(filters
       ? {
@@ -596,6 +606,44 @@ describe('AudioSystem', () => {
     // Quieter synthetic fallback so a missing bank does not swamp the room.
     expect(TECHNO_SOUND.pulse!.gain).toBeLessThanOrEqual(0.6)
     expect(TECHNO_SOUND.chords.every(c => c.length <= 3)).toBe(true)
+  })
+
+  // A second glasshouse tune: one looping bed instead of the drum/bass
+  // bank. Bounce stays so landings still belong to the room.
+  it('ships a looping break as the glasshouse\'s other music', () => {
+    expect(BREAK_SOUND.loop?.url).toMatch(/\/audio\/glasshouse\/break10\.mp3$/)
+    expect(BREAK_SOUND.loop!.gain).toBeGreaterThan(0)
+    expect(BREAK_SOUND.loop!.gain).toBeLessThanOrEqual(1)
+    expect(BREAK_SOUND.bounce).toEqual(TECHNO_SOUND.bounce)
+    expect(BREAK_SOUND.samples).toBeUndefined()
+  })
+
+  it('plays a looping bed for a loop profile and schedules no notes', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) })))
+    system.setProfile(BREAK_SOUND)
+    system.startBackgroundMusic()
+    await vi.waitFor(() => expect(bufferSources.length).toBeGreaterThan(0))
+    const bed = bufferSources[0]
+    expect(bed.loop).toBe(true)
+    expect(bed.start).toHaveBeenCalled()
+    expect(oscillators).toHaveLength(0)
+  })
+
+  // y switches tunes in-place: stop the old one immediately and start
+  // the new, no fade. Room changes still use setProfile's soft handoff.
+  it('cuts hard to another profile when asked', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) })))
+    system.setProfile(TECHNO_SOUND)
+    system.startBackgroundMusic()
+    const master = system.backgroundMusic.gainNode
+    expect(system.backgroundMusic.isPlaying).toBe(true)
+    system.cutToProfile(BREAK_SOUND)
+    expect(system.profile).toBe(BREAK_SOUND)
+    expect(system.backgroundMusic.isPlaying).toBe(true)
+    // Hard cut: the old master is gone, not faded out.
+    expect(master?.disconnect).toHaveBeenCalled()
+    expect(master?.gain.linearRampToValueAtTime).not.toHaveBeenCalled()
+    await vi.waitFor(() => expect(bufferSources.some(s => s.loop)).toBe(true))
   })
 
   // The roll that makes it trance rather than a loop with a bass note

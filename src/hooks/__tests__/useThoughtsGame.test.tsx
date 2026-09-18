@@ -2,23 +2,28 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { useThoughtsGame } from '../useThoughtsGame'
 import { fakeGl } from '@/test/fakeGl'
-import { ROOM_HOTKEY, SHAPE_HOTKEY } from '@/utils/hotkeys'
+import { MUSIC_HOTKEY, ROOM_HOTKEY, SHAPE_HOTKEY } from '@/utils/hotkeys'
 
 import { GAME_CONFIG, GameState, Player } from '@/utils/gameClasses'
 import { splat } from '@/test/fakeTape'
-import { CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND, type SoundProfile } from '@/utils/audioSystem'
+import { BREAK_SOUND, CALM_SOUND, CHIPTUNE_SOUND, TECHNO_SOUND, type SoundProfile } from '@/utils/audioSystem'
 import { GLASSHOUSE_GEOMETRY, PLANE_GEOMETRY, SPHERE_RADIUS, sphereGeometry } from '@/utils/surface'
 import { paletteCss, roomById } from '@/utils/roomGeometry'
 import type { HubWorldLink } from '@/utils/hubWorldLink'
 import type { WorldLink } from '@/utils/worldSync'
 
 const setProfile = vi.fn()
+const cutToProfile = vi.fn()
 vi.mock('@/utils/audioSystem', async importOriginal => {
   const real = await importOriginal<typeof import('@/utils/audioSystem')>()
   class AudioSystem extends real.AudioSystem {
     setProfile(profile: SoundProfile) {
       setProfile(profile)
       super.setProfile(profile)
+    }
+    cutToProfile(profile: SoundProfile) {
+      cutToProfile(profile)
+      super.cutToProfile(profile)
     }
   }
   return { ...real, AudioSystem }
@@ -141,6 +146,30 @@ describe('useThoughtsGame', () => {
     expect(lastQuadBind()).toBeGreaterThan(-1)
     expect(lastQuadBind()).toBeLessThan(lastQuadDraw())
     expect(lastQuadBind()).toBeGreaterThan(gl.bindVertexArray.mock.invocationCallOrder[0])
+  })
+
+  // Undocumented like g: y walks the glasshouse's tunes and nowhere
+  // else, and always hard-cuts rather than fading.
+  it('cycles glasshouse music on y and ignores it in other rooms', () => {
+    start()
+    frame()
+    cutToProfile.mockClear()
+    press(MUSIC_HOTKEY)
+    expect(cutToProfile).not.toHaveBeenCalled()
+    press(ROOM_HOTKEY)
+    frame(32)
+    expect(setProfile).toHaveBeenLastCalledWith(TECHNO_SOUND)
+    cutToProfile.mockClear()
+    press(MUSIC_HOTKEY)
+    expect(cutToProfile).toHaveBeenCalledTimes(1)
+    expect(cutToProfile).toHaveBeenLastCalledWith(BREAK_SOUND)
+    press(MUSIC_HOTKEY)
+    expect(cutToProfile).toHaveBeenLastCalledWith(TECHNO_SOUND)
+    press(ROOM_HOTKEY)
+    frame(48)
+    cutToProfile.mockClear()
+    press(MUSIC_HOTKEY)
+    expect(cutToProfile).not.toHaveBeenCalled()
   })
 
   // The camera stands 7 behind the avatar at angle 0, at height 5 above
