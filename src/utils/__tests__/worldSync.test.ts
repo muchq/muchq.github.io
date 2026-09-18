@@ -100,16 +100,20 @@ describe('WorldSync', () => {
   })
 
   // deja's tape on the glass: the hub places every splat, and this ring
-  // is all the client keeps of it.
+  // is all the client keeps of it. Seeded tape is aged by the hub's own
+  // stamp, so a snapshot in one of these is one the hub sent just now
+  // rather than a fixture from a few years ago the ring would drop.
+  const onGlass = (seq: number) => splat({ seq, ts: Date.now() / 1000 })
+
   it('seeds the glass from a snapshot and splats what lands live', () => {
-    sync.apply({ worldState: { players: [], tape: [splat({ seq: 1 }), splat({ seq: 2 })] } })
+    sync.apply({ worldState: { players: [], tape: [onGlass(1), onGlass(2)] } })
     sync.apply({ tape: splat({ seq: 3 }) })
     expect(gameState.tape.splats.map(s => s.splat.seq)).toEqual([1, 2, 3])
     expect(gameState.tape.splats.map(s => s.live)).toEqual([false, false, true])
   })
 
   it('holds one splat per seq, however the same event reaches it twice', () => {
-    sync.apply({ worldState: { players: [], tape: [splat({ seq: 9 }), splat({ seq: 10 })] } })
+    sync.apply({ worldState: { players: [], tape: [onGlass(9), onGlass(10)] } })
     sync.apply({ tape: splat({ seq: 9 }) })
     sync.apply({ tape: splat({ seq: 11 }) })
     expect(gameState.tape.splats.map(s => s.splat.seq)).toEqual([9, 10, 11])
@@ -121,7 +125,7 @@ describe('WorldSync', () => {
   // the wall it had goes with it rather than hanging there forever.
   it('replaces the glass on a snapshot and on a reshape, tape or none', () => {
     sync.apply({ tape: splat({ seq: 1 }) })
-    sync.apply({ geometryChanged: { geometry: PLANE_GEOMETRY, players: [], tape: [splat({ seq: 2 })] } })
+    sync.apply({ geometryChanged: { geometry: PLANE_GEOMETRY, players: [], tape: [onGlass(2)] } })
     expect(gameState.tape.splats.map(s => s.splat.seq)).toEqual([2])
     sync.apply({ geometryChanged: { geometry: sphereGeometry(53), players: [] } })
     expect(gameState.tape.splats).toEqual([])

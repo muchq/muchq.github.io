@@ -45,13 +45,14 @@ export interface TapeSplat {
 export interface WallSplat {
   splat: TapeSplat
   live: boolean
-  // When this client received it, in seconds on the same monotonic
-  // clock the frames run on. deja's `ts` is the hub's wall clock and the
-  // two can differ by seconds either way; a wall that asked `ts` whether
-  // an event was still arriving would stop flying comets the moment a
-  // client ran ahead of the hub, and never start again. Monotonic
-  // because a wall clock is not: a correction backwards would make an
-  // arrival that just happened look like one from the future.
+  // When this splat's fade starts, in seconds on the same monotonic
+  // clock the frames run on. For an event we watched land that is when
+  // it arrived; tape that was already on the glass is backdated by
+  // whatever of the fade the hub's `ts` says it had spent before it
+  // reached us, so one clock — this one — answers every question the
+  // wall asks about time. Monotonic because a wall clock is not: a
+  // correction backwards would make an arrival that just happened look
+  // like one from the future, and nothing on the glass would move.
   at: number
 }
 
@@ -62,13 +63,23 @@ export const TAPE_RING_SIZE = 32
 export class TapeRing {
   private held: WallSplat[] = []
 
-  // The clock is the client's own and only goes forward, matching the
-  // frame timestamps the wall reads `at` against. Injectable so a test
-  // can drive it.
-  constructor(private readonly clock: () => number = () => performance.now() / 1000) {}
+  // Two clocks, and only one of them is ever compared against itself.
+  // `clock` is the client's own and only goes forward, matching the
+  // frame timestamps the wall reads `at` against; `epoch` is the wall
+  // clock deja's `ts` is stamped on, read once per seeded splat and
+  // never again. Both injectable so a test can drive them.
+  constructor(
+    private readonly clock: () => number = () => performance.now() / 1000,
+    private readonly epoch: () => number = () => Date.now() / 1000
+  ) {}
 
-  // Oldest first, as the hub sends them.
+  // Oldest first, as the hub sends them, and only what is still on the
+  // glass: a splat past the fade is dropped here rather than held as an
+  // invisible row the wall keeps a node for until thirty-two newer
+  // events happen to push it out. A quiet lane empties.
   get splats(): readonly WallSplat[] {
+    const gone = this.clock() - TAPE_FADE_SECONDS
+    if (this.held.some(held => held.at <= gone)) this.held = this.held.filter(held => held.at > gone)
     return this.held
   }
 
@@ -92,7 +103,14 @@ export class TapeRing {
   // redrawing it would animate an arrival that already happened.
   private put(splat: TapeSplat, live: boolean): void {
     if (this.held.some(held => held.splat.seq === splat.seq)) return
-    this.held.push({ splat, live, at: this.clock() })
+    // Tape already on the glass starts part-faded: the hub's stamp says
+    // how much of the fade it spent before it reached us. Clamped at
+    // nothing, so a client whose clock trails the hub's backdates
+    // nothing instead of holding a splat from the future at full
+    // strength for the rest of the session — that skew is how a ghost
+    // used to get onto the glass and never leave.
+    const spent = live ? 0 : Math.max(0, this.epoch() - splat.ts)
+    this.held.push({ splat, live, at: this.clock() - spent })
     if (this.held.length > TAPE_RING_SIZE) this.held = this.held.slice(this.held.length - TAPE_RING_SIZE)
   }
 }
@@ -156,7 +174,11 @@ export const TAPE_FADE_SECONDS = 45
 export function splatOpacity(ageSeconds: number): number {
   // A clock skewed the other way is a fresh splat, not a brighter one.
   const age = Math.max(0, Math.min(1, ageSeconds / TAPE_FADE_SECONDS))
-  return 1 - age
+  // Squared, so the fall is quick and the tail is short. Linear left a
+  // splat still legible at half the window and a smudge for most of the
+  // rest of it, and a lane that goes quiet after a burst is thirty-two
+  // of those hanging on the glass at once — the ghosts.
+  return (1 - age) * (1 - age)
 }
 
 // The glass this client draws: the boundary the four panes stand on, the

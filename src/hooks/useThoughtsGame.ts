@@ -666,10 +666,9 @@ export const useThoughtsGame = () => {
           height: window.innerHeight,
           wall: { boundary: GAME_CONFIG.worldBoundary, base: GAME_CONFIG.groundLevel, height: room.wallHeight },
           edge: glassEdge,
-          // Two clocks on purpose: the epoch one only ever meets deja's
-          // own `ts`, and everything the wall animates runs off the
-          // frame timestamp, which no clock correction can move.
-          now: Date.now() / 1000,
+          // The frame timestamp, which no clock correction can move.
+          // deja's own `ts` meets the wall clock once, where the ring
+          // takes a splat in, and never again.
           clock: time / 1000,
         })
 

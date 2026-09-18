@@ -46,14 +46,14 @@ export interface TapeView {
   // rather than being looked up here: the DOM layer draws whatever room
   // it is handed and does not import the catalogue of them.
   edge: string
-  // Now, in epoch seconds. Read against deja's `ts` and nothing else:
-  // the hub stamps that on the same epoch.
-  now: number
   // The frame's own timestamp, in seconds, on a clock that only goes
-  // forward. Every flight, deadline and freshness reading is on this
-  // one. A system-clock correction backwards mid-flight would otherwise
-  // freeze the comet in the air and wedge the queue behind it, and one
-  // forwards would skip the flight outright.
+  // forward, and the only clock the wall reads. Every flight, deadline,
+  // freshness reading and fade is on this one. A system-clock
+  // correction backwards mid-flight would otherwise freeze the comet in
+  // the air and wedge the queue behind it, one forwards would skip the
+  // flight outright, and a client whose clock trailed the hub's would
+  // hold a fully opaque splat on the glass for good. deja's own `ts`
+  // meets the wall clock once, in the ring, and never reaches here.
   clock: number
 }
 
@@ -160,16 +160,12 @@ const PALE = '#e9eeff'
 
 type Mode = 'residue' | 'smear'
 
-// How old a splat reads. One this client watched arrive is aged from
-// the moment it arrived, on the monotonic clock the frames run on; only
-// tape that was already on the glass when we walked in is aged against
-// the hub's own stamp, which is what makes a joiner's ring look like
-// history. The flight is judged on receipt for the same reason, and the
-// two have to agree: a client running a fade's worth ahead of the hub
-// would otherwise fly the comet and land a fully transparent smear, so
-// the event arrives and nothing is ever shown.
-const ageOf = (held: WallSplat, view: TapeView): number =>
-  held.live ? view.clock - held.at : view.now - held.splat.ts
+// How old a splat reads: how long the fade has been running, which the
+// ring already backdated for tape that was on the glass before we
+// walked in. One reading, one clock — the same one the flight is judged
+// on, which is what stops a client running ahead of the hub from flying
+// a comet and landing a fully transparent smear.
+const ageOf = (held: WallSplat, view: TapeView): number => view.clock - held.at
 
 // The node that is moved: no look, no transition, nothing that a frame's
 // reposition could interrupt.
