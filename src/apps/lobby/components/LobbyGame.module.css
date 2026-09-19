@@ -1,17 +1,16 @@
-.lost {
-  padding: 5rem 1rem 2rem;
-  text-align: center;
-  color: white;
-}
-
-.title {
-  margin: 0;
-  font-size: 1.75rem;
-  font-weight: 600;
-}
-
-.error {
+/* Hub unreachable: keep the world up; say so without taking the screen. */
+.hubLost {
+  position: fixed;
+  left: 50%;
+  top: calc(4.5rem + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  max-width: min(28rem, calc(100vw - 6rem));
+  padding: 0.6rem 1rem;
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.75);
   color: #ffb4a8;
+  text-align: center;
+  z-index: 1100;
 }
 
 /* A table over the world: the canvas keeps ticking beneath. */
