@@ -1178,54 +1178,55 @@ export class AudioSystem implements IAudioSystem {
     }
   }
 
-  // A phone cannot run the live scheduler, so the room is baked into a
-  // buffer and looped on a BufferSource. HTMLAudioElement.loop leaves a
-  // gap at the seam on mobile Safari; Web Audio wraps sample-accurately.
+  // A phone has no live context, so the bank is decoded against the one
+  // the track is built with. Without this the offline path had no kick
+  // sample, no hats and no bass, and fell back to a synthetic room.
   private async renderMobileBackgroundMusic(): Promise<void> {
-    const context = this.initAudioContext()
-    if (!context) return
+    let context: AudioContext | null = null
     try {
-      if (context.state === 'suspended') await context.resume()
-    } catch {
-      // Still try to bake; play may fail without a running context.
-    }
-    try {
+      context = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
       await this.ensureSamplesLoaded(context)
     } catch {
-      // No samples; the track still renders procedurally.
+      // No context to decode with; the track still renders, procedurally.
     }
 
     try {
-      const buffer = this.createMobileBackgroundTrack(context)
-      this.stopLoopBed()
-      if (this.html5BackgroundAudio) {
-        this.html5BackgroundAudio.pause()
-        this.html5BackgroundAudio = null
-      }
+      // Create a simple looping background music track
+      const musicBuffer = this.createMobileBackgroundTrack(context)
+      const blob = new Blob([musicBuffer], { type: 'audio/wav' })
+      const url = URL.createObjectURL(blob)
 
-      // Same order as the old HTML5 volume (0.03): the bake already has
-      // sample gains in it, so the master only attenuates the whole bed.
-      const master = context.createGain()
-      master.gain.setValueAtTime(0.03, context.currentTime)
-      master.connect(context.destination)
-      this.backgroundMusic.gainNode = master
+      this.html5BackgroundAudio = new Audio(url)
+      this.html5BackgroundAudio.loop = true
+      this.html5BackgroundAudio.volume = 0.03
 
-      const source = context.createBufferSource()
-      source.buffer = buffer
-      source.loop = true
-      source.connect(master)
-      source.start()
-      this.loopSource = source
-      this.loopBuffer = buffer
-      this.backgroundMusic.isPlaying = true
+      this.html5BackgroundAudio.addEventListener('canplaythrough', () => {
+        if (this.html5BackgroundAudio) {
+          const playPromise = this.html5BackgroundAudio.play()
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              this.backgroundMusic.isPlaying = true
+            }).catch(() => {
+              // Silent failure for mobile audio play
+            })
+          }
+        }
+      })
+
+      this.html5BackgroundAudio.addEventListener('error', () => {
+        // Silent failure for mobile audio error
+      })
+
+      this.html5BackgroundAudio.load()
+
     } catch {
       // Silent failure for mobile music creation
     }
   }
 
-  private createMobileBackgroundTrack(given?: AudioContext | null): AudioBuffer {
-    // Phrase-aligned so the loop wraps on a bar line. A fixed wall-clock
-    // length (64s) cut the techno mid-phrase and the kick jumped.
+  private createMobileBackgroundTrack(given?: AudioContext | null): ArrayBuffer {
+    // Phrase-aligned so HTML5 audio.loop wraps on a bar line. A fixed
+    // wall-clock length (64s) cut the techno mid-phrase and the kick jumped.
     const sampleRate = 44100
     const samples = mobileLoopSamples(this.profile, sampleRate)
     const duration = samples / sampleRate
@@ -1246,9 +1247,8 @@ export class AudioSystem implements IAudioSystem {
     const kick = this.loadedKick()
     const stepsPerLead = lead ? Math.max(1, Math.round(lead.noteBeats / noteBeats)) : 0
 
-    // Sample-accurate steps: float `step * noteLength` can floor one sample
-    // early and leave a hairline gap at the seam.
-    const samplesPerStep = Math.round(noteLength * sampleRate)
+    // Pre-render the procedural music pattern. Count steps rather than
+    // summing floats so the last bar lands exactly on the sample length.
     const totalSteps = Math.round(duration / noteLength)
     let seed = 12345 // Fixed seed for consistent audio
     const seededRandom = () => {
@@ -1261,7 +1261,7 @@ export class AudioSystem implements IAudioSystem {
     // No edge fades — those dug a hole in the four-to-the-floor.
     let chordIndex = 0
     for (let step = 0; step < totalSteps; step++) {
-      const currentTime = (step * samplesPerStep) / sampleRate
+      const currentTime = step * noteLength
       const noteIndex = step % melody.length
 
       if (pulseEvery > 0 && noteIndex % pulseEvery === 0) {
@@ -1322,7 +1322,7 @@ export class AudioSystem implements IAudioSystem {
       }
     }
 
-    return buffer
+    return this.encodeWAV(buffer)
   }
 
 
@@ -1339,7 +1339,7 @@ export class AudioSystem implements IAudioSystem {
     if (!this.backgroundMusic.isPlaying) return
     this.backgroundMusic.isPlaying = false
 
-    if (this.backgroundMusic.gainNode) {
+    if (!this.isMobile && this.backgroundMusic.gainNode) {
       this.backgroundMusic.gainNode.disconnect()
       this.backgroundMusic.gainNode = null
     }
