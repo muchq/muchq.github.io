@@ -34,15 +34,6 @@ const LobbyGame = (props: UseLobbyProps) => {
     wasAtTable.current = atTable
   }, [atTable])
 
-  if (lobby.lost) {
-    return (
-      <div className={styles.lost}>
-        <h1 className={styles.title}>The plaza</h1>
-        <p className={styles.error}>{lobby.lost}</p>
-      </div>
-    )
-  }
-
   return (
     <>
       <ThoughtsGame link={lobby.world} hudSide="right" />
@@ -87,6 +78,11 @@ const LobbyGame = (props: UseLobbyProps) => {
             rejection={chat.rejection}
             onSend={lobby.sendChat}
           />
+        </div>
+      )}
+      {lobby.lost && (
+        <div className={styles.hubLost} role="status">
+          {lobby.lost}
         </div>
       )}
       <div className={`${styles.notice} ${notice ? '' : styles.noticeEmpty}`} role="status">

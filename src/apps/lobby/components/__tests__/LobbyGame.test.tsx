@@ -47,6 +47,8 @@ describe('LobbyGame', () => {
     cleanup()
     state.castle.view = null
     state.golf.view = null
+    state.lost = null
+    state.room = null
   })
 
   it('folds the panel while a table is up and unfolds it when the table goes', () => {
@@ -82,12 +84,11 @@ describe('LobbyGame', () => {
     expect(screen.queryByText('chat')).toBeNull()
   })
 
-  it('a lost hub is said, not hidden', () => {
+  it('a lost hub leaves the world up and says so', () => {
     state.lost = 'Lost connection to the games hub'
     render(<LobbyGame />)
     expect(screen.getByText('Lost connection to the games hub')).toBeTruthy()
-    expect(screen.queryByText('world')).toBeNull()
-    state.lost = null
+    expect(screen.getByText('world')).toBeTruthy()
   })
 
   it('a golf table is a table too: over the world, the panel folded', () => {
