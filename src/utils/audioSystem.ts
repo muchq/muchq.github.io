@@ -482,9 +482,8 @@ export class AudioSystem implements IAudioSystem {
   private sampleLoadToken: number
   private loopSource: AudioBufferSourceNode | null
   private loopBuffer: AudioBuffer | null
-  // Pre-baked mobile bed as raw PCM so a tap can start a BufferSource
-  // in the gesture stack (iOS) without awaiting a bake. Closing the bake
-  // context does not invalidate this copy.
+  // Pre-baked mobile bed as raw PCM. Closing the bake context does not
+  // invalidate this copy; HTML5 play encodes it to a WAV on demand.
   private bakedMobilePcm: { sampleRate: number; data: Float32Array } | null
   private mobileBakeToken: number
 
@@ -727,14 +726,11 @@ export class AudioSystem implements IAudioSystem {
   private initMobileAudio(): void {
     // Pre-generate bounce sound for mobile
     this.createMobileBounceSound()
-    // Bake the looping bed ahead of the sound tap so a BufferSource can
-    // start inside the gesture — awaiting a bake after the tap is what
-    // left #353 silent on iOS.
+    // Bake ahead so the sound tap only has to encode and play.
     if (!this.profile.loop) void this.prebakeMobileTrack()
   }
 
-  // Decode + bake off the live context. Result is plain PCM so we can
-  // close the throwaway context without losing the bed.
+  // Decode and bake into plain PCM; the throwaway context can close after.
   private async prebakeMobileTrack(): Promise<void> {
     if (this.profile.loop) return
     const token = ++this.mobileBakeToken
@@ -754,44 +750,6 @@ export class AudioSystem implements IAudioSystem {
     } finally {
       this.closeThrowawayContext(context)
     }
-  }
-
-  // Gapless bed on a running (or just-resumed) context. Must not await —
-  // iOS only allows BufferSource.start inside the user-gesture stack.
-  // Returns false so the caller can fall back to HTML5.
-  private startMobileBakedLoop(context: AudioContext): boolean {
-    const pcm = this.bakedMobilePcm
-    if (!pcm || pcm.data.length === 0) return false
-    try {
-      this.stopLoopBed()
-      if (this.html5BackgroundAudio) {
-        this.html5BackgroundAudio.pause()
-        this.html5BackgroundAudio = null
-      }
-      const buffer = context.createBuffer(1, pcm.data.length, pcm.sampleRate)
-      buffer.getChannelData(0).set(pcm.data)
-      const master = context.createGain()
-      master.gain.setValueAtTime(0.03, context.currentTime)
-      master.connect(context.destination)
-      this.backgroundMusic.gainNode = master
-      const source = context.createBufferSource()
-      source.buffer = buffer
-      source.loop = true
-      source.connect(master)
-      source.start(0)
-      this.loopSource = source
-      this.loopBuffer = buffer
-      this.backgroundMusic.isPlaying = true
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  // Live context running and a bed ready: start without awaiting.
-  private tryStartMobileBakedLoop(): boolean {
-    const context = this.audioContext
-    return !!context && context.state === 'running' && this.startMobileBakedLoop(context)
   }
 
   private closeThrowawayContext(context: AudioContext | null): void {
@@ -1231,15 +1189,9 @@ export class AudioSystem implements IAudioSystem {
     }
   }
 
-  // Prefer a pre-baked BufferSource when the live context is already
-  // running (gapless). Otherwise the HTML5 path that phones have always
-  // relied on — #353 went BufferSource-only after an await and went silent
-  // on iOS, so HTML5 stays the fallback, never the other way around.
+  // Phones play the baked bed through HTMLAudioElement.
   private async renderMobileBackgroundMusic(): Promise<void> {
-    if (this.tryStartMobileBakedLoop()) return
-
     if (!this.bakedMobilePcm) await this.prebakeMobileTrack()
-    if (this.tryStartMobileBakedLoop()) return
 
     // HTML5: reuse the bake when we have one; otherwise render into a
     // throwaway context just long enough to encode a WAV.
@@ -1323,8 +1275,7 @@ export class AudioSystem implements IAudioSystem {
   }
 
   private renderMobileTrackBuffer(given?: BaseAudioContext | null): AudioBuffer {
-    // Phrase-aligned so the loop wraps on a bar line. A fixed wall-clock
-    // length (64s) cut the techno mid-phrase and the kick jumped.
+    // Phrase-aligned so the loop wraps on a bar line.
     const sampleRate = 44100
     const samples = mobileLoopSamples(this.profile, sampleRate)
     const duration = samples / sampleRate
@@ -1345,8 +1296,7 @@ export class AudioSystem implements IAudioSystem {
     const kick = this.loadedKick()
     const stepsPerLead = lead ? Math.max(1, Math.round(lead.noteBeats / noteBeats)) : 0
 
-    // Sample-accurate steps: float `step * noteLength` can floor one sample
-    // early and leave a hairline gap at the seam.
+    // Sample-accurate steps so floor(time * rate) does not drift off the grid.
     const samplesPerStep = Math.round(noteLength * sampleRate)
     const totalSteps = Math.round(duration / noteLength)
     let seed = 12345 // Fixed seed for consistent audio
@@ -1355,9 +1305,7 @@ export class AudioSystem implements IAudioSystem {
       return seed / 233280
     }
 
-    // Hits wrap across the seam: the kick sample is longer than a beat,
-    // and truncating it at the end left a thin moment every phone loop.
-    // No edge fades — those dug a hole in the four-to-the-floor.
+    // Hits wrap across the seam so a long kick is not truncated every loop.
     let chordIndex = 0
     for (let step = 0; step < totalSteps; step++) {
       const currentTime = (step * samplesPerStep) / sampleRate
@@ -1525,25 +1473,21 @@ export class AudioSystem implements IAudioSystem {
       // Initialize audio context on user interaction (mobile requirement)
       const context = this.initAudioContext()
       if (context) {
-        // Kick resume in the gesture stack itself — awaiting it moves
-        // BufferSource.start onto another stack, which iOS rejects.
-        void context.resume()
-        this.testAudioWithSilentSound()
-
-        // Pre-baked bed: start gapless here, still inside the tap.
-        if (this.isMobile && !this.profile.loop && this.startMobileBakedLoop(context)) {
-          return
-        }
-
         if (context.state === 'suspended') {
           context.resume().then(() => {
-            setTimeout(() => this.startBackgroundMusic(), 100)
+            // Play silent sound first for iOS compatibility
+            this.testAudioWithSilentSound()
+            // Start background music after a brief delay
+            setTimeout(() => {
+              this.startBackgroundMusic()
+            }, 100)
           }).catch(() => {
             // Silent failure for context resume — HTML5 path may still work.
             this.startBackgroundMusic()
           })
+        } else if (context.state === 'running') {
+          this.startBackgroundMusic()
         } else {
-          // Running, closed, or unknown: HTML5 / scheduler still worth trying.
           this.startBackgroundMusic()
         }
       } else {

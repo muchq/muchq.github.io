@@ -580,9 +580,6 @@ describe('AudioSystem', () => {
       expect(betweenKicks(render(TECHNO_SOUND, { kick: oneShot(0.45) }))).toBeGreaterThan(1)
     })
 
-    // A phone loops the baked WAV with HTMLAudioElement.loop. If the
-    // buffer is not an integer number of phrases, the kick jumps mid-bar
-    // every wrap — which is what "doesn't loop perfectly" sounds like.
     it('bakes a track that lands on a whole phrase, not a round number of seconds', () => {
       const phraseBeats = TECHNO_SOUND.melody.length * TECHNO_SOUND.noteBeats
       const samplesPerBeat = (RATE * 60) / TECHNO_SOUND.tempo
@@ -595,8 +592,6 @@ describe('AudioSystem', () => {
       expect(baked.length).toBe(length)
     })
 
-    // Edge fades "prevent clicks" by digging a hole in the four-to-the-floor
-    // every loop. A kick on beat one has to arrive at full level.
     it('does not fade the first kick out of the loop', () => {
       const data = render(TECHNO_SOUND)
       const peak = (from: number, to: number) => {
@@ -650,27 +645,7 @@ describe('AudioSystem', () => {
     })
   })
 
-  // #353 started a BufferSource only after awaiting a bake, which iOS
-  // treats as outside the user gesture — silence, no HTML5 fallback.
-  // Pre-bake, start BufferSource when the live context is running, and
-  // keep HTML5 when it is not.
-  it('plays a pre-baked bed on a BufferSource when the live context is running', async () => {
-    await withPhone(async (phone, made) => {
-      const AudioSpy = vi.fn(function Audio(this: { load: ReturnType<typeof vi.fn> }) {
-        this.load = vi.fn()
-      })
-      vi.stubGlobal('Audio', AudioSpy)
-      phone.initAudioContext()
-      await vi.waitFor(() =>
-        expect((phone as unknown as { bakedMobilePcm: unknown }).bakedMobilePcm).toBeTruthy()
-      )
-      phone.startBackgroundMusic()
-      await vi.waitFor(() => expect(made.bufferSources.some(s => s.loop)).toBe(true))
-      expect(AudioSpy).not.toHaveBeenCalled()
-    })
-  })
-
-  it('falls back to an HTML5 element when the live context is not running', async () => {
+  it('plays the baked techno through an HTML5 element, not a BufferSource', async () => {
     await withPhone(async (phone, made) => {
       const players: {
         play: ReturnType<typeof vi.fn>
@@ -693,11 +668,15 @@ describe('AudioSystem', () => {
         })
         players.push(this)
       }))
-      // No initAudioContext — live context stays null / unused.
+      phone.initAudioContext()
+      await vi.waitFor(() =>
+        expect((phone as unknown as { bakedMobilePcm: unknown }).bakedMobilePcm).toBeTruthy()
+      )
       phone.startBackgroundMusic()
       await vi.waitFor(() => expect(players.length).toBeGreaterThan(0))
+      expect(players[0].loop).toBe(true)
       expect(made.bufferSources.some(s => s.loop)).toBe(false)
-    }, { suspended: true })
+    })
   })
 
   it('ships a glasshouse bank of a kick, a hat and three bass notes', () => {
