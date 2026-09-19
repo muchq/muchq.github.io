@@ -102,6 +102,17 @@ const fakeContext = ({ filters = true } = {}) => {
         getChannelData: () => new Float32Array(44100),
       } as unknown as AudioBuffer)
     ),
+    createBuffer: vi.fn((_channels: number, length: number, sampleRate: number) => {
+      const data = new Float32Array(length)
+      return {
+        length,
+        sampleRate,
+        numberOfChannels: 1,
+        duration: length / sampleRate,
+        getChannelData: () => data,
+      }
+    }),
+    close: vi.fn(() => Promise.resolve()),
     resume: vi.fn(() => Promise.resolve()),
     ...(filters
       ? {
@@ -151,6 +162,7 @@ describe('AudioSystem', () => {
 
   beforeEach(() => {
     vi.useFakeTimers()
+    Object.defineProperty(window, 'innerWidth', { value: 1280, configurable: true })
     const fake = fakeContext()
     oscillators = fake.oscillators
     bufferSources = fake.bufferSources
@@ -605,22 +617,87 @@ describe('AudioSystem', () => {
   // A phone never builds a live context, so the bank was decoded against
   // nothing and never loaded: no kick sample, no hats, no bass, and a
   // synthetic room in their place.
-  it('loads the sample bank on a narrow window, which has no live context', async () => {
+  //
+  // Narrow window + stubbed AudioContext so the phone path runs in jsdom.
+  const withPhone = async (
+    run: (phone: AudioSystem, made: ReturnType<typeof fakeContext>) => Promise<void>,
+    opts: { suspended?: boolean } = {}
+  ) => {
     const wide = window.innerWidth
     Object.defineProperty(window, 'innerWidth', { value: 500, configurable: true })
-    const made = fakeContext()
-    vi.stubGlobal('AudioContext', function FakeAudioContext() { return made.context })
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) })))
-    const phone = new AudioSystem(TECHNO_SOUND)
-    phone.soundEnabled = true
-    phone.startBackgroundMusic()
-    await vi.waitFor(() => expect(made.context.decodeAudioData).toHaveBeenCalled())
-    // Every sample the room plays, not just the first.
-    expect(made.context.decodeAudioData.mock.calls.length).toBe(
-      Object.keys(TECHNO_SOUND.samples!.bank).length
-    )
-    phone.cleanup()
-    Object.defineProperty(window, 'innerWidth', { value: wide, configurable: true })
+    try {
+      const made = fakeContext()
+      if (opts.suspended) made.context.state = 'suspended'
+      vi.stubGlobal('AudioContext', function FakeAudioContext() { return made.context })
+      vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) })))
+      const phone = new AudioSystem(TECHNO_SOUND)
+      phone.soundEnabled = true
+      await run(phone, made)
+      phone.cleanup()
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { value: wide, configurable: true })
+    }
+  }
+
+  it('loads the sample bank on a narrow window, which has no live context', async () => {
+    await withPhone(async (phone, made) => {
+      phone.startBackgroundMusic()
+      await vi.waitFor(() => expect(made.context.decodeAudioData).toHaveBeenCalled())
+      // Every sample the room plays, not just the first.
+      expect(made.context.decodeAudioData.mock.calls.length).toBeGreaterThanOrEqual(
+        Object.keys(TECHNO_SOUND.samples!.bank).length
+      )
+    })
+  })
+
+  // #353 started a BufferSource only after awaiting a bake, which iOS
+  // treats as outside the user gesture — silence, no HTML5 fallback.
+  // Pre-bake, start BufferSource when the live context is running, and
+  // keep HTML5 when it is not.
+  it('plays a pre-baked bed on a BufferSource when the live context is running', async () => {
+    await withPhone(async (phone, made) => {
+      const AudioSpy = vi.fn(function Audio(this: { load: ReturnType<typeof vi.fn> }) {
+        this.load = vi.fn()
+      })
+      vi.stubGlobal('Audio', AudioSpy)
+      phone.initAudioContext()
+      await vi.waitFor(() =>
+        expect((phone as unknown as { bakedMobilePcm: unknown }).bakedMobilePcm).toBeTruthy()
+      )
+      phone.startBackgroundMusic()
+      await vi.waitFor(() => expect(made.bufferSources.some(s => s.loop)).toBe(true))
+      expect(AudioSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  it('falls back to an HTML5 element when the live context is not running', async () => {
+    await withPhone(async (phone, made) => {
+      const players: {
+        play: ReturnType<typeof vi.fn>
+        load: ReturnType<typeof vi.fn>
+        pause: ReturnType<typeof vi.fn>
+        addEventListener: ReturnType<typeof vi.fn>
+        currentTime: number
+        loop: boolean
+        volume: number
+      }[] = []
+      vi.stubGlobal('Audio', vi.fn(function Audio(this: (typeof players)[number]) {
+        this.play = vi.fn(() => Promise.resolve())
+        this.load = vi.fn()
+        this.pause = vi.fn()
+        this.currentTime = 0
+        this.loop = false
+        this.volume = 0
+        this.addEventListener = vi.fn((event: string, fn: () => void) => {
+          if (event === 'canplaythrough') fn()
+        })
+        players.push(this)
+      }))
+      // No initAudioContext — live context stays null / unused.
+      phone.startBackgroundMusic()
+      await vi.waitFor(() => expect(players.length).toBeGreaterThan(0))
+      expect(made.bufferSources.some(s => s.loop)).toBe(false)
+    }, { suspended: true })
   })
 
   it('ships a glasshouse bank of a kick, a hat and three bass notes', () => {

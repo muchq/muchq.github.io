@@ -482,6 +482,11 @@ export class AudioSystem implements IAudioSystem {
   private sampleLoadToken: number
   private loopSource: AudioBufferSourceNode | null
   private loopBuffer: AudioBuffer | null
+  // Pre-baked mobile bed as raw PCM so a tap can start a BufferSource
+  // in the gesture stack (iOS) without awaiting a bake. Closing the bake
+  // context does not invalidate this copy.
+  private bakedMobilePcm: { sampleRate: number; data: Float32Array } | null
+  private mobileBakeToken: number
 
   constructor(profile: SoundProfile = CALM_SOUND) {
     this.audioContext = null
@@ -507,6 +512,8 @@ export class AudioSystem implements IAudioSystem {
     this.sampleLoadToken = 0
     this.loopSource = null
     this.loopBuffer = null
+    this.bakedMobilePcm = null
+    this.mobileBakeToken = 0
 
     if (this.isMobile) {
       this.initMobileAudio()
@@ -527,6 +534,8 @@ export class AudioSystem implements IAudioSystem {
   // adopted, not the one left behind.
   private clearSampleState(): void {
     this.loopBuffer = null
+    this.bakedMobilePcm = null
+    this.mobileBakeToken++
     this.sampleBuffers.clear()
   }
 
@@ -550,6 +559,8 @@ export class AudioSystem implements IAudioSystem {
       if (this.backgroundMusic.isPlaying) {
         this.stopBackgroundMusic()
         this.startBackgroundMusic()
+      } else if (!profile.loop) {
+        void this.prebakeMobileTrack()
       }
       return
     }
@@ -716,6 +727,79 @@ export class AudioSystem implements IAudioSystem {
   private initMobileAudio(): void {
     // Pre-generate bounce sound for mobile
     this.createMobileBounceSound()
+    // Bake the looping bed ahead of the sound tap so a BufferSource can
+    // start inside the gesture — awaiting a bake after the tap is what
+    // left #353 silent on iOS.
+    if (!this.profile.loop) void this.prebakeMobileTrack()
+  }
+
+  // Decode + bake off the live context. Result is plain PCM so we can
+  // close the throwaway context without losing the bed.
+  private async prebakeMobileTrack(): Promise<void> {
+    if (this.profile.loop) return
+    const token = ++this.mobileBakeToken
+    let context: AudioContext | null = null
+    try {
+      context = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      await this.ensureSamplesLoaded(context)
+      if (token !== this.mobileBakeToken) return
+      const buffer = this.renderMobileTrackBuffer(context)
+      if (token !== this.mobileBakeToken) return
+      this.bakedMobilePcm = {
+        sampleRate: buffer.sampleRate,
+        data: new Float32Array(buffer.getChannelData(0)),
+      }
+    } catch {
+      if (token === this.mobileBakeToken) this.bakedMobilePcm = null
+    } finally {
+      this.closeThrowawayContext(context)
+    }
+  }
+
+  // Gapless bed on a running (or just-resumed) context. Must not await —
+  // iOS only allows BufferSource.start inside the user-gesture stack.
+  // Returns false so the caller can fall back to HTML5.
+  private startMobileBakedLoop(context: AudioContext): boolean {
+    const pcm = this.bakedMobilePcm
+    if (!pcm || pcm.data.length === 0) return false
+    try {
+      this.stopLoopBed()
+      if (this.html5BackgroundAudio) {
+        this.html5BackgroundAudio.pause()
+        this.html5BackgroundAudio = null
+      }
+      const buffer = context.createBuffer(1, pcm.data.length, pcm.sampleRate)
+      buffer.getChannelData(0).set(pcm.data)
+      const master = context.createGain()
+      master.gain.setValueAtTime(0.03, context.currentTime)
+      master.connect(context.destination)
+      this.backgroundMusic.gainNode = master
+      const source = context.createBufferSource()
+      source.buffer = buffer
+      source.loop = true
+      source.connect(master)
+      source.start(0)
+      this.loopSource = source
+      this.loopBuffer = buffer
+      this.backgroundMusic.isPlaying = true
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  // Live context running and a bed ready: start without awaiting.
+  private tryStartMobileBakedLoop(): boolean {
+    const context = this.audioContext
+    return !!context && context.state === 'running' && this.startMobileBakedLoop(context)
+  }
+
+  private closeThrowawayContext(context: AudioContext | null): void {
+    try {
+      void context?.close()
+    } catch {
+      // Throwaway context; ignore close failures.
+    }
   }
 
   private createMobileBounceSound(): void {
@@ -743,41 +827,10 @@ export class AudioSystem implements IAudioSystem {
 
 
   private encodeWAV(buffer: AudioBuffer): ArrayBuffer {
-    const length = buffer.length
-    const arrayBuffer = new ArrayBuffer(44 + length * 2)
-    const view = new DataView(arrayBuffer)
-    const channelData = buffer.getChannelData(0)
-
-    // WAV header
-    const writeString = (offset: number, string: string) => {
-      for (let i = 0; i < string.length; i++) {
-        view.setUint8(offset + i, string.charCodeAt(i))
-      }
-    }
-
-    writeString(0, 'RIFF')
-    view.setUint32(4, 36 + length * 2, true)
-    writeString(8, 'WAVE')
-    writeString(12, 'fmt ')
-    view.setUint32(16, 16, true)
-    view.setUint16(20, 1, true)
-    view.setUint16(22, 1, true)
-    view.setUint32(24, buffer.sampleRate, true)
-    view.setUint32(28, buffer.sampleRate * 2, true)
-    view.setUint16(32, 2, true)
-    view.setUint16(34, 16, true)
-    writeString(36, 'data')
-    view.setUint32(40, length * 2, true)
-
-    // Convert float samples to 16-bit PCM
-    let offset = 44
-    for (let i = 0; i < length; i++) {
-      const sample = Math.max(-1, Math.min(1, channelData[i]))
-      view.setInt16(offset, sample * 0x7FFF, true)
-      offset += 2
-    }
-
-    return arrayBuffer
+    return this.encodePcmWav({
+      sampleRate: buffer.sampleRate,
+      data: buffer.getChannelData(0),
+    })
   }
 
 
@@ -1178,22 +1231,33 @@ export class AudioSystem implements IAudioSystem {
     }
   }
 
-  // A phone has no live context, so the bank is decoded against the one
-  // the track is built with. Without this the offline path had no kick
-  // sample, no hats and no bass, and fell back to a synthetic room.
+  // Prefer a pre-baked BufferSource when the live context is already
+  // running (gapless). Otherwise the HTML5 path that phones have always
+  // relied on — #353 went BufferSource-only after an await and went silent
+  // on iOS, so HTML5 stays the fallback, never the other way around.
   private async renderMobileBackgroundMusic(): Promise<void> {
+    if (this.tryStartMobileBakedLoop()) return
+
+    if (!this.bakedMobilePcm) await this.prebakeMobileTrack()
+    if (this.tryStartMobileBakedLoop()) return
+
+    // HTML5: reuse the bake when we have one; otherwise render into a
+    // throwaway context just long enough to encode a WAV.
     let context: AudioContext | null = null
-    try {
-      context = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
-      await this.ensureSamplesLoaded(context)
-    } catch {
-      // No context to decode with; the track still renders, procedurally.
+    if (!this.bakedMobilePcm) {
+      try {
+        context = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+        await this.ensureSamplesLoaded(context)
+      } catch {
+        // No context to decode with; the track still renders, procedurally.
+      }
     }
 
     try {
-      // Create a simple looping background music track
-      const musicBuffer = this.createMobileBackgroundTrack(context)
-      const blob = new Blob([musicBuffer], { type: 'audio/wav' })
+      const wav = this.bakedMobilePcm
+        ? this.encodePcmWav(this.bakedMobilePcm)
+        : this.createMobileBackgroundTrack(context)
+      const blob = new Blob([wav], { type: 'audio/wav' })
       const url = URL.createObjectURL(blob)
 
       this.html5BackgroundAudio = new Audio(url)
@@ -1201,15 +1265,14 @@ export class AudioSystem implements IAudioSystem {
       this.html5BackgroundAudio.volume = 0.03
 
       this.html5BackgroundAudio.addEventListener('canplaythrough', () => {
-        if (this.html5BackgroundAudio) {
-          const playPromise = this.html5BackgroundAudio.play()
-          if (playPromise !== undefined) {
-            playPromise.then(() => {
-              this.backgroundMusic.isPlaying = true
-            }).catch(() => {
-              // Silent failure for mobile audio play
-            })
-          }
+        if (!this.html5BackgroundAudio) return
+        const playPromise = this.html5BackgroundAudio.play()
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            this.backgroundMusic.isPlaying = true
+          }).catch(() => {
+            // Silent failure for mobile audio play
+          })
         }
       })
 
@@ -1218,15 +1281,50 @@ export class AudioSystem implements IAudioSystem {
       })
 
       this.html5BackgroundAudio.load()
-
     } catch {
       // Silent failure for mobile music creation
+    } finally {
+      this.closeThrowawayContext(context)
     }
   }
 
+  // PCM → WAV without needing a live AudioBuffer from a closed context.
+  private encodePcmWav(pcm: { sampleRate: number; data: Float32Array }): ArrayBuffer {
+    const length = pcm.data.length
+    const arrayBuffer = new ArrayBuffer(44 + length * 2)
+    const view = new DataView(arrayBuffer)
+    const writeString = (offset: number, string: string) => {
+      for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i))
+    }
+    writeString(0, 'RIFF')
+    view.setUint32(4, 36 + length * 2, true)
+    writeString(8, 'WAVE')
+    writeString(12, 'fmt ')
+    view.setUint32(16, 16, true)
+    view.setUint16(20, 1, true)
+    view.setUint16(22, 1, true)
+    view.setUint32(24, pcm.sampleRate, true)
+    view.setUint32(28, pcm.sampleRate * 2, true)
+    view.setUint16(32, 2, true)
+    view.setUint16(34, 16, true)
+    writeString(36, 'data')
+    view.setUint32(40, length * 2, true)
+    let offset = 44
+    for (let i = 0; i < length; i++) {
+      const sample = Math.max(-1, Math.min(1, pcm.data[i]))
+      view.setInt16(offset, sample * 0x7FFF, true)
+      offset += 2
+    }
+    return arrayBuffer
+  }
+
   private createMobileBackgroundTrack(given?: AudioContext | null): ArrayBuffer {
-    // Phrase-aligned so HTML5 audio.loop wraps on a bar line. A fixed
-    // wall-clock length (64s) cut the techno mid-phrase and the kick jumped.
+    return this.encodeWAV(this.renderMobileTrackBuffer(given))
+  }
+
+  private renderMobileTrackBuffer(given?: BaseAudioContext | null): AudioBuffer {
+    // Phrase-aligned so the loop wraps on a bar line. A fixed wall-clock
+    // length (64s) cut the techno mid-phrase and the kick jumped.
     const sampleRate = 44100
     const samples = mobileLoopSamples(this.profile, sampleRate)
     const duration = samples / sampleRate
@@ -1247,8 +1345,9 @@ export class AudioSystem implements IAudioSystem {
     const kick = this.loadedKick()
     const stepsPerLead = lead ? Math.max(1, Math.round(lead.noteBeats / noteBeats)) : 0
 
-    // Pre-render the procedural music pattern. Count steps rather than
-    // summing floats so the last bar lands exactly on the sample length.
+    // Sample-accurate steps: float `step * noteLength` can floor one sample
+    // early and leave a hairline gap at the seam.
+    const samplesPerStep = Math.round(noteLength * sampleRate)
     const totalSteps = Math.round(duration / noteLength)
     let seed = 12345 // Fixed seed for consistent audio
     const seededRandom = () => {
@@ -1261,7 +1360,7 @@ export class AudioSystem implements IAudioSystem {
     // No edge fades — those dug a hole in the four-to-the-floor.
     let chordIndex = 0
     for (let step = 0; step < totalSteps; step++) {
-      const currentTime = step * noteLength
+      const currentTime = (step * samplesPerStep) / sampleRate
       const noteIndex = step % melody.length
 
       if (pulseEvery > 0 && noteIndex % pulseEvery === 0) {
@@ -1322,7 +1421,7 @@ export class AudioSystem implements IAudioSystem {
       }
     }
 
-    return this.encodeWAV(buffer)
+    return buffer
   }
 
 
@@ -1339,8 +1438,12 @@ export class AudioSystem implements IAudioSystem {
     if (!this.backgroundMusic.isPlaying) return
     this.backgroundMusic.isPlaying = false
 
-    if (!this.isMobile && this.backgroundMusic.gainNode) {
-      this.backgroundMusic.gainNode.disconnect()
+    if (this.backgroundMusic.gainNode) {
+      try {
+        this.backgroundMusic.gainNode.disconnect()
+      } catch {
+        // Already disconnected.
+      }
       this.backgroundMusic.gainNode = null
     }
   }
@@ -1422,23 +1525,29 @@ export class AudioSystem implements IAudioSystem {
       // Initialize audio context on user interaction (mobile requirement)
       const context = this.initAudioContext()
       if (context) {
+        // Kick resume in the gesture stack itself — awaiting it moves
+        // BufferSource.start onto another stack, which iOS rejects.
+        void context.resume()
+        this.testAudioWithSilentSound()
+
+        // Pre-baked bed: start gapless here, still inside the tap.
+        if (this.isMobile && !this.profile.loop && this.startMobileBakedLoop(context)) {
+          return
+        }
 
         if (context.state === 'suspended') {
           context.resume().then(() => {
-
-            // Play silent sound first for iOS compatibility
-            this.testAudioWithSilentSound()
-
-            // Start background music after a brief delay
-            setTimeout(() => {
-              this.startBackgroundMusic()
-            }, 100)
+            setTimeout(() => this.startBackgroundMusic(), 100)
           }).catch(() => {
-            // Silent failure for context resume
+            // Silent failure for context resume — HTML5 path may still work.
+            this.startBackgroundMusic()
           })
-        } else if (context.state === 'running') {
+        } else {
+          // Running, closed, or unknown: HTML5 / scheduler still worth trying.
           this.startBackgroundMusic()
         }
+      } else {
+        this.startBackgroundMusic()
       }
     } else {
       soundToggle.textContent = '🔇 Sound: OFF'
