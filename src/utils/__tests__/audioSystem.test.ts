@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { SoundProfile } from '../audioSystem'
-import { AudioSystem, BOUNCE_DECAY, BREAK_SOUND, CALM_SOUND, CHIPTUNE_SOUND, CHORD_OCTAVE, TECHNO_SOUND, bounceRelease, chordAt, filterCeiling } from '../audioSystem'
+import { AudioSystem, BOUNCE_DECAY, BREAK_SOUND, CALM_SOUND, CHIPTUNE_SOUND, CHORD_OCTAVE, TECHNO_SOUND, bounceRelease, chordAt, filterCeiling, mobileLoopSamples } from '../audioSystem'
 
 // The world's sound is a profile the room supplies: what wave the notes
 // are, how fast, which tune, and what a bounce sounds like. The grid
@@ -520,14 +520,20 @@ describe('AudioSystem', () => {
       return { duration: seconds, numberOfChannels: 1, length: data.length, sampleRate: RATE, getChannelData: () => data } as unknown as AudioBuffer
     }
     const render = (profile: SoundProfile, buffers: Record<string, AudioBuffer> = {}) => {
-      const rendered = new Float32Array(RATE * 64)
+      let rendered = new Float32Array(0)
       vi.stubGlobal('AudioContext', function FakeAudioContext() {
-        return { createBuffer: () => ({ getChannelData: () => rendered, length: rendered.length, sampleRate: RATE }) }
+        return {
+          createBuffer: (_channels: number, length: number, sampleRate: number) => {
+            rendered = new Float32Array(length)
+            return { getChannelData: () => rendered, length, sampleRate }
+          },
+        }
       })
       const phone = new AudioSystem(profile)
       phone.injectSampleBuffers(buffers)
       ;(phone as unknown as { createMobileBackgroundTrack: (c?: unknown) => void }).createMobileBackgroundTrack(null)
       phone.cleanup()
+      if (rendered.length === 0) throw new Error('createMobileBackgroundTrack never allocated a buffer')
       return rendered
     }
     // Between one kick and the next. The synthetic kick is 0.19s and the
@@ -560,6 +566,39 @@ describe('AudioSystem', () => {
     it('plays the sampled kick offline rather than falling back to a sine', () => {
       // A long kick sample runs past where the synthetic one has ended.
       expect(betweenKicks(render(TECHNO_SOUND, { kick: oneShot(0.45) }))).toBeGreaterThan(1)
+    })
+
+    // A phone loops the baked WAV with HTMLAudioElement.loop. If the
+    // buffer is not an integer number of phrases, the kick jumps mid-bar
+    // every wrap — which is what "doesn't loop perfectly" sounds like.
+    it('bakes a track that lands on a whole phrase, not a round number of seconds', () => {
+      const phraseBeats = TECHNO_SOUND.melody.length * TECHNO_SOUND.noteBeats
+      const samplesPerBeat = (RATE * 60) / TECHNO_SOUND.tempo
+      const length = mobileLoopSamples(TECHNO_SOUND, RATE)
+      expect(length % Math.round(phraseBeats * samplesPerBeat)).toBe(0)
+      // Long enough to live in, short enough to keep the WAV modest.
+      expect(length / RATE).toBeGreaterThanOrEqual(40)
+      expect(length / RATE).toBeLessThanOrEqual(90)
+      const baked = render(TECHNO_SOUND)
+      expect(baked.length).toBe(length)
+    })
+
+    // Edge fades "prevent clicks" by digging a hole in the four-to-the-floor
+    // every loop. A kick on beat one has to arrive at full level.
+    it('does not fade the first kick out of the loop', () => {
+      const data = render(TECHNO_SOUND)
+      const peak = (from: number, to: number) => {
+        let max = 0
+        for (let i = Math.floor(from * RATE); i < Math.floor(to * RATE); i++) {
+          max = Math.max(max, Math.abs(data[i]))
+        }
+        return max
+      }
+      // First 20ms of the opening kick vs the same window on the next beat.
+      const open = peak(0, 0.02)
+      const next = peak(60 / TECHNO_SOUND.tempo, 60 / TECHNO_SOUND.tempo + 0.02)
+      expect(open).toBeGreaterThan(0)
+      expect(open / next).toBeGreaterThan(0.9)
     })
   })
 

@@ -294,19 +294,48 @@ export function waveSample(wave: OscillatorType, phase: number): number {
 // sounds the live path plays, written into a buffer instead, so a narrow
 // window hears the same room as a wide one.
 
+// How long a phone's looping bed should be, in samples. HTMLAudioElement
+// wraps on the file length, so a round number of seconds that cuts mid-
+// phrase makes the kick jump every loop. Land on whole phrases near
+// `targetSeconds` instead.
+export function mobileLoopSamples(
+  profile: Pick<SoundProfile, 'tempo' | 'noteBeats' | 'melody'>,
+  sampleRate: number,
+  targetSeconds = 60
+): number {
+  const phraseBeats = profile.melody.length * profile.noteBeats
+  if (!(phraseBeats > 0) || !(profile.tempo > 0) || !(sampleRate > 0)) {
+    return Math.max(1, Math.round(targetSeconds * sampleRate))
+  }
+  const phraseSeconds = (phraseBeats * 60) / profile.tempo
+  const phrases = Math.max(1, Math.round(targetSeconds / phraseSeconds))
+  const samplesPerBeat = (sampleRate * 60) / profile.tempo
+  return phrases * Math.round(phraseBeats * samplesPerBeat)
+}
+
+// Dest frame in the track: wrap when looping, else null if out of range.
+function destIndex(index: number, length: number, loop: boolean): number | null {
+  if (loop) return ((index % length) + length) % length
+  if (index < 0 || index >= length) return null
+  return index
+}
+
 // The kick: a drop from a click to a thud, decaying as it falls.
 export function renderPulse(
   channelData: Float32Array,
   sampleRate: number,
   startTime: number,
   pulse: NonNullable<SoundProfile['pulse']>,
-  gain: number
+  gain: number,
+  loop = false
 ): void {
   const startSample = Math.floor(startTime * sampleRate)
-  const endSample = Math.min(startSample + Math.floor(pulse.duration * sampleRate), channelData.length)
+  const frames = Math.floor(pulse.duration * sampleRate)
   let phase = 0
-  for (let i = Math.max(0, startSample); i < endSample; i++) {
-    const progress = (i - startSample) / (pulse.duration * sampleRate)
+  for (let f = 0; f < frames; f++) {
+    const i = destIndex(startSample + f, channelData.length, loop)
+    if (i === null) continue
+    const progress = f / (pulse.duration * sampleRate)
     const frequency = pulse.from * Math.pow(pulse.to / pulse.from, progress)
     phase = (phase + frequency / sampleRate) % 1
     const envelope = Math.exp(-progress * 5)
@@ -317,22 +346,24 @@ export function renderPulse(
 
 // Mix a decoded one-shot into an offline track. Same numbers the live
 // BufferSource path uses, so a phone hears the same hits as a desktop.
+// When `loop` is set, a hit that straddles the end wraps onto the start
+// — otherwise a long kick truncated at the seam thins every HTML5 wrap.
 export function renderSample(
   channelData: Float32Array,
   sampleRate: number,
   buffer: AudioBuffer,
   startTime: number,
-  gain: number
+  gain: number,
+  loop = false
 ): void {
   const startSample = Math.floor(startTime * sampleRate)
-  if (startSample >= channelData.length) return
+  if (!loop && startSample >= channelData.length) return
   const src = buffer.getChannelData(0)
   const ratio = buffer.sampleRate / sampleRate
   const frames = Math.floor(src.length / ratio)
   for (let i = 0; i < frames; i++) {
-    const dest = startSample + i
-    if (dest < 0) continue
-    if (dest >= channelData.length) break
+    const dest = destIndex(startSample + i, channelData.length, loop)
+    if (dest === null) continue
     const srcIndex = Math.min(src.length - 1, Math.floor(i * ratio))
     channelData[dest] = Math.max(-1, Math.min(1, channelData[dest] + src[srcIndex] * gain))
   }
@@ -392,13 +423,16 @@ export function bounceRelease(peak: number, duration: number): number {
 export function renderNote(
   channelData: Float32Array,
   sampleRate: number,
-  { frequency, startTime, duration, volume, wave, filter }: RenderedNote
+  { frequency, startTime, duration, volume, wave, filter }: RenderedNote,
+  loop = false
 ): void {
   const startSample = Math.floor(startTime * sampleRate)
-  const endSample = Math.min(startSample + Math.floor(duration * sampleRate), channelData.length)
+  const frames = Math.floor(duration * sampleRate)
   let pole = 0
-  for (let i = Math.max(0, startSample); i < endSample; i++) {
-    const noteTime = (i - startSample) / sampleRate
+  for (let f = 0; f < frames; f++) {
+    const i = destIndex(startSample + f, channelData.length, loop)
+    if (i === null) continue
+    const noteTime = f / sampleRate
     const progress = noteTime / duration
 
     // Attack, sustain, release.
@@ -1191,10 +1225,11 @@ export class AudioSystem implements IAudioSystem {
   }
 
   private createMobileBackgroundTrack(given?: AudioContext | null): ArrayBuffer {
-    // Long enough for one full 32-bar lead at 140 (~55s), plus a little.
+    // Phrase-aligned so HTML5 audio.loop wraps on a bar line. A fixed
+    // wall-clock length (64s) cut the techno mid-phrase and the kick jumped.
     const sampleRate = 44100
-    const duration = 64
-    const samples = sampleRate * duration
+    const samples = mobileLoopSamples(this.profile, sampleRate)
+    const duration = samples / sampleRate
 
     // The context the bank was decoded against, so the buffers here are
     // usable; otherwise one of our own just to allocate the track.
@@ -1212,31 +1247,33 @@ export class AudioSystem implements IAudioSystem {
     const kick = this.loadedKick()
     const stepsPerLead = lead ? Math.max(1, Math.round(lead.noteBeats / noteBeats)) : 0
 
-    // Pre-render the procedural music pattern
-    let currentTime = 0
-    let noteIndex = 0
-    let chordIndex = 0
-    let stepIndex = 0
-
-    // Use a seeded random for consistent generation
+    // Pre-render the procedural music pattern. Count steps rather than
+    // summing floats so the last bar lands exactly on the sample length.
+    const totalSteps = Math.round(duration / noteLength)
     let seed = 12345 // Fixed seed for consistent audio
     const seededRandom = () => {
       seed = (seed * 9301 + 49297) % 233280
       return seed / 233280
     }
 
-    while (currentTime < duration) {
+    // Hits wrap across the seam: the kick sample is longer than a beat,
+    // and truncating it at the end left a thin moment every phone loop.
+    // No edge fades — those dug a hole in the four-to-the-floor.
+    let chordIndex = 0
+    for (let step = 0; step < totalSteps; step++) {
+      const currentTime = step * noteLength
+      const noteIndex = step % melody.length
+
       if (pulseEvery > 0 && noteIndex % pulseEvery === 0) {
         if (kick) {
-          renderSample(channelData, sampleRate, kick.buffer, currentTime, kick.gain * gain)
+          renderSample(channelData, sampleRate, kick.buffer, currentTime, kick.gain * gain, true)
         } else if (pulse) {
-          renderPulse(channelData, sampleRate, currentTime, pulse, gain)
+          renderPulse(channelData, sampleRate, currentTime, pulse, gain, true)
         }
       }
 
-      // Offline can start before t=0 (lead-in); renderSample skips those frames.
       this.forEachSampleHit(noteIndex, noteBeats, seededRandom, (hitBuffer, hit) => {
-        renderSample(channelData, sampleRate, hitBuffer, currentTime - (hit.leadIn ?? 0), hit.gain * gain)
+        renderSample(channelData, sampleRate, hitBuffer, currentTime - (hit.leadIn ?? 0), hit.gain * gain, true)
       })
 
       const melodyMidi = melody[noteIndex]
@@ -1248,11 +1285,11 @@ export class AudioSystem implements IAudioSystem {
           volume: 0.005 * gain,
           wave,
           filter,
-        })
+        }, true)
       }
 
-      if (lead && stepsPerLead > 0 && stepIndex % stepsPerLead === 0) {
-        const leadMidi = lead.melody[(stepIndex / stepsPerLead) % lead.melody.length]
+      if (lead && stepsPerLead > 0 && step % stepsPerLead === 0) {
+        const leadMidi = lead.melody[(step / stepsPerLead) % lead.melody.length]
         if (leadMidi > 0) {
           const sustain = secondsPerBeat * (lead.sustainBeats ?? lead.noteBeats)
           renderNote(channelData, sampleRate, {
@@ -1261,13 +1298,13 @@ export class AudioSystem implements IAudioSystem {
             duration: sustain,
             volume: 0.025 * gain * (lead.gain ?? 1),
             wave: lead.wave,
-          })
+          }, true)
         }
       }
 
-      const bassHit = this.bassAt(stepIndex, noteBeats)
+      const bassHit = this.bassAt(step, noteBeats)
       if (bassHit) {
-        renderSample(channelData, sampleRate, bassHit.buffer, currentTime, bassHit.gain)
+        renderSample(channelData, sampleRate, bassHit.buffer, currentTime, bassHit.gain, true)
       }
 
       if (noteIndex % stepsPerChord === 0) {
@@ -1279,31 +1316,10 @@ export class AudioSystem implements IAudioSystem {
             duration: chordLength,
             volume: 0.003 * gain * (this.profile.padGain ?? 1),
             wave,
-          })
+          }, true)
         }
+        chordIndex = (chordIndex + 1) % chords.length
       }
-      if (noteIndex % stepsPerChord === 0) chordIndex = (chordIndex + 1) % chords.length
-
-      // Advance to next note (same logic as Web Audio)
-      currentTime += noteLength
-      noteIndex = (noteIndex + 1) % melody.length
-      stepIndex++
-    }
-
-    // Apply fade-in and fade-out to prevent clicks at loop boundaries
-    const fadeDuration = 0.1 // 100ms fade
-    const fadeSamples = Math.floor(fadeDuration * sampleRate)
-
-    // Fade in at the beginning
-    for (let i = 0; i < fadeSamples && i < samples; i++) {
-      const fadeGain = i / fadeSamples
-      channelData[i] *= fadeGain
-    }
-
-    // Fade out at the end
-    for (let i = samples - fadeSamples; i < samples; i++) {
-      const fadeGain = (samples - i) / fadeSamples
-      channelData[i] *= fadeGain
     }
 
     return this.encodeWAV(buffer)
