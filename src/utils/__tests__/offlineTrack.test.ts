@@ -64,22 +64,39 @@ describe('renderPulse', () => {
 })
 
 describe('renderSample', () => {
-  it('mixes a mono buffer into the track at the given gain and time', () => {
-    const samples = new Float32Array([0.5, -0.5, 0.25, -0.25])
-    const fakeBuffer = {
+  const fakeBuffer = (samples: Float32Array) =>
+    ({
       numberOfChannels: 1,
       length: samples.length,
       sampleRate: RATE,
       duration: samples.length / RATE,
       getChannelData: () => samples,
-    } as unknown as AudioBuffer
+    }) as unknown as AudioBuffer
+
+  it('mixes a mono buffer into the track at the given gain and time', () => {
+    const samples = new Float32Array([0.5, -0.5, 0.25, -0.25])
     const data = buffer(0.01)
     data.fill(0.1)
-    renderSample(data, RATE, fakeBuffer, 0.001, 0.5)
+    renderSample(data, RATE, fakeBuffer(samples), 0.001, 0.5)
     const start = Math.floor(0.001 * RATE)
     expect(data[start]).toBeCloseTo(0.1 + 0.5 * 0.5, 5)
     expect(data[start + 1]).toBeCloseTo(0.1 + -0.5 * 0.5, 5)
     expect(data[0]).toBeCloseTo(0.1, 5)
+  })
+
+  // A looping bed has to carry a hit that straddles the seam back to the
+  // start; truncating it leaves a thin moment every wrap on a phone.
+  it('wraps a hit that overruns the end back onto the start when looping', () => {
+    const src = new Float32Array(8)
+    src.fill(0.5)
+    const data = new Float32Array(10)
+    // Start two frames before the end so six frames spill past it.
+    renderSample(data, RATE, fakeBuffer(src), (data.length - 2) / RATE, 1, true)
+    expect(data[data.length - 2]).toBeCloseTo(0.5, 5)
+    expect(data[data.length - 1]).toBeCloseTo(0.5, 5)
+    expect(data[0]).toBeCloseTo(0.5, 5)
+    expect(data[5]).toBeCloseTo(0.5, 5)
+    expect(data[6]).toBeCloseTo(0, 5)
   })
 })
 
