@@ -102,6 +102,16 @@ const fakeContext = ({ filters = true } = {}) => {
         getChannelData: () => new Float32Array(44100),
       } as unknown as AudioBuffer)
     ),
+    createBuffer: vi.fn((_channels: number, length: number, sampleRate: number) => {
+      const data = new Float32Array(length)
+      return {
+        length,
+        sampleRate,
+        numberOfChannels: 1,
+        duration: length / sampleRate,
+        getChannelData: () => data,
+      }
+    }),
     resume: vi.fn(() => Promise.resolve()),
     ...(filters
       ? {
@@ -568,7 +578,7 @@ describe('AudioSystem', () => {
       expect(betweenKicks(render(TECHNO_SOUND, { kick: oneShot(0.45) }))).toBeGreaterThan(1)
     })
 
-    // A phone loops the baked WAV with HTMLAudioElement.loop. If the
+    // A phone loops the baked bed with AudioBufferSourceNode.loop. If the
     // buffer is not an integer number of phrases, the kick jumps mid-bar
     // every wrap — which is what "doesn't loop perfectly" sounds like.
     it('bakes a track that lands on a whole phrase, not a round number of seconds', () => {
@@ -619,6 +629,40 @@ describe('AudioSystem', () => {
     expect(made.context.decodeAudioData.mock.calls.length).toBe(
       Object.keys(TECHNO_SOUND.samples!.bank).length
     )
+    phone.cleanup()
+    Object.defineProperty(window, 'innerWidth', { value: wide, configurable: true })
+  })
+
+  // HTMLAudioElement.loop restarts the media element and leaves a gap on
+  // phones; AudioBufferSourceNode.loop wraps sample-accurately. The bake
+  // is only seamless if we actually play it that way.
+  it('loops the baked techno on a BufferSource, not an HTML5 element', async () => {
+    const wide = window.innerWidth
+    Object.defineProperty(window, 'innerWidth', { value: 500, configurable: true })
+    const made = fakeContext()
+    vi.stubGlobal('AudioContext', function FakeAudioContext() { return made.context })
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) })))
+    const AudioSpy = vi.fn(function Audio(this: {
+      loop: boolean
+      volume: number
+      addEventListener: ReturnType<typeof vi.fn>
+      load: ReturnType<typeof vi.fn>
+      play: ReturnType<typeof vi.fn>
+      pause: ReturnType<typeof vi.fn>
+    }) {
+      this.loop = false
+      this.volume = 0
+      this.addEventListener = vi.fn()
+      this.load = vi.fn()
+      this.play = vi.fn(() => Promise.resolve())
+      this.pause = vi.fn()
+    })
+    vi.stubGlobal('Audio', AudioSpy)
+    const phone = new AudioSystem(TECHNO_SOUND)
+    phone.soundEnabled = true
+    phone.startBackgroundMusic()
+    await vi.waitFor(() => expect(made.bufferSources.some(s => s.loop)).toBe(true))
+    expect(AudioSpy).not.toHaveBeenCalled()
     phone.cleanup()
     Object.defineProperty(window, 'innerWidth', { value: wide, configurable: true })
   })
