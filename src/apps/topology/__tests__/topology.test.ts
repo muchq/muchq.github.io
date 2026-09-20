@@ -59,6 +59,10 @@ const GROUPED = `flowchart LR
     ui_deja["/deja"]
   end
 
+  subgraph edge["Host edge"]
+    caddy["caddy"]
+  end
+
   subgraph apps["Applications"]
     deja["deja"]
     microgpt-serve["microgpt-serve"]
@@ -77,6 +81,7 @@ const GROUPED = `flowchart LR
 describe('containerNodes', () => {
   it('counts the application and observability nodes, and the database', () => {
     expect([...containerNodes(GROUPED)].sort()).toEqual([
+      'caddy',
       'deja',
       'microgpt-serve',
       'otelcol',
@@ -100,5 +105,19 @@ describe('routeFor', () => {
 
   it('ignores a link that leaves the site, so it navigates normally', () => {
     expect(routeFor('https://example.com/deja')).toBeNull()
+  })
+})
+
+describe('filterByKinds, empty groups', () => {
+  it('drops a subgraph whose nodes have all gone, so no empty cluster is drawn', () => {
+    const withObs = `${SRC}
+  subgraph obs["Observability"]
+    otelcol["otelcol"]
+  end
+`
+    const only = filterByKinds(withObs, ['http'])
+
+    expect(only).toContain('Applications')
+    expect(only).not.toContain('Observability')
   })
 })

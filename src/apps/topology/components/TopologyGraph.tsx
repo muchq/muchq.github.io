@@ -21,9 +21,14 @@ const STATE_CLASS: Record<ContainerState, string> = {
 const UNKNOWN = 'state-unknown'
 const DIMMED = 'is-dimmed'
 
-// Mermaid names a node's group `flowchart-<id>-<n>`.
-const nodeIdOf = (el: Element): string =>
-  (el.id || '').replace(/^flowchart-/, '').replace(/-\d+$/, '')
+// Mermaid 12 builds a node's DOM id as `${renderId}-flowchart-${node}-${n}`.
+// Both ends have to come off, and the render id has to be the one this draw
+// used — it carries a timestamp, so a stale prefix matches nothing.
+const nodeIdOf = (el: Element, renderId: string): string => {
+  const prefix = `${renderId}-flowchart-`
+  const id = el.id || ''
+  return id.startsWith(prefix) ? id.slice(prefix.length).replace(/-\d+$/, '') : ''
+}
 
 const TopologyGraph = ({ source, states }: TopologyGraphProps) => {
   const host = useRef<HTMLDivElement>(null)
@@ -35,23 +40,24 @@ const TopologyGraph = ({ source, states }: TopologyGraphProps) => {
       // Route-split: mermaid is large and only this page draws.
       const mermaid = (await import('mermaid')).default
       mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' })
-      const { svg } = await mermaid.render(`topology-${Date.now()}`, source)
+      const renderId = `topology-${Date.now()}`
+      const { svg } = await mermaid.render(renderId, source)
       if (!live || !host.current) return
       host.current.innerHTML = svg
-      paint(host.current)
+      paint(host.current, renderId)
     }
 
-    const paint = (root: HTMLElement) => {
+    const paint = (root: HTMLElement, renderId: string) => {
       const { edges } = parseTopology(source)
       const containers = containerNodes(source)
       for (const el of root.querySelectorAll('.node')) {
-        const id = nodeIdOf(el)
+        const id = nodeIdOf(el, renderId)
         if (!containers.has(id)) continue
         const state = states?.get(id)
         el.classList.add(state ? STATE_CLASS[state] : UNKNOWN)
       }
       for (const el of root.querySelectorAll('.node')) {
-        const id = nodeIdOf(el)
+        const id = nodeIdOf(el, renderId)
         const neighbours = new Set([id])
         for (const e of edges) {
           if (e.from === id) neighbours.add(e.to)
@@ -59,7 +65,7 @@ const TopologyGraph = ({ source, states }: TopologyGraphProps) => {
         }
         el.addEventListener('mouseenter', () => {
           for (const other of root.querySelectorAll('.node')) {
-            other.classList.toggle(DIMMED, !neighbours.has(nodeIdOf(other)))
+            other.classList.toggle(DIMMED, !neighbours.has(nodeIdOf(other, renderId)))
           }
         })
         el.addEventListener('mouseleave', () => {

@@ -24,4 +24,13 @@ describe('fetchNodeStates', () => {
 
     expect(await fetchNodeStates()).toBeNull()
   })
+
+  it('answers null when containers is not a list, rather than throwing past the caller', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ timestamp: 'now', containers: {} }),
+    }))
+
+    expect(await fetchNodeStates()).toBeNull()
+  })
 })

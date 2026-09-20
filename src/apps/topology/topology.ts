@@ -32,23 +32,46 @@ export function filterByKinds(src: string, kinds: readonly string[]): string {
   const kept = parseTopology(src).edges.filter(e => enabled.has(e.kind))
   const live = new Set(kept.flatMap(e => [e.from, e.to]))
 
-  return src
-    .split('\n')
-    .filter(line => {
-      const edge = EDGE.exec(line)
-      if (edge) return enabled.has(edge[2])
-      const node = NODE.exec(line)
-      if (node) return live.has(node[1])
-      return true
-    })
-    .join('\n')
+  const lines = src.split('\n').filter(line => {
+    const edge = EDGE.exec(line)
+    if (edge) return enabled.has(edge[2])
+    const node = NODE.exec(line)
+    if (node) return live.has(node[1])
+    return true
+  })
+
+  // A group whose nodes have all gone still draws as an empty labelled box,
+  // which is the thing pruning nodes was meant to avoid. Drop the block too.
+  const out: string[] = []
+  let block: string[] | null = null
+  let populated = false
+  for (const line of lines) {
+    if (SUBGRAPH.test(line)) {
+      block = [line]
+      populated = false
+      continue
+    }
+    if (block) {
+      if (/^\s*end\s*$/.test(line)) {
+        if (populated) out.push(...block, line)
+        block = null
+        continue
+      }
+      block.push(line)
+      if (NODE.test(line)) populated = true
+      continue
+    }
+    out.push(line)
+  }
+  if (block) out.push(...block)
+  return out.join('\n')
 }
 
 // Subgraphs whose nodes back a real container, plus the one container that
 // lives in a mixed group. Membership decides the join rather than a list of
 // node ids, so a service added to the diagram joins without a second edit —
 // and a public name or UI route never reports itself perpetually unknown.
-const CONTAINER_GROUPS = new Set(['apps', 'obs'])
+const CONTAINER_GROUPS = new Set(['edge', 'apps', 'obs'])
 const CONTAINER_NODES = new Set(['shared_postgres'])
 
 const SUBGRAPH = /^\s*subgraph\s+([\w-]+)\b/

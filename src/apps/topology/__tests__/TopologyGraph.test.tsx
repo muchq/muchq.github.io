@@ -4,14 +4,21 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import TopologyGraph from '../components/TopologyGraph'
 
-const SVG = `<svg id="drawn">
-  <g class="node" id="flowchart-caddy-1"><a href="https://muchq.com/deja"><rect></rect></a></g>
-  <g class="node" id="flowchart-deja-2"><rect></rect></g>
-  <g class="node" id="flowchart-otelcol-3"><rect></rect></g>
+// Mermaid 12 builds a node's DOM id as `${renderId}-flowchart-${node}-${n}`,
+// so the mock has to be given the render id it was called with. A fixture
+// using the bare `flowchart-` shape passes against code that never matches
+// anything in a browser.
+const svgFor = (renderId: string) => `<svg id="drawn">
+  <g class="node" id="${renderId}-flowchart-caddy-0"><a href="https://muchq.com/deja"><rect></rect></a></g>
+  <g class="node" id="${renderId}-flowchart-deja-1"><rect></rect></g>
+  <g class="node" id="${renderId}-flowchart-otelcol-2"><rect></rect></g>
 </svg>`
 
 vi.mock('mermaid', () => ({
-  default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: SVG })) },
+  default: {
+    initialize: vi.fn(),
+    render: vi.fn(async (id: string) => ({ svg: svgFor(id) })),
+  },
 }))
 
 const SOURCE = `flowchart LR
@@ -35,7 +42,7 @@ const draw = (states: Map<string, 'up'> | null = null) =>
     </MemoryRouter>
   )
 
-const nodeFor = (id: string) => document.querySelector(`#flowchart-${id}`) as Element
+const nodeFor = (node: string) => document.querySelector(`[id^="topology-"][id*="-flowchart-${node}-"]`) as Element
 const classesOf = (el: Element) => el.getAttribute('class') ?? ''
 
 beforeEach(() => {
@@ -45,28 +52,28 @@ beforeEach(() => {
 describe('TopologyGraph', () => {
   it('routes a node click without reloading the page', async () => {
     draw()
-    await waitFor(() => expect(nodeFor('caddy-1')).not.toBeNull())
+    await waitFor(() => expect(nodeFor('caddy')).not.toBeNull())
 
-    await userEvent.click(nodeFor('caddy-1').querySelector('rect') as Element)
+    await userEvent.click(nodeFor('caddy').querySelector('rect') as Element)
 
     await waitFor(() => expect(document.body.textContent).toContain('deja page'))
   })
 
   it('dims the nodes a hovered node has no edge to', async () => {
     draw()
-    await waitFor(() => expect(nodeFor('caddy-1')).not.toBeNull())
+    await waitFor(() => expect(nodeFor('caddy')).not.toBeNull())
 
-    await userEvent.hover(nodeFor('caddy-1') as HTMLElement)
+    await userEvent.hover(nodeFor('caddy') as HTMLElement)
 
-    expect(classesOf(nodeFor('otelcol-3'))).toContain('is-dimmed')
-    expect(classesOf(nodeFor('deja-2'))).not.toContain('is-dimmed')
+    expect(classesOf(nodeFor('otelcol'))).toContain('is-dimmed')
+    expect(classesOf(nodeFor('deja'))).not.toContain('is-dimmed')
   })
 
   it('marks a container with no reported state as unknown, not as healthy', async () => {
     draw(new Map([['deja', 'up']]))
-    await waitFor(() => expect(nodeFor('deja-2')).not.toBeNull())
+    await waitFor(() => expect(nodeFor('deja')).not.toBeNull())
 
-    expect(classesOf(nodeFor('deja-2'))).toContain('state-up')
-    expect(classesOf(nodeFor('otelcol-3'))).toContain('state-unknown')
+    expect(classesOf(nodeFor('deja'))).toContain('state-up')
+    expect(classesOf(nodeFor('otelcol'))).toContain('state-unknown')
   })
 })
