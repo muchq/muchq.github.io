@@ -86,15 +86,15 @@ describe('Navigation', () => {
     }
   })
 
-  it('lists Stats, Deja, and Metrics under Ohh', () => {
+  it('lists Stats, Deja, Metrics, and Topology under Ohh', () => {
     renderWithRouter(<Navigation />)
     const groupEl = testingScreen.getByText('Ohh').closest('li')
     if (!groupEl) throw new Error('Ohh nav group not found')
     const dropdown = groupEl.querySelector('div')
     if (!dropdown) throw new Error('Ohh dropdown not found')
     const links = within(dropdown).getAllByRole('link')
-    expect(links.map(link => link.textContent)).toEqual(['Stats', 'Deja', 'Metrics'])
-    expect(links.map(link => link.getAttribute('href'))).toEqual(['/stats', '/deja', '/metrics'])
+    expect(links.map(link => link.textContent)).toEqual(['Stats', 'Deja', 'Metrics', 'Topology'])
+    expect(links.map(link => link.getAttribute('href'))).toEqual(['/stats', '/deja', '/metrics', '/topology'])
     for (const link of links) {
       expect(link.textContent).not.toContain('(external site)')
       expect(link.querySelector('span')).toBeNull()
