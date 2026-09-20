@@ -1,13 +1,28 @@
-.graph { width: 100%; overflow: auto; }
-.graph :global(svg) { max-width: 100%; height: auto; }
-
-.graph :global(.is-dimmed) { opacity: 0.15; transition: opacity 120ms ease; }
-
-.graph :global(.state-up rect), .graph :global(.state-up path), .graph :global(.state-up polygon) { stroke: #2f9e44; }
-.graph :global(.state-crash-looping rect), .graph :global(.state-crash-looping path), .graph :global(.state-crash-looping polygon) { stroke: #e03131; }
-.graph :global(.state-not-reporting rect), .graph :global(.state-not-reporting path), .graph :global(.state-not-reporting polygon) { stroke: #f08c00; }
-.graph :global(.state-unknown rect), .graph :global(.state-unknown path), .graph :global(.state-unknown polygon) { stroke: #868e96; }
+.graph { width: 100%; height: auto; font: 12px system-ui, sans-serif; }
 
 .toggles { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0 0 1rem; }
 .toggle { display: inline-flex; align-items: center; gap: 0.35rem; }
 .note { color: #868e96; margin: 0 0 1rem; }
+
+.cluster rect { fill: #f8f9fa; stroke: #dee2e6; }
+.cluster text { fill: #868e96; font-size: 11px; }
+
+.edge { fill: none; stroke: #adb5bd; stroke-width: 1.4; }
+.edge[data-kind='logs'], .edge[data-kind='metrics'] { stroke-dasharray: 4 3; }
+.edge[data-kind='events'] { stroke: #7048e8; stroke-width: 2; }
+.edge[data-kind='ssh'] { stroke: #e8590c; }
+.arrowHead { fill: #adb5bd; }
+
+.node rect, .clickable rect { fill: #fff; stroke: #868e96; }
+.node text, .clickable text { text-anchor: middle; dominant-baseline: middle; fill: #212529; }
+.clickable { cursor: pointer; }
+.clickable rect { stroke-width: 1.6; }
+.clickable:hover rect, .clickable:focus rect { stroke: #1971c2; }
+
+[data-state='up'] rect { stroke: #2f9e44; }
+[data-state='crash-looping'] rect { stroke: #e03131; stroke-width: 2; }
+[data-state='not-reporting'] rect { stroke: #f08c00; }
+[data-state='unknown'] rect { stroke: #ced4da; stroke-dasharray: 3 2; }
+
+[data-dimmed='true'] { opacity: 0.15; }
+.graph g, .graph path { transition: opacity 120ms ease; }

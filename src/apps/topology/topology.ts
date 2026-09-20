@@ -1,105 +1,90 @@
 // The deployment diagram, as data. The source is MoonBase's
-// docs/DEPLOYMENT.md, copied here as topology.mmd.
+// docs/DEPLOYMENT.md, copied here as topology.mmd — mermaid's flowchart
+// syntax, parsed rather than rendered: this page draws its own SVG.
 
 export type Edge = { from: string; to: string; kind: string }
+export type Node = { id: string; label: string; group: string }
+export type Group = { id: string; label: string }
 
-export type Topology = { nodes: string[]; edges: Edge[] }
+export type Topology = {
+  nodes: Node[]
+  edges: Edge[]
+  groups: Group[]
+  clicks: Record<string, string>
+}
 
 const EDGE = /^\s*([\w-]+)\s*(?:-->|-\.->)\|(\w+)\|\s*([\w-]+)\s*$/
-const NODE = /^\s*([\w-]+)[[(]/
+const NODE = /^\s*([\w-]+)[[(]+"?([^"\])]*)"?[\])]+/
+const SUBGRAPH = /^\s*subgraph\s+([\w-]+)\["?([^"\]]*)"?\]/
+const CLICK = /^\s*click\s+([\w-]+)\s+"([^"]+)"/
 
 export function parseTopology(src: string): Topology {
-  const nodes: string[] = []
+  const nodes: Node[] = []
   const edges: Edge[] = []
-  for (const line of src.split('\n')) {
-    if (/^\s*subgraph\b/.test(line)) continue
-    const edge = EDGE.exec(line)
-    if (edge) {
-      edges.push({ from: edge[1], to: edge[3], kind: edge[2] })
-      continue
-    }
-    const node = NODE.exec(line)
-    if (node) nodes.push(node[1])
-  }
-  return { nodes, edges }
-}
-
-// Filtering has to prune nodes as well as edges. Node declarations sit inside
-// subgraphs, so dropping a kind otherwise leaves boxes with nothing attached —
-// a sql-only view strands most of the diagram.
-export function filterByKinds(src: string, kinds: readonly string[]): string {
-  const enabled = new Set(kinds)
-  const kept = parseTopology(src).edges.filter(e => enabled.has(e.kind))
-  const live = new Set(kept.flatMap(e => [e.from, e.to]))
-
-  const lines = src.split('\n').filter(line => {
-    const edge = EDGE.exec(line)
-    if (edge) return enabled.has(edge[2])
-    const node = NODE.exec(line)
-    if (node) return live.has(node[1])
-    return true
-  })
-
-  // A group whose nodes have all gone still draws as an empty labelled box,
-  // which is the thing pruning nodes was meant to avoid. Drop the block too.
-  const out: string[] = []
-  let block: string[] | null = null
-  let populated = false
-  for (const line of lines) {
-    if (SUBGRAPH.test(line)) {
-      block = [line]
-      populated = false
-      continue
-    }
-    if (block) {
-      if (/^\s*end\s*$/.test(line)) {
-        if (populated) out.push(...block, line)
-        block = null
-        continue
-      }
-      block.push(line)
-      if (NODE.test(line)) populated = true
-      continue
-    }
-    out.push(line)
-  }
-  if (block) out.push(...block)
-  return out.join('\n')
-}
-
-// Subgraphs whose nodes back a real container, plus the one container that
-// lives in a mixed group. Membership decides the join rather than a list of
-// node ids, so a service added to the diagram joins without a second edit —
-// and a public name or UI route never reports itself perpetually unknown.
-const CONTAINER_GROUPS = new Set(['edge', 'apps', 'obs'])
-const CONTAINER_NODES = new Set(['shared_postgres'])
-
-const SUBGRAPH = /^\s*subgraph\s+([\w-]+)\b/
-
-export function containerNodes(src: string): Set<string> {
-  const containers = new Set<string>()
+  const groups: Group[] = []
+  const clicks: Record<string, string> = {}
   let group = ''
+
   for (const line of src.split('\n')) {
     const subgraph = SUBGRAPH.exec(line)
     if (subgraph) {
       group = subgraph[1]
+      groups.push({ id: group, label: subgraph[2] })
       continue
     }
     if (/^\s*end\s*$/.test(line)) {
       group = ''
       continue
     }
+    const click = CLICK.exec(line)
+    if (click) {
+      clicks[click[1]] = click[2]
+      continue
+    }
+    const edge = EDGE.exec(line)
+    if (edge) {
+      edges.push({ from: edge[1], to: edge[3], kind: edge[2] })
+      continue
+    }
     const node = NODE.exec(line)
-    if (!node) continue
-    if (CONTAINER_GROUPS.has(group) || CONTAINER_NODES.has(node[1])) containers.add(node[1])
+    if (node) nodes.push({ id: node[1], label: node[2] || node[1], group })
   }
-  return containers
+  return { nodes, edges, groups, clicks }
+}
+
+// Dropping a kind strands the nodes it connected and empties the groups that
+// held them. Both go, or the drawing keeps boxes with nothing attached.
+export function filterTopology(topology: Topology, kinds: readonly string[]): Topology {
+  const enabled = new Set(kinds)
+  const edges = topology.edges.filter(e => enabled.has(e.kind))
+  const live = new Set(edges.flatMap(e => [e.from, e.to]))
+  const nodes = topology.nodes.filter(n => live.has(n.id))
+  const populated = new Set(nodes.map(n => n.group))
+  return {
+    ...topology,
+    edges,
+    nodes,
+    groups: topology.groups.filter(g => populated.has(g.id)),
+  }
+}
+
+// Groups whose nodes back a real container, plus the one container in a mixed
+// group. Membership decides it rather than a list of ids, so a service added to
+// the diagram joins without a second edit here, and a public name or a UI route
+// never reports itself perpetually unknown.
+const CONTAINER_GROUPS = new Set(['edge', 'apps', 'obs'])
+const CONTAINER_NODES = new Set(['shared_postgres'])
+
+export function containerIds(topology: Topology): Set<string> {
+  return new Set(
+    topology.nodes
+      .filter(n => CONTAINER_GROUPS.has(n.group) || CONTAINER_NODES.has(n.id))
+      .map(n => n.id)
+  )
 }
 
 const SITE = 'https://muchq.com'
 
-// Mermaid renders a click directive as a native anchor, which react-router
-// does not intercept — without this the page reloads on every node click.
 export function routeFor(href: string): string | null {
   return href.startsWith(SITE) ? href.slice(SITE.length) : null
 }

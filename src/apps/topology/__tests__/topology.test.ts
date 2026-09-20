@@ -1,62 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { containerNodes, filterByKinds, parseTopology, routeFor } from '../topology'
+import { containerIds, filterTopology, parseTopology, routeFor } from '../topology'
 
 const SRC = `flowchart LR
-  subgraph apps["Applications"]
-    caddy["caddy"]
-    deja["deja"]
-    shared_postgres[("shared_postgres")]
-  end
-
-  caddy -->|http| deja
-  deja -.->|metrics| shared_postgres
-
-  classDef gated stroke-dasharray: 5 5
-  click deja "https://muchq.com/deja"
-`
-
-describe('parseTopology', () => {
-  it('reads each edge with its kind', () => {
-    const { edges } = parseTopology(SRC)
-
-    expect(edges).toEqual([
-      { from: 'caddy', to: 'deja', kind: 'http' },
-      { from: 'deja', to: 'shared_postgres', kind: 'metrics' },
-    ])
-  })
-
-  it('reads declared nodes, not the subgraph that holds them', () => {
-    const { nodes } = parseTopology(SRC)
-
-    expect(nodes).toEqual(['caddy', 'deja', 'shared_postgres'])
-  })
-})
-
-describe('filterByKinds', () => {
-  it('keeps only edges of the enabled kinds', () => {
-    const { edges } = parseTopology(filterByKinds(SRC, ['http']))
-
-    expect(edges).toEqual([{ from: 'caddy', to: 'deja', kind: 'http' }])
-  })
-
-  it('drops nodes that lose every edge, so no empty boxes are left behind', () => {
-    const { nodes } = parseTopology(filterByKinds(SRC, ['http']))
-
-    expect(nodes).toEqual(['caddy', 'deja'])
-  })
-
-  it('keeps the diagram header so the result still renders', () => {
-    expect(filterByKinds(SRC, ['http']).split('\n')[0]).toBe('flowchart LR')
-  })
-})
-
-const GROUPED = `flowchart LR
   subgraph cf["Cloudflare"]
     muchq_com["muchq.com"]
-  end
-
-  subgraph ui["muchq.com routes"]
-    ui_deja["/deja"]
   end
 
   subgraph edge["Host edge"]
@@ -73,28 +20,80 @@ const GROUPED = `flowchart LR
     s3[("S3")]
   end
 
-  subgraph obs["Observability"]
-    otelcol["otelcol"]
-  end
+  muchq_com -->|http| caddy
+  caddy -->|http| deja
+  deja -->|sql| shared_postgres
+  deja -.->|logs| s3
+
+  classDef gated stroke-dasharray: 5 5
+  click deja "https://muchq.com/deja"
 `
 
-describe('containerNodes', () => {
-  it('counts the application and observability nodes, and the database', () => {
-    expect([...containerNodes(GROUPED)].sort()).toEqual([
+describe('parseTopology', () => {
+  it('reads each node with its label and the group holding it', () => {
+    const { nodes } = parseTopology(SRC)
+
+    expect(nodes.find(n => n.id === 'shared_postgres')).toEqual({
+      id: 'shared_postgres',
+      label: 'shared_postgres',
+      group: 'data',
+    })
+    expect(nodes.find(n => n.id === 'microgpt-serve')?.group).toBe('apps')
+  })
+
+  it('reads each edge with its kind', () => {
+    const { edges } = parseTopology(SRC)
+
+    expect(edges).toContainEqual({ from: 'caddy', to: 'deja', kind: 'http' })
+    expect(edges).toContainEqual({ from: 'deja', to: 's3', kind: 'logs' })
+  })
+
+  it('reads the group labels, which are not the group ids', () => {
+    const { groups } = parseTopology(SRC)
+
+    expect(groups.find(g => g.id === 'cf')?.label).toBe('Cloudflare')
+  })
+
+  it('reads the click targets', () => {
+    expect(parseTopology(SRC).clicks.deja).toBe('https://muchq.com/deja')
+  })
+})
+
+describe('filterTopology', () => {
+  it('keeps only edges of the enabled kinds', () => {
+    const { edges } = filterTopology(parseTopology(SRC), ['sql'])
+
+    expect(edges).toEqual([{ from: 'deja', to: 'shared_postgres', kind: 'sql' }])
+  })
+
+  it('drops nodes left with no edge, so no stranded boxes are drawn', () => {
+    const { nodes } = filterTopology(parseTopology(SRC), ['sql'])
+
+    expect(nodes.map(n => n.id).sort()).toEqual(['deja', 'shared_postgres'])
+  })
+
+  it('drops a group whose nodes have all gone', () => {
+    const { groups } = filterTopology(parseTopology(SRC), ['sql'])
+
+    expect(groups.map(g => g.id).sort()).toEqual(['apps', 'data'])
+  })
+})
+
+describe('containerIds', () => {
+  it('counts caddy, the applications and the database', () => {
+    expect([...containerIds(parseTopology(SRC))].sort()).toEqual([
       'caddy',
       'deja',
       'microgpt-serve',
-      'otelcol',
       'shared_postgres',
     ])
   })
 
-  it('leaves out the public names, the UI routes and S3, which have no container', () => {
-    const containers = containerNodes(GROUPED)
+  it('leaves out the public names and S3, which have no container', () => {
+    const ids = containerIds(parseTopology(SRC))
 
-    expect(containers.has('muchq_com')).toBe(false)
-    expect(containers.has('ui_deja')).toBe(false)
-    expect(containers.has('s3')).toBe(false)
+    expect(ids.has('muchq_com')).toBe(false)
+    expect(ids.has('s3')).toBe(false)
   })
 })
 
@@ -103,21 +102,7 @@ describe('routeFor', () => {
     expect(routeFor('https://muchq.com/deja')).toBe('/deja')
   })
 
-  it('ignores a link that leaves the site, so it navigates normally', () => {
+  it('ignores a link that leaves the site', () => {
     expect(routeFor('https://example.com/deja')).toBeNull()
-  })
-})
-
-describe('filterByKinds, empty groups', () => {
-  it('drops a subgraph whose nodes have all gone, so no empty cluster is drawn', () => {
-    const withObs = `${SRC}
-  subgraph obs["Observability"]
-    otelcol["otelcol"]
-  end
-`
-    const only = filterByKinds(withObs, ['http'])
-
-    expect(only).toContain('Applications')
-    expect(only).not.toContain('Observability')
   })
 })

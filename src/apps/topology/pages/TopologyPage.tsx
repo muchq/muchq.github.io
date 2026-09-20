@@ -5,16 +5,17 @@ import { fetchNodeStates } from '../api'
 import LayerToggles from '../components/LayerToggles'
 import TopologyGraph from '../components/TopologyGraph'
 import styles from '../components/Topology.module.css'
-import { filterByKinds, parseTopology } from '../topology'
+import { filterTopology, parseTopology } from '../topology'
 import source from '../topology.mmd?raw'
 
 // The deployed system, from MoonBase's docs/DEPLOYMENT.md. Node colour is live
-// container state; unchecking a layer removes that kind of edge, and the nodes
-// it leaves stranded.
+// container state; unchecking a layer removes that kind of edge, the nodes it
+// strands, and the groups they emptied.
 const TopologyPage = () => {
+  const topology = useMemo(() => parseTopology(source), [])
   const kinds = useMemo(
-    () => [...new Set(parseTopology(source).edges.map(e => e.kind))].sort(),
-    []
+    () => [...new Set(topology.edges.map(e => e.kind))].sort(),
+    [topology]
   )
   const [enabled, setEnabled] = useState<ReadonlySet<string>>(() => new Set(kinds))
   const [states, setStates] = useState<Map<string, ContainerState> | null>(null)
@@ -32,7 +33,7 @@ const TopologyPage = () => {
     }
   }, [])
 
-  const shown = useMemo(() => filterByKinds(source, [...enabled]), [enabled])
+  const shown = useMemo(() => filterTopology(topology, [...enabled]), [topology, enabled])
 
   const toggle = (kind: string) =>
     setEnabled(prev => {
@@ -49,7 +50,7 @@ const TopologyPage = () => {
         <h1>Topology</h1>
         <LayerToggles kinds={kinds} enabled={enabled} onToggle={toggle} />
         {asked && states === null && <p className={styles.note}>Status unavailable</p>}
-        <TopologyGraph source={shown} states={states} />
+        <TopologyGraph topology={shown} states={states} />
       </main>
     </>
   )

@@ -1,98 +1,113 @@
-import { useEffect, useRef } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { ContainerState } from '@/apps/metrics-systems/api'
-import { containerNodes, parseTopology, routeFor } from '../topology'
+import { layout } from '../layout'
+import { containerIds, routeFor, type Topology } from '../topology'
 import styles from './Topology.module.css'
 
 interface TopologyGraphProps {
-  source: string
+  topology: Topology
   states: Map<string, ContainerState> | null
 }
 
-// Plain names rather than CSS-module keys: these are written onto mermaid's
-// own SVG, which the module's :global rules then style, and they stay
-// assertable in a test run that does not process CSS.
-const STATE_CLASS: Record<ContainerState, string> = {
-  up: 'state-up',
-  'crash looping': 'state-crash-looping',
-  'not reporting': 'state-not-reporting',
+const STATE_ATTR: Record<ContainerState, string> = {
+  up: 'up',
+  'crash looping': 'crash-looping',
+  'not reporting': 'not-reporting',
 }
 
-const UNKNOWN = 'state-unknown'
-const DIMMED = 'is-dimmed'
+const pathOf = (points: { x: number; y: number }[]) =>
+  points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
 
-// Mermaid 12 builds a node's DOM id as `${renderId}-flowchart-${node}-${n}`.
-// Both ends have to come off, and the render id has to be the one this draw
-// used — it carries a timestamp, so a stale prefix matches nothing.
-const nodeIdOf = (el: Element, renderId: string): string => {
-  const prefix = `${renderId}-flowchart-`
-  const id = el.id || ''
-  return id.startsWith(prefix) ? id.slice(prefix.length).replace(/-\d+$/, '') : ''
-}
-
-const TopologyGraph = ({ source, states }: TopologyGraphProps) => {
-  const host = useRef<HTMLDivElement>(null)
+const TopologyGraph = ({ topology, states }: TopologyGraphProps) => {
   const navigate = useNavigate()
+  const [hovered, setHovered] = useState<string | null>(null)
 
-  useEffect(() => {
-    let live = true
-    const draw = async () => {
-      // Route-split: mermaid is large and only this page draws.
-      const mermaid = (await import('mermaid')).default
-      mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' })
-      const renderId = `topology-${Date.now()}`
-      const { svg } = await mermaid.render(renderId, source)
-      if (!live || !host.current) return
-      host.current.innerHTML = svg
-      paint(host.current, renderId)
+  const placed = useMemo(() => layout(topology), [topology])
+  const containers = useMemo(() => containerIds(topology), [topology])
+
+  // Everything the hovered node touches, itself included. Null means no hover,
+  // which is not the same as an empty set: an isolated node dims the rest.
+  const lit = useMemo(() => {
+    if (hovered === null) return null
+    const near = new Set([hovered])
+    for (const e of placed.edges) {
+      if (e.from === hovered) near.add(e.to)
+      if (e.to === hovered) near.add(e.from)
     }
+    return near
+  }, [hovered, placed.edges])
 
-    const paint = (root: HTMLElement, renderId: string) => {
-      const { edges } = parseTopology(source)
-      const containers = containerNodes(source)
-      for (const el of root.querySelectorAll('.node')) {
-        const id = nodeIdOf(el, renderId)
-        if (!containers.has(id)) continue
-        const state = states?.get(id)
-        el.classList.add(state ? STATE_CLASS[state] : UNKNOWN)
-      }
-      for (const el of root.querySelectorAll('.node')) {
-        const id = nodeIdOf(el, renderId)
-        const neighbours = new Set([id])
-        for (const e of edges) {
-          if (e.from === id) neighbours.add(e.to)
-          if (e.to === id) neighbours.add(e.from)
-        }
-        el.addEventListener('mouseenter', () => {
-          for (const other of root.querySelectorAll('.node')) {
-            other.classList.toggle(DIMMED, !neighbours.has(nodeIdOf(other, renderId)))
-          }
-        })
-        el.addEventListener('mouseleave', () => {
-          for (const other of root.querySelectorAll('.node')) other.classList.remove(DIMMED)
-        })
-      }
-    }
-
-    void draw()
-    return () => {
-      live = false
-    }
-  }, [source, states])
-
-  // Mermaid emits a native anchor, which the router does not intercept:
-  // without this every node click is a full reload of the SPA.
-  const onClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    const anchor = (event.target as Element).closest('a')
-    const href = anchor?.getAttribute('href')
-    if (!href) return
-    const route = routeFor(href)
+  const open = (id: string) => {
+    const target = topology.clicks[id]
+    if (!target) return
+    const route = routeFor(target)
     if (route === null) return
-    event.preventDefault()
     navigate(route)
   }
 
-  return <div ref={host} className={styles.graph} onClick={onClick} />
+  return (
+    <svg
+      className={styles.graph}
+      viewBox={`0 0 ${placed.width} ${placed.height}`}
+      role="img"
+      aria-label="Deployment topology"
+    >
+      <defs>
+        <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0,0 L8,4 L0,8 z" className={styles.arrowHead} />
+        </marker>
+      </defs>
+
+      {placed.clusters.map(cluster => (
+        <g key={cluster.id} className={styles.cluster}>
+          <rect x={cluster.x} y={cluster.y} width={cluster.width} height={cluster.height} rx={8} />
+          <text x={cluster.x + 10} y={cluster.y + 16}>
+            {cluster.label}
+          </text>
+        </g>
+      ))}
+
+      {placed.edges.map(edge => (
+        <path
+          key={`${edge.from}-${edge.kind}-${edge.to}`}
+          d={pathOf(edge.points)}
+          className={styles.edge}
+          data-kind={edge.kind}
+          data-dimmed={lit !== null && !(lit.has(edge.from) && lit.has(edge.to))}
+          markerEnd="url(#arrow)"
+        />
+      ))}
+
+      {placed.nodes.map(node => {
+        const isContainer = containers.has(node.id)
+        const state = isContainer ? (states?.get(node.id) ?? null) : null
+        const clickable = Boolean(topology.clicks[node.id])
+        return (
+          <g
+            key={node.id}
+            data-node={node.id}
+            data-state={isContainer ? (state ? STATE_ATTR[state] : 'unknown') : undefined}
+            data-dimmed={lit !== null && !lit.has(node.id)}
+            className={clickable ? styles.clickable : styles.node}
+            role={clickable ? 'link' : undefined}
+            tabIndex={clickable ? 0 : undefined}
+            onMouseEnter={() => setHovered(node.id)}
+            onMouseLeave={() => setHovered(null)}
+            onClick={() => open(node.id)}
+            onKeyDown={event => {
+              if (event.key === 'Enter' || event.key === ' ') open(node.id)
+            }}
+          >
+            <rect x={node.x} y={node.y} width={node.width} height={node.height} rx={5} />
+            <text x={node.x + node.width / 2} y={node.y + node.height / 2}>
+              {node.label}
+            </text>
+          </g>
+        )
+      })}
+    </svg>
+  )
 }
 
 export default TopologyGraph
