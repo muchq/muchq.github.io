@@ -13,8 +13,6 @@ flowchart LR
     api_muchq["api.muchq.com"]
     i_iili_uk["i.iili.uk"]
     gpt_muchq["gpt.muchq.com"]
-    git_muchq["git.muchq.com"]
-    git_ssh["host :222"]
     api_1d4["api.1d4.net"]
     mcp_1d4["mcp.1d4.net"]
     cmptr["consolidated.cmptr.info"]
@@ -49,7 +47,6 @@ flowchart LR
     deja["deja"]
     stats["stats"]:::gated
     log_shipper["log_shipper"]:::gated
-    forgejo["forgejo"]
     prom_proxy["prom_proxy"]
   end
 
@@ -91,11 +88,9 @@ flowchart LR
   api_muchq -->|http| caddy
   i_iili_uk -->|http| caddy
   gpt_muchq -->|http| caddy
-  git_muchq -->|http| caddy
   api_1d4 -->|http| caddy
   mcp_1d4 -->|http| caddy
   cmptr -->|http| caddy
-  git_ssh -->|ssh| forgejo
 
   caddy -->|http| games_hub
   caddy -->|http| portrait
@@ -109,7 +104,6 @@ flowchart LR
   caddy -->|http| deja
   caddy -->|http| mcpserver
   caddy -->|http| prom_proxy
-  caddy -->|http| forgejo
 
   mcpserver -->|http| one_d4
   mcpserver -->|http| one_d4_v2
