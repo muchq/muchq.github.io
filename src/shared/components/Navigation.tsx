@@ -46,6 +46,7 @@ const MENU: MenuGroup[] = [
       { label: 'Stats', to: '/stats' },
       { label: 'Deja', to: '/deja' },
       { label: 'Metrics', to: '/metrics' },
+      { label: 'Topology', to: '/topology' },
     ],
   },
   {

@@ -1,0 +1,13 @@
+.graph { width: 100%; overflow: auto; }
+.graph :global(svg) { max-width: 100%; height: auto; }
+
+.graph :global(.is-dimmed) { opacity: 0.15; transition: opacity 120ms ease; }
+
+.graph :global(.state-up rect), .graph :global(.state-up path), .graph :global(.state-up polygon) { stroke: #2f9e44; }
+.graph :global(.state-crash-looping rect), .graph :global(.state-crash-looping path), .graph :global(.state-crash-looping polygon) { stroke: #e03131; }
+.graph :global(.state-not-reporting rect), .graph :global(.state-not-reporting path), .graph :global(.state-not-reporting polygon) { stroke: #f08c00; }
+.graph :global(.state-unknown rect), .graph :global(.state-unknown path), .graph :global(.state-unknown polygon) { stroke: #868e96; }
+
+.toggles { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0 0 1rem; }
+.toggle { display: inline-flex; align-items: center; gap: 0.35rem; }
+.note { color: #868e96; margin: 0 0 1rem; }
