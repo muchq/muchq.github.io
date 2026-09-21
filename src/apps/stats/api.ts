@@ -94,9 +94,10 @@ export interface ServiceRow {
   errors: number
 }
 
-// total is how many rows there were before the limit; the server folds
-// routes into services before truncating, so a short list is missing
-// whole quiet services rather than part of a busy one.
+// total is how many rows there were before the limit. The server truncates
+// by service, not by row, so a short list is missing whole quiet services
+// rather than part of a busy one — which is what makes summing these per
+// service meaningful.
 export interface StatsServices {
   days: number
   total: number
