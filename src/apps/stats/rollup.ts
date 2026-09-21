@@ -1,4 +1,12 @@
-import type { CountryRow, ProbeRow, StatsAgents, StatsCountries, StatsProbes, StatsSummary } from './api'
+import type {
+  CountryRow,
+  ProbeRow,
+  StatsAgents,
+  StatsCountries,
+  StatsProbes,
+  StatsServices,
+  StatsSummary,
+} from './api'
 
 export const AGENT_CLASSES = ['browser', 'ai_scraper', 'bot', 'other'] as const
 
@@ -190,4 +198,94 @@ export function topAgents(agents: StatsAgents | null, limit: number): TopAgent[]
     .map(({ hostSet, ...rest }) => ({ ...rest, hosts: hostSet.size }))
     .sort(byRequestsDesc)
     .slice(0, limit)
+}
+
+// What a container is called, for people who never deployed it. The API
+// returns the gateway's own upstream names because that is what its pin
+// against the Caddyfile can hold; "posterize" and "mithril" mean nothing
+// to a reader who clicked Imagine or Wordchains, and "one_d4_v2" is a
+// deployment detail nobody asked for. A service with no entry here shows
+// under its own name rather than vanishing, which is the right failure:
+// a backend added on the server should appear on the page the same day.
+export const SERVICE_LABELS: Record<string, string> = {
+  deja: 'Deja',
+  forgejo: 'Git',
+  games_hub: 'Games',
+  iili: 'Short links',
+  mcpserver: 'MCP',
+  'microgpt-serve': 'microGPT',
+  mithril: 'Wordchains',
+  one_d4: '1d4',
+  one_d4_v2: '1d4 v2',
+  portrait: 'Tracy',
+  posterize: 'Imagine',
+  prom_proxy: 'Metrics',
+  stats: 'Stats',
+  // Not a backend: the paths the gateway answered itself, or refused.
+  other: 'Nothing served',
+}
+
+export const serviceLabel = (service: string) => SERVICE_LABELS[service] ?? service
+
+// The callers the source column can name, in the order the table reads.
+export const SOURCES = ['ui', 'mcp', 'api'] as const
+
+export const SOURCE_LABELS: Record<string, string> = {
+  ui: 'Web app',
+  mcp: 'MCP',
+  // Everything that is neither: a script, a scanner, a person with curl.
+  api: 'Direct',
+}
+
+export interface ServiceEntry {
+  service: string
+  label: string
+  total: number
+  errors: number
+  /** Per agent class, so a busy backend can be read as people or crawlers. */
+  classes: Record<string, number>
+  /** Per caller, from the source column. */
+  callers: Record<string, number>
+  /** The vhosts this backend was reached through, busiest first. */
+  hosts: string[]
+}
+
+// One entry per backend over the window, busiest first. Rows arrive
+// per day, host, caller and class; a service reached through two vhosts
+// (microgpt-serve answers both api.muchq.com and gpt.muchq.com) is one
+// entry that names both.
+export function rollupServices(services: StatsServices | null): ServiceEntry[] {
+  const entries = new Map<string, ServiceEntry>()
+  const hostTotals = new Map<string, Map<string, number>>()
+
+  for (const row of services?.rows ?? []) {
+    let entry = entries.get(row.service)
+    if (!entry) {
+      entry = {
+        service: row.service,
+        label: serviceLabel(row.service),
+        total: 0,
+        errors: 0,
+        classes: {},
+        callers: {},
+        hosts: [],
+      }
+      entries.set(row.service, entry)
+      hostTotals.set(row.service, new Map())
+    }
+    entry.total += row.requests
+    entry.errors += row.errors
+    entry.classes[row.agent_class] = (entry.classes[row.agent_class] ?? 0) + row.requests
+    entry.callers[row.source] = (entry.callers[row.source] ?? 0) + row.requests
+    const hosts = hostTotals.get(row.service)!
+    hosts.set(row.host, (hosts.get(row.host) ?? 0) + row.requests)
+  }
+
+  for (const entry of entries.values()) {
+    const hosts = hostTotals.get(entry.service)!
+    entry.hosts = [...hosts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([host]) => host)
+  }
+  return [...entries.values()].sort((a, b) => b.total - a.total || a.label.localeCompare(b.label))
 }

@@ -102,3 +102,19 @@
 .attribution a {
   color: inherit;
 }
+
+/* Prose under a table heading: what the numbers mean, where the column
+   name alone would be read as something narrower than it is. */
+.note {
+  margin: 0 0 10px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* The vhosts a backend was reached through — secondary to its counts,
+   and long enough to wrap rather than widen the table. */
+.hostList {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+}

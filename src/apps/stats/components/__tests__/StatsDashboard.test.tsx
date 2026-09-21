@@ -53,12 +53,24 @@ const countriesResponse = {
   ],
 }
 
+const servicesResponse = {
+  days: 30,
+  total: 4,
+  rows: [
+    { date: '2026-08-30', host: 'git.muchq.com', service: 'forgejo', source: 'api', agent_class: 'ai_scraper', requests: 900, errors: 900 },
+    { date: '2026-08-30', host: 'api.muchq.com', service: 'microgpt-serve', source: 'ui', agent_class: 'browser', requests: 30, errors: 0 },
+    { date: '2026-08-30', host: 'gpt.muchq.com', service: 'microgpt-serve', source: 'api', agent_class: 'bot', requests: 12, errors: 2 },
+    { date: '2026-08-30', host: 'api.muchq.com', service: 'other', source: 'api', agent_class: 'bot', requests: 5, errors: 5 },
+  ],
+}
+
 const everything = {
   '/summary': summaryResponse,
   '/agents': agentsResponse,
   '/probes': probesResponse,
   '/iili/top': slugsResponse,
   '/countries': countriesResponse,
+  '/services': servicesResponse,
 }
 
 function mockFetch(bodies: Record<string, unknown>) {
@@ -227,17 +239,50 @@ describe('StatsDashboard', () => {
     expect(credit.closest('p')?.textContent).toContain('IP geolocation by DB-IP')
   })
 
-  it('asks for one window across all five aggregates', async () => {
+  it('names the backend behind the traffic, and who was asking', async () => {
+    mockFetch(everything)
+    render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
+
+    // Busiest backend first, under a name a visitor recognises rather
+    // than the container's.
+    const forgejo = await screen.findByTestId('service-forgejo')
+    expect(cellsOf(forgejo)).toEqual([
+      'Git', '900', '900', '0', '0', '900', '0', '900', '0', '0', 'git.muchq.com',
+    ])
+
+    // One backend reached through two vhosts is one row naming both, with
+    // its callers and classes summed across them.
+    const microgpt = screen.getByTestId('service-microgpt-serve')
+    expect(cellsOf(microgpt)).toEqual([
+      'microGPT', '42', '2', '30', '0', '12', '30', '0', '12', '0',
+      'api.muchq.com, gpt.muchq.com',
+    ])
+
+    // And the paths no backend served are named as that, not as a service.
+    expect(cellsOf(screen.getByTestId('service-other'))[0]).toBe('Nothing served')
+  })
+
+  it('says so when the services list came back truncated', async () => {
+    mockFetch({ ...everything, '/services': { ...servicesResponse, total: 99 } })
+    render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
+
+    expect(await screen.findByText(/Showing 4 of 99 rows/)).toBeInTheDocument()
+  })
+
+  it('asks for one window across all six aggregates', async () => {
     mockFetch(everything)
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
     await screen.findByRole('button', { name: /git\.muchq\.com/ })
 
     const urls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.map((call) => String(call[0]))
-    expect(urls).toHaveLength(5)
+    expect(urls).toHaveLength(6)
     for (const url of urls) expect(url).toContain('days=30')
     // The agents endpoint truncates busiest-first; ask for its ceiling so
     // a scraper's thin days are rows, not gaps.
     expect(urls.find((url) => url.includes('/agents'))).toContain('limit=2000')
+    // Same reason for services: it folds routes into services before it
+    // truncates, so a low limit loses whole backends.
+    expect(urls.find((url) => url.includes('/services'))).toContain('limit=5000')
   })
 
   it('reports failure without rendering a broken table when the API is down', async () => {
@@ -280,8 +325,9 @@ describe('StatsDashboard', () => {
     const gitRow = (await screen.findByRole('button', { name: /git\.muchq\.com/ })).closest('tr')!
     expect(cellsOf(gitRow)).toEqual(['›git.muchq.com', '913', '703', '0', '900', '10', '3'])
     expect(onState).toHaveBeenLastCalledWith('connected')
-    // The tables whose endpoints failed say so rather than claiming zero.
-    expect(screen.getAllByText('Not available from the stats service.')).toHaveLength(4)
+    // The tables whose endpoints failed say so rather than claiming zero,
+    // services among them.
+    expect(screen.getAllByText('Not available from the stats service.')).toHaveLength(5)
     expect(screen.queryByText('No scanner probes in the window.')).not.toBeInTheDocument()
     expect(screen.getByText('abc123')).toBeInTheDocument()
   })

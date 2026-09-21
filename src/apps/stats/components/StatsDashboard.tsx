@@ -8,6 +8,7 @@ import {
   type StatsAgents,
   type StatsCountries,
   type StatsProbes,
+  type StatsServices,
   type StatsSummary,
   type TopSlugs,
 } from '../api'
@@ -15,6 +16,9 @@ import {
   AGENT_CLASSES,
   CLASS_LABELS,
   rollupHosts,
+  rollupServices,
+  SOURCE_LABELS,
+  SOURCES,
   scrapersByDay,
   topAgents,
   topCountries,
@@ -35,6 +39,11 @@ const TOP_AGENTS = 25
 // by-day table as missing rows rather than zeros.
 const AGENT_ROWS = 2000
 const TOP_COUNTRIES = 25
+// The services endpoint's own ceiling. Its rows are folded per service
+// before it truncates, so a short answer is missing quiet backends
+// entirely rather than part of a busy one's total — which is why the
+// row count is checked against what it says it had.
+const SERVICE_ROWS = 5000
 const HOST_COUNTRIES = 8
 
 const n = (value: number) => value.toLocaleString()
@@ -53,6 +62,7 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
   const [agents, setAgents] = useState<StatsAgents | null>(null)
   const [probes, setProbes] = useState<StatsProbes | null>(null)
   const [countries, setCountries] = useState<StatsCountries | null>(null)
+  const [services, setServices] = useState<StatsServices | null>(null)
   const [slugs, setSlugs] = useState<TopSlugs | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [openHost, setOpenHost] = useState<string | null>(null)
@@ -66,13 +76,15 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
       fetchJson<StatsProbes>(`${STATS_API_URL}/probes?days=${WINDOW_DAYS}`),
       fetchJson<TopSlugs>(`${STATS_API_URL}/iili/top?days=${WINDOW_DAYS}&limit=20`),
       fetchJson<StatsCountries>(`${STATS_API_URL}/countries?days=${WINDOW_DAYS}`),
-    ]).then(([summaryResult, agentsResult, probesResult, slugResult, countriesResult]) => {
+      fetchJson<StatsServices>(`${STATS_API_URL}/services?days=${WINDOW_DAYS}&limit=${SERVICE_ROWS}`),
+    ]).then(([summaryResult, agentsResult, probesResult, slugResult, countriesResult, servicesResult]) => {
       if (cancelled) return
       setSummary(summaryResult)
       setAgents(agentsResult)
       setProbes(probesResult)
       setSlugs(slugResult)
       setCountries(countriesResult)
+      setServices(servicesResult)
       setLoaded(true)
       onConnectionStateChange(summaryResult ? 'connected' : 'failed')
     })
@@ -88,6 +100,7 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
   const byDay = useMemo(() => scrapersByDay(agents), [agents])
   const busiest = useMemo(() => topAgents(agents, TOP_AGENTS), [agents])
   const fromWhere = useMemo(() => topCountries(countries, TOP_COUNTRIES), [countries])
+  const backends = useMemo(() => rollupServices(services), [services])
 
   if (!loaded) {
     return <div className={styles.noData}>Loading stats…</div>
@@ -165,6 +178,62 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>Traffic by service — last {days} days</h2>
+        <p className={own.note}>
+          Which backend the gateway sent a request to, and who was asking. A path
+          the gateway answered itself — a refusal, or something no backend serves
+          — is “Nothing served”, and a backend’s refusals count as its errors.
+        </p>
+        <div className={styles.tableScroll}>
+          <table className={styles.containerTable}>
+            <thead>
+              <tr>
+                <th>Service</th>
+                <th>Requests</th>
+                <th>Errors</th>
+                {SOURCES.map((source) => (
+                  <th key={source}>{SOURCE_LABELS[source]}</th>
+                ))}
+                {AGENT_CLASSES.map((agentClass) => (
+                  <th key={agentClass}>{CLASS_LABELS[agentClass]}</th>
+                ))}
+                <th>Reached through</th>
+              </tr>
+            </thead>
+            <tbody>
+              {backends.map((entry) => (
+                <tr key={entry.service} data-testid={`service-${entry.service}`}>
+                  <td>{entry.label}</td>
+                  <td>{n(entry.total)}</td>
+                  <td>{n(entry.errors)}</td>
+                  {SOURCES.map((source) => (
+                    <td key={source}>{n(entry.callers[source] ?? 0)}</td>
+                  ))}
+                  {AGENT_CLASSES.map((agentClass) => (
+                    <td key={agentClass}>{n(entry.classes[agentClass] ?? 0)}</td>
+                  ))}
+                  <td className={own.hostList}>{entry.hosts.join(', ')}</td>
+                </tr>
+              ))}
+              {backends.length === 0 && (
+                <tr>
+                  <td colSpan={4 + SOURCES.length + AGENT_CLASSES.length}>
+                    {services ? 'No aggregated traffic yet.' : UNAVAILABLE}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {services && services.total > services.rows.length && (
+          <p className={own.note}>
+            Showing {n(services.rows.length)} of {n(services.total)} rows; the
+            quietest services are missing.
+          </p>
+        )}
       </div>
 
       <div className={styles.sectionGrid}>

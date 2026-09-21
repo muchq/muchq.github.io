@@ -77,3 +77,28 @@ export interface StatsCountries {
   days: number
   rows: CountryRow[]
 }
+
+// One day of one backend's traffic on one vhost, from one caller of one
+// agent class (MoonBase#1573). The service is the container the gateway
+// proxies the route to, not necessarily the thing that answered: Caddy
+// handles CORS preflights and refuses scrapers above the handle that
+// would have proxied them, so those land under the backend whose path
+// they asked for, and the refusals land in its errors.
+export interface ServiceRow {
+  date: string
+  host: string
+  service: string
+  source: string
+  agent_class: string
+  requests: number
+  errors: number
+}
+
+// total is how many rows there were before the limit; the server folds
+// routes into services before truncating, so a short list is missing
+// whole quiet services rather than part of a busy one.
+export interface StatsServices {
+  days: number
+  total: number
+  rows: ServiceRow[]
+}
