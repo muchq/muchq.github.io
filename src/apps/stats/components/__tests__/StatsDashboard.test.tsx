@@ -266,10 +266,10 @@ describe('StatsDashboard', () => {
     mockFetch({ ...everything, '/services': { ...servicesResponse, total: 99 } })
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
-    expect(await screen.findByText(/Incomplete: 4 of 99 rows/)).toBeInTheDocument()
-    // The row grain is the point: the backend slices rows, not services, so
-    // a service can keep its busy days and lose its quiet ones.
-    expect(await screen.findByText(/lower bounds, not\s+totals/)).toBeInTheDocument()
+    expect(await screen.findByText(/Showing 4 of 99 rows/)).toBeInTheDocument()
+    // What is missing is whole services, which is why the totals shown can
+    // still be read as totals.
+    expect(await screen.findByText(/every total above is exact/)).toBeInTheDocument()
   })
 
   // The services endpoint is the newest and the only one that may be

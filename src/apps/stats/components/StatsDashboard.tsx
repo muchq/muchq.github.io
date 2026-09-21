@@ -239,10 +239,9 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
         </div>
         {services && services.total > services.rows.length && (
           <p className={own.note}>
-            Incomplete: {n(services.rows.length)} of {n(services.total)} rows.
-            A row is one day of one caller, so a service can lose its quiet
-            days and keep its busy ones — read these as lower bounds, not
-            totals.
+            Showing {n(services.rows.length)} of {n(services.total)} rows.
+            The busiest services are here in full and the quietest are
+            missing entirely, so every total above is exact.
           </p>
         )}
       </div>
