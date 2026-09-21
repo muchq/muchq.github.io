@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { rollupHosts, scrapersByDay, topAgents, topCountries } from '../rollup'
+import { rollupHosts, rollupServices, scrapersByDay, serviceLabel, topAgents, topCountries } from '../rollup'
 
 const summary = {
   days: 30,
@@ -116,5 +116,57 @@ describe('topCountries', () => {
       ['a', ['GB:10', 'US:8', '--:2']],
       ['b', ['US:1']],
     ])
+  })
+})
+
+const services = {
+  days: 30,
+  total: 7,
+  rows: [
+    // One backend, two vhosts, two days, two callers: all one entry.
+    { date: '2026-08-30', host: 'api.muchq.com', service: 'microgpt-serve', source: 'ui', agent_class: 'browser', requests: 9, errors: 0 },
+    { date: '2026-08-31', host: 'api.muchq.com', service: 'microgpt-serve', source: 'api', agent_class: 'bot', requests: 4, errors: 1 },
+    { date: '2026-08-30', host: 'gpt.muchq.com', service: 'microgpt-serve', source: 'api', agent_class: 'browser', requests: 2, errors: 0 },
+    { date: '2026-08-30', host: 'git.muchq.com', service: 'forgejo', source: 'api', agent_class: 'ai_scraper', requests: 40, errors: 40 },
+    { date: '2026-08-30', host: 'api.muchq.com', service: 'other', source: 'api', agent_class: 'bot', requests: 3, errors: 3 },
+    // A backend the page has no label for yet.
+    { date: '2026-08-30', host: 'api.muchq.com', service: 'brand_new', source: 'api', agent_class: 'other', requests: 1, errors: 0 },
+  ],
+}
+
+describe('rollupServices', () => {
+  it('sums a backend across its vhosts, days and callers', () => {
+    const [busiest, microgpt] = rollupServices(services)
+
+    expect(busiest.service).toBe('forgejo')
+    expect(busiest.total).toBe(40)
+    expect(busiest.errors).toBe(40)
+
+    // 9 + 4 + 2, across two hosts and two days.
+    expect(microgpt.total).toBe(15)
+    expect(microgpt.errors).toBe(1)
+    expect(microgpt.callers).toEqual({ ui: 9, api: 6 })
+    expect(microgpt.classes).toEqual({ browser: 11, bot: 4 })
+    // Busiest vhost first, and both are named.
+    expect(microgpt.hosts).toEqual(['api.muchq.com', 'gpt.muchq.com'])
+  })
+
+  it('reads the container name as something a visitor recognises', () => {
+    const entries = rollupServices(services)
+    expect(entries.map((entry) => entry.label)).toContain('microGPT')
+    expect(entries.find((entry) => entry.service === 'other')?.label).toBe('Nothing served')
+  })
+
+  // A backend added on the server appears on the page the same day, under
+  // its own name. Hiding it until someone writes a label would make the
+  // page quietly wrong about which services exist.
+  it('shows an unlabelled backend under its own name', () => {
+    expect(serviceLabel('brand_new')).toBe('brand_new')
+    expect(rollupServices(services).find((entry) => entry.service === 'brand_new')?.label)
+      .toBe('brand_new')
+  })
+
+  it('has nothing to show when the endpoint failed', () => {
+    expect(rollupServices(null)).toEqual([])
   })
 })
