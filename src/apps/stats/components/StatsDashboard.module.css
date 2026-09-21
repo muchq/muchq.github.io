@@ -112,9 +112,17 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
-/* The vhosts a backend was reached through — secondary to its counts,
-   and long enough to wrap rather than widen the table. */
+/* The vhosts a backend was reached through — secondary to its counts, and
+   the one cell long enough to want wrapping.
+   
+   It has to be a child of the cell rather than the cell itself. The shared
+   table sets `.containerTable td { white-space: nowrap }`, and that class
+   belongs to another CSS module, so its hashed name is not one this file
+   can outrank — but the rule only reaches the cell's own inline content,
+   which a span is free to override. */
 .hostList {
+  display: inline-block;
   font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.6);
+  white-space: normal;
 }

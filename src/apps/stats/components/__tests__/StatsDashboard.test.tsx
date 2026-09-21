@@ -266,7 +266,35 @@ describe('StatsDashboard', () => {
     mockFetch({ ...everything, '/services': { ...servicesResponse, total: 99 } })
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
-    expect(await screen.findByText(/Showing 4 of 99 rows/)).toBeInTheDocument()
+    expect(await screen.findByText(/Incomplete: 4 of 99 rows/)).toBeInTheDocument()
+    // The row grain is the point: the backend slices rows, not services, so
+    // a service can keep its busy days and lose its quiet ones.
+    expect(await screen.findByText(/lower bounds, not\s+totals/)).toBeInTheDocument()
+  })
+
+  // The services endpoint is the newest and the only one that may be
+  // missing; a request that never settles must not hold the five that
+  // answered behind it.
+  it('renders the rest of the dashboard when services never answers', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (String(url).includes('/services')) return new Promise(() => {})
+        for (const [fragment, body] of Object.entries(everything)) {
+          if (String(url).includes(fragment)) {
+            return new Response(JSON.stringify(body), { status: 200 })
+          }
+        }
+        return new Response('', { status: 500 })
+      })
+    )
+    const onState = vi.fn()
+
+    render(<StatsDashboard onConnectionStateChange={onState} />)
+
+    expect(await screen.findByRole('button', { name: /git\.muchq\.com/ })).toBeInTheDocument()
+    expect(screen.queryByText('Loading stats…')).not.toBeInTheDocument()
+    expect(onState).toHaveBeenLastCalledWith('connected')
   })
 
   it('asks for one window across all six aggregates', async () => {

@@ -76,17 +76,24 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
       fetchJson<StatsProbes>(`${STATS_API_URL}/probes?days=${WINDOW_DAYS}`),
       fetchJson<TopSlugs>(`${STATS_API_URL}/iili/top?days=${WINDOW_DAYS}&limit=20`),
       fetchJson<StatsCountries>(`${STATS_API_URL}/countries?days=${WINDOW_DAYS}`),
-      fetchJson<StatsServices>(`${STATS_API_URL}/services?days=${WINDOW_DAYS}&limit=${SERVICE_ROWS}`),
-    ]).then(([summaryResult, agentsResult, probesResult, slugResult, countriesResult, servicesResult]) => {
+    ]).then(([summaryResult, agentsResult, probesResult, slugResult, countriesResult]) => {
       if (cancelled) return
       setSummary(summaryResult)
       setAgents(agentsResult)
       setProbes(probesResult)
       setSlugs(slugResult)
       setCountries(countriesResult)
-      setServices(servicesResult)
       setLoaded(true)
       onConnectionStateChange(summaryResult ? 'connected' : 'failed')
+    })
+    // Services is the newest endpoint and the only one that may not be
+    // deployed yet. fetchJson answers null for a 404 fast enough, but a
+    // request that never settles would hold Promise.all — and with it the
+    // whole page — so this one waits on its own.
+    fetchJson<StatsServices>(
+      `${STATS_API_URL}/services?days=${WINDOW_DAYS}&limit=${SERVICE_ROWS}`
+    ).then((servicesResult) => {
+      if (!cancelled) setServices(servicesResult)
     })
     return () => {
       cancelled = true
@@ -215,7 +222,9 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
                   {AGENT_CLASSES.map((agentClass) => (
                     <td key={agentClass}>{n(entry.classes[agentClass] ?? 0)}</td>
                   ))}
-                  <td className={own.hostList}>{entry.hosts.join(', ')}</td>
+                  <td>
+                    <span className={own.hostList}>{entry.hosts.join(', ')}</span>
+                  </td>
                 </tr>
               ))}
               {backends.length === 0 && (
@@ -230,8 +239,10 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
         </div>
         {services && services.total > services.rows.length && (
           <p className={own.note}>
-            Showing {n(services.rows.length)} of {n(services.total)} rows; the
-            quietest services are missing.
+            Incomplete: {n(services.rows.length)} of {n(services.total)} rows.
+            A row is one day of one caller, so a service can lose its quiet
+            days and keep its busy ones — read these as lower bounds, not
+            totals.
           </p>
         )}
       </div>
