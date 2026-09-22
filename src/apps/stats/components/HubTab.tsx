@@ -17,7 +17,7 @@ const HubTab = ({ hub, events: hubEvents, days }: Props) => (
   <>
     <div className={styles.section}>
       <h2 className={styles.sectionTitle}>
-        The hub — last {hubEvents?.days ?? days} days
+        Hub — last {hubEvents?.days ?? days} days
       </h2>
       <p className={own.note}>
         What happened inside games.muchq.com, which the access log cannot see:
