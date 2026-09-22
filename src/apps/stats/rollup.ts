@@ -3,7 +3,10 @@ import type {
   ProbeRow,
   StatsAgents,
   StatsCountries,
+  StatsHubEvents,
   StatsProbes,
+  StatsQueries,
+  StatsQueryTerms,
   StatsServices,
   StatsSummary,
 } from './api'
@@ -288,4 +291,257 @@ export function rollupServices(services: StatsServices | null): ServiceEntry[] {
       .map(([host]) => host)
   }
   return [...entries.values()].sort((a, b) => b.total - a.total || a.label.localeCompare(b.label))
+}
+
+// ---------------------------------------------------------------------
+// games_hub (MoonBase#1571)
+// ---------------------------------------------------------------------
+
+export const VARIANT_LABELS: Record<string, string> = {
+  golf: 'Golf',
+  castle: 'Castle',
+  other: 'Other',
+}
+
+export const SURFACE_LABELS: Record<string, string> = {
+  plane: 'Plane',
+  sphere: 'Sphere',
+  glasshouse: 'Glasshouse',
+  other: 'Other',
+}
+
+// A count past what its event could carry. The server sends -1 rather
+// than clamping, precisely so it cannot be read as a table size.
+export const OVER_CAP = -1
+
+export interface VariantEntry {
+  variant: string
+  label: string
+  dealt: number
+  completed: number
+  abandoned: number
+}
+
+// How many tables were dealt at each size. Only game_started carries a
+// table's real size — game_finished's players is the seats *still held*,
+// which for an abandonment is one by definition, so the two must never
+// share an axis.
+export interface TableSize {
+  players: number
+  dealt: number
+}
+
+export interface RoomTotals {
+  created: number
+  closed: number
+  joins: number
+  messages: number
+  reshapes: number
+}
+
+// One day of the hub, newest first. Rooms made, tables dealt and things
+// said is the whole question during an alpha: whether anybody was here.
+export interface HubDay {
+  date: string
+  rooms: number
+  games: number
+  messages: number
+}
+
+export interface HubRollup {
+  days: HubDay[]
+  variants: VariantEntry[]
+  sizes: TableSize[]
+  rooms: RoomTotals
+  surfaces: { surface: string; label: string; chosen: number; changedTo: number }[]
+  /** Any event at all, so a section can tell "nothing yet" from "no data". */
+  total: number
+}
+
+const emptyHub = (): HubRollup => ({
+  days: [],
+  variants: [],
+  sizes: [],
+  rooms: { created: 0, closed: 0, joins: 0, messages: 0, reshapes: 0 },
+  surfaces: [],
+  total: 0,
+})
+
+export function rollupHubEvents(events: StatsHubEvents | null): HubRollup {
+  const out = emptyHub()
+  if (!events) return out
+
+  const variants = new Map<string, VariantEntry>()
+  const sizes = new Map<number, number>()
+  const surfaces = new Map<string, { chosen: number; changedTo: number }>()
+  const days = new Map<string, HubDay>()
+
+  const dayOf = (date: string) => {
+    const seen = days.get(date) ?? { date, rooms: 0, games: 0, messages: 0 }
+    days.set(date, seen)
+    return seen
+  }
+
+  const variantOf = (variant: string) => {
+    const seen = variants.get(variant) ?? {
+      variant,
+      label: VARIANT_LABELS[variant] ?? variant,
+      dealt: 0,
+      completed: 0,
+      abandoned: 0,
+    }
+    variants.set(variant, seen)
+    return seen
+  }
+  const surfaceOf = (surface: string) => {
+    const seen = surfaces.get(surface) ?? { chosen: 0, changedTo: 0 }
+    surfaces.set(surface, seen)
+    return seen
+  }
+
+  for (const row of events.rows) {
+    out.total += row.events
+    switch (row.event) {
+      case 'room_created':
+        out.rooms.created += row.events
+        dayOf(row.date).rooms += row.events
+        surfaceOf(row.surface).chosen += row.events
+        break
+      case 'room_closed':
+        out.rooms.closed += row.events
+        break
+      case 'room_joined':
+        out.rooms.joins += row.events
+        break
+      case 'chat_message':
+        out.rooms.messages += row.events
+        dayOf(row.date).messages += row.events
+        break
+      case 'geometry_changed':
+        out.rooms.reshapes += row.events
+        surfaceOf(row.surface).changedTo += row.events
+        break
+      case 'game_started':
+        variantOf(row.variant).dealt += row.events
+        dayOf(row.date).games += row.events
+        sizes.set(row.players, (sizes.get(row.players) ?? 0) + row.events)
+        break
+      case 'game_finished':
+        if (row.outcome === 'abandoned') variantOf(row.variant).abandoned += row.events
+        else variantOf(row.variant).completed += row.events
+        break
+      default:
+        break
+    }
+  }
+
+  out.days = [...days.values()].sort((a, b) => b.date.localeCompare(a.date))
+  out.variants = [...variants.values()].sort((a, b) => b.dealt - a.dealt || a.label.localeCompare(b.label))
+  // Over-cap last, whatever its numeric value: it is not a size, so it
+  // does not belong in the middle of a run of sizes.
+  out.sizes = [...sizes.entries()]
+    .map(([players, dealt]) => ({ players, dealt }))
+    .sort((a, b) => {
+      if (a.players === OVER_CAP) return 1
+      if (b.players === OVER_CAP) return -1
+      return a.players - b.players
+    })
+  out.surfaces = [...surfaces.entries()]
+    .map(([surface, counts]) => ({
+      surface,
+      label: SURFACE_LABELS[surface] ?? surface,
+      ...counts,
+    }))
+    .sort((a, b) => b.chosen + b.changedTo - (a.chosen + a.changedTo) || a.label.localeCompare(b.label))
+  return out
+}
+
+// ---------------------------------------------------------------------
+// one_d4 queries (MoonBase#1465)
+// ---------------------------------------------------------------------
+
+export const ENTRY_LABELS: Record<string, string> = {
+  query: 'Query',
+  aggregate: 'Aggregate',
+  other: 'Other',
+}
+
+export const TERM_KINDS = ['field', 'motif', 'order_by', 'group_by'] as const
+
+export const TERM_KIND_LABELS: Record<string, string> = {
+  field: 'Fields',
+  motif: 'Motifs',
+  order_by: 'Ordered by',
+  group_by: 'Grouped by',
+}
+
+export interface QueryEntry {
+  entry: string
+  label: string
+  total: number
+  /** The engine answered. */
+  ok: number
+  /** The query did not compile. */
+  invalid: number
+  /** It compiled and the engine could not answer it. */
+  failed: number
+  /** Answered from the snapshot rather than live. */
+  cached: number
+  bySource: Record<string, number>
+}
+
+// `total` counts every row; the named columns count only the words this
+// build knows. A word the server collapsed to `other` — drift between
+// one_d4 and the reader — is therefore a total that its columns do not
+// add up to, which is the point: it is visible rather than miscounted.
+export function rollupQueries(queries: StatsQueries | null): QueryEntry[] {
+  if (!queries) return []
+  const entries = new Map<string, QueryEntry>()
+  for (const row of queries.rows) {
+    const seen = entries.get(row.entry) ?? {
+      entry: row.entry,
+      label: ENTRY_LABELS[row.entry] ?? row.entry,
+      total: 0,
+      ok: 0,
+      invalid: 0,
+      failed: 0,
+      cached: 0,
+      bySource: {},
+    }
+    seen.total += row.requests
+    if (row.outcome === 'ok') seen.ok += row.requests
+    if (row.outcome === 'invalid') seen.invalid += row.requests
+    if (row.outcome === 'failed') seen.failed += row.requests
+    if (row.cache === 'snapshot') seen.cached += row.requests
+    seen.bySource[row.source] = (seen.bySource[row.source] ?? 0) + row.requests
+    entries.set(row.entry, seen)
+  }
+  return [...entries.values()].sort((a, b) => b.total - a.total || a.label.localeCompare(b.label))
+}
+
+export interface TermGroup {
+  kind: string
+  label: string
+  terms: { term: string; requests: number }[]
+}
+
+// The busiest terms of each kind, folded across entries: "which fields do
+// queries actually ask for" is a question about the language, not about
+// which endpoint was called.
+export function topTerms(terms: StatsQueryTerms | null, limit: number): TermGroup[] {
+  if (!terms) return []
+  const byKind = new Map<string, Map<string, number>>()
+  for (const row of terms.rows) {
+    const kind = byKind.get(row.kind) ?? new Map<string, number>()
+    kind.set(row.term, (kind.get(row.term) ?? 0) + row.requests)
+    byKind.set(row.kind, kind)
+  }
+  return TERM_KINDS.filter((kind) => byKind.has(kind)).map((kind) => ({
+    kind,
+    label: TERM_KIND_LABELS[kind],
+    terms: [...byKind.get(kind)!.entries()]
+      .map(([term, requests]) => ({ term, requests }))
+      .sort((a, b) => b.requests - a.requests || a.term.localeCompare(b.term))
+      .slice(0, limit),
+  }))
 }

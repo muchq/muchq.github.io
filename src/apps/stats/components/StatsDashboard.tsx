@@ -7,7 +7,10 @@ import {
   fetchJson,
   type StatsAgents,
   type StatsCountries,
+  type StatsHubEvents,
   type StatsProbes,
+  type StatsQueries,
+  type StatsQueryTerms,
   type StatsServices,
   type StatsSummary,
   type TopSlugs,
@@ -15,13 +18,17 @@ import {
 import {
   AGENT_CLASSES,
   CLASS_LABELS,
+  OVER_CAP,
   rollupHosts,
+  rollupHubEvents,
+  rollupQueries,
   rollupServices,
   SOURCE_LABELS,
   SOURCES,
   scrapersByDay,
   topAgents,
   topCountries,
+  topTerms,
   UNKNOWN_COUNTRY,
   type CountryTotal,
   type HostEntry,
@@ -45,6 +52,10 @@ const TOP_COUNTRIES = 25
 // row count is checked against what it says it had.
 const SERVICE_ROWS = 5000
 const HOST_COUNTRIES = 8
+// The terms endpoint's ceiling, folded across entry points here, so the
+// tail it drops is the language's tail rather than one endpoint's.
+const TERM_ROWS = 1000
+const TOP_TERMS = 12
 
 const n = (value: number) => value.toLocaleString()
 
@@ -64,6 +75,9 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
   const [countries, setCountries] = useState<StatsCountries | null>(null)
   const [services, setServices] = useState<StatsServices | null>(null)
   const [slugs, setSlugs] = useState<TopSlugs | null>(null)
+  const [hubEvents, setHubEvents] = useState<StatsHubEvents | null>(null)
+  const [queries, setQueries] = useState<StatsQueries | null>(null)
+  const [terms, setTerms] = useState<StatsQueryTerms | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [openHost, setOpenHost] = useState<string | null>(null)
 
@@ -86,15 +100,19 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
       setLoaded(true)
       onConnectionStateChange(summaryResult ? 'connected' : 'failed')
     })
-    // Services is the newest endpoint and the only one that may not be
-    // deployed yet. fetchJson answers null for a 404 fast enough, but a
-    // request that never settles would hold Promise.all — and with it the
-    // whole page — so this one waits on its own.
-    fetchJson<StatsServices>(
-      `${STATS_API_URL}/services?days=${WINDOW_DAYS}&limit=${SERVICE_ROWS}`
-    ).then((servicesResult) => {
-      if (!cancelled) setServices(servicesResult)
-    })
+    // The endpoints a deploy may not have caught up to yet. fetchJson
+    // answers null for a 404 fast enough, but a request that never settles
+    // would hold Promise.all — and with it the whole page — so each of
+    // these waits on its own and empties only its own section.
+    const side = <T,>(path: string, set: (value: T | null) => void) => {
+      fetchJson<T>(`${STATS_API_URL}${path}`).then((value) => {
+        if (!cancelled) set(value)
+      })
+    }
+    side<StatsServices>(`/services?days=${WINDOW_DAYS}&limit=${SERVICE_ROWS}`, setServices)
+    side<StatsHubEvents>(`/games_hub/events?days=${WINDOW_DAYS}`, setHubEvents)
+    side<StatsQueries>(`/one_d4/queries?days=${WINDOW_DAYS}`, setQueries)
+    side<StatsQueryTerms>(`/one_d4/terms?days=${WINDOW_DAYS}&limit=${TERM_ROWS}`, setTerms)
     return () => {
       cancelled = true
     }
@@ -108,6 +126,9 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
   const busiest = useMemo(() => topAgents(agents, TOP_AGENTS), [agents])
   const fromWhere = useMemo(() => topCountries(countries, TOP_COUNTRIES), [countries])
   const backends = useMemo(() => rollupServices(services), [services])
+  const hub = useMemo(() => rollupHubEvents(hubEvents), [hubEvents])
+  const oneD4 = useMemo(() => rollupQueries(queries), [queries])
+  const language = useMemo(() => topTerms(terms, TOP_TERMS), [terms])
 
   if (!loaded) {
     return <div className={styles.noData}>Loading stats…</div>
@@ -124,6 +145,228 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
 
   return (
     <div className={styles.metricsGrid}>
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>
+          The hub — last {hubEvents?.days ?? days} days
+        </h2>
+        <p className={own.note}>
+          What happened inside games.muchq.com, which the access log cannot see:
+          a session opens one socket and every room, world, table and message
+          rides it. {n(hub.rooms.created)} rooms made, {n(hub.rooms.closed)} closed,{' '}
+          {n(hub.rooms.joins)} joins, {n(hub.rooms.reshapes)} reshapes,{' '}
+          {n(hub.rooms.messages)} messages.
+        </p>
+        <div className={styles.tableScroll}>
+          <table className={styles.containerTable} data-testid="hub-days">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Rooms made</th>
+                <th>Tables dealt</th>
+                <th>Messages</th>
+              </tr>
+            </thead>
+            <tbody>
+              {hub.days.map((day) => (
+                <tr key={day.date}>
+                  <td>{day.date}</td>
+                  <td>{n(day.rooms)}</td>
+                  <td>{n(day.games)}</td>
+                  <td>{n(day.messages)}</td>
+                </tr>
+              ))}
+              {hub.days.length === 0 && (
+                <tr>
+                  <td colSpan={4}>{hubEvents ? 'Nobody has opened a room yet.' : UNAVAILABLE}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className={styles.sectionGrid}>
+        <div className={styles.section}>
+          <h2 className={styles.sectionTitle}>Games played</h2>
+          <p className={own.note}>
+            A table is abandoned when too few seats are left to go on, which
+            is most of the ways a game ends when nobody is watching.
+          </p>
+          <div className={styles.tableScroll}>
+            <table className={styles.containerTable} data-testid="hub-variants">
+              <thead>
+                <tr>
+                  <th>Game</th>
+                  <th>Dealt</th>
+                  <th>Completed</th>
+                  <th>Abandoned</th>
+                </tr>
+              </thead>
+              <tbody>
+                {hub.variants.map((entry) => (
+                  <tr key={entry.variant}>
+                    <td>{entry.label}</td>
+                    <td>{n(entry.dealt)}</td>
+                    <td>{n(entry.completed)}</td>
+                    <td>{n(entry.abandoned)}</td>
+                  </tr>
+                ))}
+                {hub.variants.length === 0 && (
+                  <tr>
+                    <td colSpan={4}>{hubEvents ? 'No tables dealt yet.' : UNAVAILABLE}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className={styles.section}>
+          <h2 className={styles.sectionTitle}>Table sizes</h2>
+          <p className={own.note}>
+            Seats a table was dealt to, counted while it was still whole. How
+            many were left at the end is a different number and not this one.
+          </p>
+          <div className={styles.tableScroll}>
+            <table className={styles.containerTable} data-testid="hub-sizes">
+              <thead>
+                <tr>
+                  <th>Seats</th>
+                  <th>Tables</th>
+                </tr>
+              </thead>
+              <tbody>
+                {hub.sizes.map((size) => (
+                  <tr key={size.players}>
+                    <td>{size.players === OVER_CAP ? 'More than a table seats' : n(size.players)}</td>
+                    <td>{n(size.dealt)}</td>
+                  </tr>
+                ))}
+                {hub.sizes.length === 0 && (
+                  <tr>
+                    <td colSpan={2}>{hubEvents ? 'No tables dealt yet.' : UNAVAILABLE}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className={styles.section}>
+          <h2 className={styles.sectionTitle}>Worlds</h2>
+          <p className={own.note}>
+            The shape a room opened on, and the shape somebody reached for
+            instead. The second one is taste; the first is the default.
+          </p>
+          <div className={styles.tableScroll}>
+            <table className={styles.containerTable} data-testid="hub-surfaces">
+              <thead>
+                <tr>
+                  <th>World</th>
+                  <th>Opened on</th>
+                  <th>Changed to</th>
+                </tr>
+              </thead>
+              <tbody>
+                {hub.surfaces.map((surface) => (
+                  <tr key={surface.surface}>
+                    <td>{surface.label}</td>
+                    <td>{n(surface.chosen)}</td>
+                    <td>{n(surface.changedTo)}</td>
+                  </tr>
+                ))}
+                {hub.surfaces.length === 0 && (
+                  <tr>
+                    <td colSpan={3}>{hubEvents ? 'No rooms yet.' : UNAVAILABLE}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>
+          one_d4 queries — last {queries?.days ?? days} days
+        </h2>
+        <p className={own.note}>
+          Who asked and how it went. The named columns count the words this
+          page knows, so a row whose columns fall short of its requests is
+          one_d4 and the stats reader having drifted apart — not lost traffic.
+        </p>
+        <div className={styles.tableScroll}>
+          <table className={styles.containerTable} data-testid="one-d4-queries">
+            <thead>
+              <tr>
+                <th>Entry</th>
+                <th>Requests</th>
+                {SOURCES.map((source) => (
+                  <th key={source}>{SOURCE_LABELS[source]}</th>
+                ))}
+                <th>Answered</th>
+                <th>Invalid</th>
+                <th>Failed</th>
+                <th>From snapshot</th>
+              </tr>
+            </thead>
+            <tbody>
+              {oneD4.map((entry) => (
+                <tr key={entry.entry} data-testid={`one-d4-${entry.entry}`}>
+                  <td>{entry.label}</td>
+                  <td>{n(entry.total)}</td>
+                  {SOURCES.map((source) => (
+                    <td key={source}>{n(entry.bySource[source] ?? 0)}</td>
+                  ))}
+                  <td>{n(entry.ok)}</td>
+                  <td>{n(entry.invalid)}</td>
+                  <td>{n(entry.failed)}</td>
+                  <td>{n(entry.cached)}</td>
+                </tr>
+              ))}
+              {oneD4.length === 0 && (
+                <tr>
+                  <td colSpan={6 + SOURCES.length}>
+                    {queries ? 'No queries in the window.' : UNAVAILABLE}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>
+          What one_d4 gets asked for — last {terms?.days ?? days} days
+        </h2>
+        <p className={own.note}>
+          The query language as it is actually used, folded across entry
+          points: which fields queries name, which motifs they look for, and
+          what they sort and group by.
+        </p>
+        <div className={styles.sectionGrid} data-testid="one-d4-terms">
+          {language.map((group) => (
+            <div key={group.kind}>
+              <h3 className={own.detailTitle}>{group.label}</h3>
+              <table className={own.detailTable}>
+                <tbody>
+                  {group.terms.map((term) => (
+                    <tr key={term.term}>
+                      <td className={own.agentName}>{term.term}</td>
+                      <td>{n(term.requests)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+          {language.length === 0 && (
+            <span className={own.none}>{terms ? 'No queries in the window.' : UNAVAILABLE}</span>
+          )}
+        </div>
+      </div>
+
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Traffic by host — last {days} days</h2>
         <div className={styles.tableScroll}>
