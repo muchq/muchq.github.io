@@ -257,7 +257,7 @@ export interface ServiceEntry {
 // per day, host, caller and class; a service reached through two vhosts
 // (microgpt-serve answers both api.muchq.com and gpt.muchq.com) is one
 // entry that names both.
-export function rollupServices(services: StatsServices | null): ServiceEntry[] {
+export function rollupServices(services: StatsServices | null | undefined): ServiceEntry[] {
   const entries = new Map<string, ServiceEntry>()
   const hostTotals = new Map<string, Map<string, number>>()
 
@@ -314,6 +314,9 @@ export const SURFACE_LABELS: Record<string, string> = {
 // than clamping, precisely so it cannot be read as a table size.
 export const OVER_CAP = -1
 
+// `dealt` counts game_started and the other two count game_finished, so
+// they need not add up: the gap is games still running, and any outcome
+// the reader did not recognise.
 export interface VariantEntry {
   variant: string
   label: string
@@ -367,7 +370,7 @@ const emptyHub = (): HubRollup => ({
   total: 0,
 })
 
-export function rollupHubEvents(events: StatsHubEvents | null): HubRollup {
+export function rollupHubEvents(events: StatsHubEvents | null | undefined): HubRollup {
   const out = emptyHub()
   if (!events) return out
 
@@ -427,8 +430,12 @@ export function rollupHubEvents(events: StatsHubEvents | null): HubRollup {
         sizes.set(row.players, (sizes.get(row.players) ?? 0) + row.events)
         break
       case 'game_finished':
+        // Named outcomes only. The reader collapses a word it does not
+        // know to "other", and counting that as a win would report drift
+        // between the hub and the stats service as games completed; left
+        // out of both, it shows as dealt outrunning the two columns.
+        if (row.outcome === 'completed') variantOf(row.variant).completed += row.events
         if (row.outcome === 'abandoned') variantOf(row.variant).abandoned += row.events
-        else variantOf(row.variant).completed += row.events
         break
       default:
         break
@@ -494,7 +501,7 @@ export interface QueryEntry {
 // build knows. A word the server collapsed to `other` — drift between
 // one_d4 and the reader — is therefore a total that its columns do not
 // add up to, which is the point: it is visible rather than miscounted.
-export function rollupQueries(queries: StatsQueries | null): QueryEntry[] {
+export function rollupQueries(queries: StatsQueries | null | undefined): QueryEntry[] {
   if (!queries) return []
   const entries = new Map<string, QueryEntry>()
   for (const row of queries.rows) {
@@ -528,7 +535,7 @@ export interface TermGroup {
 // The busiest terms of each kind, folded across entries: "which fields do
 // queries actually ask for" is a question about the language, not about
 // which endpoint was called.
-export function topTerms(terms: StatsQueryTerms | null, limit: number): TermGroup[] {
+export function topTerms(terms: StatsQueryTerms | null | undefined, limit: number): TermGroup[] {
   if (!terms) return []
   const byKind = new Map<string, Map<string, number>>()
   for (const row of terms.rows) {

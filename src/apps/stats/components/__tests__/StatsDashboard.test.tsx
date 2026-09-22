@@ -572,7 +572,84 @@ describe('StatsDashboard', () => {
     )
   })
 
-  // The reason these four do not ride the page's Promise.all: one of them
+  // A slow endpoint is not a missing one. Each of the four side-chain
+  // requests settles on its own, so until one does its tables say they are
+  // still loading rather than claiming the stats service does not have it.
+  it('says loading, not unavailable, while an endpoint is still answering', async () => {
+    let answer: ((value: Response) => void) | undefined
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (String(url).includes('/games_hub/events')) {
+          return new Promise<Response>((resolve) => {
+            answer = resolve
+          })
+        }
+        for (const [fragment, body] of Object.entries(everything)) {
+          if (String(url).includes(fragment)) return new Response(JSON.stringify(body), { status: 200 })
+        }
+        return new Response('', { status: 500 })
+      })
+    )
+
+    render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
+
+    await openTab('The hub')
+    expect(screen.getAllByText('Still loading.').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Not available from the stats service.')).not.toBeInTheDocument()
+    // And no funnel sentence, which would be a claim about counts it has none of.
+    expect(screen.queryByText(/rooms made/)).not.toBeInTheDocument()
+
+    answer!(new Response(JSON.stringify(hubResponse), { status: 200 }))
+    expect(
+      await screen.findByRole('heading', { name: /The hub — last 14 days/ })
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Still loading.')).not.toBeInTheDocument()
+    expect(screen.getByText(/3 rooms made/)).toBeInTheDocument()
+  })
+
+  // The funnel sentence is a count, so an endpoint that failed gets no
+  // sentence at all rather than a row of honest-looking zeroes.
+  it('makes no claim about counts when the hub endpoint failed', async () => {
+    mockFetch({ '/summary': summaryResponse, '/iili/top': slugsResponse })
+    render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
+
+    await openTab('The hub')
+    expect(screen.queryByText(/rooms made/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Still loading.')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Not available from the stats service.')).toHaveLength(4)
+  })
+
+  // The terms endpoint truncates busiest-first on (entry, kind, term), and
+  // this page folds those rows across entry points. A term split between
+  // two entries can lose a half at the cutoff, so a response that reached
+  // the limit says so rather than presenting its sums as the top terms.
+  it('says so when the terms response reached its limit', async () => {
+    const wide = {
+      days: 7,
+      rows: Array.from({ length: 1000 }, (_, i) => ({
+        entry: 'query',
+        kind: 'field',
+        term: `f${i}`,
+        requests: 1000 - i,
+      })),
+    }
+    mockFetch({ ...everything, '/one_d4/terms': wide })
+    render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
+
+    await openTab('one_d4')
+    expect(screen.getByText(/reached the limit of 1,000 rows/)).toBeInTheDocument()
+  })
+
+  it('says nothing about truncation when the terms response fits', async () => {
+    mockFetch(everything)
+    render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
+
+    await openTab('one_d4')
+    expect(screen.queryByText(/reached the limit/)).not.toBeInTheDocument()
+  })
+
+  // The reason these four do not ride the page's Promise.all:
   // hanging would hold every table on the page, not just its own.
   it('renders the page while a newer endpoint never answers', async () => {
     vi.stubGlobal(

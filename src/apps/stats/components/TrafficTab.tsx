@@ -26,7 +26,7 @@ interface Props {
   agents: StatsAgents | null
   probes: StatsProbes | null
   countries: StatsCountries | null
-  services: StatsServices | null
+  services: StatsServices | null | undefined
   slugs: TopSlugs | null
   days: number
 }

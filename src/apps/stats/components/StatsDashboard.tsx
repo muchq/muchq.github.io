@@ -71,11 +71,13 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
   const [agents, setAgents] = useState<StatsAgents | null>(null)
   const [probes, setProbes] = useState<StatsProbes | null>(null)
   const [countries, setCountries] = useState<StatsCountries | null>(null)
-  const [services, setServices] = useState<StatsServices | null>(null)
+  // The four side-chain endpoints start undefined, not null: until each
+  // answers, its tables are loading rather than missing.
+  const [services, setServices] = useState<StatsServices | null | undefined>(undefined)
   const [slugs, setSlugs] = useState<TopSlugs | null>(null)
-  const [hubEvents, setHubEvents] = useState<StatsHubEvents | null>(null)
-  const [queries, setQueries] = useState<StatsQueries | null>(null)
-  const [terms, setTerms] = useState<StatsQueryTerms | null>(null)
+  const [hubEvents, setHubEvents] = useState<StatsHubEvents | null | undefined>(undefined)
+  const [queries, setQueries] = useState<StatsQueries | null | undefined>(undefined)
+  const [terms, setTerms] = useState<StatsQueryTerms | null | undefined>(undefined)
   const [loaded, setLoaded] = useState(false)
   const [tab, setTab] = useState<Tab>('traffic')
 
@@ -179,6 +181,7 @@ const StatsDashboard = ({ onConnectionStateChange }: Props) => {
             language={language}
             queries={queries}
             terms={terms}
+            termLimit={TERM_ROWS}
             days={days}
           />
         )}

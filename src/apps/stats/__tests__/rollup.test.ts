@@ -259,6 +259,26 @@ describe('rollupHubEvents', () => {
     ])
   })
 
+  // The stats reader collapses an outcome it does not know to "other", so a
+  // finish is completed only when it says so. Calling every non-abandoned
+  // finish completed would report producer drift as wins.
+  it('counts a finish as completed only when it says completed', () => {
+    const hub = rollupHubEvents({
+      days: 30,
+      rows: [
+        { date: '2026-09-21', event: 'game_started', variant: 'golf', surface: '', outcome: '', players: 2, events: 9 },
+        { date: '2026-09-21', event: 'game_finished', variant: 'golf', surface: '', outcome: 'completed', players: 2, events: 4 },
+        { date: '2026-09-21', event: 'game_finished', variant: 'golf', surface: '', outcome: 'abandoned', players: 1, events: 3 },
+        { date: '2026-09-21', event: 'game_finished', variant: 'golf', surface: '', outcome: 'other', players: 2, events: 2 },
+      ],
+    })
+    // The two drifted finishes are in neither column, so dealt outruns
+    // completed + abandoned and the gap is the drift.
+    expect(hub.variants).toEqual([
+      { variant: 'golf', label: 'Golf', dealt: 9, completed: 4, abandoned: 3 },
+    ])
+  })
+
   // A hub release the page has not learned about yet still counts, rather
   // than vanishing from a funnel that then does not add up.
   it('counts an event shape it does not recognise in the total', () => {
