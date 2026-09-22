@@ -147,9 +147,10 @@ export interface StatsQueries {
 }
 
 // Which fields, motifs, order-by motifs and group-by columns queries
-// actually used, busiest first.
+// actually used, busiest first. Not per entry point: `query` and
+// `aggregate` are two doors onto one language, and the service folds
+// them away before it truncates, so every total here is a whole one.
 export interface QueryTermRow {
-  entry: string
   kind: string
   term: string
   requests: number
@@ -158,4 +159,10 @@ export interface QueryTermRow {
 export interface StatsQueryTerms {
   days: number
   rows: QueryTermRow[]
+  /**
+   * How many folded rows there were before the limit (MoonBase#1587).
+   * Absent from a stats service older than that, where all the page can
+   * say is whether the response came back full.
+   */
+  total?: number
 }

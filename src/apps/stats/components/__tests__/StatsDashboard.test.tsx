@@ -641,6 +641,32 @@ describe('StatsDashboard', () => {
     expect(screen.getByText(/reached the limit of 1,000 rows/)).toBeInTheDocument()
   })
 
+  // MoonBase#1587 folds the entry points away before the limit and says
+  // how many rows there were, so the page reports what was dropped rather
+  // than that something was.
+  it('reports what the terms window dropped when the service says', async () => {
+    mockFetch({
+      ...everything,
+      '/one_d4/terms': { ...termsResponse, total: 1337 },
+    })
+    render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
+
+    await openTab('one_d4')
+    expect(screen.getByText(/showing the busiest 4 of 1,337/)).toBeInTheDocument()
+  })
+
+  it('says nothing when the service says the terms window was whole', async () => {
+    mockFetch({
+      ...everything,
+      '/one_d4/terms': { ...termsResponse, total: termsResponse.rows.length },
+    })
+    render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
+
+    await openTab('one_d4')
+    expect(screen.queryByText(/showing the busiest/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/reached the limit/)).not.toBeInTheDocument()
+  })
+
   it('says nothing about truncation when the terms response fits', async () => {
     mockFetch(everything)
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)

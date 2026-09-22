@@ -78,16 +78,22 @@ const QueriesTab = ({ entries: oneD4, language, queries, terms, termLimit, days 
         points: which fields queries name, which motifs they look for, and
         what they sort and group by.
       </p>
-      {/* The endpoint truncates busiest-first on (entry, kind, term) and
-          this folds those rows across entry points, so a term split
-          between two entries can lose a half at the cutoff. one_d4's
-          vocabulary is far narrower than the ceiling, which is why the
-          fold is safe — but if it ever reaches it, say so rather than
-          call these sums the busiest terms. */}
-      {terms && terms.rows.length >= termLimit && (
+      {/* The service folds the entry points away before it truncates, so a
+          truncated window is missing whole terms rather than halves of
+          them — and `total` says how many. A stats service older than
+          MoonBase#1587 sends no total, and then a full response is all
+          the page has to go on. */}
+      {terms && terms.total !== undefined && terms.total > terms.rows.length && (
         <p className={own.note}>
-          This reached the limit of {n(termLimit)} rows, so a term used at both
-          entry points may be short of its real total here.
+          The language is wider than this window: showing the busiest{' '}
+          {n(terms.rows.length)} of {n(terms.total)} terms, each one a whole
+          total.
+        </p>
+      )}
+      {terms && terms.total === undefined && terms.rows.length >= termLimit && (
+        <p className={own.note}>
+          This reached the limit of {n(termLimit)} rows, so the busiest terms
+          may extend past it.
         </p>
       )}
       <div className={styles.sectionGrid} data-testid="one-d4-terms">
