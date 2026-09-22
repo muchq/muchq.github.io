@@ -93,13 +93,15 @@ const queriesResponse = {
   ],
 }
 
+// The shape MoonBase#1587 serves: already folded to one row per
+// (kind, term), with the count before the limit.
 const termsResponse = {
   days: 7,
+  total: 3,
   rows: [
-    { entry: 'query', kind: 'field', term: 'name', requests: 30 },
-    { entry: 'aggregate', kind: 'field', term: 'name', requests: 8 },
-    { entry: 'query', kind: 'motif', term: 'draw', requests: 12 },
-    { entry: 'query', kind: 'group_by', term: 'color', requests: 3 },
+    { kind: 'field', term: 'name', requests: 38 },
+    { kind: 'motif', term: 'draw', requests: 12 },
+    { kind: 'group_by', term: 'color', requests: 3 },
   ],
 }
 
@@ -514,7 +516,7 @@ describe('StatsDashboard', () => {
     ])
   })
 
-  it('folds query terms across entry points, busiest first per kind', async () => {
+  it('groups terms by kind in the language\'s own order', async () => {
     mockFetch(everything)
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
@@ -525,8 +527,33 @@ describe('StatsDashboard', () => {
       'Motifs',
       'Grouped by',
     ])
-    // 30 from query plus 8 from aggregate: one term, not two.
     expect(cellsOf(language.getByText('name').closest('tr')!)).toEqual(['name', '38'])
+  })
+
+  // The service folds now, but a stats deploy older than MoonBase#1587
+  // still sends a row per entry point, and the page must not show one
+  // term twice or rank its halves separately.
+  it('still folds a term a older service split across entry points', async () => {
+    mockFetch({
+      ...everything,
+      '/one_d4/terms': {
+        days: 7,
+        rows: [
+          { kind: 'field', term: 'name', requests: 30 },
+          { kind: 'field', term: 'cmc', requests: 20 },
+          { kind: 'field', term: 'name', requests: 8 },
+        ],
+      },
+    })
+    render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
+
+    await openTab('one_d4')
+    const language = within(screen.getByTestId('one-d4-terms'))
+    // 30 + 8 as one row, and the summed 38 outranks cmc's 20.
+    expect(language.getAllByRole('row').map(cellsOf)).toEqual([
+      ['name', '38'],
+      ['cmc', '20'],
+    ])
   })
 
   // Nine tables in one column was already long; the app-level events made
@@ -652,7 +679,44 @@ describe('StatsDashboard', () => {
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
     await openTab('one_d4')
-    expect(screen.getByText(/showing the busiest 4 of 1,337/)).toBeInTheDocument()
+    expect(screen.getByText(/showing the busiest 3 of 1,337/)).toBeInTheDocument()
+  })
+
+  // The note counts what is on the page, not what the response held: the
+  // per-kind cap hides rows too, and a note that counted only the
+  // server's truncation would name more terms than the tables show.
+  it('counts the terms it is showing, not the ones it was sent', async () => {
+    const wide = {
+      days: 7,
+      total: 14,
+      rows: Array.from({ length: 13 }, (_, i) => ({
+        kind: 'field',
+        term: `f${i}`,
+        requests: 100 - i,
+      })),
+    }
+    mockFetch({ ...everything, '/one_d4/terms': wide })
+    render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
+
+    await openTab('one_d4')
+    // 13 rows came back and 14 exist, but one kind caps at 12.
+    expect(within(screen.getByTestId('one-d4-terms')).getAllByRole('row')).toHaveLength(12)
+    expect(screen.getByText(/showing the busiest 12 of 14/)).toBeInTheDocument()
+  })
+
+  // Nothing was truncated by the service, but the page's own cap hid
+  // rows, so it still owes the reader a count.
+  it('says so when only its own cap hid terms', async () => {
+    const rows = Array.from({ length: 13 }, (_, i) => ({
+      kind: 'field',
+      term: `f${i}`,
+      requests: 100 - i,
+    }))
+    mockFetch({ ...everything, '/one_d4/terms': { days: 7, total: rows.length, rows } })
+    render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
+
+    await openTab('one_d4')
+    expect(screen.getByText(/showing the busiest 12 of 13/)).toBeInTheDocument()
   })
 
   it('says nothing when the service says the terms window was whole', async () => {

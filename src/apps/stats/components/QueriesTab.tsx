@@ -17,7 +17,14 @@ interface Props {
 
 // one_d4's own query events (MoonBase#1465), which the access log cannot
 // tell apart: every one of them is a POST to the same path.
-const QueriesTab = ({ entries: oneD4, language, queries, terms, termLimit, days }: Props) => (
+// How many terms the page actually renders, across every kind.
+const shownTerms = (language: TermGroup[]) =>
+  language.reduce((count, group) => count + group.terms.length, 0)
+
+const QueriesTab = ({ entries: oneD4, language, queries, terms, termLimit, days }: Props) => {
+  const shown = shownTerms(language)
+
+  return (
   <>
     <div className={styles.section}>
       <h2 className={styles.sectionTitle}>
@@ -78,16 +85,19 @@ const QueriesTab = ({ entries: oneD4, language, queries, terms, termLimit, days 
         points: which fields queries name, which motifs they look for, and
         what they sort and group by.
       </p>
-      {/* The service folds the entry points away before it truncates, so a
-          truncated window is missing whole terms rather than halves of
-          them — and `total` says how many. A stats service older than
-          MoonBase#1587 sends no total, and then a full response is all
-          the page has to go on. */}
-      {terms && terms.total !== undefined && terms.total > terms.rows.length && (
+      {/* Two things hide terms: the service's row limit and this page's own
+          per-kind cap. The count below is what is on the page, so it
+          covers both — counting the response's rows instead would name
+          more terms than the tables show. The service folds the entry
+          points away before it truncates, so what is hidden is whole
+          terms rather than halves of them, which is why each total here
+          is a whole one. A stats service older than MoonBase#1587 sends
+          no total, and then a full response is all the page has to go
+          on. */}
+      {terms && terms.total !== undefined && terms.total > shown && (
         <p className={own.note}>
           The language is wider than this window: showing the busiest{' '}
-          {n(terms.rows.length)} of {n(terms.total)} terms, each one a whole
-          total.
+          {n(shown)} of {n(terms.total)} terms, each one a whole total.
         </p>
       )}
       {terms && terms.total === undefined && terms.rows.length >= termLimit && (
@@ -117,7 +127,8 @@ const QueriesTab = ({ entries: oneD4, language, queries, terms, termLimit, days 
         )}
       </div>
     </div>
-  </>
-)
+    </>
+  )
+}
 
 export default QueriesTab
