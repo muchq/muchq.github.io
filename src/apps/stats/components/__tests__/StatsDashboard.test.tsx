@@ -65,7 +65,8 @@ const servicesResponse = {
 }
 
 const hubResponse = {
-  days: 30,
+  // Its own window, so a section claiming a neighbour's is a failure.
+  days: 14,
   rows: [
     { date: '2026-08-30', event: 'room_created', variant: '', surface: 'plane', outcome: '', players: 0, events: 2 },
     { date: '2026-08-31', event: 'room_created', variant: '', surface: 'sphere', outcome: '', players: 0, events: 1 },
@@ -82,7 +83,7 @@ const hubResponse = {
 }
 
 const queriesResponse = {
-  days: 30,
+  days: 21,
   rows: [
     { date: '2026-08-30', entry: 'query', source: 'ui', outcome: 'ok', cache: 'snapshot', requests: 40 },
     { date: '2026-08-31', entry: 'query', source: 'mcp', outcome: 'ok', cache: 'live', requests: 12 },
@@ -93,7 +94,7 @@ const queriesResponse = {
 }
 
 const termsResponse = {
-  days: 30,
+  days: 7,
   rows: [
     { entry: 'query', kind: 'field', term: 'name', requests: 30 },
     { entry: 'aggregate', kind: 'field', term: 'name', requests: 8 },
@@ -129,6 +130,13 @@ function mockFetch(bodies: Record<string, unknown>) {
 }
 
 const cellsOf = (row: HTMLElement) => within(row).getAllByRole('cell').map((c) => c.textContent)
+
+// The page opens on Traffic; the other two tabs are a click away. The bar
+// only renders once the page has loaded, so finding the button by name is
+// also the wait for the fetches to have settled.
+const openTab = async (label: string) => {
+  fireEvent.click(await screen.findByRole('button', { name: label }))
+}
 
 afterEach(() => {
   cleanup()
@@ -387,9 +395,13 @@ describe('StatsDashboard', () => {
     expect(screen.getByText('No named agents aggregated yet.')).toBeInTheDocument()
     expect(screen.getByText('No scanner probes in the window.')).toBeInTheDocument()
     expect(screen.getByText('No redirects aggregated yet.')).toBeInTheDocument()
+
+    await openTab('The hub')
     expect(screen.getByText('Nobody has opened a room yet.')).toBeInTheDocument()
     expect(screen.getAllByText('No tables dealt yet.')).toHaveLength(2)
     expect(screen.getByText('No rooms yet.')).toBeInTheDocument()
+
+    await openTab('one_d4')
     expect(screen.getAllByText('No queries in the window.')).toHaveLength(2)
   })
 
@@ -406,16 +418,23 @@ describe('StatsDashboard', () => {
     expect(onState).toHaveBeenLastCalledWith('connected')
     // The tables whose endpoints failed say so rather than claiming zero,
     // services among them.
-    expect(screen.getAllByText('Not available from the stats service.')).toHaveLength(11)
+    expect(screen.getAllByText('Not available from the stats service.')).toHaveLength(5)
     expect(screen.queryByText('No scanner probes in the window.')).not.toBeInTheDocument()
     expect(screen.getByText('abc123')).toBeInTheDocument()
+
+    // And on the other tabs, whose endpoints are newer still.
+    await openTab('The hub')
+    expect(screen.getAllByText('Not available from the stats service.')).toHaveLength(4)
+    await openTab('one_d4')
+    expect(screen.getAllByText('Not available from the stats service.')).toHaveLength(2)
   })
 
   it('shows the hub day by day, newest first', async () => {
     mockFetch(everything)
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
-    const days = within(await screen.findByTestId('hub-days')).getAllByRole('row').slice(1)
+    await openTab('The hub')
+    const days = within(screen.getByTestId('hub-days')).getAllByRole('row').slice(1)
     expect(days.map(cellsOf)).toEqual([
       ['2026-08-31', '1', '7', '11'],
       ['2026-08-30', '2', '2', '0'],
@@ -425,11 +444,30 @@ describe('StatsDashboard', () => {
     expect(screen.getByText(/3 rooms made, 3 closed, 4 joins, 5 reshapes, 11 messages/)).toBeInTheDocument()
   })
 
+  // Each section names the window its own endpoint answered with, not the
+  // one the page asked for or a neighbour's.
+  it('reports each window from the endpoint that answered it', async () => {
+    mockFetch(everything)
+    render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
+
+    await openTab('The hub')
+    expect(screen.getByRole('heading', { name: /The hub — last 14 days/ })).toBeInTheDocument()
+
+    await openTab('one_d4')
+    expect(
+      screen.getByRole('heading', { name: /one_d4 queries — last 21 days/ })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: /What one_d4 gets asked for — last 7 days/ })
+    ).toBeInTheDocument()
+  })
+
   it('separates tables dealt from how they ended', async () => {
     mockFetch(everything)
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
-    const variants = within(await screen.findByTestId('hub-variants')).getAllByRole('row').slice(1)
+    await openTab('The hub')
+    const variants = within(screen.getByTestId('hub-variants')).getAllByRole('row').slice(1)
     expect(variants.map(cellsOf)).toEqual([
       ['Golf', '7', '4', '3'],
       ['Castle', '2', '0', '0'],
@@ -440,7 +478,8 @@ describe('StatsDashboard', () => {
     mockFetch(everything)
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
-    const sizes = within(await screen.findByTestId('hub-sizes')).getAllByRole('row').slice(1)
+    await openTab('The hub')
+    const sizes = within(screen.getByTestId('hub-sizes')).getAllByRole('row').slice(1)
     expect(sizes.map(cellsOf)).toEqual([
       ['2', '6'],
       ['3', '2'],
@@ -452,7 +491,8 @@ describe('StatsDashboard', () => {
     mockFetch(everything)
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
-    const surfaces = within(await screen.findByTestId('hub-surfaces')).getAllByRole('row').slice(1)
+    await openTab('The hub')
+    const surfaces = within(screen.getByTestId('hub-surfaces')).getAllByRole('row').slice(1)
     expect(surfaces.map(cellsOf)).toEqual([
       ['Glasshouse', '0', '5'],
       ['Plane', '2', '0'],
@@ -464,8 +504,9 @@ describe('StatsDashboard', () => {
     mockFetch(everything)
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
+    await openTab('one_d4')
     // Entry, requests, ui, mcp, api, answered, invalid, failed, snapshot.
-    expect(cellsOf(await screen.findByTestId('one-d4-query'))).toEqual([
+    expect(cellsOf(screen.getByTestId('one-d4-query'))).toEqual([
       'Query', '59', '40', '17', '2', '52', '5', '2', '40',
     ])
     expect(cellsOf(screen.getByTestId('one-d4-aggregate'))).toEqual([
@@ -477,7 +518,8 @@ describe('StatsDashboard', () => {
     mockFetch(everything)
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
-    const language = within(await screen.findByTestId('one-d4-terms'))
+    await openTab('one_d4')
+    const language = within(screen.getByTestId('one-d4-terms'))
     expect(language.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
       'Fields',
       'Motifs',
@@ -485,6 +527,49 @@ describe('StatsDashboard', () => {
     ])
     // 30 from query plus 8 from aggregate: one term, not two.
     expect(cellsOf(language.getByText('name').closest('tr')!)).toEqual(['name', '38'])
+  })
+
+  // Nine tables in one column was already long; the app-level events made
+  // it unreadable. One tab is on screen at a time, and Traffic is the one
+  // /stats has always meant.
+  it('opens on traffic and shows one tab at a time', async () => {
+    mockFetch(everything)
+    render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
+
+    expect(await screen.findByRole('button', { name: 'Traffic' })).toHaveAttribute(
+      'aria-current',
+      'true'
+    )
+    expect(screen.getByRole('button', { name: 'The hub' })).toHaveAttribute(
+      'aria-current',
+      'false'
+    )
+    expect(screen.getByTestId('countries')).toBeInTheDocument()
+    expect(screen.queryByTestId('hub-days')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('one-d4-queries')).not.toBeInTheDocument()
+
+    await openTab('The hub')
+    expect(screen.getByTestId('hub-days')).toBeInTheDocument()
+    expect(screen.queryByTestId('countries')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('one-d4-queries')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'The hub' })).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByRole('button', { name: 'Traffic' })).toHaveAttribute(
+      'aria-current',
+      'false'
+    )
+
+    await openTab('one_d4')
+    expect(screen.getByTestId('one-d4-queries')).toBeInTheDocument()
+    expect(screen.queryByTestId('hub-days')).not.toBeInTheDocument()
+
+    // And back, with the host table's own expanded row forgotten rather
+    // than left open behind a tab nobody was looking at.
+    await openTab('Traffic')
+    expect(screen.getByTestId('countries')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /git\.muchq\.com/ })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    )
   })
 
   // The reason these four do not ride the page's Promise.all: one of them
@@ -504,8 +589,10 @@ describe('StatsDashboard', () => {
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
     expect(await screen.findByRole('button', { name: /git\.muchq\.com/ })).toBeInTheDocument()
+    await openTab('one_d4')
     expect(cellsOf(screen.getByTestId('one-d4-query'))[1]).toBe('59')
     // Only the hub's own tables are still waiting.
+    await openTab('The hub')
     expect(within(screen.getByTestId('hub-days')).getAllByRole('row')).toHaveLength(2)
   })
 
@@ -523,8 +610,11 @@ describe('StatsDashboard', () => {
 
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
-    expect(await screen.findByRole('button', { name: /git\.muchq\.com/ })).toBeInTheDocument()
-    expect(screen.getAllByText('Not available from the stats service.')).toHaveLength(6)
+    await openTab('The hub')
+    expect(screen.getAllByText('Not available from the stats service.')).toHaveLength(4)
     expect(screen.queryByText('Nobody has opened a room yet.')).not.toBeInTheDocument()
+    // The traffic tab, whose endpoints all answered, is untouched by it.
+    await openTab('Traffic')
+    expect(screen.queryByText('Not available from the stats service.')).not.toBeInTheDocument()
   })
 })
