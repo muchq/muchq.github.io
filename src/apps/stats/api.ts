@@ -103,3 +103,59 @@ export interface StatsServices {
   total: number
   rows: ServiceRow[]
 }
+
+// The games_hub funnel (MoonBase#1571): the hub's own events, which the
+// access log cannot see — a session opens one socket and every room,
+// table, game and message rides it.
+//
+// Each row is one day of one event shape, and the columns are the event's
+// own fields: a row leaves empty whatever its event does not carry, so
+// read `event` first. `players` is three quantities told apart the same
+// way — seats dealt (game_started), seats still held (game_finished), the
+// room's size (room_joined, chat_message) — and -1 means a count past what
+// that event could carry, which is not a count and must not be summed.
+export interface HubEventRow {
+  date: string
+  event: string
+  variant: string
+  surface: string
+  outcome: string
+  players: number
+  events: number
+}
+
+export interface StatsHubEvents {
+  days: number
+  rows: HubEventRow[]
+}
+
+// one_d4's query events (MoonBase#1465). `source` says who asked — the
+// web UI, the MCP server, or the API directly — and `cache` whether the
+// snapshot answered.
+export interface QueryRow {
+  date: string
+  entry: string
+  source: string
+  outcome: string
+  cache: string
+  requests: number
+}
+
+export interface StatsQueries {
+  days: number
+  rows: QueryRow[]
+}
+
+// Which fields, motifs, order-by motifs and group-by columns queries
+// actually used, busiest first.
+export interface QueryTermRow {
+  entry: string
+  kind: string
+  term: string
+  requests: number
+}
+
+export interface StatsQueryTerms {
+  days: number
+  rows: QueryTermRow[]
+}

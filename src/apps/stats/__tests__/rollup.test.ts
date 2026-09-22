@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { rollupHosts, rollupServices, scrapersByDay, serviceLabel, topAgents, topCountries } from '../rollup'
+import {
+  OVER_CAP,
+  rollupHosts,
+  rollupHubEvents,
+  rollupQueries,
+  rollupServices,
+  scrapersByDay,
+  serviceLabel,
+  topAgents,
+  topCountries,
+  topTerms,
+} from '../rollup'
 
 const summary = {
   days: 30,
@@ -168,5 +179,225 @@ describe('rollupServices', () => {
 
   it('has nothing to show when the endpoint failed', () => {
     expect(rollupServices(null)).toEqual([])
+  })
+})
+
+const hubEvents = {
+  days: 30,
+  rows: [
+    { date: '2026-09-20', event: 'room_created', variant: '', surface: 'plane', outcome: '', players: 0, events: 3 },
+    { date: '2026-09-21', event: 'room_created', variant: '', surface: 'sphere', outcome: '', players: 0, events: 2 },
+    { date: '2026-09-21', event: 'room_closed', variant: '', surface: '', outcome: '', players: 0, events: 4 },
+    { date: '2026-09-21', event: 'room_joined', variant: '', surface: '', outcome: '', players: 2, events: 5 },
+    { date: '2026-09-21', event: 'room_joined', variant: '', surface: '', outcome: '', players: 3, events: 1 },
+    { date: '2026-09-21', event: 'chat_message', variant: '', surface: '', outcome: '', players: 3, events: 9 },
+    { date: '2026-09-20', event: 'geometry_changed', variant: '', surface: 'glasshouse', outcome: '', players: 0, events: 6 },
+    { date: '2026-09-21', event: 'game_started', variant: 'golf', surface: '', outcome: '', players: 2, events: 7 },
+    { date: '2026-09-21', event: 'game_started', variant: 'golf', surface: '', outcome: '', players: 4, events: 1 },
+    { date: '2026-09-20', event: 'game_started', variant: 'castle', surface: '', outcome: '', players: 3, events: 2 },
+    { date: '2026-09-21', event: 'game_finished', variant: 'golf', surface: '', outcome: 'completed', players: 2, events: 5 },
+    { date: '2026-09-21', event: 'game_finished', variant: 'golf', surface: '', outcome: 'abandoned', players: 1, events: 3 },
+    { date: '2026-09-20', event: 'game_finished', variant: 'castle', surface: '', outcome: 'completed', players: 3, events: 2 },
+  ],
+}
+
+describe('rollupHubEvents', () => {
+  it('counts each event into the question it answers', () => {
+    const hub = rollupHubEvents(hubEvents)
+
+    expect(hub.rooms).toEqual({ created: 5, closed: 4, joins: 6, messages: 9, reshapes: 6 })
+    // Every row, whatever its event — the section's "nothing yet" test.
+    expect(hub.total).toBe(50)
+  })
+
+  it('separates games dealt from how they ended, busiest variant first', () => {
+    const hub = rollupHubEvents(hubEvents)
+
+    expect(hub.variants).toEqual([
+      { variant: 'golf', label: 'Golf', dealt: 8, completed: 5, abandoned: 3 },
+      { variant: 'castle', label: 'Castle', dealt: 2, completed: 2, abandoned: 0 },
+    ])
+  })
+
+  // game_finished's players is the seats still held — 1 for nearly every
+  // abandonment — so only game_started may reach this table. A finish
+  // folded in here would report a flood of one-player tables that were
+  // never dealt.
+  it('reads table sizes from game_started alone, smallest first', () => {
+    expect(rollupHubEvents(hubEvents).sizes).toEqual([
+      { players: 2, dealt: 7 },
+      { players: 3, dealt: 2 },
+      { players: 4, dealt: 1 },
+    ])
+  })
+
+  it('sorts a count past its cap last, where it cannot read as a size', () => {
+    const hub = rollupHubEvents({
+      days: 30,
+      rows: [
+        { date: '2026-09-21', event: 'game_started', variant: 'golf', surface: '', outcome: '', players: OVER_CAP, events: 1 },
+        { date: '2026-09-21', event: 'game_started', variant: 'golf', surface: '', outcome: '', players: 4, events: 2 },
+      ],
+    })
+    expect(hub.sizes.map((size) => size.players)).toEqual([4, OVER_CAP])
+  })
+
+  // Which surface a room opened on and which one somebody switched it to
+  // are different answers: the first is the default, the second is taste.
+  it('tells the surface a room started on from one it was changed to', () => {
+    expect(rollupHubEvents(hubEvents).surfaces).toEqual([
+      { surface: 'glasshouse', label: 'Glasshouse', chosen: 0, changedTo: 6 },
+      { surface: 'plane', label: 'Plane', chosen: 3, changedTo: 0 },
+      { surface: 'sphere', label: 'Sphere', chosen: 2, changedTo: 0 },
+    ])
+  })
+
+  it('reports each day of rooms, games, and chat, newest first', () => {
+    expect(rollupHubEvents(hubEvents).days).toEqual([
+      { date: '2026-09-21', rooms: 2, games: 8, messages: 9 },
+      { date: '2026-09-20', rooms: 3, games: 2, messages: 0 },
+    ])
+  })
+
+  // The stats reader collapses an outcome it does not know to "other", so a
+  // finish is completed only when it says so. Calling every non-abandoned
+  // finish completed would report producer drift as wins.
+  it('counts a finish as completed only when it says completed', () => {
+    const hub = rollupHubEvents({
+      days: 30,
+      rows: [
+        { date: '2026-09-21', event: 'game_started', variant: 'golf', surface: '', outcome: '', players: 2, events: 9 },
+        { date: '2026-09-21', event: 'game_finished', variant: 'golf', surface: '', outcome: 'completed', players: 2, events: 4 },
+        { date: '2026-09-21', event: 'game_finished', variant: 'golf', surface: '', outcome: 'abandoned', players: 1, events: 3 },
+        { date: '2026-09-21', event: 'game_finished', variant: 'golf', surface: '', outcome: 'other', players: 2, events: 2 },
+      ],
+    })
+    // The two drifted finishes are in neither column, so dealt outruns
+    // completed + abandoned and the gap is the drift.
+    expect(hub.variants).toEqual([
+      { variant: 'golf', label: 'Golf', dealt: 9, completed: 4, abandoned: 3 },
+    ])
+  })
+
+  // A hub release the page has not learned about yet still counts, rather
+  // than vanishing from a funnel that then does not add up.
+  it('counts an event shape it does not recognise in the total', () => {
+    const hub = rollupHubEvents({
+      days: 30,
+      rows: [{ date: '2026-09-21', event: 'hand_played', variant: '', surface: '', outcome: '', players: 0, events: 12 }],
+    })
+    expect(hub.total).toBe(12)
+    expect(hub.variants).toEqual([])
+  })
+
+  it('has nothing to show when the endpoint failed', () => {
+    expect(rollupHubEvents(null)).toEqual({
+      days: [],
+      variants: [],
+      sizes: [],
+      rooms: { created: 0, closed: 0, joins: 0, messages: 0, reshapes: 0 },
+      surfaces: [],
+      total: 0,
+    })
+  })
+})
+
+const queries = {
+  days: 30,
+  rows: [
+    { date: '2026-09-20', entry: 'query', source: 'ui', outcome: 'ok', cache: 'snapshot', requests: 10 },
+    { date: '2026-09-21', entry: 'query', source: 'ui', outcome: 'ok', cache: 'live', requests: 4 },
+    { date: '2026-09-21', entry: 'query', source: 'mcp', outcome: 'ok', cache: 'snapshot', requests: 6 },
+    { date: '2026-09-21', entry: 'query', source: 'mcp', outcome: 'invalid', cache: 'none', requests: 3 },
+    { date: '2026-09-21', entry: 'query', source: 'api', outcome: 'failed', cache: 'none', requests: 1 },
+    { date: '2026-09-21', entry: 'aggregate', source: 'ui', outcome: 'ok', cache: 'live', requests: 2 },
+  ],
+}
+
+describe('rollupQueries', () => {
+  it('folds a day-by-day table into who asked and how it went, busiest first', () => {
+    const entries = rollupQueries(queries)
+
+    expect(entries.map((entry) => entry.entry)).toEqual(['query', 'aggregate'])
+    expect(entries[0]).toEqual({
+      entry: 'query',
+      label: 'Query',
+      total: 24,
+      ok: 20,
+      invalid: 3,
+      failed: 1,
+      cached: 16,
+      bySource: { ui: 14, mcp: 9, api: 1 },
+    })
+  })
+
+  // A word the reader collapsed to `other` is drift between one_d4 and
+  // the stats service. It counts in the total and in no column, so the
+  // page shows a discrepancy rather than losing the requests.
+  it('counts a word it does not know in the total and in no column', () => {
+    const [entry] = rollupQueries({
+      days: 30,
+      rows: [
+        { date: '2026-09-21', entry: 'query', source: 'other', outcome: 'other', cache: 'other', requests: 8 },
+      ],
+    })
+    expect(entry.total).toBe(8)
+    expect(entry.ok + entry.invalid + entry.failed).toBe(0)
+    expect(entry.cached).toBe(0)
+  })
+
+  it('shows an entry point it has no label for under its own name', () => {
+    const [entry] = rollupQueries({
+      days: 30,
+      rows: [{ date: '2026-09-21', entry: 'explain', source: 'ui', outcome: 'ok', cache: 'live', requests: 1 }],
+    })
+    expect(entry.label).toBe('explain')
+  })
+
+  it('has nothing to show when the endpoint failed', () => {
+    expect(rollupQueries(null)).toEqual([])
+  })
+})
+
+const terms = {
+  days: 30,
+  rows: [
+    { entry: 'query', kind: 'field', term: 'name', requests: 30 },
+    { entry: 'aggregate', kind: 'field', term: 'name', requests: 5 },
+    { entry: 'query', kind: 'field', term: 'cmc', requests: 20 },
+    { entry: 'query', kind: 'motif', term: 'draw', requests: 12 },
+    { entry: 'query', kind: 'order_by', term: 'cmc', requests: 4 },
+    { entry: 'query', kind: 'group_by', term: 'color', requests: 2 },
+  ],
+}
+
+describe('topTerms', () => {
+  // A term asked for at two entry points is one term: the question is
+  // which fields the language gets used for, not which endpoint got it.
+  it('folds a term across entry points and orders each kind by use', () => {
+    const groups = topTerms(terms, 10)
+
+    expect(groups.map((group) => group.kind)).toEqual(['field', 'motif', 'order_by', 'group_by'])
+    expect(groups[0]).toEqual({
+      kind: 'field',
+      label: 'Fields',
+      terms: [
+        { term: 'name', requests: 35 },
+        { term: 'cmc', requests: 20 },
+      ],
+    })
+  })
+
+  it('keeps the busiest terms of each kind and drops the tail', () => {
+    const [fields] = topTerms(terms, 1)
+    expect(fields.terms).toEqual([{ term: 'name', requests: 35 }])
+  })
+
+  it('leaves out a kind nothing used, rather than showing an empty one', () => {
+    expect(topTerms({ days: 30, rows: terms.rows.slice(0, 1) }, 10).map((g) => g.kind)).toEqual(['field'])
+  })
+
+  it('has nothing to show when the endpoint failed', () => {
+    expect(topTerms(null, 10)).toEqual([])
   })
 })
