@@ -398,7 +398,7 @@ describe('StatsDashboard', () => {
     expect(screen.getByText('No scanner probes in the window.')).toBeInTheDocument()
     expect(screen.getByText('No redirects aggregated yet.')).toBeInTheDocument()
 
-    await openTab('The hub')
+    await openTab('Hub')
     expect(screen.getByText('Nobody has opened a room yet.')).toBeInTheDocument()
     expect(screen.getAllByText('No tables dealt yet.')).toHaveLength(2)
     expect(screen.getByText('No rooms yet.')).toBeInTheDocument()
@@ -425,7 +425,7 @@ describe('StatsDashboard', () => {
     expect(screen.getByText('abc123')).toBeInTheDocument()
 
     // And on the other tabs, whose endpoints are newer still.
-    await openTab('The hub')
+    await openTab('Hub')
     expect(screen.getAllByText('Not available from the stats service.')).toHaveLength(4)
     await openTab('one_d4')
     expect(screen.getAllByText('Not available from the stats service.')).toHaveLength(2)
@@ -435,7 +435,7 @@ describe('StatsDashboard', () => {
     mockFetch(everything)
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
-    await openTab('The hub')
+    await openTab('Hub')
     const days = within(screen.getByTestId('hub-days')).getAllByRole('row').slice(1)
     expect(days.map(cellsOf)).toEqual([
       ['2026-08-31', '1', '7', '11'],
@@ -452,8 +452,8 @@ describe('StatsDashboard', () => {
     mockFetch(everything)
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
-    await openTab('The hub')
-    expect(screen.getByRole('heading', { name: /The hub — last 14 days/ })).toBeInTheDocument()
+    await openTab('Hub')
+    expect(screen.getByRole('heading', { name: /Hub — last 14 days/ })).toBeInTheDocument()
 
     await openTab('one_d4')
     expect(
@@ -468,7 +468,7 @@ describe('StatsDashboard', () => {
     mockFetch(everything)
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
-    await openTab('The hub')
+    await openTab('Hub')
     const variants = within(screen.getByTestId('hub-variants')).getAllByRole('row').slice(1)
     expect(variants.map(cellsOf)).toEqual([
       ['Golf', '7', '4', '3'],
@@ -480,7 +480,7 @@ describe('StatsDashboard', () => {
     mockFetch(everything)
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
-    await openTab('The hub')
+    await openTab('Hub')
     const sizes = within(screen.getByTestId('hub-sizes')).getAllByRole('row').slice(1)
     expect(sizes.map(cellsOf)).toEqual([
       ['2', '6'],
@@ -493,7 +493,7 @@ describe('StatsDashboard', () => {
     mockFetch(everything)
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
-    await openTab('The hub')
+    await openTab('Hub')
     const surfaces = within(screen.getByTestId('hub-surfaces')).getAllByRole('row').slice(1)
     expect(surfaces.map(cellsOf)).toEqual([
       ['Glasshouse', '0', '5'],
@@ -567,7 +567,7 @@ describe('StatsDashboard', () => {
       'aria-current',
       'true'
     )
-    expect(screen.getByRole('button', { name: 'The hub' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Hub' })).toHaveAttribute(
       'aria-current',
       'false'
     )
@@ -575,11 +575,11 @@ describe('StatsDashboard', () => {
     expect(screen.queryByTestId('hub-days')).not.toBeInTheDocument()
     expect(screen.queryByTestId('one-d4-queries')).not.toBeInTheDocument()
 
-    await openTab('The hub')
+    await openTab('Hub')
     expect(screen.getByTestId('hub-days')).toBeInTheDocument()
     expect(screen.queryByTestId('countries')).not.toBeInTheDocument()
     expect(screen.queryByTestId('one-d4-queries')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'The hub' })).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByRole('button', { name: 'Hub' })).toHaveAttribute('aria-current', 'true')
     expect(screen.getByRole('button', { name: 'Traffic' })).toHaveAttribute(
       'aria-current',
       'false'
@@ -621,7 +621,7 @@ describe('StatsDashboard', () => {
 
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
-    await openTab('The hub')
+    await openTab('Hub')
     expect(screen.getAllByText('Still loading.').length).toBeGreaterThan(0)
     expect(screen.queryByText('Not available from the stats service.')).not.toBeInTheDocument()
     // And no funnel sentence, which would be a claim about counts it has none of.
@@ -629,7 +629,7 @@ describe('StatsDashboard', () => {
 
     answer!(new Response(JSON.stringify(hubResponse), { status: 200 }))
     expect(
-      await screen.findByRole('heading', { name: /The hub — last 14 days/ })
+      await screen.findByRole('heading', { name: /Hub — last 14 days/ })
     ).toBeInTheDocument()
     expect(screen.queryByText('Still loading.')).not.toBeInTheDocument()
     expect(screen.getByText(/3 rooms made/)).toBeInTheDocument()
@@ -641,7 +641,7 @@ describe('StatsDashboard', () => {
     mockFetch({ '/summary': summaryResponse, '/iili/top': slugsResponse })
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
-    await openTab('The hub')
+    await openTab('Hub')
     expect(screen.queryByText(/rooms made/)).not.toBeInTheDocument()
     expect(screen.queryByText('Still loading.')).not.toBeInTheDocument()
     expect(screen.getAllByText('Not available from the stats service.')).toHaveLength(4)
@@ -759,7 +759,7 @@ describe('StatsDashboard', () => {
     await openTab('one_d4')
     expect(cellsOf(screen.getByTestId('one-d4-query'))[1]).toBe('59')
     // Only the hub's own tables are still waiting.
-    await openTab('The hub')
+    await openTab('Hub')
     expect(within(screen.getByTestId('hub-days')).getAllByRole('row')).toHaveLength(2)
   })
 
@@ -777,7 +777,7 @@ describe('StatsDashboard', () => {
 
     render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
 
-    await openTab('The hub')
+    await openTab('Hub')
     expect(screen.getAllByText('Not available from the stats service.')).toHaveLength(4)
     expect(screen.queryByText('Nobody has opened a room yet.')).not.toBeInTheDocument()
     // The traffic tab, whose endpoints all answered, is untouched by it.

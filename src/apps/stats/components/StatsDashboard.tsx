@@ -55,7 +55,7 @@ const TOP_TERMS = 12
 // All three tabs' data arrives on mount, so switching costs nothing.
 const TABS = [
   { id: 'traffic', label: 'Traffic' },
-  { id: 'hub', label: 'The hub' },
+  { id: 'hub', label: 'Hub' },
   { id: 'one_d4', label: 'one_d4' },
 ] as const
 
