@@ -6,6 +6,7 @@ import RoomChat from './RoomChat'
 import { lobbyTablePath, useLobby } from '@/hooks/useLobby'
 import type { UseLobbyProps } from '@/hooks/useLobby'
 import LobbyPanel from './LobbyPanel'
+import { safeLocalStorage } from '@/utils/safeLocalStorage'
 import styles from './LobbyGame.module.css'
 
 // The lobby: the world as the main view, the panel beside it, the room's
@@ -13,28 +14,12 @@ import styles from './LobbyGame.module.css'
 // table over the world, which keeps ticking underneath so presence and
 // chat never drop. The panel hides behind a toggle while a table is up.
 
-// Hiding the panel is how the bare world is asked for, so the choice
-// outlives the visit. Storage can throw (private windows, blocked site
-// data); without it the panel opens by width, as it always did.
+// Hiding the panel is how the bare world is asked for, so that choice
+// outlives the visit; showing it again forgets it. Otherwise the panel
+// opens where there is room for it beside the world.
 const PANEL_KEY = 'lobby.panel'
 
-function panelWanted(): boolean {
-  try {
-    const stored = localStorage.getItem(PANEL_KEY)
-    if (stored !== null) return stored === 'open'
-  } catch {
-    // fall through to the width
-  }
-  return window.innerWidth > 700
-}
-
-function rememberPanel(open: boolean): void {
-  try {
-    localStorage.setItem(PANEL_KEY, open ? 'open' : 'closed')
-  } catch {
-    // the choice lasts this visit only
-  }
-}
+const panelWanted = (): boolean => safeLocalStorage.get(PANEL_KEY) !== 'hidden' && window.innerWidth > 700
 
 const LobbyGame = (props: UseLobbyProps) => {
   const lobby = useLobby(props)
@@ -48,8 +33,13 @@ const LobbyGame = (props: UseLobbyProps) => {
     setFoldedFor(atTable)
     setPanelOpen(!atTable && panelWanted())
   }
+  // Over a table the toggle is about room on screen, not the world, so
+  // only a choice made away from one is kept.
   const togglePanel = () => {
-    rememberPanel(!panelOpen)
+    if (!atTable) {
+      if (panelOpen) safeLocalStorage.set(PANEL_KEY, 'hidden')
+      else safeLocalStorage.remove(PANEL_KEY)
+    }
     setPanelOpen(!panelOpen)
   }
   // The table takes its own focus on mount; when it goes, the button the
@@ -63,7 +53,7 @@ const LobbyGame = (props: UseLobbyProps) => {
 
   return (
     <>
-      <ThoughtsGame link={lobby.world} hudSide="right" />
+      <ThoughtsGame link={lobby.world} />
       {castle.view !== null && (
         <div className={styles.tableOverlay}>
           <CastleTable playerId={playerId} connected={connected} view={castle.view} table={castle} />

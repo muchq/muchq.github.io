@@ -6,12 +6,9 @@ import styles from './ThoughtsGame.module.css'
 interface ThoughtsGameProps {
   // The lobby's way into the world.
   link: HubWorldLink
-  // Where the minimap and sound toggle sit: left by default, right when
-  // a panel takes the left (the lobby).
-  hudSide?: 'left' | 'right'
 }
 
-const ThoughtsGame = ({ link, hudSide = 'left' }: ThoughtsGameProps) => {
+const ThoughtsGame = ({ link }: ThoughtsGameProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { initializeGame } = useThoughtsGame()
 
@@ -23,7 +20,7 @@ const ThoughtsGame = ({ link, hudSide = 'left' }: ThoughtsGameProps) => {
   }, [initializeGame, link])
 
   return (
-    <div className={`${styles.gameContainer} ${hudSide === 'right' ? styles.hudRight : ''}`}>
+    <div className={`${styles.gameContainer} ${styles.hudRight}`}>
       <canvas ref={canvasRef} className={styles.sceneCanvas} id="scene-canvas" />
       
       <div id="tape-wall-container" className={styles.tapeWallContainer}></div>

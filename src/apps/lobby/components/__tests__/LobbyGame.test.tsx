@@ -139,6 +139,35 @@ describe('LobbyGame', () => {
       expect(panel()).toBeNull()
     })
 
+    it('a peek at the panel over a table is not kept', () => {
+      const { rerender } = render(<LobbyGame />)
+      state.castle.view = view
+      rerender(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'Lobby' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Hide lobby' }))
+      state.castle.view = null
+      rerender(<LobbyGame />)
+      expect(panel()).toBeTruthy()
+      cleanup()
+      render(<LobbyGame />)
+      expect(panel()).toBeTruthy()
+    })
+
+    it('shown on a narrow screen, still starts folded there next time', () => {
+      const width = window.innerWidth
+      window.innerWidth = 500
+      try {
+        render(<LobbyGame />)
+        expect(panel()).toBeNull()
+        fireEvent.click(screen.getByRole('button', { name: 'Lobby' }))
+        cleanup()
+        render(<LobbyGame />)
+        expect(panel()).toBeNull()
+      } finally {
+        window.innerWidth = width
+      }
+    })
+
     it('without storage, opens by width as before', () => {
       const getItem = vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
         throw new Error('blocked')
