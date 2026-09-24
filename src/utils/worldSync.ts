@@ -1,8 +1,7 @@
 // The world as the renderer reads it, kept in step with the hub's lobby
 // updates (thoughts.smithy): the one place a snapshot, an arrival, a
-// move, a shape change, or a departure touches the GameState. Both ways
-// onto the wire share it — the thoughts page's own socket
-// (NetworkManager) and the lobby's room stream (HubWorldLink).
+// move, a shape change, or a departure touches the GameState. The
+// lobby's room stream (HubWorldLink) drives it.
 
 import type { GameState, GameStatePlayer } from '@/types/game'
 import { ShapeType } from '@/types/game'
@@ -168,16 +167,11 @@ export class PositionThrottle {
   }
 }
 
-export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'failed'
-
 // What the world renderer (useThoughtsGame) drives: a link to the world
-// that says whether moves are welcome, ships them, and can be dropped
-// and redialed. NetworkManager is the thoughts page's, on its own
-// socket; HubWorldLink is the lobby's, on the room stream.
+// that says whether moves are welcome, ships them, and can be dropped.
+// HubWorldLink is the one production uses, on the lobby's room stream.
 export interface WorldLink {
   readonly isConnected: boolean
-  onPlayerIdReceived?: (playerId: string) => void
-  onConnectionStateChange?: (status: ConnectionStatus, error?: string) => void
   onGeometryChange?: (geometry: Geometry) => void
   sendPositionUpdate(position: [number, number, number]): void
   sendShapeUpdate(shape: ShapeType): void
@@ -186,5 +180,4 @@ export interface WorldLink {
   sendSetGeometry(geometry: Geometry): void
   sendLeave(): void
   disconnect(): void
-  reconnect(): void
 }

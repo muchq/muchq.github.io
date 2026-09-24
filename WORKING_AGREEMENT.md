@@ -217,8 +217,8 @@ preview. Chromium and Playwright are available in the sandbox.
 ## Docs
 
 - Update docs in the same PR as the code: [README.md](README.md), and the
-  header comments of the wire clients (`src/utils/hubStream.ts`,
-  `src/utils/networkSystem.ts`) that read the games_hub models in MoonBase.
+  header comment of the wire client (`src/utils/hubStream.ts`) that reads
+  the games_hub models in MoonBase.
 - **When behavior changes, fix the doc that describes it in the same commit.**
   A doc left contradicting the code is a defect in its own right.
 - The games_hub smithy models describe contracts the MoonBase server

@@ -78,6 +78,28 @@ describe('HubWorldLink', () => {
     expect(lobby.mock.calls[0][1]).toMatchObject({ position: [1, 0, 1] })
   })
 
+  it('moves, reshapes and leaves only while it is in the world', () => {
+    const { link, lobby, world } = setup()
+    link.sendPositionUpdate([2, 0, 2])
+    link.sendShapeUpdate(ShapeType.CUBE)
+    link.sendLeave()
+    expect(lobby).not.toHaveBeenCalled()
+    link.attach(world())
+    link.sessionReady('alice')
+    link.join()
+    link.sendPositionUpdate([2, 0, 2])
+    expect(lobby).toHaveBeenLastCalledWith('move', { position: [2, 0, 2] })
+    link.sendShapeUpdate(ShapeType.CUBE)
+    expect(lobby).toHaveBeenLastCalledWith('shape', { shape: ShapeType.CUBE })
+    link.sendLeave()
+    expect(lobby).toHaveBeenLastCalledWith('leave', {})
+    expect(link.isConnected).toBe(false)
+    const sent = lobby.mock.calls.length
+    link.sendShapeUpdate(ShapeType.PYRAMID)
+    link.sendLeave()
+    expect(lobby).toHaveBeenCalledTimes(sent)
+  })
+
   it('asks for a reshape only while it is in the world, and reports every one it hears', () => {
     const { link, lobby, world } = setup()
     const heard: unknown[] = []

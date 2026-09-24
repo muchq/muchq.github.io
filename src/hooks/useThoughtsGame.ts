@@ -1,5 +1,4 @@
 import { useCallback } from 'react'
-import type { MutableRefObject } from 'react'
 import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
 import { generateRandomColor, generateRandomSpawnPosition } from '@/utils/gameUtils'
 import { RoomResources } from '@/utils/roomResources'
@@ -13,16 +12,14 @@ import { projectToNdc, viewProjection } from '@/utils/projection'
 import { VirtualJoystick } from '@/utils/virtualJoystick'
 import { AudioSystem } from '@/utils/audioSystem'
 import { isTypingTarget } from '@/utils/keyboard'
-import { NetworkManager, thoughtsPlayUrl } from '@/utils/networkSystem'
 import type { WorldLink } from '@/utils/worldSync'
 import type { HubWorldLink } from '@/utils/hubWorldLink'
 import { ShapeType } from '@/types/game'
 
-// The world renderer. On its own it dials the hub (NetworkManager, the
-// thoughts page); handed a HubWorldLink it rides the lobby's stream
-// instead (MoonBase#1490), attaching once the local player exists.
+// The world renderer. It rides the lobby's stream through a HubWorldLink
+// (MoonBase#1490), attaching once the local player exists.
 export const useThoughtsGame = () => {
-  const initializeGame = useCallback((canvas: HTMLCanvasElement, onPlayerIdReceived?: (playerId: string) => void, onConnectionStateChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'failed', error?: string) => void, networkManagerRef?: MutableRefObject<{ reconnect: () => void } | null>, link?: HubWorldLink) => {
+  const initializeGame = useCallback((canvas: HTMLCanvasElement, link: HubWorldLink) => {
     // eslint-disable-next-line no-console
     console.log('Starting game initialization...')
 
@@ -48,29 +45,7 @@ export const useThoughtsGame = () => {
 
     // The way into the world, with the local player already spawned for
     // a link's join to carry.
-    const networkManager: WorldLink = link ? link.attach(gameState) : new NetworkManager(gameState)
-
-    // Set callback for when player ID is received
-    if (onPlayerIdReceived) {
-      networkManager.onPlayerIdReceived = onPlayerIdReceived
-    }
-
-    // Set callback for connection state changes
-    if (onConnectionStateChange) {
-      networkManager.onConnectionStateChange = onConnectionStateChange
-    }
-
-    // Store network manager reference for reconnect functionality
-    if (networkManagerRef) {
-      networkManagerRef.current = {
-        reconnect: () => networkManager.reconnect()
-      }
-    }
-
-    // Notify that we have a player ID (even if offline)
-    if (onPlayerIdReceived) {
-      onPlayerIdReceived(localPlayerId)
-    }
+    const worldLink: WorldLink = link.attach(gameState)
 
     // Input tracking
     const keys: Record<string, boolean> = {}
@@ -129,8 +104,8 @@ export const useThoughtsGame = () => {
       console.log(`🔄 Shape changed to: ${shapeNames[localPlayer.shape]}`)
 
       // Send shape update to server
-      if (networkManager.isConnected) {
-        networkManager.sendShapeUpdate(localPlayer.shape)
+      if (worldLink.isConnected) {
+        worldLink.sendShapeUpdate(localPlayer.shape)
       }
     }
 
@@ -240,7 +215,7 @@ export const useThoughtsGame = () => {
       // The room's shape is the room's, not this client's: the hub names
       // it on the snapshot a join answers and again whenever a member
       // reshapes it, and everyone standing there redraws together.
-      networkManager.onGeometryChange = (shape: Geometry) => {
+      worldLink.onGeometryChange = (shape: Geometry) => {
         if (sameGeometry(geometry, shape)) return
         drawRoom(roomForGeometry(shape, wanted), shape)
       }
@@ -250,12 +225,12 @@ export const useThoughtsGame = () => {
         if (!next) return
         // The room's shape is the hub's: every room is a surface it
         // knows by name, and off the wire there is nobody to ask.
-        if (sameGeometry(next.geometry, geometry) || !networkManager.isConnected) {
+        if (sameGeometry(next.geometry, geometry) || !worldLink.isConnected) {
           if (drawRoom(next)) wanted = next.id
           return
         }
         wanted = next.id
-        networkManager.sendSetGeometry(next.geometry)
+        worldLink.sendSetGeometry(next.geometry)
       }
       unbindRoomHotkey = bindRoomHotkey(document, cycleRoom)
       // Undocumented like g: walks a room's tunes when it has more than
@@ -352,8 +327,8 @@ export const useThoughtsGame = () => {
             frame.position[1] - before[1],
             frame.position[2] - before[2]
           )
-          if (moved > 0.01 && networkManager.isConnected) {
-            networkManager.sendPositionUpdate(frame.position)
+          if (moved > 0.01 && worldLink.isConnected) {
+            worldLink.sendPositionUpdate(frame.position)
           }
         }
 
@@ -730,18 +705,13 @@ export const useThoughtsGame = () => {
       animationId = requestAnimationFrame(render)
     }
 
-    // Dialled here, not from a timer: cleanup's disconnect() retires this
-    // dial, so nothing joins the world after teardown. A link is already
-    // on the lobby's stream.
-    if (networkManager instanceof NetworkManager) networkManager.connect(thoughtsPlayUrl())
-
     // Handle page unload - notify server when player leaves
     const handleBeforeUnload = () => {
-      if (networkManager.isConnected) {
+      if (worldLink.isConnected) {
         if (gameState.getLocalPlayer()) {
-          networkManager.sendLeave()
+          worldLink.sendLeave()
         }
-        networkManager.disconnect()
+        worldLink.disconnect()
       }
     }
 
@@ -772,7 +742,7 @@ export const useThoughtsGame = () => {
 
       // Clean up game systems
       audioSystem.cleanup()
-      networkManager.disconnect()
+      worldLink.disconnect()
     }
   }, [])
 

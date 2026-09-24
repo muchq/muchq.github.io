@@ -49,6 +49,7 @@ describe('LobbyGame', () => {
     state.golf.view = null
     state.lost = null
     state.room = null
+    localStorage.clear()
   })
 
   it('folds the panel while a table is up and unfolds it when the table goes', () => {
@@ -104,5 +105,85 @@ describe('LobbyGame', () => {
     rerender(<LobbyGame />)
     expect(screen.queryByText(/golf table/)).toBeNull()
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
+  })
+
+  // /thoughts folded into the lobby, so the bare world is the panel
+  // hidden on purpose — and on purpose means it stays hidden.
+  describe('a hidden panel', () => {
+    const panel = () => screen.queryByRole('complementary', { name: 'lobby' })
+
+    it('stays hidden on the next visit', () => {
+      render(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'Hide lobby' }))
+      cleanup()
+      render(<LobbyGame />)
+      expect(panel()).toBeNull()
+    })
+
+    it('comes back on the next visit once shown again', () => {
+      render(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'Hide lobby' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Lobby' }))
+      cleanup()
+      render(<LobbyGame />)
+      expect(panel()).toBeTruthy()
+    })
+
+    it('stays hidden when a table comes and goes', () => {
+      const { rerender } = render(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'Hide lobby' }))
+      state.castle.view = view
+      rerender(<LobbyGame />)
+      state.castle.view = null
+      rerender(<LobbyGame />)
+      expect(panel()).toBeNull()
+    })
+
+    it('a peek at the panel over a table is not kept', () => {
+      const { rerender } = render(<LobbyGame />)
+      state.castle.view = view
+      rerender(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'Lobby' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Hide lobby' }))
+      state.castle.view = null
+      rerender(<LobbyGame />)
+      expect(panel()).toBeTruthy()
+      cleanup()
+      render(<LobbyGame />)
+      expect(panel()).toBeTruthy()
+    })
+
+    it('shown on a narrow screen, still starts folded there next time', () => {
+      const width = window.innerWidth
+      window.innerWidth = 500
+      try {
+        render(<LobbyGame />)
+        expect(panel()).toBeNull()
+        fireEvent.click(screen.getByRole('button', { name: 'Lobby' }))
+        cleanup()
+        render(<LobbyGame />)
+        expect(panel()).toBeNull()
+      } finally {
+        window.innerWidth = width
+      }
+    })
+
+    it('without storage, opens by width as before', () => {
+      const getItem = vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      const setItem = vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      try {
+        render(<LobbyGame />)
+        expect(panel()).toBeTruthy()
+        fireEvent.click(screen.getByRole('button', { name: 'Hide lobby' }))
+        expect(panel()).toBeNull()
+      } finally {
+        getItem.mockRestore()
+        setItem.mockRestore()
+      }
+    })
   })
 })

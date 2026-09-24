@@ -5,8 +5,8 @@ import { ShapeType } from '@/types/game'
 import { PLANE_GEOMETRY, sphereGeometry } from '../surface'
 import { splat } from '@/test/fakeTape'
 
-// The GameState under the hub's lobby updates, the one place both ways
-// onto the wire (the thoughts page, the lobby) touch it.
+// The GameState under the hub's lobby updates, the one place the wire
+// touches it.
 
 describe('WorldSync', () => {
   let gameState: GameState

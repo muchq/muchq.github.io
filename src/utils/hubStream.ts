@@ -19,7 +19,7 @@ import type { ChatMessage } from '@/types/roomChat'
 import type { GameStatePlayer } from '@/types/game'
 import type { TapeSplat } from './tapeSplats'
 import type { Geometry } from './surface'
-import { safeLocalStorage } from './safeLocalStorage'
+import { safeSessionStorage } from './safeLocalStorage'
 import { HUB_SUBPROTOCOL, hubPlayUrl, mintHubSession } from './hubSession'
 
 export { hubPlayUrl }
@@ -178,12 +178,12 @@ export class HubStream {
 
   private async dial(): Promise<void> {
     try {
-      const session = await mintHubSession(this.playUrl, safeLocalStorage.get(this.resumeTokenKey))
+      const session = await mintHubSession(this.playUrl, safeSessionStorage.get(this.resumeTokenKey))
       // Disconnected during the mint: no socket, or a torn-down stream
       // would hold a seat under the live one's playerId.
       if (this.closed) return
       this._playerId = session.playerId
-      safeLocalStorage.set(this.resumeTokenKey, session.resumeToken)
+      safeSessionStorage.set(this.resumeTokenKey, session.resumeToken)
 
       const ws = new WebSocket(`${this.playUrl}?ticket=${encodeURIComponent(session.ticket)}`, HUB_SUBPROTOCOL)
       this.ws = ws
@@ -210,7 +210,7 @@ export class HubStream {
           // resume token): drop the token so the next dial mints fresh.
           // A deliberate disconnect before admission is not a refusal,
           // and keeps the identity for the next visit.
-          safeLocalStorage.remove(this.resumeTokenKey)
+          safeSessionStorage.remove(this.resumeTokenKey)
         }
         this.scheduleReconnect()
       }

@@ -108,10 +108,9 @@ describe('Navigation', () => {
     const dropdown = groupEl.querySelector('div')
     if (!dropdown) throw new Error('Wee dropdown not found')
     const links = within(dropdown).getAllByRole('link')
-    expect(links.map(link => link.textContent)).toEqual(['Lobby', 'Thoughts', 'Party', 'Resilience'])
+    expect(links.map(link => link.textContent)).toEqual(['Lobby', 'Party', 'Resilience'])
     expect(links.map(link => link.getAttribute('href'))).toEqual([
       '/games',
-      '/thoughts',
       '/party',
       '/resilience',
     ])
@@ -151,7 +150,7 @@ describe('Navigation', () => {
 
   it('renders site menu links on app pages too', () => {
     renderWithRouter(<Navigation appName="Golf" />)
-    expect(testingScreen.getByText('Thoughts')).toBeDefined()
+    expect(testingScreen.getByText('Party')).toBeDefined()
     expect(testingScreen.getByText('Tracy')).toBeDefined()
   })
 

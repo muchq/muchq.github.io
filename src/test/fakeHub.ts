@@ -64,6 +64,7 @@ export function installFakeHub(session = { playerId: 'alice', ticket: 't-123', r
   const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(session) })
   vi.stubGlobal('fetch', fetchMock)
   localStorage.clear()
+  sessionStorage.clear()
   return fetchMock
 }
 

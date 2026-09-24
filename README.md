@@ -42,8 +42,7 @@ npm run deploy
 | Route | App |
 |---|---|
 | `/games` | The lobby: a room, its tables, and chat over the thoughts world |
-| `/golf`, `/castle` | Redirect into the lobby; old share links land on the same room and table |
-| `/thoughts` | 3D multiplayer thoughts game |
+| `/golf`, `/castle`, `/thoughts` | Redirect into the lobby; old share links land on the same room and table |
 | `/party` | Rescue Party |
 | `/quest` | Quest — score-chasing arcade game |
 | `/tracy` | Ray tracer portraits |
@@ -67,7 +66,8 @@ players and their tables, and the room's chat, all on one stream. A table of eit
 over the world (MoonBase#1502); `GolfTable` and `CastleTable` are the tables, `useGolfTable`
 and `useCastleTable` their state over the room stream's game envelopes. Share links are
 `/games/room/:roomId` and `/games/room/:roomId/table/:gameId`; the old `/golf` and `/castle`
-links redirect to them.
+links redirect to them, and `/thoughts` to `/games`. Hiding the panel is how the bare world
+is asked for, so that choice is remembered across visits.
 
 A position is a point of the surface the hub keeps the room on (`src/utils/surface.ts`,
 MoonBase#1554): the ±50 ground plane, or the inside of a sphere, where the whole wall is
@@ -123,8 +123,7 @@ and the protocol are documented with the service in MoonBase, `domains/games/api
 through `src/utils/hubStream.ts`, which drives the session mint (`src/utils/hubSession.ts`),
 the socket, the reconnect loop, and the resume token that reclaims the seat.
 `VITE_HUB_WEBSOCKET_URL` overrides the play socket at build time; the mint is derived from it.
-Thoughts on its own page dials its own socket and mints a fresh identity per dial
-(`src/utils/networkSystem.ts` says why). Room chat appears only once the server actually
+Room chat appears only once the server actually
 delivers chat on the wire.
 
 ## 🏗️ Project Structure
