@@ -6,8 +6,9 @@
 
 const MINT_TIMEOUT_MS = 10_000
 
-// Where the resume token lives. The name is golf's from before there was
-// a lobby; seats minted under it are still good.
+// Where the resume token lives, in the tab's sessionStorage: a reload
+// reclaims the seat, and a second tab mints its own rather than contending
+// for the first tab's. The name is golf's from before there was a lobby.
 export const HUB_RESUME_TOKEN_KEY = 'golf_v2_resume_token'
 
 // The one stream (MoonBase#1490): the room layer, the lobby's world, golf,

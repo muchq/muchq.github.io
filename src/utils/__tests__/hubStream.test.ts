@@ -62,7 +62,7 @@ describe('HubStream', () => {
     expect(ws.protocol).toBe('smithy.eventstream.v1+json')
     expect(hub.isConnected).toBe(true)
     expect(hub.playerId).toBe('alice')
-    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('rt-456')
     expect(callbacks.onConnection).toHaveBeenCalledWith(true)
     expect(callbacks.onSessionReady).toHaveBeenCalledWith({ playerId: 'alice', resumed: false })
   })
@@ -101,13 +101,25 @@ describe('HubStream', () => {
   })
 
   it('offers its own resume token, under its own key, and writes only there', async () => {
-    localStorage.setItem(TOKEN_KEY, 'rt-old')
-    localStorage.setItem('golf_v2_resume_token', 'rt-golf')
+    sessionStorage.setItem(TOKEN_KEY, 'rt-old')
+    sessionStorage.setItem('golf_v2_resume_token', 'rt-golf')
     await connect()
     const [, init] = fetchMock.mock.calls[0]
     expect(JSON.parse((init as { body: string }).body)).toEqual({ resumeToken: 'rt-old' })
-    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
-    expect(localStorage.getItem('golf_v2_resume_token')).toBe('rt-golf')
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    expect(sessionStorage.getItem('golf_v2_resume_token')).toBe('rt-golf')
+  })
+
+  // Tabs share localStorage: a token kept there would be offered by a
+  // second tab for the first tab's live seat, refused, and deleted.
+  // sessionStorage is the tab's own, and survives a reload.
+  it("keeps the resume token to this tab, never offering or touching another's", async () => {
+    localStorage.setItem(TOKEN_KEY, 'rt-other-tab')
+    await connect()
+    const [, init] = fetchMock.mock.calls[0]
+    expect(JSON.parse((init as { body: string }).body)).toEqual({})
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-other-tab')
   })
 
   it('a disconnect during the mint creates no socket', async () => {
@@ -125,12 +137,12 @@ describe('HubStream', () => {
     const refused = FakeWebSocket.instances[0]
     refused.open()
     refused.close()
-    expect(localStorage.getItem(TOKEN_KEY)).toBeNull()
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull()
     hub.disconnect()
 
     const [admittedHub, ws] = await connect()
     ws.close()
-    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('rt-456')
     admittedHub.disconnect()
   })
 
@@ -138,9 +150,9 @@ describe('HubStream', () => {
     const hub = stream()
     hub.connect()
     await flushAsync()
-    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('rt-456')
     hub.disconnect()
-    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('rt-456')
   })
 
   it('encodes room commands bare and game moves in their envelope', async () => {

@@ -93,7 +93,7 @@ describe('useLobby', () => {
   const lobbyFrames = (ws: FakeWebSocket) => ws.sentFrames().filter(frame => frame.event === 'lobby')
 
   it("dials with golf's identity and joins the plaza's world once the session is ready", async () => {
-    localStorage.setItem(HUB_RESUME_TOKEN_KEY, 'rt-golf')
+    sessionStorage.setItem(HUB_RESUME_TOKEN_KEY, 'rt-golf')
     const onPlayerIdChange = vi.fn()
     const { result, ws, gameState, pathname } = await open({ onPlayerIdChange })
     const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>
