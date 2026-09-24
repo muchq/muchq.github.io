@@ -1,7 +1,8 @@
 // The games hub's one stream, game-agnostic: the session mint, the
 // smithy event-stream socket with its reconnect loop, the room and chat
-// commands and events, the lobby envelope (the world), and one envelope
-// per game (golf, castle) whose contents are the game client's business.
+// commands and events, the lobby envelope (the world), the voice
+// envelope (the room's voice), and one envelope per game (golf, castle)
+// whose contents are the game client's business.
 //
 // Wire shape (smithy-cpp ADR-0018 JSON-text mode):
 //   - POST /games/v2/session {resumeToken?} -> {playerId, ticket, resumeToken}
@@ -12,6 +13,8 @@
 //   - game updates arrive the same way: {"event":"castle","payload":{"update":{...}}}
 //   - the world rides the lobby envelope: {"event":"lobby","payload":{"action":{"move":{...}}}}
 //     up, {"event":"lobby","payload":{"update":{"playerMoved":{...}}}} down
+//   - a room's voice rides its own envelope the same way, action up and
+//     update down: {"event":"voice","payload":{"action":{"join":{}}}}
 //   - a refusal that ends the stream: {"exception":"<shape>","payload":{"message":"..."}}
 //
 
@@ -20,6 +23,7 @@ import type { GameStatePlayer } from '@/types/game'
 import type { TapeSplat } from './tapeSplats'
 import type { Geometry } from './surface'
 import { safeSessionStorage } from './safeLocalStorage'
+import type { VoiceAction, VoiceUpdate } from './voiceMesh'
 import { HUB_SUBPROTOCOL, hubPlayUrl, mintHubSession } from './hubSession'
 
 export { hubPlayUrl }
@@ -101,9 +105,10 @@ type HubFrame =
   | { event: 'golf'; payload: { update: Record<string, unknown> } }
   | { event: 'castle'; payload: { update: Record<string, unknown> } }
   | { event: 'lobby'; payload: { update: LobbyUpdate } }
+  | { event: 'voice'; payload: { update: VoiceUpdate } }
   | { event?: undefined; exception: string; payload: { message?: string } }
 
-type HubCommand = 'createRoom' | 'joinRoom' | 'leaveRoom' | 'getRoomState' | 'chat' | 'lobby' | HubGameName
+type HubCommand = 'createRoom' | 'joinRoom' | 'leaveRoom' | 'getRoomState' | 'chat' | 'lobby' | 'voice' | HubGameName
 
 export interface HubStreamCallbacks {
   onConnection?: (connected: boolean) => void
@@ -121,6 +126,8 @@ export interface HubStreamCallbacks {
   onGame?: (game: HubGameName, update: Record<string, unknown>) => void
   // The world's update, in the lobby envelope.
   onLobby?: (update: LobbyUpdate) => void
+  // The room's voice, in the voice envelope.
+  onVoice?: (update: VoiceUpdate) => void
   // The reconnect loop gave up, or the hub refused the stream outright.
   // A refusal still reconnects (the next dial mints fresh), so a later
   // onConnection(true) supersedes it.
@@ -277,6 +284,9 @@ export class HubStream {
       case 'lobby':
         this.callbacks.onLobby?.(frame.payload.update)
         return
+      case 'voice':
+        this.callbacks.onVoice?.(frame.payload.update)
+        return
       default:
         console.warn('hub: unknown event', frame)
     }
@@ -313,5 +323,10 @@ export class HubStream {
   // One action in the lobby envelope: {"action": {"<name>": payload}}.
   lobby(action: LobbyActionName, payload: unknown = {}): void {
     this.send('lobby', { action: { [action]: payload } })
+  }
+
+  // One action in the voice envelope, the same shape.
+  voice(action: VoiceAction, payload: unknown = {}): void {
+    this.send('voice', { action: { [action]: payload } })
   }
 }

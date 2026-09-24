@@ -1,8 +1,9 @@
-import type { Ref } from 'react'
+import { useSyncExternalStore, type Ref } from 'react'
 import PermalinkDisplay from './PermalinkDisplay'
 import type { UseLobby } from '@/hooks/useLobby'
 import { lobbyRoomPath } from '@/hooks/useLobby'
 import type { HubRoomPlayer } from '@/utils/hubStream'
+import type { VoiceMesh, VoiceView } from '@/utils/voiceMesh'
 import { atTable, tableOffer, TABLE_SEATS } from '../offers'
 import styles from './LobbyPanel.module.css'
 
@@ -25,6 +26,44 @@ const GAME_BLURB = {
 
 // The command menu has no button of its own: this is where it is told.
 const COMMAND_HINT = <p className={`${styles.muted} ${styles.hint}`}>Press Esc, or triple-tap the world, for commands</p>
+
+// The room's voice: in or out of it, who else is, and the mute. One
+// button joins and leaves, so focus stays put across the change, and the
+// status line says what happened.
+const voiceStatus = (view: VoiceView): string => {
+  if (view.status === 'joining') return 'Joining voice…'
+  if (view.status === 'off') return ''
+  const who = `In voice: ${['you', ...view.members].join(', ')}`
+  return view.listenOnly ? `${who} · listening only: no microphone` : who
+}
+
+const VoiceSection = ({ voice, connected }: { voice: VoiceMesh; connected: boolean }) => {
+  const view = useSyncExternalStore(voice.subscribe, voice.view)
+  const off = view.status === 'off'
+  return (
+    <section className={styles.section} aria-labelledby="lobby-voice">
+      <h2 id="lobby-voice">Voice</h2>
+      <p role="status" className={styles.muted}>
+        {voiceStatus(view)}
+      </p>
+      <div className={styles.row}>
+        <button
+          type="button"
+          className={styles.secondary}
+          onClick={() => (off ? void voice.join() : voice.leave())}
+          disabled={off && !connected}
+        >
+          {off ? 'Join voice' : 'Leave voice'}
+        </button>
+        {view.status === 'on' && !view.listenOnly && (
+          <button type="button" className={styles.secondary} onClick={() => voice.setMuted(!view.muted)}>
+            {view.muted ? 'Unmute' : 'Mute'}
+          </button>
+        )}
+      </div>
+    </section>
+  )
+}
 
 export interface LobbyPanelProps {
   lobby: UseLobby
@@ -99,6 +138,7 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
           ))}
         </ul>
       </section>
+      <VoiceSection voice={lobby.voice} connected={connected} />
       <section className={styles.section} aria-labelledby="lobby-tables">
         <h2 id="lobby-tables">Tables</h2>
         {room.games.length === 0 ? (

@@ -12,6 +12,7 @@ import { sphereGeometry } from '@/utils/surface'
 import type { CastleView } from '@/apps/castle/wire'
 import type { GolfView } from '@/apps/golf/wire'
 import type { HubRoom } from '@/utils/hubStream'
+import { FakeVoiceDevice } from '@/test/fakeVoice'
 
 // The lobby hook against a scripted hub: the world it joins and re-joins,
 // the tables of either game that swap in and out, and the share links,
@@ -533,6 +534,62 @@ describe('useLobby', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  describe('voice', () => {
+    const STUN = [{ urls: ['stun:stun.example:3478'] }]
+    const voiceFrames = (ws: FakeWebSocket) => ws.sentFrames().filter(frame => frame.event === 'voice')
+
+    // alice in room R1, in its voice with bob.
+    const inVoice = async () => {
+      const voiceDevice = new FakeVoiceDevice()
+      const hook = await open({ voiceDevice }, '/games', 'R1')
+      act(() => hook.ws.receive('roomState', roomState('R1')))
+      await act(async () => {
+        await hook.result.current.voice.join()
+      })
+      act(() =>
+        hook.ws.receive('voice', { update: { roster: { epoch: 2, members: [{ playerId: 'bob', epoch: 1 }], iceServers: STUN } } })
+      )
+      await act(flushAsync)
+      return { ...hook, voiceDevice }
+    }
+
+    it('joins over the stream, and the roster brings the peers', async () => {
+      const { result, ws, voiceDevice } = await inVoice()
+      expect(voiceFrames(ws)[0]).toEqual({ event: 'voice', payload: { action: { join: {} } } })
+      expect(voiceFrames(ws)[1].payload).toMatchObject({ action: { signal: { to: 'bob', toEpoch: 1 } } })
+      expect(result.current.voice.view()).toMatchObject({ status: 'on', members: ['bob'] })
+      expect(voiceDevice.peers.get('bob')?.config).toEqual({ iceServers: STUN })
+    })
+
+    it('leaving the room leaves voice with it', async () => {
+      const { result, ws, voiceDevice } = await inVoice()
+      act(() => ws.receive('roomLeft', { roomId: 'R1' }))
+      expect(result.current.voice.view().status).toBe('off')
+      expect(voiceDevice.peers.get('bob')?.closed).toBe(true)
+      expect(voiceDevice.mic?.stopped).toBe(true)
+    })
+
+    it('a dropped socket leaves nothing live', async () => {
+      const { result, ws, voiceDevice } = await inVoice()
+      act(() => ws.close())
+      expect(result.current.voice.view().status).toBe('off')
+      expect(voiceDevice.peers.get('bob')?.closed).toBe(true)
+    })
+
+    it('a refused join (voice full) turns voice back off, and says why', async () => {
+      const voiceDevice = new FakeVoiceDevice()
+      const { result, ws } = await open({ voiceDevice }, '/games', 'R1')
+      act(() => ws.receive('roomState', roomState('R1')))
+      await act(async () => {
+        await result.current.voice.join()
+      })
+      act(() => ws.receive('commandRejected', { reason: 'voice is full' }))
+      expect(result.current.voice.view().status).toBe('off')
+      expect(voiceDevice.mic?.stopped).toBe(true)
+      expect(result.current.notice).toBe('voice is full')
+    })
   })
 
   it('unmounting closes the socket', async () => {

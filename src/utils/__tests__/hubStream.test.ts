@@ -29,6 +29,7 @@ describe('HubStream', () => {
       onRejected: vi.fn(),
       onGame: vi.fn(),
       onLobby: vi.fn(),
+      onVoice: vi.fn(),
       onLost: vi.fn()
     }
   })
@@ -303,6 +304,29 @@ describe('HubStream', () => {
     ws.receive('lobby', { update: { playerLeft: { playerId: 'bob' } } })
     expect(callbacks.onLobby).toHaveBeenCalledWith({ playerLeft: { playerId: 'bob' } })
     expect(callbacks.onGame).not.toHaveBeenCalled()
+  })
+
+  // The frames MoonBase's voice_wire_test pins, byte for byte.
+  it('carries the voice envelope both ways: actions up, updates down', async () => {
+    const [hub, ws] = await connect()
+    hub.voice('join')
+    hub.voice('signal', { to: 'player-1', toEpoch: 1, description: { type: 'offer', sdp: 'v=0' } })
+    hub.voice('leave')
+    expect(ws.sent).toEqual([
+      '{"event":"voice","payload":{"action":{"join":{}}}}',
+      '{"event":"voice","payload":{"action":{"signal":{"to":"player-1","toEpoch":1,"description":{"type":"offer","sdp":"v=0"}}}}}',
+      '{"event":"voice","payload":{"action":{"leave":{}}}}'
+    ])
+    ws.receiveRaw(
+      JSON.parse(
+        '{"event":"voice","payload":{"update":{"roster":{"epoch":2,"iceServers":[{"urls":["stun:stun.example:3478"]}],' +
+          '"members":[{"epoch":1,"playerId":"player-1"}]}}}}'
+      )
+    )
+    expect(callbacks.onVoice).toHaveBeenCalledWith({
+      roster: { epoch: 2, iceServers: [{ urls: ['stun:stun.example:3478'] }], members: [{ epoch: 1, playerId: 'player-1' }] }
+    })
+    expect(callbacks.onLobby).not.toHaveBeenCalled()
   })
 
   // One deja event on the glass, as the hub fans it out (lobby.smithy's

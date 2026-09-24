@@ -7,6 +7,9 @@ import { HubStream, hubPlayUrl } from '@/utils/hubStream'
 import type { HubRoom, HubSessionReady } from '@/utils/hubStream'
 import { HubWorldLink } from '@/utils/hubWorldLink'
 import { PLANE_GEOMETRY } from '@/utils/surface'
+import { VoiceMesh } from '@/utils/voiceMesh'
+import type { VoiceDevice } from '@/utils/voiceMesh'
+import { browserVoiceDevice } from '@/utils/voiceDevice'
 import type { CastleMoveName, CastleUpdate } from '@/apps/castle/wire'
 import type { GolfMoveName, GolfUpdate } from '@/apps/golf/wire'
 import { useCastleTable } from './useCastleTable'
@@ -26,6 +29,9 @@ import type { UseGolfTable } from './useGolfTable'
 // join to one it already stands in — so the join goes out once per room
 // the session settles in, and a roomState that only re-projects the same
 // room is not a change.
+//
+// Voice is the room's too: leaving the room, a dropped socket and a new
+// session each take this session out of it at the hub, and here.
 
 export const lobbyRoomPath = (roomId: string) => `/games/room/${encodeURIComponent(roomId)}`
 export const lobbyTablePath = (roomId: string, gameId: string) =>
@@ -49,6 +55,9 @@ export interface UseLobbyProps {
   permalinkGameId?: string | null
   onConnectionChange?: (connected: boolean) => void
   onPlayerIdChange?: (id: string | null) => void
+  // The microphone, peer connections and playback; the browser's unless
+  // a test stands in.
+  voiceDevice?: VoiceDevice
 }
 
 export interface UseLobby {
@@ -65,6 +74,7 @@ export interface UseLobby {
   leaveRoom: () => void
   sendChat: (text: string) => void
   world: HubWorldLink
+  voice: VoiceMesh
   castle: UseCastleTable
   golf: UseGolfTable
 }
@@ -80,7 +90,8 @@ export const useLobby = ({
   permalinkRoomId = null,
   permalinkGameId = null,
   onConnectionChange,
-  onPlayerIdChange
+  onPlayerIdChange,
+  voiceDevice = browserVoiceDevice
 }: UseLobbyProps = {}): UseLobby => {
   const [playerId, setPlayerId] = useState('')
   const [connected, setConnected] = useState(false)
@@ -135,6 +146,11 @@ export const useLobby = ({
     )
   }
   const world = worldRef.current
+  const voiceRef = useRef<VoiceMesh | null>(null)
+  if (voiceRef.current === null) {
+    voiceRef.current = new VoiceMesh((action, payload) => streamRef.current?.voice(action, payload), voiceDevice)
+  }
+  const voice = voiceRef.current
 
   const enterWorld = useCallback(
     (roomId: string | null) => {
@@ -208,6 +224,8 @@ export const useLobby = ({
       // must not linger.
       clearTables()
       world.sessionReady(ready.playerId)
+      voice.dropped()
+      voice.sessionReady(ready.playerId)
       // A fresh seat, or one whose close left the world: in none yet.
       worldRoomRef.current = undefined
       switchRef.current = null
@@ -238,7 +256,7 @@ export const useLobby = ({
       // surface; handleRoom enters it once that has landed.
       if (here === null) enterWorld(null)
     },
-    [clearTables, enterWorld, navigate, onPlayerIdChange, resetChat, world]
+    [clearTables, enterWorld, navigate, onPlayerIdChange, resetChat, voice, world]
   )
 
   const handleRoom = useCallback(
@@ -274,6 +292,7 @@ export const useLobby = ({
     roomIdRef.current = null
     setRoom(null)
     clearTables()
+    voice.dropped()
     resetChat()
     const pending = switchRef.current
     if (pending !== null) {
@@ -282,12 +301,13 @@ export const useLobby = ({
     }
     navigate('/games', { replace: true })
     enterWorld(null)
-  }, [clearTables, enterWorld, navigate, resetChat])
+  }, [clearTables, enterWorld, navigate, resetChat, voice])
 
   const handleRejected = useCallback(
     (reason: string) => {
       // Whatever was refused, nothing a table asked for arrived.
       castleRef.current.handleRejected()
+      voice.rejected(reason)
       chatSeqRef.current += 1
       setChat(prev => ({ ...prev, rejection: { seq: chatSeqRef.current, reason } }))
       const pending = switchRef.current
@@ -304,7 +324,7 @@ export const useLobby = ({
       enterWorld(here)
       showNotice(`Room ${pending.roomId} is gone`)
     },
-    [enterWorld, navigate, showNotice]
+    [enterWorld, navigate, showNotice, voice]
   )
 
   // Each game's envelope to its table; a gameJoined — sat at from here,
@@ -336,7 +356,10 @@ export const useLobby = ({
         onConnection: up => {
           setConnected(up)
           if (up) setLost(null)
-          else dropWorld()
+          else {
+            dropWorld()
+            voice.dropped()
+          }
           onConnectionChange?.(up)
         },
         onSessionReady: handleSessionReady,
@@ -353,8 +376,10 @@ export const useLobby = ({
         onRejected: handleRejected,
         onGame: handleGame,
         onLobby: update => world.apply(update),
+        onVoice: update => voice.apply(update),
         onLost: reason => {
           dropWorld()
+          voice.dropped()
           setLost(reason)
         }
       }
@@ -364,6 +389,7 @@ export const useLobby = ({
     return () => {
       stream.disconnect()
       streamRef.current = null
+      voice.dropped()
       if (noticeTimeoutRef.current) clearTimeout(noticeTimeoutRef.current)
     }
     // The stream lives as long as the app; its callbacks read refs.
@@ -397,6 +423,7 @@ export const useLobby = ({
     leaveRoom,
     sendChat,
     world,
+    voice,
     castle,
     golf
   }

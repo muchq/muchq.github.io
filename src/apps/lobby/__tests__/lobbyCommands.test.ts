@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { UseLobby } from '@/hooks/useLobby'
 import type { HubRoom } from '@/utils/hubStream'
+import { fakeVoiceMesh as voiceIn } from '@/test/fakeVoice'
 import { lobbyCommands, type LobbyUi } from '../lobbyCommands'
 
 // The lobby's verbs as the command menu lists them. The panel's buttons
@@ -16,6 +17,7 @@ const lobbyWith = (over: Partial<UseLobby>): UseLobby =>
     leaveRoom: vi.fn(),
     castle: { createTable: vi.fn(), joinTable: vi.fn() },
     golf: { createTable: vi.fn(), joinTable: vi.fn() },
+    voice: voiceIn(),
     ...over,
   }) as unknown as UseLobby
 
@@ -65,6 +67,7 @@ describe('lobbyCommands', () => {
       'Open chat',
       'Copy room link',
       'Leave the room',
+      'Join voice',
       'Open a castle table',
       'Open a golf table',
       'Join castle table C1',
@@ -93,7 +96,30 @@ describe('lobbyCommands', () => {
     const seated = room({
       players: [{ playerId: 'alice', connected: true, gamesWon: 0, gamesPlayed: 0, totalScore: 0, table: { game: 'castle', gameId: 'C2' } }],
     })
-    expect(labels(lobbyWith({ room: seated }))).toEqual(['Open chat', 'Copy room link', 'Leave the room', 'Hide lobby panel'])
+    expect(labels(lobbyWith({ room: seated }))).toEqual(['Open chat', 'Copy room link', 'Leave the room', 'Join voice', 'Hide lobby panel'])
+  })
+
+  it("voice: join it in a room; once in, leave it, and mute unless there is no mic to mute", () => {
+    const off = lobbyWith({ room: room(), voice: voiceIn() as unknown as UseLobby['voice'] })
+    run(off, 'Join voice')
+    expect(off.voice.join).toHaveBeenCalledTimes(1)
+    expect(labels(lobbyWith({ room: null })).filter(l => /voice/i.test(l))).toEqual([])
+
+    const on = lobbyWith({ room: room(), voice: voiceIn({ status: 'on' }) as unknown as UseLobby['voice'] })
+    expect(labels(on).filter(l => /voice|mute/i.test(l))).toEqual(['Leave voice', 'Mute'])
+    run(on, 'Mute')
+    expect(on.voice.setMuted).toHaveBeenCalledWith(true)
+    run(on, 'Leave voice')
+    expect(on.voice.leave).toHaveBeenCalledTimes(1)
+
+    const muted = lobbyWith({ room: room(), voice: voiceIn({ status: 'on', muted: true }) as unknown as UseLobby['voice'] })
+    run(muted, 'Unmute')
+    expect(muted.voice.setMuted).toHaveBeenCalledWith(false)
+
+    const listening = lobbyWith({ room: room(), voice: voiceIn({ status: 'on', listenOnly: true }) as unknown as UseLobby['voice'] })
+    expect(labels(listening).filter(l => /voice|mute/i.test(l))).toEqual(['Leave voice'])
+    const joining = lobbyWith({ room: room(), voice: voiceIn({ status: 'joining' }) as unknown as UseLobby['voice'] })
+    expect(labels(joining).filter(l => /voice|mute/i.test(l))).toEqual(['Leave voice'])
   })
 
   it('the panel entry says which way it will go', () => {

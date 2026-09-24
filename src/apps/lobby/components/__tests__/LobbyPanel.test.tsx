@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import LobbyPanel from '../LobbyPanel'
 import type { UseLobby } from '@/hooks/useLobby'
 import type { HubRoom } from '@/utils/hubStream'
+import { fakeVoiceMesh } from '@/test/fakeVoice'
 
 // The panel over a fake hook: what it offers in the plaza and in a room,
 // who reads as free or at which table, and which button sends what.
@@ -39,6 +40,7 @@ const lobby = (over: Partial<UseLobby> = {}): UseLobby =>
     sendChat: vi.fn(),
     reconnect: vi.fn(),
     world: {} as UseLobby['world'],
+    voice: fakeVoiceMesh() as unknown as UseLobby['voice'],
     castle: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['castle'],
     golf: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['golf'],
     ...over
@@ -99,6 +101,57 @@ describe('LobbyPanel', () => {
   })
 
   // The command menu is keyboard-only; the panel is where it is told.
+  describe('voice', () => {
+    const inRoom = (view: Parameters<typeof fakeVoiceMesh>[0], over: Partial<UseLobby> = {}) => {
+      const hook = lobby({ room: room(), voice: fakeVoiceMesh(view) as unknown as UseLobby['voice'], ...over })
+      render(<LobbyPanel lobby={hook} />)
+      return { hook, voice: within(screen.getByRole('region', { name: 'Voice' })) }
+    }
+
+    it('out of voice, offers to join, once the hub is there to join through', () => {
+      const { hook, voice } = inRoom({})
+      fireEvent.click(voice.getByRole('button', { name: 'Join voice' }))
+      expect(hook.voice.join).toHaveBeenCalledTimes(1)
+      cleanup()
+      expect(inRoom({}, { connected: false }).voice.getByRole('button', { name: 'Join voice' })).toBeDisabled()
+    })
+
+    it('in voice: who else is in it, mute, and leave', () => {
+      const { hook, voice } = inRoom({ status: 'on', members: ['bob', 'carol'] })
+      expect(voice.getByRole('status')).toHaveTextContent('In voice: you, bob, carol')
+      fireEvent.click(voice.getByRole('button', { name: 'Mute' }))
+      expect(hook.voice.setMuted).toHaveBeenCalledWith(true)
+      fireEvent.click(voice.getByRole('button', { name: 'Leave voice' }))
+      expect(hook.voice.leave).toHaveBeenCalledTimes(1)
+      cleanup()
+      fireEvent.click(inRoom({ status: 'on', muted: true }).voice.getByRole('button', { name: 'Unmute' }))
+    })
+
+    it('without a microphone, says it is only listening and offers no mute', () => {
+      const { voice } = inRoom({ status: 'on', listenOnly: true })
+      expect(voice.getByText(/listening only/i)).toBeInTheDocument()
+      expect(voice.queryByRole('button', { name: 'Mute' })).toBeNull()
+    })
+
+    it('joining keeps focus on the one button, now Leave, and says so politely', () => {
+      const off = lobby({ room: room(), voice: fakeVoiceMesh() as unknown as UseLobby['voice'] })
+      const { rerender } = render(<LobbyPanel lobby={off} />)
+      const button = screen.getByRole('button', { name: 'Join voice' })
+      button.focus()
+      rerender(<LobbyPanel lobby={{ ...off, voice: fakeVoiceMesh({ status: 'joining' }) as unknown as UseLobby['voice'] }} />)
+      expect(document.activeElement).toBe(button)
+      expect(button).toHaveAccessibleName('Leave voice')
+      expect(screen.getByRole('status')).toHaveTextContent('Joining voice…')
+    })
+
+    it('while joining, says so and can still back out', () => {
+      const { hook, voice } = inRoom({ status: 'joining' })
+      expect(voice.getByText(/joining/i)).toBeInTheDocument()
+      fireEvent.click(voice.getByRole('button', { name: 'Leave voice' }))
+      expect(hook.voice.leave).toHaveBeenCalledTimes(1)
+    })
+  })
+
   it('tells where the commands are, in the plaza and in a room', () => {
     render(<LobbyPanel lobby={lobby()} />)
     expect(screen.getByText('Press Esc, or triple-tap the world, for commands')).toBeTruthy()
