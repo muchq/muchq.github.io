@@ -1,26 +1,15 @@
-import { isControlTarget, isTypingTarget } from './keyboard'
+import { isTypingTarget } from './keyboard'
 
 // The world's one-key commands, bound one way: a bare key press, not a
 // held key repeating, not a chord, never while a text field has focus,
-// and never one something else already handled. A key with a default of
-// its own (space) keeps the page still, and stands aside on a focused
-// control, where the default is the point.
-export function bindHotkey(
-  target: Document | HTMLElement,
-  key: string,
-  onPress: () => void,
-  opts: { preventDefault?: boolean } = {},
-): () => void {
+// and never one something else already handled.
+export function bindHotkey(target: Document | HTMLElement, key: string, onPress: () => void): () => void {
   const wanted = key.toLowerCase()
   const handle = (e: Event) => {
     const press = e as KeyboardEvent
     if (isTypingTarget(press.target)) return
     if (press.repeat || press.ctrlKey || press.metaKey || press.altKey || press.defaultPrevented) return
     if (press.key.toLowerCase() !== wanted) return
-    if (opts.preventDefault) {
-      if (isControlTarget(press.target)) return
-      press.preventDefault()
-    }
     onPress()
   }
   target.addEventListener('keydown', handle)
@@ -42,7 +31,7 @@ export function bindMusicHotkey(target: Document | HTMLElement, onCycle: () => v
   return bindHotkey(target, MUSIC_HOTKEY, onCycle)
 }
 
-// A phone's way to the command menu, having no space bar: three taps in
+// A phone's way to the command menu, having no Escape key: three taps in
 // the same spot in quick succession.
 export const TAPS_WANTED = 3
 // Between one tap and the next. A double-tap zoom is around 300ms, so
@@ -169,8 +158,11 @@ export function bindTripleTap(target: HTMLElement, onTriple: () => void): () => 
 }
 
 // Opens the command menu, where every world command is listed by name.
-export const COMMAND_HOTKEY = ' '
+// Escape presses no button, so it opens the menu wherever focus is,
+// short of a text field. A drawer or dialog that closes on Escape marks
+// the key handled, so closing one never opens the menu.
+export const COMMAND_HOTKEY = 'Escape'
 
 export function bindCommandHotkey(target: Document | HTMLElement, onOpen: () => void): () => void {
-  return bindHotkey(target, COMMAND_HOTKEY, onOpen, { preventDefault: true })
+  return bindHotkey(target, COMMAND_HOTKEY, onOpen)
 }

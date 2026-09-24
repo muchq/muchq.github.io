@@ -4,9 +4,9 @@ import { matchCommands, type Command, type CommandRegistry } from '@/utils/comma
 import styles from './CommandMenu.module.css'
 
 // The world's commands by name, over the world, which keeps rendering
-// behind it. Space opens it; typing filters, the arrows move, Enter runs
+// behind it. Escape opens it; typing filters, the arrows move, Enter runs
 // and Escape leaves. Every entry is a verb that runs and closes the menu.
-// A phone, with no space bar, opens it through the handle.
+// A phone, with no Escape key, opens it through the handle.
 
 export interface CommandMenuHandle {
   open: () => void

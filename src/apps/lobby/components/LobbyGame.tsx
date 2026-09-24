@@ -17,7 +17,7 @@ import styles from './LobbyGame.module.css'
 // table over the world, which keeps ticking underneath so presence and
 // chat never drop. The panel hides behind a toggle while a table is up.
 // Over all of it, the command menu: the world and the lobby both publish
-// into one registry, and space opens it.
+// into one registry, and Escape opens it.
 
 // Hiding the panel is how the bare world is asked for, so that choice
 // outlives the visit; showing it again forgets it. Otherwise the panel

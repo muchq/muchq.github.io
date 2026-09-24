@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { useThoughtsGame } from '../useThoughtsGame'
 import { fakeGl } from '@/test/fakeGl'
-import { COMMAND_HOTKEY, MUSIC_HOTKEY, ROOM_HOTKEY } from '@/utils/hotkeys'
+import { MUSIC_HOTKEY, ROOM_HOTKEY } from '@/utils/hotkeys'
 import { CommandRegistry } from '@/utils/commandRegistry'
 import { tripleTap } from '@/test/touch'
 
@@ -387,11 +387,11 @@ describe('useThoughtsGame', () => {
     expect(labels().filter(l => l.startsWith('Avatar'))).toEqual(['Avatar: Sphere', 'Avatar: Cube'])
   })
 
-  // Space opens the command menu now; the shape is one of its entries.
-  it('space no longer changes the shape', () => {
+  // The shape is a command menu entry, not a key.
+  it('space does not change the shape', () => {
     const link = { ...worldLink(), isConnected: true }
     startWith(link)
-    press(COMMAND_HOTKEY)
+    press(' ')
     expect(link.sendShapeUpdate).not.toHaveBeenCalled()
     expect(labels()).toContain('Avatar: Cube')
   })

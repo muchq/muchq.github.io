@@ -6,7 +6,7 @@ import { CommandRegistry, type Command } from '@/utils/commandRegistry'
 import { bindRoomHotkey, COMMAND_HOTKEY } from '@/utils/hotkeys'
 import CommandMenu, { type CommandMenuHandle } from '../CommandMenu'
 
-// The menu over the world: space opens it, typing filters, arrows and
+// The menu over the world: Escape opens it, typing filters, arrows and
 // Enter run, Escape leaves, and focus goes back where it came from.
 
 const cmd = (id: string, label: string, detail?: string): Command => ({ id, label, detail, run: vi.fn() })
@@ -28,20 +28,17 @@ describe('CommandMenu', () => {
   const input = () => screen.getByRole('combobox', { name: 'Command' })
   const options = () => screen.queryAllByRole('option').map(o => o.textContent)
 
-  it('is closed until space, which opens it with the filter focused and every command listed', () => {
+  it('is closed until Escape, which opens it with the filter focused and every command listed', () => {
     render(<CommandMenu registry={registry} />)
     expect(screen.queryByRole('dialog')).toBeNull()
-    const space = new KeyboardEvent('keydown', { key: COMMAND_HOTKEY, bubbles: true, cancelable: true })
-    act(() => {
-      document.dispatchEvent(space)
-    })
-    expect(space.defaultPrevented).toBe(true)
+    expect(COMMAND_HOTKEY).toBe('Escape')
+    open()
     expect(screen.getByRole('dialog', { name: 'Command menu' })).toHaveAttribute('aria-modal', 'true')
     expect(document.activeElement).toBe(input())
     expect(options()).toEqual(['Avatar: cube', 'Room: GlasshouseReshapes the room for everyone in it', 'Open chat'])
   })
 
-  it('space in a text field elsewhere is typing, and opens nothing', () => {
+  it('Escape in a text field elsewhere is the field’s, and opens nothing', () => {
     render(
       <>
         <input aria-label="elsewhere" />
@@ -159,34 +156,40 @@ describe('CommandMenu', () => {
     }
   })
 
-  // Space presses a focused button; the menu is for when nothing else
-  // would take the key.
-  it('space on a focused button presses it, and opens nothing', () => {
+  // In a room focus often sits on a button (chat's toggle, a table's
+  // Join); Escape presses none of them, so it opens the menu from there.
+  it('Escape on a focused button opens it, and presses nothing', () => {
     const pressed = vi.fn()
     render(
       <>
         <button type="button" onClick={pressed}>
-          Join
+          Open chat
         </button>
         <CommandMenu registry={registry} />
       </>
     )
-    const button = screen.getByRole('button', { name: 'Join' })
-    const space = new KeyboardEvent('keydown', { key: COMMAND_HOTKEY, bubbles: true, cancelable: true })
+    const button = screen.getByRole('button', { name: 'Open chat' })
+    button.focus()
+    fireEvent.keyDown(button, { key: COMMAND_HOTKEY })
+    expect(screen.getByRole('dialog', { name: 'Command menu' })).toBeTruthy()
+    expect(pressed).not.toHaveBeenCalled()
+  })
+
+  // Closing a drawer or a dialog with Escape is that surface's key.
+  it('an Escape something else already handled opens nothing', () => {
+    render(<CommandMenu registry={registry} />)
+    const handled = new KeyboardEvent('keydown', { key: COMMAND_HOTKEY, bubbles: true, cancelable: true })
+    handled.preventDefault()
     act(() => {
-      button.dispatchEvent(space)
+      document.dispatchEvent(handled)
     })
-    expect(space.defaultPrevented).toBe(false)
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('space something else already handled opens nothing', () => {
+  it('Escape in the menu closes it and does not open it again', () => {
     render(<CommandMenu registry={registry} />)
-    const space = new KeyboardEvent('keydown', { key: COMMAND_HOTKEY, bubbles: true, cancelable: true })
-    space.preventDefault()
-    act(() => {
-      document.dispatchEvent(space)
-    })
+    open()
+    fireEvent.keyDown(input(), { key: COMMAND_HOTKEY })
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
@@ -234,7 +237,7 @@ describe('CommandMenu', () => {
     }
   })
 
-  // A phone has no space bar: the world's triple-tap opens it this way.
+  // A phone has no Escape key: the world's triple-tap opens it this way.
   it('opens from outside through its handle', () => {
     const menu = createRef<CommandMenuHandle>()
     render(<CommandMenu registry={registry} ref={menu} />)

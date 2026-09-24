@@ -24,7 +24,7 @@ const GAME_BLURB = {
 }
 
 // The command menu has no button of its own: this is where it is told.
-const COMMAND_HINT = <p className={`${styles.muted} ${styles.hint}`}>Press space, or triple-tap the world, for commands</p>
+const COMMAND_HINT = <p className={`${styles.muted} ${styles.hint}`}>Press Esc, or triple-tap the world, for commands</p>
 
 export interface LobbyPanelProps {
   lobby: UseLobby
