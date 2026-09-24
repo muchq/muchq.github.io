@@ -525,7 +525,8 @@ describe('CastleTable', () => {
     fireEvent.click(opening)
     expect(t.playAgain).not.toHaveBeenCalled()
 
-    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    // Handled here, so the command menu's Escape stands aside.
+    expect(fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })).toBe(false)
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 

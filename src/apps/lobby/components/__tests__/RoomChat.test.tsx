@@ -210,8 +210,14 @@ describe('RoomChat', () => {
     const input = screen.getByLabelText('Chat message')
     expect(document.activeElement).toBe(input)
 
-    fireEvent.keyDown(input, { key: 'Escape' })
+    // Handled here, so the command menu's Escape stands aside.
+    expect(fireEvent.keyDown(input, { key: 'Escape' })).toBe(false)
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Open chat' }))
+  })
+
+  it('Escape with the drawer closed is not chat’s', () => {
+    render(<RoomChat {...baseProps} messages={[]} />)
+    expect(fireEvent.keyDown(screen.getByRole('button', { name: 'Open chat' }), { key: 'Escape' })).toBe(true)
   })
 
   // The command menu's "Open chat": the same as the toggle, from outside.

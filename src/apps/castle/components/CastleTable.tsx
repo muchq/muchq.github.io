@@ -519,7 +519,10 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
             aria-modal="true"
             aria-labelledby="castle-ending"
             onKeyDown={event => {
-              if (event.key === 'Escape') dismissEnding()
+              if (event.key === 'Escape') {
+                event.preventDefault()
+                dismissEnding()
+              }
               keepFocusIn(event)
             }}
           >

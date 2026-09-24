@@ -29,21 +29,21 @@ describe('bindCommandHotkey', () => {
     document.body.innerHTML = ''
   })
 
-  it('opens on space and keeps the page from scrolling', () => {
-    const onCycle = vi.fn()
-    const unbind = bindCommandHotkey(document, onCycle)
-    const space = new KeyboardEvent('keydown', { key: COMMAND_HOTKEY, bubbles: true, cancelable: true })
-    document.dispatchEvent(space)
-    expect(onCycle).toHaveBeenCalledTimes(1)
-    expect(space.defaultPrevented).toBe(true)
-    const other = new KeyboardEvent('keydown', { key: 'g', bubbles: true, cancelable: true })
-    document.dispatchEvent(other)
-    expect(onCycle).toHaveBeenCalledTimes(1)
-    expect(other.defaultPrevented).toBe(false)
+  it('opens on Escape, from the page or a focused button, and on nothing else', () => {
+    const onOpen = vi.fn()
+    const unbind = bindCommandHotkey(document, onOpen)
+    press(COMMAND_HOTKEY)
+    const button = document.createElement('button')
+    document.body.appendChild(button)
+    press(COMMAND_HOTKEY, {}, button)
+    expect(onOpen).toHaveBeenCalledTimes(2)
+    press(' ')
+    press('g')
+    expect(onOpen).toHaveBeenCalledTimes(2)
     unbind()
   })
 
-  it('does not open for a held space, a chord, or a text field', () => {
+  it('does not open for a held Escape, a chord, or a text field', () => {
     const onCycle = vi.fn()
     const unbind = bindCommandHotkey(document, onCycle)
     press(COMMAND_HOTKEY, { repeat: true })
@@ -73,28 +73,8 @@ describe('bindHotkey', () => {
     unbind()
   })
 
-  // Space presses a focused button; a letter does nothing there.
-  it('a key with a default stands aside on a focused control; one without does not', () => {
-    const onSpace = vi.fn()
-    const onLetter = vi.fn()
-    const unbindSpace = bindHotkey(document, ' ', onSpace, { preventDefault: true })
-    const unbindLetter = bindHotkey(document, 'x', onLetter)
-    const button = document.createElement('button')
-    const tab = document.createElement('div')
-    tab.setAttribute('role', 'tab')
-    document.body.append(button, tab)
-    press(' ', {}, button)
-    press(' ', {}, tab)
-    expect(onSpace).not.toHaveBeenCalled()
-    press('x', {}, button)
-    expect(onLetter).toHaveBeenCalledTimes(1)
-    press(' ', {}, document.body)
-    expect(onSpace).toHaveBeenCalledTimes(1)
-    unbindSpace()
-    unbindLetter()
-  })
 
-  it('leaves the default alone unless asked', () => {
+  it('leaves the default alone', () => {
     const unbind = bindHotkey(document, 'x', () => {})
     const x = new KeyboardEvent('keydown', { key: 'X', bubbles: true, cancelable: true })
     document.dispatchEvent(x)

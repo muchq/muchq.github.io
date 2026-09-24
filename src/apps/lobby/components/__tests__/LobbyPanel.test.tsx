@@ -101,9 +101,9 @@ describe('LobbyPanel', () => {
   // The command menu is keyboard-only; the panel is where it is told.
   it('tells where the commands are, in the plaza and in a room', () => {
     render(<LobbyPanel lobby={lobby()} />)
-    expect(screen.getByText('Press space, or triple-tap the world, for commands')).toBeTruthy()
+    expect(screen.getByText('Press Esc, or triple-tap the world, for commands')).toBeTruthy()
     cleanup()
     render(<LobbyPanel lobby={lobby({ room: room() })} />)
-    expect(screen.getByText('Press space, or triple-tap the world, for commands')).toBeTruthy()
+    expect(screen.getByText('Press Esc, or triple-tap the world, for commands')).toBeTruthy()
   })
 })

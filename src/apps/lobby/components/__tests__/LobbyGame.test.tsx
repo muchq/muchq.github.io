@@ -134,8 +134,8 @@ describe('LobbyGame', () => {
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
   })
 
-  // /thoughts folded into the lobby, so the bare world is the panel
-  // hidden on purpose — and on purpose means it stays hidden.
+  // The bare world is the panel hidden on purpose, and on purpose means
+  // it stays hidden.
   describe('a hidden panel', () => {
     const panel = () => screen.queryByRole('complementary', { name: 'lobby' })
 
@@ -229,7 +229,7 @@ describe('LobbyGame', () => {
       expect(wearCube).toHaveBeenCalled()
     })
 
-    it('a triple-tap on the world opens it, as space does', () => {
+    it('a triple-tap on the world opens it, as Escape does', () => {
       render(<LobbyGame />)
       fireEvent.click(screen.getByRole('button', { name: 'triple-tap the world' }))
       expect(screen.getByRole('option', { name: 'Avatar: Cube' })).toBeTruthy()

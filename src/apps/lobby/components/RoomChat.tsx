@@ -263,7 +263,10 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
 
   const onPanelKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === 'Escape' && !docked && drawerOpen) closeDrawer()
+      if (event.key === 'Escape' && !docked && drawerOpen) {
+        event.preventDefault()
+        closeDrawer()
+      }
     },
     [docked, drawerOpen, closeDrawer]
   )
