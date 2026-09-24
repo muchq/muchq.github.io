@@ -40,9 +40,8 @@ const worldLink = (): WorldLink => ({
   sendSetGeometry: vi.fn(),
   sendLeave: vi.fn(),
   disconnect: vi.fn(),
-  reconnect: vi.fn(),
 })
-// A link that hands the renderer an offline world, so nothing dials out,
+// A link that hands the renderer an offline world,
 // and keeps the GameState it was handed: the tape on the glass lives
 // there, and only the renderer's own world has one.
 let attached: GameState | null = null
@@ -71,7 +70,7 @@ describe('useThoughtsGame', () => {
     gl = fakeGl(opts)
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => gl as never)
     const { result } = renderHook(() => useThoughtsGame())
-    cleanup = result.current.initializeGame(canvas, undefined, undefined, undefined, offlineLink())
+    cleanup = result.current.initializeGame(canvas, offlineLink())
   }
   // The same, on a link the test keeps hold of: the hook hangs its
   // geometry callback on it, which is how the hub answers back.
@@ -79,13 +78,7 @@ describe('useThoughtsGame', () => {
     gl = fakeGl()
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => gl as never)
     const { result } = renderHook(() => useThoughtsGame())
-    cleanup = result.current.initializeGame(
-      canvas,
-      undefined,
-      undefined,
-      undefined,
-      { attach: () => link } as unknown as HubWorldLink
-    )
+    cleanup = result.current.initializeGame(canvas, { attach: () => link } as unknown as HubWorldLink)
   }
   const avatar = () =>
     (gl.uniform3fv.mock.calls.filter(c => c[0]?.uniform === 'u_objectCenters').at(-1)![1] as number[]).slice(0, 3)

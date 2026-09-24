@@ -4,17 +4,14 @@ import type { HubWorldLink } from '@/utils/hubWorldLink'
 import styles from './ThoughtsGame.module.css'
 
 interface ThoughtsGameProps {
-  onPlayerIdReceived?: (playerId: string) => void
-  onConnectionStateChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'failed', error?: string) => void
-  networkManagerRef?: React.MutableRefObject<{ reconnect: () => void } | null>
-  // The lobby's way into the world; absent, the page dials its own.
-  link?: HubWorldLink
+  // The lobby's way into the world.
+  link: HubWorldLink
   // Where the minimap and sound toggle sit: left by default, right when
   // a panel takes the left (the lobby).
   hudSide?: 'left' | 'right'
 }
 
-const ThoughtsGame = ({ onPlayerIdReceived, onConnectionStateChange, networkManagerRef, link, hudSide = 'left' }: ThoughtsGameProps) => {
+const ThoughtsGame = ({ link, hudSide = 'left' }: ThoughtsGameProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { initializeGame } = useThoughtsGame()
 
@@ -22,10 +19,8 @@ const ThoughtsGame = ({ onPlayerIdReceived, onConnectionStateChange, networkMana
     const canvas = canvasRef.current
     if (!canvas) return
 
-    const cleanup = initializeGame(canvas, onPlayerIdReceived, onConnectionStateChange, networkManagerRef, link)
-    
-    return cleanup
-  }, [initializeGame, onPlayerIdReceived, onConnectionStateChange, networkManagerRef, link])
+    return initializeGame(canvas, link)
+  }, [initializeGame, link])
 
   return (
     <div className={`${styles.gameContainer} ${hudSide === 'right' ? styles.hudRight : ''}`}>

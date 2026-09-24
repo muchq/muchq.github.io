@@ -1,5 +1,5 @@
-// The lobby's way into the world: the same renderer (useThoughtsGame)
-// the thoughts page drives, over the room stream the lobby already holds
+// The lobby's way into the world: the renderer (useThoughtsGame) over
+// the room stream the lobby already holds
 // (MoonBase#1490 phase 4). The hub decides which world — the session's
 // room's, or the plaza's — so a join names no room; the lobby hook says
 // when the session is ready, when it has settled in a world, and when
@@ -10,7 +10,7 @@
 
 import type { GameState, ShapeType } from '@/types/game'
 import type { HubStream, LobbyUpdate } from './hubStream'
-import type { ConnectionStatus, WorldLink } from './worldSync'
+import type { WorldLink } from './worldSync'
 import { PositionThrottle, WorldSync } from './worldSync'
 import { PLANE_GEOMETRY, surfaceFor, type Geometry } from './surface'
 
@@ -18,9 +18,6 @@ export class HubWorldLink implements WorldLink {
   // True from the join going out until a leave or a drop: the hub refuses
   // a move before a join, so the render loop's sends gate on this.
   isConnected = false
-  onPlayerIdReceived?: (playerId: string) => void
-  onConnectionStateChange?: (status: ConnectionStatus, error?: string) => void
-
   onGeometryChange?: (geometry: Geometry) => void
   private sync: WorldSync | null = null
   // The room's surface as the hub last named it, so a join spawns on it
@@ -59,7 +56,6 @@ export class HubWorldLink implements WorldLink {
 
   sessionReady(playerId: string): void {
     this.playerId = playerId
-    this.onPlayerIdReceived?.(playerId)
   }
 
   // The session settled in a world — its room's, or the plaza's — and
@@ -83,7 +79,6 @@ export class HubWorldLink implements WorldLink {
     this.playerId = null
     this.sync?.forgetRemotePlayers()
     this.sync?.forgetTape()
-    this.onConnectionStateChange?.('disconnected')
   }
 
   // --- WorldLink, for the renderer ---
@@ -111,7 +106,6 @@ export class HubWorldLink implements WorldLink {
     this.sendLeave()
     this.sync?.forgetTape()
     this.sync = null
-    this.onConnectionStateChange?.('disconnected')
   }
 
   reconnect(): void {
@@ -127,6 +121,5 @@ export class HubWorldLink implements WorldLink {
     this.stream()?.lobby('join', { ...spawn, position: settled })
     this.throttle.reset()
     this.isConnected = true
-    this.onConnectionStateChange?.('connected')
   }
 }

@@ -13,17 +13,44 @@ import styles from './LobbyGame.module.css'
 // table over the world, which keeps ticking underneath so presence and
 // chat never drop. The panel hides behind a toggle while a table is up.
 
+// Hiding the panel is how the bare world is asked for, so the choice
+// outlives the visit. Storage can throw (private windows, blocked site
+// data); without it the panel opens by width, as it always did.
+const PANEL_KEY = 'lobby.panel'
+
+function panelWanted(): boolean {
+  try {
+    const stored = localStorage.getItem(PANEL_KEY)
+    if (stored !== null) return stored === 'open'
+  } catch {
+    // fall through to the width
+  }
+  return window.innerWidth > 700
+}
+
+function rememberPanel(open: boolean): void {
+  try {
+    localStorage.setItem(PANEL_KEY, open ? 'open' : 'closed')
+  } catch {
+    // the choice lasts this visit only
+  }
+}
+
 const LobbyGame = (props: UseLobbyProps) => {
   const lobby = useLobby(props)
   const { castle, golf, chat, connected, playerId, notice, room } = lobby
   const atTable = castle.view !== null || golf.view !== null
-  // Open where there is room for it beside the world; a table takes the
-  // screen, so it folds away when one comes up and returns when it goes.
-  const [panelOpen, setPanelOpen] = useState(() => window.innerWidth > 700)
+  // A table takes the screen, so the panel folds away when one comes up
+  // and returns to what the player wants when it goes.
+  const [panelOpen, setPanelOpen] = useState(panelWanted)
   const [foldedFor, setFoldedFor] = useState(atTable)
   if (foldedFor !== atTable) {
     setFoldedFor(atTable)
-    setPanelOpen(!atTable && window.innerWidth > 700)
+    setPanelOpen(!atTable && panelWanted())
+  }
+  const togglePanel = () => {
+    rememberPanel(!panelOpen)
+    setPanelOpen(!panelOpen)
   }
   // The table takes its own focus on mount; when it goes, the button the
   // player last used is gone with it, so focus lands on the toggle.
@@ -57,7 +84,7 @@ const LobbyGame = (props: UseLobbyProps) => {
         ref={toggleRef}
         type="button"
         className={styles.panelToggle}
-        onClick={() => setPanelOpen(open => !open)}
+        onClick={togglePanel}
         aria-expanded={panelOpen}
         aria-controls="lobby-panel"
       >

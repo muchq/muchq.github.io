@@ -1,6 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import HomePage from './core/pages/HomePage'
-import ThoughtsPage from './apps/thoughts/pages/ThoughtsPage'
 import GroupsPage from './apps/math-learning/pages/GroupsPage'
 import SetsPage from './apps/math-learning/pages/SetsPage'
 import LobbyPage from './apps/lobby/pages/LobbyPage'
@@ -24,7 +23,6 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
-      <Route path="/thoughts" element={<ThoughtsPage />} />
       <Route path="/groups" element={<GroupsPage />} />
       <Route path="/sets" element={<SetsPage />} />
       <Route path="/games" element={<LobbyPage />} />
@@ -35,6 +33,7 @@ function App() {
       <Route path="/golf/room/:roomId/game/:gameId" element={<LobbyRedirect />} />
       <Route path="/castle" element={<LobbyRedirect />} />
       <Route path="/castle/room/:roomId" element={<LobbyRedirect />} />
+      <Route path="/thoughts" element={<LobbyRedirect />} />
       <Route path="/party" element={<PartyPage />} />
       <Route path="/quest" element={<QuestPage />} />
       <Route path="/tracy" element={<TracyPage />} />

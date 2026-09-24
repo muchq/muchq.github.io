@@ -54,7 +54,6 @@ const MENU: MenuGroup[] = [
     label: 'Wee',
     links: [
       { label: 'Lobby', to: '/games' },
-      { label: 'Thoughts', to: '/thoughts' },
       { label: 'Party', to: '/party' },
       { label: 'Resilience', to: '/resilience' },
     ],

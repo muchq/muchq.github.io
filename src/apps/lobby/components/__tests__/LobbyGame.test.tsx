@@ -49,6 +49,7 @@ describe('LobbyGame', () => {
     state.golf.view = null
     state.lost = null
     state.room = null
+    localStorage.clear()
   })
 
   it('folds the panel while a table is up and unfolds it when the table goes', () => {
@@ -104,5 +105,56 @@ describe('LobbyGame', () => {
     rerender(<LobbyGame />)
     expect(screen.queryByText(/golf table/)).toBeNull()
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
+  })
+
+  // /thoughts folded into the lobby, so the bare world is the panel
+  // hidden on purpose — and on purpose means it stays hidden.
+  describe('a hidden panel', () => {
+    const panel = () => screen.queryByRole('complementary', { name: 'lobby' })
+
+    it('stays hidden on the next visit', () => {
+      render(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'Hide lobby' }))
+      cleanup()
+      render(<LobbyGame />)
+      expect(panel()).toBeNull()
+    })
+
+    it('comes back on the next visit once shown again', () => {
+      render(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'Hide lobby' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Lobby' }))
+      cleanup()
+      render(<LobbyGame />)
+      expect(panel()).toBeTruthy()
+    })
+
+    it('stays hidden when a table comes and goes', () => {
+      const { rerender } = render(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'Hide lobby' }))
+      state.castle.view = view
+      rerender(<LobbyGame />)
+      state.castle.view = null
+      rerender(<LobbyGame />)
+      expect(panel()).toBeNull()
+    })
+
+    it('without storage, opens by width as before', () => {
+      const getItem = vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      const setItem = vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      try {
+        render(<LobbyGame />)
+        expect(panel()).toBeTruthy()
+        fireEvent.click(screen.getByRole('button', { name: 'Hide lobby' }))
+        expect(panel()).toBeNull()
+      } finally {
+        getItem.mockRestore()
+        setItem.mockRestore()
+      }
+    })
   })
 })

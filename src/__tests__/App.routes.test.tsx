@@ -48,6 +48,11 @@ describe('App routes', () => {
     expect(ws.lastSent()).toEqual({ event: 'joinRoom', payload: { roomId: 'ROOM01' } })
   })
 
+  it('/thoughts is the lobby now', () => {
+    at('/thoughts')
+    expect(navOf(0).getByText('MuchQ : Lobby')).toBeDefined()
+  })
+
   it('a malformed share link joins nothing; a malformed table keeps its room', async () => {
     at('/castle/room/not%20a%20room')
     let ws!: FakeWebSocket
