@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react'
 import styles from './RoomChat.module.css'
 import type { ChatMessage, ChatSendBudget } from '@/types/roomChat'
 import {
@@ -38,6 +38,13 @@ interface RoomChatProps {
   // composer reacts once per seq and only to the server's "slow down".
   rejection: { seq: number; reason: string } | null
   onSend: (text: string) => void
+  ref?: Ref<RoomChatHandle>
+}
+
+// Opening chat from outside it (the command menu): the drawer as its
+// toggle opens it, or, docked, the composer.
+export interface RoomChatHandle {
+  open: () => void
 }
 
 // How close to the bottom (px) still counts as "following": auto-scroll
@@ -59,7 +66,7 @@ const REJECTION_RESTORE_WINDOW_MS = 5000
 
 const timeFormat = new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' })
 
-const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend }: RoomChatProps) => {
+const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend, ref }: RoomChatProps) => {
   const [draft, setDraft] = useState('')
   // Drawer-mode only: whether the bottom sheet is open. The docked
   // panel ignores it — the .docked rules keep the panel visible.
@@ -229,6 +236,19 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
   const closeDrawer = useCallback(() => {
     setDrawerOpen(false)
   }, [])
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      open: () => {
+        // Closed, the drawer's own effect focuses the composer once it
+        // is up; open already, or docked, focus goes there now.
+        inputRef.current?.focus()
+        if (!docked) openDrawer()
+      }
+    }),
+    [docked, openDrawer]
+  )
 
   // Focus follows the drawer: into the composer on open, back to the
   // toggle on close. The CSS hides whichever control had focus, which

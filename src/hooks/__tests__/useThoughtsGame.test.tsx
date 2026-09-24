@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { useThoughtsGame } from '../useThoughtsGame'
 import { fakeGl } from '@/test/fakeGl'
-import { MUSIC_HOTKEY, ROOM_HOTKEY, SHAPE_HOTKEY } from '@/utils/hotkeys'
+import { COMMAND_HOTKEY, MUSIC_HOTKEY, ROOM_HOTKEY } from '@/utils/hotkeys'
+import { CommandRegistry } from '@/utils/commandRegistry'
 
 import { GAME_CONFIG, GameState, Player } from '@/utils/gameClasses'
 import { splat } from '@/test/fakeTape'
@@ -60,6 +61,7 @@ describe('useThoughtsGame', () => {
   let frames: FrameRequestCallback[]
   let canvas: HTMLCanvasElement
   let cleanup: (() => void) | null
+  let commands: CommandRegistry
 
   const frame = (t = 16) => {
     const cb = frames.shift()
@@ -70,7 +72,7 @@ describe('useThoughtsGame', () => {
     gl = fakeGl(opts)
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => gl as never)
     const { result } = renderHook(() => useThoughtsGame())
-    cleanup = result.current.initializeGame(canvas, offlineLink())
+    cleanup = result.current.initializeGame(canvas, offlineLink(), commands)
   }
   // The same, on a link the test keeps hold of: the hook hangs its
   // geometry callback on it, which is how the hub answers back.
@@ -78,7 +80,7 @@ describe('useThoughtsGame', () => {
     gl = fakeGl()
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => gl as never)
     const { result } = renderHook(() => useThoughtsGame())
-    cleanup = result.current.initializeGame(canvas, { attach: () => link } as unknown as HubWorldLink)
+    cleanup = result.current.initializeGame(canvas, { attach: () => link } as unknown as HubWorldLink, commands)
   }
   const avatar = () =>
     (gl.uniform3fv.mock.calls.filter(c => c[0]?.uniform === 'u_objectCenters').at(-1)![1] as number[]).slice(0, 3)
@@ -109,6 +111,7 @@ describe('useThoughtsGame', () => {
     document.body.appendChild(canvas)
     cleanup = null
     attached = null
+    commands = new CommandRegistry()
   })
   afterEach(() => {
     cleanup?.()
@@ -366,18 +369,141 @@ describe('useThoughtsGame', () => {
     expect(gl.uniform1f.mock.calls.filter(c => c[0]?.uniform === 'u_surfaceRadius').at(-1)![1]).toBe(0)
   })
 
-  it('cycles the avatar shape on space through the hotkey seam, and tells the hub', () => {
+  // The world's commands, as the menu lists them.
+  const labels = () => commands.list().map(c => c.label)
+  const runCommand = (label: string) => {
+    const command = commands.list().find(c => c.label === label)
+    if (!command) throw new Error(`no command ${label} in ${labels().join(', ')}`)
+    command.run()
+  }
+
+  it('offers the shapes the avatar is not wearing, and wearing one tells the hub', () => {
     const link = { ...worldLink(), isConnected: true }
     startWith(link)
-    press(SHAPE_HOTKEY)
-    expect(link.sendShapeUpdate).toHaveBeenLastCalledWith(1)
-    // A held key repeating is one press, not one per repeat.
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: SHAPE_HOTKEY, bubbles: true, repeat: true }))
-    expect(link.sendShapeUpdate).toHaveBeenCalledTimes(1)
+    expect(labels().filter(l => l.startsWith('Avatar'))).toEqual(['Avatar: Cube', 'Avatar: Pyramid'])
+    runCommand('Avatar: Pyramid')
+    expect(link.sendShapeUpdate).toHaveBeenLastCalledWith(2)
+    expect(labels().filter(l => l.startsWith('Avatar'))).toEqual(['Avatar: Sphere', 'Avatar: Cube'])
+  })
+
+  // Space opens the command menu now; the shape is one of its entries.
+  it('space no longer changes the shape', () => {
+    const link = { ...worldLink(), isConnected: true }
+    startWith(link)
+    press(COMMAND_HOTKEY)
+    expect(link.sendShapeUpdate).not.toHaveBeenCalled()
+    expect(labels()).toContain('Avatar: Cube')
+  })
+
+  it('offers the other rooms by name, says the room changes for everyone, and asks the hub', () => {
+    const link = { ...worldLink(), isConnected: true }
+    startWith(link)
+    frame()
+    const rooms = commands.list().filter(c => c.label.startsWith('Room'))
+    expect(rooms.map(c => c.label)).toEqual(['Room: Glasshouse', 'Room: Sphere'])
+    expect(rooms.every(c => c.detail === 'Changes the room for everyone in it')).toBe(true)
+    runCommand('Room: Sphere')
+    expect(link.sendSetGeometry).toHaveBeenLastCalledWith(sphereGeometry(SPHERE_RADIUS))
+    // The hub decides; until it answers this is still the grid.
+    expect(labels()).toContain('Room: Sphere')
+    link.onGeometryChange!(sphereGeometry(SPHERE_RADIUS))
+    expect(labels().filter(l => l.startsWith('Room'))).toEqual(['Room: Grid', 'Room: Glasshouse'])
+  })
+
+  it('off the wire, a room from the menu is drawn at once', () => {
+    start()
+    frame()
+    runCommand('Room: Glasshouse')
+    expect(setProfile).toHaveBeenLastCalledWith(TECHNO_SOUND)
+    expect(labels().filter(l => l.startsWith('Room'))).toEqual(['Room: Grid', 'Room: Sphere'])
+  })
+
+  it('names the tunes a room is not playing, and offers none in a room with one', () => {
+    start()
+    frame()
+    expect(labels().filter(l => l.startsWith('Music'))).toEqual([])
+    press(ROOM_HOTKEY)
+    expect(labels().filter(l => l.startsWith('Music'))).toEqual(['Music: Break'])
+    runCommand('Music: Break')
+    expect(cutToProfile).toHaveBeenLastCalledWith(BREAK_SOUND)
+    expect(labels().filter(l => l.startsWith('Music'))).toEqual(['Music: Techno'])
+    // The y key and the menu walk the same tunes.
+    press(MUSIC_HOTKEY)
+    expect(labels().filter(l => l.startsWith('Music'))).toEqual(['Music: Break'])
+    press(ROOM_HOTKEY)
+    expect(labels().filter(l => l.startsWith('Music'))).toEqual([])
+  })
+
+  it('offers the sound, the way it will flip', () => {
+    start()
+    expect(labels()).toContain('Turn sound on')
+    runCommand('Turn sound on')
+    expect(labels()).toContain('Turn sound off')
+    expect(labels()).not.toContain('Turn sound on')
+  })
+
+  it('a room that would not build is not offered again', () => {
+    start({ compiles: src => !src.includes('fresnel') })
+    frame()
+    runCommand('Room: Glasshouse')
+    expect(labels().filter(l => l.startsWith('Room'))).toEqual(['Room: Sphere'])
+    runCommand('Room: Sphere')
+    expect(labels().filter(l => l.startsWith('Room'))).toEqual(['Room: Grid'])
+  })
+
+  it('without WebGL, lets go of everything it set up', () => {
+    const toggle = document.createElement('button')
+    toggle.id = 'sound-toggle'
+    document.body.appendChild(toggle)
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null)
+    const link = worldLink()
+    const { result } = renderHook(() => useThoughtsGame())
+    const stop = result.current.initializeGame(canvas, { attach: () => link } as unknown as HubWorldLink, commands)
+    toggle.click()
+    expect(labels()).toContain('Turn sound off')
+    stop()
+    expect(labels()).toEqual([])
+    toggle.click()
+    expect(labels()).toEqual([])
+    expect(link.disconnect).toHaveBeenCalled()
+  })
+
+  it('withdraws its commands on cleanup', () => {
+    start()
+    frame()
+    expect(labels().length).toBeGreaterThan(0)
     cleanup!()
     cleanup = null
-    press(SHAPE_HOTKEY)
-    expect(link.sendShapeUpdate).toHaveBeenCalledTimes(1)
+    expect(labels()).toEqual([])
+  })
+
+  // The command menu takes focus while a key may be held: the release
+  // lands in its filter, and must still stop the avatar.
+  it('a key let go in a text field still stops the avatar', () => {
+    start()
+    frame()
+    const from = avatar()
+    press('d')
+    frame(32)
+    const field = document.createElement('input')
+    document.body.appendChild(field)
+    field.dispatchEvent(new KeyboardEvent('keyup', { key: 'd', bubbles: true }))
+    const stopped = avatar()
+    expect(stopped[0]).toBeGreaterThan(from[0])
+    for (let i = 0; i < 10; i++) frame(48 + i)
+    expect(avatar()[0]).toBeCloseTo(stopped[0], 6)
+  })
+
+  // Typing is not walking: a key pressed in a text field moves nothing.
+  it('a key pressed in a text field does not walk', () => {
+    start()
+    frame()
+    const from = avatar()
+    const field = document.createElement('input')
+    document.body.appendChild(field)
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', bubbles: true }))
+    for (let i = 0; i < 10; i++) frame(32 + i)
+    expect(avatar()[0]).toBeCloseTo(from[0], 6)
   })
 
   // deja's tape lands on the glass and nowhere else: the glasshouse is

@@ -185,6 +185,7 @@ describe('AudioSystem', () => {
 
   it('keeps the sound the world always had as its default', () => {
     expect(CALM_SOUND).toEqual({
+      label: 'Calm',
       wave: 'sine',
       tempo: 60,
       noteBeats: 2,

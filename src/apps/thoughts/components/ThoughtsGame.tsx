@@ -1,14 +1,17 @@
 import { useEffect, useRef } from 'react'
 import { useThoughtsGame } from '@/hooks/useThoughtsGame'
 import type { HubWorldLink } from '@/utils/hubWorldLink'
+import type { CommandRegistry } from '@/utils/commandRegistry'
 import styles from './ThoughtsGame.module.css'
 
 interface ThoughtsGameProps {
   // The lobby's way into the world.
   link: HubWorldLink
+  // Where the world publishes its commands for the command menu.
+  commands: CommandRegistry
 }
 
-const ThoughtsGame = ({ link }: ThoughtsGameProps) => {
+const ThoughtsGame = ({ link, commands }: ThoughtsGameProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { initializeGame } = useThoughtsGame()
 
@@ -16,8 +19,8 @@ const ThoughtsGame = ({ link }: ThoughtsGameProps) => {
     const canvas = canvasRef.current
     if (!canvas) return
 
-    return initializeGame(canvas, link)
-  }, [initializeGame, link])
+    return initializeGame(canvas, link, commands)
+  }, [initializeGame, link, commands])
 
   return (
     <div className={`${styles.gameContainer} ${styles.hudRight}`}>

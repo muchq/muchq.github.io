@@ -5,10 +5,10 @@ import {
   bindMusicHotkey,
   bindRoomHotkey,
   bindRoomTaps,
-  bindShapeHotkey,
+  bindCommandHotkey,
   MUSIC_HOTKEY,
   ROOM_HOTKEY,
-  SHAPE_HOTKEY,
+  COMMAND_HOTKEY,
   isTap,
   TAP_GAP_MS,
   TAP_HOLD_MS,
@@ -17,22 +17,21 @@ import {
 } from '../hotkeys'
 
 // One binding for every one-key world command: it stands aside for
-// typing, held keys and chords, and the room and shape keys are two
-// names for it. The room key is undocumented for now: one key cycles
-// the room geometry for this client only.
+// typing, held keys and chords, and the room, music and command keys
+// are names for it.
 
 const press = (key: string, init: KeyboardEventInit = {}, target: EventTarget = document) =>
   target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...init }))
 
-describe('bindShapeHotkey', () => {
+describe('bindCommandHotkey', () => {
   afterEach(() => {
     document.body.innerHTML = ''
   })
 
-  it('cycles on space and keeps the page from scrolling', () => {
+  it('opens on space and keeps the page from scrolling', () => {
     const onCycle = vi.fn()
-    const unbind = bindShapeHotkey(document, onCycle)
-    const space = new KeyboardEvent('keydown', { key: SHAPE_HOTKEY, bubbles: true, cancelable: true })
+    const unbind = bindCommandHotkey(document, onCycle)
+    const space = new KeyboardEvent('keydown', { key: COMMAND_HOTKEY, bubbles: true, cancelable: true })
     document.dispatchEvent(space)
     expect(onCycle).toHaveBeenCalledTimes(1)
     expect(space.defaultPrevented).toBe(true)
@@ -43,20 +42,57 @@ describe('bindShapeHotkey', () => {
     unbind()
   })
 
-  it('does not cycle for a held space, a chord, or a text field', () => {
+  it('does not open for a held space, a chord, or a text field', () => {
     const onCycle = vi.fn()
-    const unbind = bindShapeHotkey(document, onCycle)
-    press(SHAPE_HOTKEY, { repeat: true })
-    press(SHAPE_HOTKEY, { ctrlKey: true })
+    const unbind = bindCommandHotkey(document, onCycle)
+    press(COMMAND_HOTKEY, { repeat: true })
+    press(COMMAND_HOTKEY, { ctrlKey: true })
     const input = document.createElement('input')
     document.body.appendChild(input)
-    press(SHAPE_HOTKEY, {}, input)
+    press(COMMAND_HOTKEY, {}, input)
     expect(onCycle).not.toHaveBeenCalled()
     unbind()
   })
 })
 
 describe('bindHotkey', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('stands aside for a key something else already handled', () => {
+    const onPress = vi.fn()
+    const unbind = bindHotkey(document, 'x', onPress)
+    const handled = new KeyboardEvent('keydown', { key: 'x', bubbles: true, cancelable: true })
+    handled.preventDefault()
+    document.dispatchEvent(handled)
+    expect(onPress).not.toHaveBeenCalled()
+    press('x')
+    expect(onPress).toHaveBeenCalledTimes(1)
+    unbind()
+  })
+
+  // Space presses a focused button; a letter does nothing there.
+  it('a key with a default stands aside on a focused control; one without does not', () => {
+    const onSpace = vi.fn()
+    const onLetter = vi.fn()
+    const unbindSpace = bindHotkey(document, ' ', onSpace, { preventDefault: true })
+    const unbindLetter = bindHotkey(document, 'x', onLetter)
+    const button = document.createElement('button')
+    const tab = document.createElement('div')
+    tab.setAttribute('role', 'tab')
+    document.body.append(button, tab)
+    press(' ', {}, button)
+    press(' ', {}, tab)
+    expect(onSpace).not.toHaveBeenCalled()
+    press('x', {}, button)
+    expect(onLetter).toHaveBeenCalledTimes(1)
+    press(' ', {}, document.body)
+    expect(onSpace).toHaveBeenCalledTimes(1)
+    unbindSpace()
+    unbindLetter()
+  })
+
   it('leaves the default alone unless asked', () => {
     const unbind = bindHotkey(document, 'x', () => {})
     const x = new KeyboardEvent('keydown', { key: 'X', bubbles: true, cancelable: true })
@@ -66,8 +102,7 @@ describe('bindHotkey', () => {
   })
 })
 
-// Undocumented like the room key: cycles a room's music options when
-// it has more than one.
+// Cycles a room's music options when it has more than one.
 describe('bindMusicHotkey', () => {
   let unbind: (() => void) | null = null
   afterEach(() => {

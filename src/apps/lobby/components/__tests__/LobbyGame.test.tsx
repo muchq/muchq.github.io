@@ -1,8 +1,11 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { useEffect, useImperativeHandle, type Ref } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { UseLobby } from '@/hooks/useLobby'
 import type { CastleView } from '@/apps/castle/wire'
 import type { GameState } from '@/types/golf'
+import type { CommandRegistry } from '@/utils/commandRegistry'
+import { COMMAND_HOTKEY } from '@/utils/hotkeys'
 
 // The panel's folding: open beside the world, away while a table is up,
 // back when the table goes, and always a toggle away.
@@ -30,9 +33,25 @@ vi.mock('@/hooks/useLobby', async importOriginal => ({
   ...(await importOriginal<typeof import('@/hooks/useLobby')>()),
   useLobby: () => state
 }))
-vi.mock('@/apps/thoughts/components/ThoughtsGame', () => ({ default: () => <div>world</div> }))
+// The world publishes into the registry it is handed, as the real one does.
+const wearCube = vi.fn()
+vi.mock('@/apps/thoughts/components/ThoughtsGame', () => ({
+  default: function World({ commands }: { commands: CommandRegistry }) {
+    useEffect(() => {
+      commands.publish('world', [{ id: 'cube', label: 'Avatar: Cube', run: wearCube }])
+      return () => commands.withdraw('world')
+    }, [commands])
+    return <div>world</div>
+  }
+}))
 vi.mock('@/apps/castle/components/CastleTable', () => ({ default: () => <div>table</div> }))
-vi.mock('../RoomChat', () => ({ default: () => <div>chat</div> }))
+const openChat = vi.fn()
+vi.mock('../RoomChat', () => ({
+  default: function Chat({ ref }: { ref?: Ref<{ open: () => void }> }) {
+    useImperativeHandle(ref, () => ({ open: openChat }))
+    return <div>chat</div>
+  }
+}))
 vi.mock('@/apps/golf/components/GolfTable', () => ({
   default: ({ shareUrl }: { shareUrl: string | null }) => <div>golf table {shareUrl}</div>
 }))
@@ -50,6 +69,7 @@ describe('LobbyGame', () => {
     state.lost = null
     state.room = null
     localStorage.clear()
+    vi.clearAllMocks()
   })
 
   it('folds the panel while a table is up and unfolds it when the table goes', () => {
@@ -184,6 +204,68 @@ describe('LobbyGame', () => {
         getItem.mockRestore()
         setItem.mockRestore()
       }
+    })
+  })
+
+  describe('the command menu', () => {
+    const openMenu = () => act(() => void fireEvent.keyDown(document, { key: COMMAND_HOTKEY }))
+    const choose = (label: string) => fireEvent.click(screen.getByRole('option', { name: label }))
+
+    it("lists the world's commands and the lobby's together, and runs either", () => {
+      render(<LobbyGame />)
+      openMenu()
+      expect(screen.getByRole('option', { name: 'Avatar: Cube' })).toBeTruthy()
+      choose('Create a room')
+      expect(state.createRoom).toHaveBeenCalled()
+      openMenu()
+      choose('Avatar: Cube')
+      expect(wearCube).toHaveBeenCalled()
+    })
+
+    it('join by code shows the panel and puts focus in its code field', () => {
+      render(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'Hide lobby' }))
+      openMenu()
+      choose('Join a room by code')
+      expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
+      expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Room code' }))
+    })
+
+    it('open chat is there only in a room, and opens it', () => {
+      const { rerender } = render(<LobbyGame />)
+      openMenu()
+      expect(screen.queryByRole('option', { name: 'Open chat' })).toBeNull()
+      fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
+      state.room = { roomId: 'R1', players: [], games: [] }
+      rerender(<LobbyGame />)
+      openMenu()
+      choose('Open chat')
+      expect(openChat).toHaveBeenCalledTimes(1)
+    })
+
+    it('copying the room link says so in the status line', async () => {
+      vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } })
+      try {
+        state.room = { roomId: 'R1', players: [], games: [] }
+        render(<LobbyGame />)
+        openMenu()
+        await act(async () => choose('Copy room link'))
+        expect(screen.getByText('Room link copied')).toBeTruthy()
+      } finally {
+        vi.unstubAllGlobals()
+      }
+    })
+
+    it('hiding the panel from the menu is the toggle, remembered the same way', () => {
+      render(<LobbyGame />)
+      openMenu()
+      choose('Hide lobby panel')
+      expect(screen.queryByRole('complementary', { name: 'lobby' })).toBeNull()
+      cleanup()
+      render(<LobbyGame />)
+      expect(screen.queryByRole('complementary', { name: 'lobby' })).toBeNull()
+      openMenu()
+      expect(screen.getByRole('option', { name: 'Show lobby panel' })).toBeTruthy()
     })
   })
 })

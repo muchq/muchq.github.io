@@ -97,4 +97,13 @@ describe('LobbyPanel', () => {
     expect(screen.getByRole('button', { name: 'Join castle G1' })).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: 'Join golf G4' })).toHaveProperty('disabled', true)
   })
+
+  // The command menu is keyboard-only; the panel is where it is told.
+  it('tells where the commands are, in the plaza and in a room', () => {
+    render(<LobbyPanel lobby={lobby()} />)
+    expect(screen.getByText('Press space for commands')).toBeTruthy()
+    cleanup()
+    render(<LobbyPanel lobby={lobby({ room: room() })} />)
+    expect(screen.getByText('Press space for commands')).toBeTruthy()
+  })
 })
