@@ -29,7 +29,9 @@ const CommandMenu = ({ registry, ref }: CommandMenuProps) => {
 const CommandDialog = ({ registry, onClose }: { registry: CommandRegistry; onClose: () => void }) => {
   const commands = useSyncExternalStore(registry.subscribe, registry.list)
   const [query, setQuery] = useState('')
-  const [active, setActive] = useState(0)
+  // The selection is a command, not a row: entries that arrive above it
+  // leave it where it is. The row is kept for when the command goes.
+  const [active, setActive] = useState<{ id: string | null; index: number }>({ id: null, index: 0 })
   const listId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   // Where focus was when the menu opened, to hand back on the way out:
@@ -41,8 +43,10 @@ const CommandDialog = ({ registry, onClose }: { registry: CommandRegistry; onClo
   }, [])
 
   const shown = matchCommands(commands, query)
-  // A list that shrank under the selection keeps it on the last entry.
-  const selected = Math.min(active, shown.length - 1)
+  const kept = active.id === null ? -1 : shown.findIndex(command => command.id === active.id)
+  // Gone, it falls to the row it stood on, or the last one left.
+  const selected = kept >= 0 ? kept : Math.min(active.index, shown.length - 1)
+  const select = (index: number) => setActive({ id: shown[index]?.id ?? null, index })
   const optionId = (index: number) => `${listId}-${index}`
   useEffect(() => {
     document.getElementById(`${listId}-${selected}`)?.scrollIntoView?.({ block: 'nearest' })
@@ -61,6 +65,10 @@ const CommandDialog = ({ registry, onClose }: { registry: CommandRegistry; onClo
   }
 
   const onKeyDown = (event: React.KeyboardEvent) => {
+    // Mid-composition the keys are the input method's: Enter commits the
+    // text, the arrows pick a candidate, Escape cancels. 229 is the key
+    // code some browsers give the key that ends a composition.
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return
     if (event.key === 'Tab') {
       // The filter is all there is to focus in here.
       event.preventDefault()
@@ -74,7 +82,7 @@ const CommandDialog = ({ registry, onClose }: { registry: CommandRegistry; onClo
       event.preventDefault()
       if (shown.length === 0) return
       const step = event.key === 'ArrowDown' ? 1 : -1
-      setActive((selected + step + shown.length) % shown.length)
+      select((selected + step + shown.length) % shown.length)
     }
   }
 
@@ -97,7 +105,7 @@ const CommandDialog = ({ registry, onClose }: { registry: CommandRegistry; onClo
           value={query}
           onChange={event => {
             setQuery(event.target.value)
-            setActive(0)
+            setActive({ id: null, index: 0 })
           }}
         />
         <ul id={listId} className={styles.list} role="listbox" aria-label="Commands">
@@ -108,7 +116,7 @@ const CommandDialog = ({ registry, onClose }: { registry: CommandRegistry; onClo
               role="option"
               aria-selected={index === selected}
               className={`${styles.option} ${index === selected ? styles.active : ''}`}
-              onMouseMove={() => setActive(index)}
+              onMouseMove={() => select(index)}
               onClick={() => run(command)}
             >
               <span className={styles.label}>{command.label}</span>

@@ -13,14 +13,14 @@ describe('CommandRegistry', () => {
     r.publish('world', [cmd('a')])
     r.publish('lobby', [cmd('b'), cmd('c')])
     r.publish('world', [cmd('a2')])
-    expect(r.list().map(c => c.id)).toEqual(['a2', 'b', 'c'])
+    expect(r.list().map(c => c.id)).toEqual(['world:a2', 'lobby:b', 'lobby:c'])
   })
 
   it('a republish replaces the source, so a command that went away is gone', () => {
     const r = new CommandRegistry()
     r.publish('lobby', [cmd('open chat'), cmd('leave')])
     r.publish('lobby', [cmd('leave')])
-    expect(r.list().map(c => c.id)).toEqual(['leave'])
+    expect(r.list().map(c => c.id)).toEqual(['lobby:leave'])
   })
 
   it('withdraws a source whole, and leaves the others', () => {
@@ -28,7 +28,7 @@ describe('CommandRegistry', () => {
     r.publish('world', [cmd('a')])
     r.publish('lobby', [cmd('b')])
     r.withdraw('world')
-    expect(r.list().map(c => c.id)).toEqual(['b'])
+    expect(r.list().map(c => c.id)).toEqual(['lobby:b'])
   })
 
   it('tells subscribers on every change, and hands back the same list between changes', () => {

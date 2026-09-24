@@ -37,8 +37,11 @@ export class CommandRegistry {
     return () => this.listeners.delete(listener)
   }
 
+  // Ids are qualified by source, so two sources never collide.
   private changed(): void {
-    this.snapshot = [...this.sources.values()].flat()
+    this.snapshot = [...this.sources.entries()].flatMap(([source, commands]) =>
+      commands.map(command => ({ ...command, id: `${source}:${command.id}` }))
+    )
     this.listeners.forEach(listener => listener())
   }
 }

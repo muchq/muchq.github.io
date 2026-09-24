@@ -94,6 +94,7 @@ describe('CommandMenu', () => {
   it('focus is back where it came from before the command runs, so a command can move it', () => {
     const where = vi.fn()
     chat.run = () => where(document.activeElement)
+    registry.publish('lobby', [chat])
     render(
       <>
         <button type="button">before</button>
@@ -240,5 +241,42 @@ describe('CommandMenu', () => {
     act(() => menu.current!.open())
     expect(screen.getByRole('dialog', { name: 'Command menu' })).toBeTruthy()
     expect(document.activeElement).toBe(input())
+  })
+
+  // An IME's Enter commits text, its arrows pick candidates, its Escape
+  // cancels the composition: none of them are the menu's.
+  it('keys pressed while composing text are the input method’s', () => {
+    render(<CommandMenu registry={registry} />)
+    open()
+    fireEvent.keyDown(input(), { key: 'ArrowDown', isComposing: true })
+    fireEvent.keyDown(input(), { key: 'Enter', isComposing: true })
+    fireEvent.keyDown(input(), { key: 'Enter', keyCode: 229 })
+    fireEvent.keyDown(input(), { key: 'Escape', isComposing: true })
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(shape.run).not.toHaveBeenCalled()
+    expect(screen.getByRole('option', { selected: true }).textContent).toBe('Avatar: cube')
+    fireEvent.keyDown(input(), { key: 'Enter' })
+    expect(shape.run).toHaveBeenCalledTimes(1)
+  })
+
+  it('the selection follows its command when entries arrive above it', () => {
+    render(<CommandMenu registry={registry} />)
+    open()
+    fireEvent.keyDown(input(), { key: 'ArrowUp' })
+    expect(screen.getByRole('option', { selected: true }).textContent).toBe('Open chat')
+    const table = cmd('table', 'Join castle table T1')
+    act(() => registry.publish('lobby', [table, chat]))
+    expect(screen.getByRole('option', { selected: true }).textContent).toBe('Open chat')
+    fireEvent.keyDown(input(), { key: 'Enter' })
+    expect(chat.run).toHaveBeenCalledTimes(1)
+    expect(table.run).not.toHaveBeenCalled()
+  })
+
+  it('two sources may use the same id without the menu mixing them up', () => {
+    registry.publish('lobby', [chat, cmd('shape', 'Also shape')])
+    render(<CommandMenu registry={registry} />)
+    open()
+    expect(options()).toContain('Also shape')
+    expect(new Set(registry.list().map(c => c.id)).size).toBe(registry.list().length)
   })
 })
