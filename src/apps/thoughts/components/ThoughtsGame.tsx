@@ -1,26 +1,41 @@
 import { useEffect, useRef } from 'react'
+import { bindTripleTap } from '@/utils/hotkeys'
 import { useThoughtsGame } from '@/hooks/useThoughtsGame'
 import type { HubWorldLink } from '@/utils/hubWorldLink'
+import type { CommandRegistry } from '@/utils/commandRegistry'
 import styles from './ThoughtsGame.module.css'
 
 interface ThoughtsGameProps {
   // The lobby's way into the world.
   link: HubWorldLink
+  // Where the world publishes its commands for the command menu.
+  commands: CommandRegistry
+  // Three taps on the world itself: a phone's way to the command menu.
+  onTripleTap: () => void
 }
 
-const ThoughtsGame = ({ link }: ThoughtsGameProps) => {
+const ThoughtsGame = ({ link, commands, onTripleTap }: ThoughtsGameProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  // The world's touch surface: the canvas is pointer-events: none behind
+  // everything and never sees a touch, so its container is what the
+  // world is tapped through.
+  const worldRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const world = worldRef.current
+    if (!world) return
+    return bindTripleTap(world, onTripleTap)
+  }, [onTripleTap])
   const { initializeGame } = useThoughtsGame()
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
-    return initializeGame(canvas, link)
-  }, [initializeGame, link])
+    return initializeGame(canvas, link, commands)
+  }, [initializeGame, link, commands])
 
   return (
-    <div className={`${styles.gameContainer} ${styles.hudRight}`}>
+    <div ref={worldRef} className={`${styles.gameContainer} ${styles.hudRight}`}>
       <canvas ref={canvasRef} className={styles.sceneCanvas} id="scene-canvas" />
       
       <div id="tape-wall-container" className={styles.tapeWallContainer}></div>

@@ -1,8 +1,10 @@
-import { isTypingTarget } from './keyboard'
+import { isControlTarget, isTypingTarget } from './keyboard'
 
 // The world's one-key commands, bound one way: a bare key press, not a
-// held key repeating, not a chord, and never while a text field has
-// focus. A key that scrolls the page (space) keeps the page still.
+// held key repeating, not a chord, never while a text field has focus,
+// and never one something else already handled. A key with a default of
+// its own (space) keeps the page still, and stands aside on a focused
+// control, where the default is the point.
 export function bindHotkey(
   target: Document | HTMLElement,
   key: string,
@@ -13,33 +15,35 @@ export function bindHotkey(
   const handle = (e: Event) => {
     const press = e as KeyboardEvent
     if (isTypingTarget(press.target)) return
-    if (press.repeat || press.ctrlKey || press.metaKey || press.altKey) return
+    if (press.repeat || press.ctrlKey || press.metaKey || press.altKey || press.defaultPrevented) return
     if (press.key.toLowerCase() !== wanted) return
-    if (opts.preventDefault) press.preventDefault()
+    if (opts.preventDefault) {
+      if (isControlTarget(press.target)) return
+      press.preventDefault()
+    }
     onPress()
   }
   target.addEventListener('keydown', handle)
   return () => target.removeEventListener('keydown', handle)
 }
 
-// Cycles this client's room geometry. Undocumented on purpose.
+// Cycles the room's geometry. The command menu lists the rooms by name.
 export const ROOM_HOTKEY = 'g'
 
 export function bindRoomHotkey(target: Document | HTMLElement, onCycle: () => void): () => void {
   return bindHotkey(target, ROOM_HOTKEY, onCycle)
 }
 
-// Cycles a room's music options when it has more than one. Undocumented
-// like the room key.
+// Cycles a room's music options when it has more than one. The command
+// menu lists them by name.
 export const MUSIC_HOTKEY = 'y'
 
 export function bindMusicHotkey(target: Document | HTMLElement, onCycle: () => void): () => void {
   return bindHotkey(target, MUSIC_HOTKEY, onCycle)
 }
 
-// The same command on a phone, which has no `g`: three taps in the same
-// spot in quick succession. Still undocumented — this is the easter egg
-// the key is, not a control.
+// A phone's way to the command menu, having no space bar: three taps in
+// the same spot in quick succession.
 export const TAPS_WANTED = 3
 // Between one tap and the next. A double-tap zoom is around 300ms, so
 // this is loose enough to be comfortable and tight enough that two
@@ -84,7 +88,7 @@ export function isTap(start: Tap, end: Tap): boolean {
 // a touch. A tap only counts when it lands on the surface itself — the
 // joysticks, the sound toggle and the minimap sit on top of it, and a
 // tap on one of those is aimed at the control, not at the world.
-export function bindRoomTaps(target: HTMLElement, onCycle: () => void): () => void {
+export function bindTripleTap(target: HTMLElement, onTriple: () => void): () => void {
   let run: Tap[] = []
   // The finger that is down and might yet turn out to be a tap. Losing
   // it is how a gesture is marked as one that never can be: a release
@@ -140,7 +144,7 @@ export function bindRoomTaps(target: HTMLElement, onCycle: () => void): () => vo
     if (!next.fired) return
     // Only on the one that lands, so an ordinary tap still behaves.
     e.preventDefault()
-    onCycle()
+    onTriple()
   }
 
   // Safari waits after a tap to see whether a second one follows, and
@@ -164,9 +168,9 @@ export function bindRoomTaps(target: HTMLElement, onCycle: () => void): () => vo
   }
 }
 
-// Cycles the avatar's shape.
-export const SHAPE_HOTKEY = ' '
+// Opens the command menu, where every world command is listed by name.
+export const COMMAND_HOTKEY = ' '
 
-export function bindShapeHotkey(target: Document | HTMLElement, onCycle: () => void): () => void {
-  return bindHotkey(target, SHAPE_HOTKEY, onCycle, { preventDefault: true })
+export function bindCommandHotkey(target: Document | HTMLElement, onOpen: () => void): () => void {
+  return bindHotkey(target, COMMAND_HOTKEY, onOpen, { preventDefault: true })
 }

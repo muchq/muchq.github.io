@@ -2,24 +2,33 @@ import { useCallback } from 'react'
 import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
 import { generateRandomColor, generateRandomSpawnPosition } from '@/utils/gameUtils'
 import { RoomResources } from '@/utils/roomResources'
-import { DEFAULT_ROOM, nextSound, paletteCss, roomForGeometry, type RoomGeometry, type RoomGeometryId } from '@/utils/roomGeometry'
+import { DEFAULT_ROOM, ROOM_GEOMETRIES, nextSound, paletteCss, roomForGeometry, roomSounds, type RoomGeometry, type RoomGeometryId } from '@/utils/roomGeometry'
 import { cameraView, frameAt, sameGeometry, sphereRadiusOf, surfaceFor, turn, walk, type Frame, type Geometry } from '@/utils/surface'
 import { globeMarks, mapHeadingDegrees, mapIsRound, mapPoint, type MapPole } from '@/utils/miniMap'
-import { bindMusicHotkey, bindRoomHotkey, bindRoomTaps, bindShapeHotkey } from '@/utils/hotkeys'
+import { bindMusicHotkey, bindRoomHotkey } from '@/utils/hotkeys'
 import { AvatarTrails } from '@/utils/avatarTrails'
 import { TapeWall } from '@/utils/tapeWall'
 import { projectToNdc, viewProjection } from '@/utils/projection'
 import { VirtualJoystick } from '@/utils/virtualJoystick'
-import { AudioSystem } from '@/utils/audioSystem'
+import { AudioSystem, type SoundProfile } from '@/utils/audioSystem'
 import { isTypingTarget } from '@/utils/keyboard'
 import type { WorldLink } from '@/utils/worldSync'
 import type { HubWorldLink } from '@/utils/hubWorldLink'
+import type { Command, CommandRegistry } from '@/utils/commandRegistry'
 import { ShapeType } from '@/types/game'
 
+const AVATAR_SHAPES = [
+  { shape: ShapeType.SPHERE, name: 'Sphere' },
+  { shape: ShapeType.CUBE, name: 'Cube' },
+  { shape: ShapeType.PYRAMID, name: 'Pyramid' },
+]
+
 // The world renderer. It rides the lobby's stream through a HubWorldLink
-// (MoonBase#1490), attaching once the local player exists.
+// (MoonBase#1490), attaching once the local player exists, and publishes
+// what it can do — the avatar's shape, the room, its music, the sound —
+// to the command menu as the 'world' source.
 export const useThoughtsGame = () => {
-  const initializeGame = useCallback((canvas: HTMLCanvasElement, link: HubWorldLink) => {
+  const initializeGame = useCallback((canvas: HTMLCanvasElement, link: HubWorldLink, commands: CommandRegistry) => {
     // eslint-disable-next-line no-console
     console.log('Starting game initialization...')
 
@@ -78,35 +87,40 @@ export const useThoughtsGame = () => {
 
     // Setup audio system
     const soundToggle = document.getElementById('sound-toggle')
-    const handleSoundToggle = () => audioSystem.toggleSound()
+    const handleSoundToggle = () => {
+      audioSystem.toggleSound()
+      publishCommands()
+    }
     soundToggle?.addEventListener('click', handleSoundToggle)
     // Set once the canvas is up; cleanup removes the same reference.
     let resizeCanvas: (() => void) | null = null
     let unbindRoomHotkey: (() => void) | null = null
     let unbindMusicHotkey: (() => void) | null = null
-    let unbindRoomTaps: (() => void) | null = null
     let disposeRooms: (() => void) | null = null
 
-    // Function to cycle through shapes
-    function cyclePlayerShape() {
+    function wearShape(shape: ShapeType) {
       const localPlayer = gameState.getLocalPlayer()
       if (!localPlayer) return
+      localPlayer.shape = shape
+      if (worldLink.isConnected) worldLink.sendShapeUpdate(shape)
+      publishCommands()
+    }
 
-      // Cycle to next shape
-      const shapeValues = [ShapeType.SPHERE, ShapeType.CUBE, ShapeType.PYRAMID]
-      const currentIndex = shapeValues.indexOf(localPlayer.shape)
-      const nextIndex = (currentIndex + 1) % shapeValues.length
-      localPlayer.shape = shapeValues[nextIndex]
-
-      // Get shape name for console
-      const shapeNames = ['Sphere', 'Cube', 'Pyramid']
-      // eslint-disable-next-line no-console
-      console.log(`🔄 Shape changed to: ${shapeNames[localPlayer.shape]}`)
-
-      // Send shape update to server
-      if (worldLink.isConnected) {
-        worldLink.sendShapeUpdate(localPlayer.shape)
-      }
+    // The world's entries in the command menu, republished whole whenever
+    // one of them changes. A choice already made is not offered again.
+    // The room's own entries exist once the ray tracer does.
+    let roomCommands = (): Command[] => []
+    function publishCommands() {
+      const wearing = gameState.getLocalPlayer()?.shape
+      commands.publish('world', [
+        ...AVATAR_SHAPES.filter(({ shape }) => shape !== wearing).map(({ shape, name }) => ({
+          id: `avatar-${name}`,
+          label: `Avatar: ${name}`,
+          run: () => wearShape(shape),
+        })),
+        ...roomCommands(),
+        { id: 'sound', label: audioSystem.soundEnabled ? 'Turn sound off' : 'Turn sound on', run: handleSoundToggle },
+      ])
     }
 
     // Event listeners: movement keys are read per frame; the one-key
@@ -115,10 +129,11 @@ export const useThoughtsGame = () => {
       if (isTypingTarget(e.target)) return
       keys[e.key.toLowerCase()] = true
     }
-    const unbindShapeHotkey = bindShapeHotkey(document, cyclePlayerShape)
 
+    // A release always counts, wherever it lands: the command menu takes
+    // focus while a key may be held, and a release it swallowed would
+    // leave the avatar walking.
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (isTypingTarget(e.target)) return
       keys[e.key.toLowerCase()] = false
     }
 
@@ -135,6 +150,19 @@ export const useThoughtsGame = () => {
 
     mobileMenuToggle?.addEventListener('click', handleMobileMenuToggle)
 
+    // Everything up before the ray tracer, let go of on every way out —
+    // a world that never gets a ray tracer included.
+    const teardownInput = () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.removeEventListener('keyup', handleKeyUp)
+      mobileMenuToggle?.removeEventListener('click', handleMobileMenuToggle)
+      soundToggle?.removeEventListener('click', handleSoundToggle)
+      commands.withdraw('world')
+      disposeRooms?.()
+      audioSystem.cleanup()
+      worldLink.disconnect()
+    }
+
     // Setup WebGL2 ray tracer
     const gl = canvas.getContext('webgl2')
     let animationId: number
@@ -147,7 +175,7 @@ export const useThoughtsGame = () => {
         console.error('WebGL not supported at all')
         // Set a fallback background
         canvas.style.background = 'linear-gradient(to bottom, #b3d9ff 0%, #6bb6ff 100%)'
-        return () => {}
+        return teardownInput
       }
     } else {
       // The room decides the ray tracer; the hotkey walks the registry,
@@ -159,7 +187,7 @@ export const useThoughtsGame = () => {
 
       if (!first) {
         console.error('Failed to create program')
-        return () => {}
+        return teardownInput
       }
       let built = first
       let trails = room.trailLength > 0 ? new AvatarTrails(room.trailLength) : null
@@ -209,6 +237,7 @@ export const useThoughtsGame = () => {
         if (map) map.dataset.map = mapIsRound(surface) ? 'globe' : 'square'
         // eslint-disable-next-line no-console
         console.log(`🏠 Room: ${room.label}`)
+        publishCommands()
         return true
       }
 
@@ -220,9 +249,7 @@ export const useThoughtsGame = () => {
         drawRoom(roomForGeometry(shape, wanted), shape)
       }
 
-      const cycleRoom = () => {
-        const next = rooms.next(room.id)
-        if (!next) return
+      const enterRoom = (next: RoomGeometry) => {
         // The room's shape is the hub's: every room is a surface it
         // knows by name, and off the wire there is nobody to ask.
         if (sameGeometry(next.geometry, geometry) || !worldLink.isConnected) {
@@ -232,21 +259,33 @@ export const useThoughtsGame = () => {
         wanted = next.id
         worldLink.sendSetGeometry(next.geometry)
       }
-      unbindRoomHotkey = bindRoomHotkey(document, cycleRoom)
-      // Undocumented like g: walks a room's tunes when it has more than
-      // one. Hard cut — no fade between options.
-      const cycleMusic = () => {
-        const next = nextSound(room, audioSystem.profile)
-        if (next === audioSystem.profile) return
-        audioSystem.cutToProfile(next)
+      const cycleRoom = () => {
+        const next = rooms.next(room.id)
+        if (next) enterRoom(next)
       }
-      unbindMusicHotkey = bindMusicHotkey(document, cycleMusic)
-      // The phone's way in to the same command; there is no `g` there.
-      // Bound to the canvas's container rather than the canvas, which
-      // is pointer-events: none behind the whole page and never sees a
-      // touch. The container is what the world is tapped through.
-      const world = canvas.parentElement
-      if (world) unbindRoomTaps = bindRoomTaps(world, cycleRoom)
+      unbindRoomHotkey = bindRoomHotkey(document, cycleRoom)
+      // A room's tunes, when it has more than one. Hard cut — no fade
+      // between options.
+      const playTune = (tune: SoundProfile) => {
+        if (tune === audioSystem.profile) return
+        audioSystem.cutToProfile(tune)
+        publishCommands()
+      }
+      unbindMusicHotkey = bindMusicHotkey(document, () => playTune(nextSound(room, audioSystem.profile)))
+      roomCommands = () => [
+        ...ROOM_GEOMETRIES.filter(other => other.id !== room.id).map(other => ({
+          id: `room-${other.id}`,
+          label: `Room: ${other.label}`,
+          detail: 'Changes the room for everyone in it',
+          // Built first: a room that will not build is never asked for.
+          run: () => {
+            if (rooms.get(other)) enterRoom(other)
+          },
+        })),
+        ...roomSounds(room)
+          .filter(tune => tune !== audioSystem.profile)
+          .map(tune => ({ id: `music-${tune.label}`, label: `Music: ${tune.label}`, run: () => playTune(tune) })),
+      ]
 
       // Create fullscreen quad
       const quadVertices = new Float32Array([
@@ -705,6 +744,8 @@ export const useThoughtsGame = () => {
       animationId = requestAnimationFrame(render)
     }
 
+    publishCommands()
+
     // Handle page unload - notify server when player leaves
     const handleBeforeUnload = () => {
       if (worldLink.isConnected) {
@@ -719,16 +760,10 @@ export const useThoughtsGame = () => {
 
     // Cleanup function
     return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-      document.removeEventListener('keyup', handleKeyUp)
-      unbindShapeHotkey()
-      mobileMenuToggle?.removeEventListener('click', handleMobileMenuToggle)
-      soundToggle?.removeEventListener('click', handleSoundToggle)
+      teardownInput()
       if (resizeCanvas) window.removeEventListener('resize', resizeCanvas)
       unbindRoomHotkey?.()
       unbindMusicHotkey?.()
-      unbindRoomTaps?.()
-      disposeRooms?.()
       window.removeEventListener('beforeunload', handleBeforeUnload)
 
       if (animationId) {
@@ -739,10 +774,6 @@ export const useThoughtsGame = () => {
       playerLabelElements.forEach(element => element.remove())
       playerLabelElements.clear()
       tapeWall?.clear()
-
-      // Clean up game systems
-      audioSystem.cleanup()
-      worldLink.disconnect()
     }
   }, [])
 

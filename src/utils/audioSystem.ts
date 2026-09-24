@@ -34,6 +34,8 @@ export interface SoundSamples {
 // What a room sounds like: the wave its notes are, how fast, which
 // tune, and what a bounce is. A melody entry of 0 is a rest.
 export interface SoundProfile {
+  // What the command menu calls it.
+  label: string
   wave: OscillatorType
   tempo: number
   // Beats per melody step and per chord.
@@ -95,6 +97,7 @@ export interface SoundProfile {
 
 // Peaceful sine arpeggios, the sound the world always had.
 export const CALM_SOUND: SoundProfile = {
+  label: 'Calm',
   wave: 'sine',
   tempo: 60,
   noteBeats: 2,
@@ -121,6 +124,7 @@ export const CALM_SOUND: SoundProfile = {
 // bars at 90 so walking the sphere does not hear the same four bars
 // forever.
 export const CHIPTUNE_SOUND: SoundProfile = {
+  label: 'Chiptune',
   wave: 'square',
   tempo: 90,
   noteBeats: 0.5,
@@ -173,6 +177,7 @@ const GH = '/audio/glasshouse'
 // progression stays even though nothing voices it — it is what tells
 // the bass which of the three notes to play.
 export const TECHNO_SOUND: SoundProfile = {
+  label: 'Techno',
   wave: 'sawtooth',
   tempo: 140,
   noteBeats: 0.25,
@@ -229,6 +234,7 @@ export const TECHNO_SOUND: SoundProfile = {
 // The glasshouse's other tune: one looping break instead of the
 // drum/bass bank. Bounce matches techno so landings still belong here.
 export const BREAK_SOUND: SoundProfile = {
+  label: 'Break',
   wave: 'sawtooth',
   tempo: 174,
   noteBeats: 0.25,

@@ -93,7 +93,16 @@ describe('the registry', () => {
     expect(roomById('sphere')!.sound).toBe(CHIPTUNE_SOUND)
   })
 
-  // The glasshouse alone has a second tune; s cycles it, and leaving
+  // The command menu lists a room's tunes by name, so no two may share one.
+  it('names every tune a room can play, each differently', () => {
+    for (const room of ROOM_GEOMETRIES) {
+      const labels = roomSounds(room).map(tune => tune.label)
+      expect(labels.every(label => label.length > 0)).toBe(true)
+      expect(new Set(labels).size).toBe(labels.length)
+    }
+  })
+
+  // The glasshouse alone has a second tune; y cycles it, and leaving
   // the room always lands back on the default.
   it('offers the glasshouse a second music option and nowhere else', () => {
     const glass = roomById('glasshouse')!

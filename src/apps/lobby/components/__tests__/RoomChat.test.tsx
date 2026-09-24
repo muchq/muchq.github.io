@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import RoomChat from '../RoomChat'
+import { createRef } from 'react'
+import RoomChat, { type RoomChatHandle } from '../RoomChat'
 import type { ChatMessage } from '@/types/roomChat'
 
 // The chat surface itself (MoonBase#1226): literal text rendering, the
@@ -211,6 +212,50 @@ describe('RoomChat', () => {
 
     fireEvent.keyDown(input, { key: 'Escape' })
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Open chat' }))
+  })
+
+  // The command menu's "Open chat": the same as the toggle, from outside.
+  it('opens from outside as the toggle does: sheet up, composer focused, unread cleared', () => {
+    const chat = createRef<RoomChatHandle>()
+    const { rerender } = render(<RoomChat {...baseProps} ref={chat} messages={[]} />)
+    rerender(<RoomChat {...baseProps} ref={chat} messages={[msg(1, 'bob', 'hi')]} />)
+    expect(screen.getByRole('button', { name: 'Open chat, 1 unread' })).toBeTruthy()
+    act(() => chat.current!.open())
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(document.activeElement).toBe(screen.getByLabelText('Chat message'))
+    expect(screen.getByRole('button', { name: 'Open chat' })).toBeTruthy()
+  })
+
+  it('opening from outside an already open sheet takes focus back to the composer', () => {
+    const chat = createRef<RoomChatHandle>()
+    render(
+      <>
+        <button type="button">elsewhere</button>
+        <RoomChat {...baseProps} ref={chat} messages={[]} />
+      </>
+    )
+    act(() => chat.current!.open())
+    screen.getByRole('button', { name: 'elsewhere' }).focus()
+    act(() => chat.current!.open())
+    expect(document.activeElement).toBe(screen.getByLabelText('Chat message'))
+  })
+
+  it('docked, opening from outside puts focus in the composer', () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {}
+    }))
+    try {
+      const chat = createRef<RoomChatHandle>()
+      render(<RoomChat {...baseProps} ref={chat} messages={[]} />)
+      expect(document.activeElement).not.toBe(screen.getByLabelText('Chat message'))
+      act(() => chat.current!.open())
+      expect(document.activeElement).toBe(screen.getByLabelText('Chat message'))
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('paces bursts to the server budget and re-enables as tokens refill', () => {

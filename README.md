@@ -69,6 +69,14 @@ and `useCastleTable` their state over the room stream's game envelopes. Share li
 links redirect to them, and `/thoughts` to `/games`. Hiding the panel is how the bare world
 is asked for, so that choice is remembered across visits.
 
+Space, or three taps on the world on a phone, opens the command menu (`CommandMenu`): every command the world and the lobby offer, by
+name — avatar shape, room, the room's tunes, sound, creating and joining rooms and tables, chat,
+the room link, the panel. Both sides publish into one `CommandRegistry`
+(`src/utils/commandRegistry.ts`): the world loop as the `world` source, `lobbyCommands` as the
+`lobby` one, each republished whole when what it offers changes. A command that is unavailable
+is left out rather than shown disabled. Space on a focused button still presses it, and the panel
+says where the commands are. `g` and `y` still cycle the room and its tunes.
+
 A position is a point of the surface the hub keeps the room on (`src/utils/surface.ts`,
 MoonBase#1554): the ±50 ground plane, or the inside of a sphere, where the whole wall is
 somewhere to walk. A step goes along the tangent and settles back on the surface, and the
@@ -107,9 +115,9 @@ the camera and tapering into the tail, so it has width in the world and thins wi
 It takes a point by distance travelled rather than by frame, at a steady height, so a slow
 frame and a fast one leave the same path and a bounce does not zigzag it.
 
-Every room is a surface the hub names — plane, glasshouse, sphere — so the undocumented `g`
-asks the hub for the next one as `setGeometry` whenever this client stands in a world, and
-only cycles here and now when it is off the wire. The glasshouse walks exactly as the plane
+Every room is a surface the hub names — plane, glasshouse, sphere — so `g`, or a room
+picked from the command menu, asks the hub for it as `setGeometry` whenever this client
+stands in a world, and only redraws here and now when it is off the wire. The glasshouse walks exactly as the plane
 does, and is a surface of its own all the same: the hub polls deja for a room standing in
 one and for no other, so a client that called it a plane would draw a wall nothing ever lands
 on. The hub answers everyone in the room with `geometryChanged`, carrying where it placed

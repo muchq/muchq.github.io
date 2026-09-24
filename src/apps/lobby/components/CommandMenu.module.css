@@ -1,0 +1,83 @@
+/* The command menu: translucent and centred over the world, in the
+ * tables' glass language, above every lobby surface and the nav. */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.menu {
+  position: fixed;
+  top: 18vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1301;
+  width: min(36rem, calc(100vw - 2rem));
+  display: flex;
+  flex-direction: column;
+  background: rgba(20, 24, 36, 0.72);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 1rem;
+  box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  color: #fff;
+}
+
+.filter {
+  font: inherit;
+  font-size: 1.05rem;
+  padding: 0.9rem 1.1rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  outline: none;
+}
+
+.filter::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem;
+  max-height: 50vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.option {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.6rem;
+  cursor: pointer;
+}
+
+.active {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: right;
+}
+
+.empty {
+  margin: 0;
+  padding: 0.9rem 1.1rem;
+  color: rgba(255, 255, 255, 0.6);
+}

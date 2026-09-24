@@ -4,35 +4,35 @@ import {
   bindHotkey,
   bindMusicHotkey,
   bindRoomHotkey,
-  bindRoomTaps,
-  bindShapeHotkey,
+  bindTripleTap,
+  bindCommandHotkey,
   MUSIC_HOTKEY,
   ROOM_HOTKEY,
-  SHAPE_HOTKEY,
+  COMMAND_HOTKEY,
   isTap,
   TAP_GAP_MS,
   TAP_HOLD_MS,
   TAP_SLOP,
   TAPS_WANTED,
 } from '../hotkeys'
+import { fireTouch, tap as tapOn, touchAt, tripleTap } from '@/test/touch'
 
 // One binding for every one-key world command: it stands aside for
-// typing, held keys and chords, and the room and shape keys are two
-// names for it. The room key is undocumented for now: one key cycles
-// the room geometry for this client only.
+// typing, held keys and chords, and the room, music and command keys
+// are names for it.
 
 const press = (key: string, init: KeyboardEventInit = {}, target: EventTarget = document) =>
   target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...init }))
 
-describe('bindShapeHotkey', () => {
+describe('bindCommandHotkey', () => {
   afterEach(() => {
     document.body.innerHTML = ''
   })
 
-  it('cycles on space and keeps the page from scrolling', () => {
+  it('opens on space and keeps the page from scrolling', () => {
     const onCycle = vi.fn()
-    const unbind = bindShapeHotkey(document, onCycle)
-    const space = new KeyboardEvent('keydown', { key: SHAPE_HOTKEY, bubbles: true, cancelable: true })
+    const unbind = bindCommandHotkey(document, onCycle)
+    const space = new KeyboardEvent('keydown', { key: COMMAND_HOTKEY, bubbles: true, cancelable: true })
     document.dispatchEvent(space)
     expect(onCycle).toHaveBeenCalledTimes(1)
     expect(space.defaultPrevented).toBe(true)
@@ -43,20 +43,57 @@ describe('bindShapeHotkey', () => {
     unbind()
   })
 
-  it('does not cycle for a held space, a chord, or a text field', () => {
+  it('does not open for a held space, a chord, or a text field', () => {
     const onCycle = vi.fn()
-    const unbind = bindShapeHotkey(document, onCycle)
-    press(SHAPE_HOTKEY, { repeat: true })
-    press(SHAPE_HOTKEY, { ctrlKey: true })
+    const unbind = bindCommandHotkey(document, onCycle)
+    press(COMMAND_HOTKEY, { repeat: true })
+    press(COMMAND_HOTKEY, { ctrlKey: true })
     const input = document.createElement('input')
     document.body.appendChild(input)
-    press(SHAPE_HOTKEY, {}, input)
+    press(COMMAND_HOTKEY, {}, input)
     expect(onCycle).not.toHaveBeenCalled()
     unbind()
   })
 })
 
 describe('bindHotkey', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('stands aside for a key something else already handled', () => {
+    const onPress = vi.fn()
+    const unbind = bindHotkey(document, 'x', onPress)
+    const handled = new KeyboardEvent('keydown', { key: 'x', bubbles: true, cancelable: true })
+    handled.preventDefault()
+    document.dispatchEvent(handled)
+    expect(onPress).not.toHaveBeenCalled()
+    press('x')
+    expect(onPress).toHaveBeenCalledTimes(1)
+    unbind()
+  })
+
+  // Space presses a focused button; a letter does nothing there.
+  it('a key with a default stands aside on a focused control; one without does not', () => {
+    const onSpace = vi.fn()
+    const onLetter = vi.fn()
+    const unbindSpace = bindHotkey(document, ' ', onSpace, { preventDefault: true })
+    const unbindLetter = bindHotkey(document, 'x', onLetter)
+    const button = document.createElement('button')
+    const tab = document.createElement('div')
+    tab.setAttribute('role', 'tab')
+    document.body.append(button, tab)
+    press(' ', {}, button)
+    press(' ', {}, tab)
+    expect(onSpace).not.toHaveBeenCalled()
+    press('x', {}, button)
+    expect(onLetter).toHaveBeenCalledTimes(1)
+    press(' ', {}, document.body)
+    expect(onSpace).toHaveBeenCalledTimes(1)
+    unbindSpace()
+    unbindLetter()
+  })
+
   it('leaves the default alone unless asked', () => {
     const unbind = bindHotkey(document, 'x', () => {})
     const x = new KeyboardEvent('keydown', { key: 'X', bubbles: true, cancelable: true })
@@ -66,8 +103,7 @@ describe('bindHotkey', () => {
   })
 })
 
-// Undocumented like the room key: cycles a room's music options when
-// it has more than one.
+// Cycles a room's music options when it has more than one.
 describe('bindMusicHotkey', () => {
   let unbind: (() => void) | null = null
   afterEach(() => {
@@ -211,7 +247,7 @@ describe('isTap', () => {
   })
 })
 
-describe('bindRoomTaps', () => {
+describe('bindTripleTap', () => {
   let world: HTMLElement
   beforeEach(() => {
     vi.useFakeTimers()
@@ -223,28 +259,14 @@ describe('bindRoomTaps', () => {
     document.body.innerHTML = ''
   })
 
-  const at = (x: number, y: number) => ({ clientX: x, clientY: y }) as Touch
-  const fire = (kind: string, changed: Touch[], held: Touch[], from: HTMLElement = world) => {
-    const e = new Event(kind, { bubbles: true, cancelable: true })
-    Object.assign(e, { changedTouches: changed, touches: held })
-    from.dispatchEvent(e)
-    return e
-  }
-  // One finger down and up again in the same place, quickly.
-  const tap = (x = 10, y = 10, from: HTMLElement = world) => {
-    fire('touchstart', [at(x, y)], [at(x, y)], from)
-    vi.advanceTimersByTime(40)
-    return fire('touchend', [at(x, y)], [], from)
-  }
-  const triple = (x = 10, y = 10) => {
-    tap(x, y)
-    tap(x + 2, y + 2)
-    return tap(x + 1, y + 1)
-  }
+  const at = touchAt
+  const fire = (kind: string, changed: Touch[], held: Touch[], from: HTMLElement = world) => fireTouch(from, kind, changed, held)
+  const tap = (x = 10, y = 10, from: HTMLElement = world) => tapOn(from, x, y)
+  const triple = (x = 10, y = 10) => tripleTap(world, x, y)
 
-  it('cycles the room on three taps and swallows only the one that lands', () => {
+  it('fires on three taps and swallows only the one that lands', () => {
     const onCycle = vi.fn()
-    bindRoomTaps(world, onCycle)
+    bindTripleTap(world, onCycle)
     const first = tap()
     expect(onCycle).not.toHaveBeenCalled()
     // An ordinary tap is still an ordinary tap.
@@ -257,7 +279,7 @@ describe('bindRoomTaps', () => {
 
   it('waits out a slow third tap', () => {
     const onCycle = vi.fn()
-    bindRoomTaps(world, onCycle)
+    bindTripleTap(world, onCycle)
     tap()
     tap()
     vi.advanceTimersByTime(TAP_GAP_MS + 1)
@@ -270,7 +292,7 @@ describe('bindRoomTaps', () => {
   // must not reshape the room under everyone standing in it.
   it('never reads the end of a pinch as a tap', () => {
     const onCycle = vi.fn()
-    bindRoomTaps(world, onCycle)
+    bindTripleTap(world, onCycle)
     for (let i = 0; i < TAPS_WANTED; i++) {
       fire('touchstart', [at(10, 10)], [at(10, 10)])
       fire('touchstart', [at(90, 90)], [at(10, 10), at(90, 90)])
@@ -283,7 +305,7 @@ describe('bindRoomTaps', () => {
 
   it('never reads a swipe that curls back to where it began as a tap', () => {
     const onCycle = vi.fn()
-    bindRoomTaps(world, onCycle)
+    bindTripleTap(world, onCycle)
     for (let i = 0; i < TAPS_WANTED; i++) {
       fire('touchstart', [at(10, 10)], [at(10, 10)])
       fire('touchmove', [at(10 + TAP_SLOP * 4, 10)], [at(10 + TAP_SLOP * 4, 10)])
@@ -295,7 +317,7 @@ describe('bindRoomTaps', () => {
 
   it('never reads a long press as a tap', () => {
     const onCycle = vi.fn()
-    bindRoomTaps(world, onCycle)
+    bindTripleTap(world, onCycle)
     for (let i = 0; i < TAPS_WANTED; i++) {
       fire('touchstart', [at(10, 10)], [at(10, 10)])
       vi.advanceTimersByTime(TAP_HOLD_MS + 1)
@@ -310,7 +332,7 @@ describe('bindRoomTaps', () => {
   // alone.
   it('never reads a release as a tap while a finger is down elsewhere', () => {
     const onCycle = vi.fn()
-    bindRoomTaps(world, onCycle)
+    bindTripleTap(world, onCycle)
     const elsewhere = at(300, 5)
     for (let i = 0; i < TAPS_WANTED; i++) {
       fire('touchstart', [at(10, 10)], [at(10, 10)])
@@ -324,7 +346,7 @@ describe('bindRoomTaps', () => {
   // run is broken, not merely un-extended.
   it('drops a run interrupted by a gesture that is not a tap', () => {
     const onCycle = vi.fn()
-    bindRoomTaps(world, onCycle)
+    bindTripleTap(world, onCycle)
     tap()
     tap()
     fire('touchstart', [at(10, 10)], [at(10, 10)])
@@ -339,7 +361,7 @@ describe('bindRoomTaps', () => {
   // on one of those is aimed at the control, and bubbles up here.
   it('ignores a tap aimed at a control sitting on the world', () => {
     const onCycle = vi.fn()
-    bindRoomTaps(world, onCycle)
+    bindTripleTap(world, onCycle)
     const joystick = document.createElement('div')
     world.appendChild(joystick)
     for (let i = 0; i < TAPS_WANTED; i++) tap(10, 10, joystick)
@@ -348,7 +370,7 @@ describe('bindRoomTaps', () => {
 
   it('forgets the run when a touch is cancelled', () => {
     const onCycle = vi.fn()
-    bindRoomTaps(world, onCycle)
+    bindTripleTap(world, onCycle)
     tap()
     tap()
     world.dispatchEvent(new Event('touchcancel', { bubbles: true }))
@@ -361,7 +383,7 @@ describe('bindRoomTaps', () => {
   // preventDefault on that third tap comes far too late to help.
   it('turns off the double-tap zoom while it is listening, and puts it back', () => {
     world.style.touchAction = 'pan-y'
-    const unbind = bindRoomTaps(world, vi.fn())
+    const unbind = bindTripleTap(world, vi.fn())
     expect(world.style.touchAction).toBe('manipulation')
     unbind()
     expect(world.style.touchAction).toBe('pan-y')
@@ -369,7 +391,7 @@ describe('bindRoomTaps', () => {
 
   it('stops listening once unbound', () => {
     const onCycle = vi.fn()
-    bindRoomTaps(world, onCycle)()
+    bindTripleTap(world, onCycle)()
     triple()
     expect(onCycle).not.toHaveBeenCalled()
   })

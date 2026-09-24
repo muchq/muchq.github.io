@@ -1,20 +1,14 @@
+import type { Ref } from 'react'
 import PermalinkDisplay from './PermalinkDisplay'
 import type { UseLobby } from '@/hooks/useLobby'
 import { lobbyRoomPath } from '@/hooks/useLobby'
-import type { HubGameSummary, HubRoomPlayer } from '@/utils/hubStream'
+import type { HubRoomPlayer } from '@/utils/hubStream'
+import { atTable, tableOffer, TABLE_SEATS } from '../offers'
 import styles from './LobbyPanel.module.css'
 
 // The side panel beside the world: where you are (the plaza, or a room
 // by code), who is here and what they are doing, and the tables. The
 // world and the chat are the page's; this only offers.
-
-// How a table reads: open to join, or why not. Both games seat four.
-const TABLE_SEATS = 4
-function tableOffer(table: HubGameSummary): { label: string; open: boolean } {
-  if (table.status !== 'waiting') return { label: 'In play', open: false }
-  if (table.playerCount >= TABLE_SEATS) return { label: 'Full', open: false }
-  return { label: 'Join', open: true }
-}
 
 const presence = (player: HubRoomPlayer): string => {
   if (player.table !== undefined) return `at ${player.table.game} ${player.table.gameId}`
@@ -29,11 +23,16 @@ const GAME_BLURB = {
   golf: 'Lowest hand wins. Peek at two, then draw and swap; knock to call the last round.'
 }
 
+// The command menu has no button of its own: this is where it is told.
+const COMMAND_HINT = <p className={`${styles.muted} ${styles.hint}`}>Press space, or triple-tap the world, for commands</p>
+
 export interface LobbyPanelProps {
   lobby: UseLobby
+  // The room code field, for the command menu's "Join a room by code".
+  roomCodeRef?: Ref<HTMLInputElement>
 }
 
-const LobbyPanel = ({ lobby }: LobbyPanelProps) => {
+const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
   const { room, connected, playerId } = lobby
 
   if (room === null) {
@@ -47,6 +46,7 @@ const LobbyPanel = ({ lobby }: LobbyPanelProps) => {
           </button>
           <div className={styles.joinRow}>
             <input
+              ref={roomCodeRef}
               className={styles.input}
               placeholder="Room code"
               aria-label="Room code"
@@ -61,11 +61,12 @@ const LobbyPanel = ({ lobby }: LobbyPanelProps) => {
             </button>
           </div>
         </div>
+        {COMMAND_HINT}
       </aside>
     )
   }
 
-  const busy = room.players.find(player => player.playerId === playerId)?.table !== undefined
+  const busy = atTable(room, playerId)
   return (
     <aside className={styles.panel} aria-label="lobby">
       <div className={styles.header}>
@@ -139,6 +140,7 @@ const LobbyPanel = ({ lobby }: LobbyPanelProps) => {
           <p className={styles.muted}>{GAME_BLURB.golf}</p>
         </div>
       </section>
+      {COMMAND_HINT}
     </aside>
   )
 }

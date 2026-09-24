@@ -57,8 +57,8 @@ export interface RoomGeometry {
   trailLength: number
   // Default music for this room.
   sound: SoundProfile
-  // Extra tunes the undocumented music hotkey cycles through, after
-  // `sound`. Absent means the room has only one.
+  // Extra tunes, after `sound`, that the music hotkey cycles through and
+  // the command menu names. Absent means the room has only one.
   altSounds?: SoundProfile[]
 }
 
