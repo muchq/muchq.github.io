@@ -31,11 +31,6 @@ export class RoomResources {
     return result
   }
 
-  // Tried and would not build. A room never tried has not failed.
-  failed(room: RoomGeometry): boolean {
-    return this.built.get(room.id) === null
-  }
-
   // The first room after `id` in the registry that builds, wrapping; null
   // when none does.
   next(id: RoomGeometryId): RoomGeometry | null {

@@ -273,15 +273,13 @@ export const useThoughtsGame = () => {
       }
       unbindMusicHotkey = bindMusicHotkey(document, () => playTune(nextSound(room, audioSystem.profile)))
       roomCommands = () => [
-        ...ROOM_GEOMETRIES.filter(other => other.id !== room.id && !rooms.failed(other)).map(other => ({
+        ...ROOM_GEOMETRIES.filter(other => other.id !== room.id).map(other => ({
           id: `room-${other.id}`,
           label: `Room: ${other.label}`,
           detail: 'Changes the room for everyone in it',
-          // Built first: a room that will not build is never asked for,
-          // and is not offered again.
+          // Built first: a room that will not build is never asked for.
           run: () => {
             if (rooms.get(other)) enterRoom(other)
-            else publishCommands()
           },
         })),
         ...roomSounds(room)

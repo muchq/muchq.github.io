@@ -443,15 +443,6 @@ describe('useThoughtsGame', () => {
     expect(labels()).not.toContain('Turn sound on')
   })
 
-  it('a room that would not build is not offered again', () => {
-    start({ compiles: src => !src.includes('fresnel') })
-    frame()
-    runCommand('Room: Glasshouse')
-    expect(labels().filter(l => l.startsWith('Room'))).toEqual(['Room: Sphere'])
-    runCommand('Room: Sphere')
-    expect(labels().filter(l => l.startsWith('Room'))).toEqual(['Room: Grid'])
-  })
-
   it('without WebGL, lets go of everything it set up', () => {
     const toggle = document.createElement('button')
     toggle.id = 'sound-toggle'
