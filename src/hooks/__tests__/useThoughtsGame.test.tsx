@@ -4,6 +4,7 @@ import { useThoughtsGame } from '../useThoughtsGame'
 import { fakeGl } from '@/test/fakeGl'
 import { COMMAND_HOTKEY, MUSIC_HOTKEY, ROOM_HOTKEY } from '@/utils/hotkeys'
 import { CommandRegistry } from '@/utils/commandRegistry'
+import { tripleTap } from '@/test/touch'
 
 import { GAME_CONFIG, GameState, Player } from '@/utils/gameClasses'
 import { splat } from '@/test/fakeTape'
@@ -466,6 +467,19 @@ describe('useThoughtsGame', () => {
     toggle.click()
     expect(labels()).toEqual([])
     expect(link.disconnect).toHaveBeenCalled()
+  })
+
+  // The phone's triple-tap is the command menu's now, the page's to bind.
+  it('a triple-tap on the world does not change the room', () => {
+    vi.useFakeTimers()
+    try {
+      start()
+      frame()
+      tripleTap(canvas.parentElement!)
+      expect(labels().filter(l => l.startsWith('Room'))).toEqual(['Room: Glasshouse', 'Room: Sphere'])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('withdraws its commands on cleanup', () => {

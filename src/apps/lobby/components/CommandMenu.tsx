@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useId, useImperativeHandle, useRef, useState, useSyncExternalStore, type Ref } from 'react'
 import { bindCommandHotkey } from '@/utils/hotkeys'
 import { matchCommands, type Command, type CommandRegistry } from '@/utils/commandRegistry'
 import styles from './CommandMenu.module.css'
@@ -6,20 +6,27 @@ import styles from './CommandMenu.module.css'
 // The world's commands by name, over the world, which keeps rendering
 // behind it. Space opens it; typing filters, the arrows move, Enter runs
 // and Escape leaves. Every entry is a verb that runs and closes the menu.
+// A phone, with no space bar, opens it through the handle.
+
+export interface CommandMenuHandle {
+  open: () => void
+}
 
 export interface CommandMenuProps {
   registry: CommandRegistry
+  ref?: Ref<CommandMenuHandle>
 }
 
-const CommandMenu = ({ registry }: CommandMenuProps) => {
+const CommandMenu = ({ registry, ref }: CommandMenuProps) => {
   const [open, setOpen] = useState(false)
   useEffect(() => bindCommandHotkey(document, () => setOpen(true)), [])
+  useImperativeHandle(ref, () => ({ open: () => setOpen(true) }), [])
   return open ? <CommandDialog registry={registry} onClose={() => setOpen(false)} /> : null
 }
 
 // Mounted only while open, so every opening starts from an empty filter
 // and the first entry.
-const CommandDialog = ({ registry, onClose }: CommandMenuProps & { onClose: () => void }) => {
+const CommandDialog = ({ registry, onClose }: { registry: CommandRegistry; onClose: () => void }) => {
   const commands = useSyncExternalStore(registry.subscribe, registry.list)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)

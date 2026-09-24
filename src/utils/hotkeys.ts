@@ -42,9 +42,8 @@ export function bindMusicHotkey(target: Document | HTMLElement, onCycle: () => v
   return bindHotkey(target, MUSIC_HOTKEY, onCycle)
 }
 
-// The same command on a phone, which has no `g`: three taps in the same
-// spot in quick succession. Undocumented — a phone has no command menu
-// yet, so this stays the easter egg it was.
+// A phone's way to the command menu, having no space bar: three taps in
+// the same spot in quick succession.
 export const TAPS_WANTED = 3
 // Between one tap and the next. A double-tap zoom is around 300ms, so
 // this is loose enough to be comfortable and tight enough that two
@@ -89,7 +88,7 @@ export function isTap(start: Tap, end: Tap): boolean {
 // a touch. A tap only counts when it lands on the surface itself — the
 // joysticks, the sound toggle and the minimap sit on top of it, and a
 // tap on one of those is aimed at the control, not at the world.
-export function bindRoomTaps(target: HTMLElement, onCycle: () => void): () => void {
+export function bindTripleTap(target: HTMLElement, onTriple: () => void): () => void {
   let run: Tap[] = []
   // The finger that is down and might yet turn out to be a tap. Losing
   // it is how a gesture is marked as one that never can be: a release
@@ -145,7 +144,7 @@ export function bindRoomTaps(target: HTMLElement, onCycle: () => void): () => vo
     if (!next.fired) return
     // Only on the one that lands, so an ordinary tap still behaves.
     e.preventDefault()
-    onCycle()
+    onTriple()
   }
 
   // Safari waits after a tap to see whether a second one follows, and

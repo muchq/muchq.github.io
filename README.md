@@ -69,14 +69,13 @@ and `useCastleTable` their state over the room stream's game envelopes. Share li
 links redirect to them, and `/thoughts` to `/games`. Hiding the panel is how the bare world
 is asked for, so that choice is remembered across visits.
 
-Space opens the command menu (`CommandMenu`): every command the world and the lobby offer, by
+Space, or three taps on the world on a phone, opens the command menu (`CommandMenu`): every command the world and the lobby offer, by
 name — avatar shape, room, the room's tunes, sound, creating and joining rooms and tables, chat,
 the room link, the panel. Both sides publish into one `CommandRegistry`
 (`src/utils/commandRegistry.ts`): the world loop as the `world` source, `lobbyCommands` as the
 `lobby` one, each republished whole when what it offers changes. A command that is unavailable
 is left out rather than shown disabled. Space on a focused button still presses it, and the panel
-says where the commands are. `g` and `y` still cycle the room and its tunes; the
-menu has no touch trigger yet, so a phone keeps its triple-tap.
+says where the commands are. `g` and `y` still cycle the room and its tunes.
 
 A position is a point of the surface the hub keeps the room on (`src/utils/surface.ts`,
 MoonBase#1554): the ±50 ground plane, or the inside of a sphere, where the whole wall is

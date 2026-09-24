@@ -36,12 +36,19 @@ vi.mock('@/hooks/useLobby', async importOriginal => ({
 // The world publishes into the registry it is handed, as the real one does.
 const wearCube = vi.fn()
 vi.mock('@/apps/thoughts/components/ThoughtsGame', () => ({
-  default: function World({ commands }: { commands: CommandRegistry }) {
+  default: function World({ commands, onTripleTap }: { commands: CommandRegistry; onTripleTap: () => void }) {
     useEffect(() => {
       commands.publish('world', [{ id: 'cube', label: 'Avatar: Cube', run: wearCube }])
       return () => commands.withdraw('world')
     }, [commands])
-    return <div>world</div>
+    return (
+      <div>
+        world
+        <button type="button" onClick={onTripleTap}>
+          triple-tap the world
+        </button>
+      </div>
+    )
   }
 }))
 vi.mock('@/apps/castle/components/CastleTable', () => ({ default: () => <div>table</div> }))
@@ -220,6 +227,12 @@ describe('LobbyGame', () => {
       openMenu()
       choose('Avatar: Cube')
       expect(wearCube).toHaveBeenCalled()
+    })
+
+    it('a triple-tap on the world opens it, as space does', () => {
+      render(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'triple-tap the world' }))
+      expect(screen.getByRole('option', { name: 'Avatar: Cube' })).toBeTruthy()
     })
 
     it('join by code shows the panel and puts focus in its code field', () => {

@@ -1,10 +1,10 @@
-import { StrictMode } from 'react'
+import { StrictMode, createRef } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { CommandRegistry, type Command } from '@/utils/commandRegistry'
 import { bindRoomHotkey, COMMAND_HOTKEY } from '@/utils/hotkeys'
-import CommandMenu from '../CommandMenu'
+import CommandMenu, { type CommandMenuHandle } from '../CommandMenu'
 
 // The menu over the world: space opens it, typing filters, arrows and
 // Enter run, Escape leaves, and focus goes back where it came from.
@@ -231,5 +231,14 @@ describe('CommandMenu', () => {
     } finally {
       delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView
     }
+  })
+
+  // A phone has no space bar: the world's triple-tap opens it this way.
+  it('opens from outside through its handle', () => {
+    const menu = createRef<CommandMenuHandle>()
+    render(<CommandMenu registry={registry} ref={menu} />)
+    act(() => menu.current!.open())
+    expect(screen.getByRole('dialog', { name: 'Command menu' })).toBeTruthy()
+    expect(document.activeElement).toBe(input())
   })
 })

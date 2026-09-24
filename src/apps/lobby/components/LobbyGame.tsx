@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import ThoughtsGame from '@/apps/thoughts/components/ThoughtsGame'
 import CastleTable from '@/apps/castle/components/CastleTable'
 import GolfTable from '@/apps/golf/components/GolfTable'
 import RoomChat, { type RoomChatHandle } from './RoomChat'
-import CommandMenu from './CommandMenu'
+import CommandMenu, { type CommandMenuHandle } from './CommandMenu'
 import { lobbyCommands } from '../lobbyCommands'
 import { CommandRegistry } from '@/utils/commandRegistry'
 import { lobbyTablePath, useLobby } from '@/hooks/useLobby'
@@ -52,6 +52,9 @@ const LobbyGame = (props: UseLobbyProps) => {
   const toggleRef = useRef<HTMLButtonElement>(null)
   const roomCodeRef = useRef<HTMLInputElement>(null)
   const chatRef = useRef<RoomChatHandle>(null)
+  const menuRef = useRef<CommandMenuHandle>(null)
+  // Stable, so the world's tap binding (and a run of taps) survives renders.
+  const openMenu = useCallback(() => menuRef.current?.open(), [])
   const [commands] = useState(() => new CommandRegistry())
   // Asked for by the menu: the panel comes up, then the field is focused.
   const [roomCodeAsked, setRoomCodeAsked] = useState(0)
@@ -88,7 +91,7 @@ const LobbyGame = (props: UseLobbyProps) => {
 
   return (
     <>
-      <ThoughtsGame link={lobby.world} commands={commands} />
+      <ThoughtsGame link={lobby.world} commands={commands} onTripleTap={openMenu} />
       {castle.view !== null && (
         <div className={styles.tableOverlay}>
           <CastleTable playerId={playerId} connected={connected} view={castle.view} table={castle} />
@@ -138,7 +141,7 @@ const LobbyGame = (props: UseLobbyProps) => {
           {lobby.lost}
         </div>
       )}
-      <CommandMenu registry={commands} />
+      <CommandMenu registry={commands} ref={menuRef} />
       <div className={`${styles.notice} ${notice || said ? '' : styles.noticeEmpty}`} role="status">
         {notice || said}
       </div>

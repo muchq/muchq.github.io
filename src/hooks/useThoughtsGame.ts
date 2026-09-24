@@ -5,7 +5,7 @@ import { RoomResources } from '@/utils/roomResources'
 import { DEFAULT_ROOM, ROOM_GEOMETRIES, nextSound, paletteCss, roomForGeometry, roomSounds, type RoomGeometry, type RoomGeometryId } from '@/utils/roomGeometry'
 import { cameraView, frameAt, sameGeometry, sphereRadiusOf, surfaceFor, turn, walk, type Frame, type Geometry } from '@/utils/surface'
 import { globeMarks, mapHeadingDegrees, mapIsRound, mapPoint, type MapPole } from '@/utils/miniMap'
-import { bindMusicHotkey, bindRoomHotkey, bindRoomTaps } from '@/utils/hotkeys'
+import { bindMusicHotkey, bindRoomHotkey } from '@/utils/hotkeys'
 import { AvatarTrails } from '@/utils/avatarTrails'
 import { TapeWall } from '@/utils/tapeWall'
 import { projectToNdc, viewProjection } from '@/utils/projection'
@@ -96,7 +96,6 @@ export const useThoughtsGame = () => {
     let resizeCanvas: (() => void) | null = null
     let unbindRoomHotkey: (() => void) | null = null
     let unbindMusicHotkey: (() => void) | null = null
-    let unbindRoomTaps: (() => void) | null = null
     let disposeRooms: (() => void) | null = null
 
     function wearShape(shape: ShapeType) {
@@ -289,12 +288,6 @@ export const useThoughtsGame = () => {
           .filter(tune => tune !== audioSystem.profile)
           .map(tune => ({ id: `music-${tune.label}`, label: `Music: ${tune.label}`, run: () => playTune(tune) })),
       ]
-      // The phone's way in to the same command; there is no `g` there.
-      // Bound to the canvas's container rather than the canvas, which
-      // is pointer-events: none behind the whole page and never sees a
-      // touch. The container is what the world is tapped through.
-      const world = canvas.parentElement
-      if (world) unbindRoomTaps = bindRoomTaps(world, cycleRoom)
 
       // Create fullscreen quad
       const quadVertices = new Float32Array([
@@ -773,7 +766,6 @@ export const useThoughtsGame = () => {
       if (resizeCanvas) window.removeEventListener('resize', resizeCanvas)
       unbindRoomHotkey?.()
       unbindMusicHotkey?.()
-      unbindRoomTaps?.()
       window.removeEventListener('beforeunload', handleBeforeUnload)
 
       if (animationId) {
