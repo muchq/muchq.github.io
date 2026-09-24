@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
 import { generateRandomColor, generateRandomSpawnPosition } from '@/utils/gameUtils'
 import { RoomResources } from '@/utils/roomResources'
-import { DEFAULT_ROOM, ROOM_GEOMETRIES, nextSound, paletteCss, roomForGeometry, roomSounds, type RoomGeometry, type RoomGeometryId } from '@/utils/roomGeometry'
+import { DEFAULT_ROOM, nextSound, paletteCss, roomForGeometry, roomSounds, type RoomGeometry, type RoomGeometryId } from '@/utils/roomGeometry'
 import { cameraView, frameAt, sameGeometry, sphereRadiusOf, surfaceFor, turn, walk, type Frame, type Geometry } from '@/utils/surface'
 import { globeMarks, mapHeadingDegrees, mapIsRound, mapPoint, type MapPole } from '@/utils/miniMap'
 import { bindMusicHotkey, bindRoomHotkey } from '@/utils/hotkeys'
@@ -17,11 +17,7 @@ import type { HubWorldLink } from '@/utils/hubWorldLink'
 import type { Command, CommandRegistry } from '@/utils/commandRegistry'
 import { ShapeType } from '@/types/game'
 
-const AVATAR_SHAPES = [
-  { shape: ShapeType.SPHERE, name: 'Sphere' },
-  { shape: ShapeType.CUBE, name: 'Cube' },
-  { shape: ShapeType.PYRAMID, name: 'Pyramid' },
-]
+const AVATAR_SHAPES = [ShapeType.SPHERE, ShapeType.CUBE, ShapeType.PYRAMID]
 
 // The world renderer. It rides the lobby's stream through a HubWorldLink
 // (MoonBase#1490), attaching once the local player exists, and publishes
@@ -98,26 +94,21 @@ export const useThoughtsGame = () => {
     let unbindMusicHotkey: (() => void) | null = null
     let disposeRooms: (() => void) | null = null
 
-    function wearShape(shape: ShapeType) {
+    function cycleShape() {
       const localPlayer = gameState.getLocalPlayer()
       if (!localPlayer) return
+      const shape = AVATAR_SHAPES[(AVATAR_SHAPES.indexOf(localPlayer.shape) + 1) % AVATAR_SHAPES.length]
       localPlayer.shape = shape
       if (worldLink.isConnected) worldLink.sendShapeUpdate(shape)
-      publishCommands()
     }
 
     // The world's entries in the command menu, republished whole whenever
-    // one of them changes. A choice already made is not offered again.
-    // The room's own entries exist once the ray tracer does.
+    // one of them changes. The room's own entries exist once the ray
+    // tracer does.
     let roomCommands = (): Command[] => []
     function publishCommands() {
-      const wearing = gameState.getLocalPlayer()?.shape
       commands.publish('world', [
-        ...AVATAR_SHAPES.filter(({ shape }) => shape !== wearing).map(({ shape, name }) => ({
-          id: `avatar-${name}`,
-          label: `Avatar: ${name}`,
-          run: () => wearShape(shape),
-        })),
+        { id: 'avatar', label: 'Cycle avatar shape', run: cycleShape },
         ...roomCommands(),
         { id: 'sound', label: audioSystem.soundEnabled ? 'Turn sound off' : 'Turn sound on', run: handleSoundToggle },
       ])
@@ -249,7 +240,9 @@ export const useThoughtsGame = () => {
         drawRoom(roomForGeometry(shape, wanted), shape)
       }
 
-      const enterRoom = (next: RoomGeometry) => {
+      const cycleRoom = () => {
+        const next = rooms.next(room.id)
+        if (!next) return
         // The room's shape is the hub's: every room is a surface it
         // knows by name, and off the wire there is nobody to ask.
         if (sameGeometry(next.geometry, geometry) || !worldLink.isConnected) {
@@ -258,10 +251,6 @@ export const useThoughtsGame = () => {
         }
         wanted = next.id
         worldLink.sendSetGeometry(next.geometry)
-      }
-      const cycleRoom = () => {
-        const next = rooms.next(room.id)
-        if (next) enterRoom(next)
       }
       unbindRoomHotkey = bindRoomHotkey(document, cycleRoom)
       // A room's tunes, when it has more than one. Hard cut — no fade
@@ -273,15 +262,7 @@ export const useThoughtsGame = () => {
       }
       unbindMusicHotkey = bindMusicHotkey(document, () => playTune(nextSound(room, audioSystem.profile)))
       roomCommands = () => [
-        ...ROOM_GEOMETRIES.filter(other => other.id !== room.id).map(other => ({
-          id: `room-${other.id}`,
-          label: `Room: ${other.label}`,
-          detail: 'Changes the room for everyone in it',
-          // Built first: a room that will not build is never asked for.
-          run: () => {
-            if (rooms.get(other)) enterRoom(other)
-          },
-        })),
+        { id: 'room', label: 'Cycle room geometry', detail: 'Changes the room for everyone in it', run: cycleRoom },
         ...roomSounds(room)
           .filter(tune => tune !== audioSystem.profile)
           .map(tune => ({ id: `music-${tune.label}`, label: `Music: ${tune.label}`, run: () => playTune(tune) })),

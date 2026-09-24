@@ -378,13 +378,16 @@ describe('useThoughtsGame', () => {
     command.run()
   }
 
-  it('offers the shapes the avatar is not wearing, and wearing one tells the hub', () => {
+  // One entry per verb, like its key: the menu cycles, it does not pick.
+  it('cycles the avatar shape, and tells the hub', () => {
     const link = { ...worldLink(), isConnected: true }
     startWith(link)
-    expect(labels().filter(l => l.startsWith('Avatar'))).toEqual(['Avatar: Cube', 'Avatar: Pyramid'])
-    runCommand('Avatar: Pyramid')
-    expect(link.sendShapeUpdate).toHaveBeenLastCalledWith(2)
-    expect(labels().filter(l => l.startsWith('Avatar'))).toEqual(['Avatar: Sphere', 'Avatar: Cube'])
+    expect(labels().filter(l => /avatar/i.test(l))).toEqual(['Cycle avatar shape'])
+    runCommand('Cycle avatar shape')
+    expect(link.sendShapeUpdate).toHaveBeenLastCalledWith(1)
+    runCommand('Cycle avatar shape')
+    runCommand('Cycle avatar shape')
+    expect(link.sendShapeUpdate).toHaveBeenLastCalledWith(0)
   })
 
   // The shape is a command menu entry, not a key.
@@ -393,30 +396,27 @@ describe('useThoughtsGame', () => {
     startWith(link)
     press(' ')
     expect(link.sendShapeUpdate).not.toHaveBeenCalled()
-    expect(labels()).toContain('Avatar: Cube')
   })
 
-  it('offers the other rooms by name, says the room changes for everyone, and asks the hub', () => {
+  it('cycles the room as g does, saying it changes for everyone, and asks the hub', () => {
     const link = { ...worldLink(), isConnected: true }
     startWith(link)
     frame()
-    const rooms = commands.list().filter(c => c.label.startsWith('Room'))
-    expect(rooms.map(c => c.label)).toEqual(['Room: Glasshouse', 'Room: Sphere'])
-    expect(rooms.every(c => c.detail === 'Changes the room for everyone in it')).toBe(true)
-    runCommand('Room: Sphere')
+    const rooms = commands.list().filter(c => /room/i.test(c.label))
+    expect(rooms.map(c => c.label)).toEqual(['Cycle room geometry'])
+    expect(rooms[0].detail).toBe('Changes the room for everyone in it')
+    runCommand('Cycle room geometry')
+    expect(link.sendSetGeometry).toHaveBeenLastCalledWith(GLASSHOUSE_GEOMETRY)
+    link.onGeometryChange!(GLASSHOUSE_GEOMETRY)
+    runCommand('Cycle room geometry')
     expect(link.sendSetGeometry).toHaveBeenLastCalledWith(sphereGeometry(SPHERE_RADIUS))
-    // The hub decides; until it answers this is still the grid.
-    expect(labels()).toContain('Room: Sphere')
-    link.onGeometryChange!(sphereGeometry(SPHERE_RADIUS))
-    expect(labels().filter(l => l.startsWith('Room'))).toEqual(['Room: Grid', 'Room: Glasshouse'])
   })
 
-  it('off the wire, a room from the menu is drawn at once', () => {
+  it('off the wire, cycling the room from the menu draws the next one at once', () => {
     start()
     frame()
-    runCommand('Room: Glasshouse')
+    runCommand('Cycle room geometry')
     expect(setProfile).toHaveBeenLastCalledWith(TECHNO_SOUND)
-    expect(labels().filter(l => l.startsWith('Room'))).toEqual(['Room: Grid', 'Room: Sphere'])
   })
 
   it('names the tunes a room is not playing, and offers none in a room with one', () => {
@@ -460,14 +460,15 @@ describe('useThoughtsGame', () => {
     expect(link.disconnect).toHaveBeenCalled()
   })
 
-  // The phone's triple-tap is the command menu's now, the page's to bind.
+  // A triple-tap is the page's to bind: it opens the command menu.
   it('a triple-tap on the world does not change the room', () => {
     vi.useFakeTimers()
     try {
       start()
       frame()
+      setProfile.mockClear()
       tripleTap(canvas.parentElement!)
-      expect(labels().filter(l => l.startsWith('Room'))).toEqual(['Room: Glasshouse', 'Room: Sphere'])
+      expect(setProfile).not.toHaveBeenCalled()
     } finally {
       vi.useRealTimers()
     }
