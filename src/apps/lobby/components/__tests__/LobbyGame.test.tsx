@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useEffect, useImperativeHandle, type Ref } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { UseLobby } from '@/hooks/useLobby'
+import { fakeVoiceMesh } from '@/test/fakeVoice'
 import type { CastleView } from '@/apps/castle/wire'
 import type { GameState } from '@/types/golf'
 import type { CommandRegistry } from '@/utils/commandRegistry'
@@ -25,6 +26,7 @@ const state = {
   sendChat: vi.fn(),
   reconnect: vi.fn(),
   world: {},
+  voice: fakeVoiceMesh(),
   castle: { view: null as CastleView | null, ended: null, selected: [] },
   golf: { view: null as GameState | null, ended: null, peekCountdown: null }
 } as unknown as UseLobby

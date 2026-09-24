@@ -41,6 +41,16 @@ export function lobbyCommands(lobby: UseLobby, ui: LobbyUi): Command[] {
     })
     if (connected) {
       commands.push({ id: 'leave-room', label: 'Leave the room', run: lobby.leaveRoom })
+      const voice = lobby.voice.view()
+      if (voice.status === 'off') {
+        commands.push({ id: 'join-voice', label: 'Join voice', run: () => void lobby.voice.join() })
+      } else {
+        commands.push({ id: 'leave-voice', label: 'Leave voice', run: () => lobby.voice.leave() })
+        if (voice.status === 'on' && !voice.listenOnly) {
+          const muted = voice.muted
+          commands.push({ id: 'mute', label: muted ? 'Unmute' : 'Mute', run: () => lobby.voice.setMuted(!muted) })
+        }
+      }
       if (!atTable(room, playerId)) {
         commands.push({ id: 'open-castle', label: 'Open a castle table', run: lobby.castle.createTable })
         commands.push({ id: 'open-golf', label: 'Open a golf table', run: lobby.golf.createTable })

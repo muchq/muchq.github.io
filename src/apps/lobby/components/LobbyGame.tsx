@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import ThoughtsGame from '@/apps/thoughts/components/ThoughtsGame'
 import CastleTable from '@/apps/castle/components/CastleTable'
 import GolfTable from '@/apps/golf/components/GolfTable'
@@ -76,6 +76,8 @@ const LobbyGame = (props: UseLobbyProps) => {
     wasAtTable.current = atTable
   }, [atTable])
 
+  // The voice entries follow the mesh, which changes off React's clock.
+  useSyncExternalStore(lobby.voice.subscribe, lobby.voice.view)
   const offered = lobbyCommands(lobby, {
     panelOpen,
     togglePanel,
