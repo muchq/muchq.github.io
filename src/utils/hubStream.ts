@@ -15,6 +15,9 @@
 //     up, {"event":"lobby","payload":{"update":{"playerMoved":{...}}}} down
 //   - a room's voice rides its own envelope the same way, action up and
 //     update down: {"event":"voice","payload":{"action":{"join":{}}}}
+//   - room chat: ChatMessage {messageId, playerId, text, sentAtUnixMillis,
+//     bot?}. `bot: true` marks a microgpt reply (playerId `microgpt`);
+//     ordinary messages omit it (MoonBase#1591 / games.smithy).
 //   - a refusal that ends the stream: {"exception":"<shape>","payload":{"message":"..."}}
 //
 

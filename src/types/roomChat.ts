@@ -6,10 +6,20 @@
 
 export interface ChatMessage {
   messageId: number
+  // Reserved `microgpt` when the hub posts a bot reply (MoonBase#1591).
+  // Whimsical player ids never collide with it.
   playerId: string
   text: string
   sentAtUnixMillis: number
+  // Optional on the wire (games.smithy): true for microgpt's replies so
+  // clients style them without hard-coding the reserved playerId. Absent
+  // on ordinary messages and on hubs that predate the field.
+  bot?: boolean
 }
+
+// The reserved playerId the hub uses for microgpt replies, and the
+// label RoomChat shows for any message flagged `bot`.
+export const CHAT_BOT_PLAYER_ID = 'microgpt'
 
 // Mirrors the server's retention: rooms keep their newest 100 messages,
 // so a client holding more is holding rows the server already pruned.

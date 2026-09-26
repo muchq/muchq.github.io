@@ -55,9 +55,10 @@ vi.mock('@/apps/thoughts/components/ThoughtsGame', () => ({
 }))
 vi.mock('@/apps/castle/components/CastleTable', () => ({ default: () => <div>table</div> }))
 const openChat = vi.fn()
+const askBot = vi.fn()
 vi.mock('../RoomChat', () => ({
-  default: function Chat({ ref }: { ref?: Ref<{ open: () => void }> }) {
-    useImperativeHandle(ref, () => ({ open: openChat }))
+  default: function Chat({ ref }: { ref?: Ref<{ open: () => void; askBot: () => void }> }) {
+    useImperativeHandle(ref, () => ({ open: openChat, askBot }))
     return <div>chat</div>
   }
 }))
@@ -250,12 +251,25 @@ describe('LobbyGame', () => {
       const { rerender } = render(<LobbyGame />)
       openMenu()
       expect(screen.queryByRole('option', { name: 'Open chat' })).toBeNull()
+      expect(screen.queryByRole('option', { name: 'Ask the bot' })).toBeNull()
       fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
       state.room = { roomId: 'R1', players: [], games: [] }
       rerender(<LobbyGame />)
       openMenu()
       choose('Open chat')
       expect(openChat).toHaveBeenCalledTimes(1)
+    })
+
+    it('Ask the bot is only in a room, and seeds the composer', () => {
+      const { rerender } = render(<LobbyGame />)
+      openMenu()
+      expect(screen.queryByRole('option', { name: 'Ask the bot' })).toBeNull()
+      fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
+      state.room = { roomId: 'R1', players: [], games: [] }
+      rerender(<LobbyGame />)
+      openMenu()
+      choose('Ask the bot')
+      expect(askBot).toHaveBeenCalledTimes(1)
     })
 
     it('copying the room link says so in the status line', async () => {

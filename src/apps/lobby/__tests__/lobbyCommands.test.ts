@@ -36,7 +36,14 @@ const room = (over: Partial<HubRoom> = {}): HubRoom => ({
 describe('lobbyCommands', () => {
   let ui: LobbyUi
   beforeEach(() => {
-    ui = { panelOpen: true, togglePanel: vi.fn(), askRoomCode: vi.fn(), openChat: vi.fn(), say: vi.fn() }
+    ui = {
+      panelOpen: true,
+      togglePanel: vi.fn(),
+      askRoomCode: vi.fn(),
+      openChat: vi.fn(),
+      askBot: vi.fn(),
+      say: vi.fn(),
+    }
   })
 
   const labels = (lobby: UseLobby) => lobbyCommands(lobby, ui).map(c => c.label)
@@ -57,14 +64,20 @@ describe('lobbyCommands', () => {
 
   it('off the hub, nothing that needs it', () => {
     expect(labels(lobbyWith({ connected: false }))).toEqual(['Hide lobby panel'])
-    expect(labels(lobbyWith({ connected: false, room: room() }))).toEqual(['Open chat', 'Copy room link', 'Hide lobby panel'])
+    expect(labels(lobbyWith({ connected: false, room: room() }))).toEqual([
+      'Open chat',
+      'Ask the bot',
+      'Copy room link',
+      'Hide lobby panel',
+    ])
   })
 
-  it('in a room: chat, its link, leaving, a table of either game, and every open table', () => {
+  it('in a room: chat, ask the bot, its link, leaving, a table of either game, and every open table', () => {
     const lobby = lobbyWith({ room: room() })
     const offered = lobbyCommands(lobby, ui)
     expect(offered.map(c => c.label)).toEqual([
       'Open chat',
+      'Ask the bot',
       'Copy room link',
       'Leave the room',
       'Join voice',
@@ -90,13 +103,27 @@ describe('lobbyCommands', () => {
     expect(lobby.leaveRoom).toHaveBeenCalledTimes(1)
     run(lobby, 'Open chat')
     expect(ui.openChat).toHaveBeenCalledTimes(1)
+    run(lobby, 'Ask the bot')
+    expect(ui.askBot).toHaveBeenCalledTimes(1)
+  })
+
+  it('Ask the bot appears only in a room', () => {
+    expect(labels(lobbyWith({})).filter(l => l === 'Ask the bot')).toEqual([])
+    expect(labels(lobbyWith({ room: room() })).filter(l => l === 'Ask the bot')).toEqual(['Ask the bot'])
   })
 
   it('seated at a table, no other table is offered', () => {
     const seated = room({
       players: [{ playerId: 'alice', connected: true, gamesWon: 0, gamesPlayed: 0, totalScore: 0, table: { game: 'castle', gameId: 'C2' } }],
     })
-    expect(labels(lobbyWith({ room: seated }))).toEqual(['Open chat', 'Copy room link', 'Leave the room', 'Join voice', 'Hide lobby panel'])
+    expect(labels(lobbyWith({ room: seated }))).toEqual([
+      'Open chat',
+      'Ask the bot',
+      'Copy room link',
+      'Leave the room',
+      'Join voice',
+      'Hide lobby panel',
+    ])
   })
 
   it("voice: join it in a room; once in, leave it, and mute unless there is no mic to mute", () => {
