@@ -409,4 +409,34 @@ describe('RoomChat', () => {
     expect((input as HTMLTextAreaElement).value).toBe('@bot ')
     expect(screen.queryByRole('button', { name: 'Complete @bot' })).toBeNull()
   })
+
+  // Mention highlight matches games_hub::BotMention: only a leading
+  // `@bot` + whitespace/end is styled; anything else stays plain text.
+  it('highlights a leading @bot the hub will answer, and leaves non-mentions plain', () => {
+    const cases: { text: string; highlighted: boolean }[] = [
+      { text: '@bot hi', highlighted: true },
+      { text: '@BOT hi', highlighted: true },
+      { text: '@bot', highlighted: true },
+      { text: 'hi @bot', highlighted: false },
+      { text: '@bots', highlighted: false },
+      { text: '@bot:hi', highlighted: false },
+    ]
+    for (const { text, highlighted } of cases) {
+      const { unmount, container } = render(
+        <RoomChat {...baseProps} messages={[msg(1, 'bob', text)]} />
+      )
+      const mention = container.querySelector('[data-bot-mention]')
+      if (highlighted) {
+        expect(mention, text).not.toBeNull()
+        expect(mention!.textContent?.toLowerCase()).toBe('@bot')
+        // Still React text nodes: the full string is readable, no links.
+        expect(screen.getByTestId('chat-messages').textContent).toContain(text)
+        expect(mention!.querySelector('a')).toBeNull()
+      } else {
+        expect(mention, text).toBeNull()
+        expect(screen.getByText(text)).toBeTruthy()
+      }
+      unmount()
+    }
+  })
 })

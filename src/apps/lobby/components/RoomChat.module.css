@@ -122,6 +122,12 @@
   overflow-wrap: anywhere;
 }
 
+/* Leading `@bot` the hub will answer (BotMention). Plain text otherwise. */
+.botMention {
+  color: #a8d4e8;
+  font-weight: 600;
+}
+
 .newMessages {
   margin: 0 auto 0.25rem;
   background: rgba(144, 238, 144, 0.2);

@@ -5,6 +5,7 @@ import {
   CHAT_BOT_PLAYER_ID,
   CHAT_SLOW_DOWN_REASON,
   CHAT_TEXT_BYTE_LIMIT,
+  botMentionPrefix,
   chatCooldownMs,
   chatTextBytes,
   drainChatBudget,
@@ -88,6 +89,21 @@ const botCompletionFor = (draft: string): string | null => {
 
 const senderLabel = (message: ChatMessage): string =>
   message.bot ? CHAT_BOT_PLAYER_ID : message.playerId
+
+// Highlight the leading `@bot` the hub will answer. Only that span is
+// styled; both halves stay React text nodes — no markdown, no links.
+const messageTextNodes = (text: string) => {
+  const mention = botMentionPrefix(text)
+  if (!mention) return text
+  return (
+    <>
+      <span className={styles.botMention} data-bot-mention>
+        {mention.mention}
+      </span>
+      {mention.rest}
+    </>
+  )
+}
 
 const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend, ref }: RoomChatProps) => {
   const [draft, setDraft] = useState('')
@@ -347,7 +363,7 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
               <span className={styles.sender}>{senderLabel(message)}</span>
               <span className={styles.timestamp}>{timeFormat.format(message.sentAtUnixMillis)}</span>
             </div>
-            <div className={styles.messageText}>{message.text}</div>
+            <div className={styles.messageText}>{messageTextNodes(message.text)}</div>
           </div>
         )
       }),
