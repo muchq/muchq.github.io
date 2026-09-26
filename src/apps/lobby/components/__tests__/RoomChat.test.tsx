@@ -363,9 +363,7 @@ describe('RoomChat', () => {
     // Still literal text — no markdown, no links.
     expect(botRow!.querySelector('a')).toBeNull()
 
-    const human = screen.getByText('what is life?').closest('[data-bot], .message') ??
-      screen.getByText('what is life?').parentElement?.parentElement
-    expect(human?.getAttribute('data-bot')).toBeNull()
+    expect(screen.getByText('what is life?').closest('[data-bot]')).toBeNull()
     expect(screen.getByPlaceholderText(/@bot asks microgpt/)).toBeTruthy()
   })
 
@@ -400,6 +398,32 @@ describe('RoomChat', () => {
     expect(input.selectionStart).toBe('@bot '.length)
   })
 
+  it('askBot twice then typing does not yank the caret back to @bot', () => {
+    const chat = createRef<RoomChatHandle>()
+    render(<RoomChat {...baseProps} ref={chat} messages={[]} />)
+    act(() => chat.current!.askBot())
+    act(() => chat.current!.askBot())
+    const input = screen.getByLabelText('Chat message') as HTMLTextAreaElement
+    expect(input.value).toBe('@bot ')
+    // A stale caretAfterCommitRef would fire on this draft change and
+    // setSelectionRange(5), so the next keystroke lands before the `h`
+    // (`@bot eh`). After the second askBot the ref must be clear.
+    const setSelectionRange = vi.spyOn(input, 'setSelectionRange')
+    fireEvent.change(input, { target: { value: '@bot h' } })
+    expect(input.value).toBe('@bot h')
+    expect(setSelectionRange).not.toHaveBeenCalled()
+  })
+
+  it('askBot prepends @bot without discarding a half-written draft', () => {
+    const chat = createRef<RoomChatHandle>()
+    render(<RoomChat {...baseProps} ref={chat} messages={[]} />)
+    const input = screen.getByLabelText('Chat message') as HTMLTextAreaElement
+    fireEvent.change(input, { target: { value: 'who wins?' } })
+    act(() => chat.current!.askBot())
+    expect(input.value).toBe('@bot who wins?')
+    expect(input.selectionStart).toBe('@bot '.length)
+  })
+
   it('typing @ at the start offers @bot as a completion', () => {
     render(<RoomChat {...baseProps} messages={[]} />)
     const input = screen.getByLabelText('Chat message')
@@ -407,6 +431,9 @@ describe('RoomChat', () => {
     fireEvent.change(input, { target: { value: '@' } })
     fireEvent.click(screen.getByRole('button', { name: 'Complete @bot' }))
     expect((input as HTMLTextAreaElement).value).toBe('@bot ')
+    expect(screen.queryByRole('button', { name: 'Complete @bot' })).toBeNull()
+    // Already a mention (any case): no chip that would only change case.
+    fireEvent.change(input, { target: { value: '@BOT ' } })
     expect(screen.queryByRole('button', { name: 'Complete @bot' })).toBeNull()
   })
 
@@ -438,5 +465,24 @@ describe('RoomChat', () => {
       }
       unmount()
     }
+  })
+
+  it('does not highlight @bot on a bot reply row', () => {
+    const { container } = render(
+      <RoomChat
+        {...baseProps}
+        messages={[
+          {
+            messageId: 1,
+            playerId: 'microgpt',
+            text: '@bot echoed',
+            sentAtUnixMillis: 1,
+            bot: true
+          }
+        ]}
+      />
+    )
+    expect(container.querySelector('[data-bot-mention]')).toBeNull()
+    expect(screen.getByText('@bot echoed')).toBeTruthy()
   })
 })

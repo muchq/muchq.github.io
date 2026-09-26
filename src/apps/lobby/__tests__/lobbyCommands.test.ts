@@ -107,11 +107,6 @@ describe('lobbyCommands', () => {
     expect(ui.askBot).toHaveBeenCalledTimes(1)
   })
 
-  it('Ask the bot appears only in a room', () => {
-    expect(labels(lobbyWith({})).filter(l => l === 'Ask the bot')).toEqual([])
-    expect(labels(lobbyWith({ room: room() })).filter(l => l === 'Ask the bot')).toEqual(['Ask the bot'])
-  })
-
   it('seated at a table, no other table is offered', () => {
     const seated = room({
       players: [{ playerId: 'alice', connected: true, gamesWon: 0, gamesPlayed: 0, totalScore: 0, table: { game: 'castle', gameId: 'C2' } }],

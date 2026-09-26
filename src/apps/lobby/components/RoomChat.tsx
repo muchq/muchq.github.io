@@ -78,11 +78,12 @@ const BOT_DRAFT_PREFIX = '@bot '
 const timeFormat = new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' })
 
 // Typing `@` at the start (or a case-insensitive prefix of `@bot `)
-// offers completing to the bot mention. Already complete, or anything
-// else, offers nothing.
+// offers completing to the bot mention. Already a real mention (any
+// casing), or anything else, offers nothing — including `@BOT `, which
+// would only change case.
 const botCompletionFor = (draft: string): string | null => {
   if (!draft.startsWith('@')) return null
-  if (draft === BOT_DRAFT_PREFIX) return null
+  if (botMentionPrefix(draft)) return null
   if (BOT_DRAFT_PREFIX.toLowerCase().startsWith(draft.toLowerCase())) return BOT_DRAFT_PREFIX
   return null
 }
@@ -92,9 +93,11 @@ const senderLabel = (message: ChatMessage): string =>
 
 // Highlight the leading `@bot` the hub will answer. Only that span is
 // styled; both halves stay React text nodes — no markdown, no links.
-const messageTextNodes = (text: string) => {
-  const mention = botMentionPrefix(text)
-  if (!mention) return text
+// Bot rows are skipped: the hub never treats them as mentions.
+const messageTextNodes = (message: ChatMessage) => {
+  if (message.bot) return message.text
+  const mention = botMentionPrefix(message.text)
+  if (!mention) return message.text
   return (
     <>
       <span className={styles.botMention} data-bot-mention>
@@ -243,10 +246,27 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
     input.setSelectionRange(pos, pos)
   }, [draft])
 
+  // Ask the bot / the completion chip. Already a BotMention: leave the
+  // draft, clear the caret ref, set selection directly (setDraft would
+  // be a no-op and leave the ref armed for the next keystroke). A
+  // partial `@…` prefix completes to `@bot `; anything else gets
+  // `@bot ` prepended so a half-written message is kept.
   const applyBotDraft = useCallback(() => {
-    setDraft(BOT_DRAFT_PREFIX)
+    const prev = inputRef.current?.value ?? draft
+    if (botMentionPrefix(prev)) {
+      caretAfterCommitRef.current = null
+      const input = inputRef.current
+      if (input) {
+        const pos = Math.min(BOT_DRAFT_PREFIX.length, prev.length)
+        input.focus()
+        input.setSelectionRange(pos, pos)
+      }
+      return
+    }
+    const next = botCompletionFor(prev) ?? BOT_DRAFT_PREFIX + prev
     placeCaret(BOT_DRAFT_PREFIX.length)
-  }, [placeCaret])
+    setDraft(next)
+  }, [draft, placeCaret])
 
   const send = useCallback(() => {
     if (!trimmedDraft || !connected || overLimit) return
@@ -286,13 +306,8 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
         event.preventDefault()
         send()
       }
-      // Tab accepts the @bot completion when it is offered.
-      if (event.key === 'Tab' && botCompletion) {
-        event.preventDefault()
-        applyBotDraft()
-      }
     },
-    [send, botCompletion, applyBotDraft]
+    [send]
   )
 
   const openDrawer = useCallback(() => {
@@ -363,7 +378,7 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
               <span className={styles.sender}>{senderLabel(message)}</span>
               <span className={styles.timestamp}>{timeFormat.format(message.sentAtUnixMillis)}</span>
             </div>
-            <div className={styles.messageText}>{messageTextNodes(message.text)}</div>
+            <div className={styles.messageText}>{messageTextNodes(message)}</div>
           </div>
         )
       }),
