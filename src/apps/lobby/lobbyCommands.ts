@@ -12,6 +12,8 @@ export interface LobbyUi {
   // code, and the field is where one is typed.
   askRoomCode: () => void
   openChat: () => void
+  // Opens chat with `@bot ` already in the composer (MoonBase#1591).
+  askBot: () => void
   // A word in the lobby's status line, for a command with nothing else
   // to show for itself.
   say: (text: string) => void
@@ -30,6 +32,7 @@ export function lobbyCommands(lobby: UseLobby, ui: LobbyUi): Command[] {
   } else {
     const url = `${window.location.origin}${lobbyRoomPath(room.roomId)}`
     commands.push({ id: 'open-chat', label: 'Open chat', run: ui.openChat })
+    commands.push({ id: 'ask-bot', label: 'Ask the bot', run: ui.askBot })
     commands.push({
       id: 'copy-room-link',
       label: 'Copy room link',

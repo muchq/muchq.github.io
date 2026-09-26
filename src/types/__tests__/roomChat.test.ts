@@ -3,6 +3,7 @@ import {
   CHAT_BURST,
   CHAT_HISTORY_LIMIT,
   CHAT_TEXT_BYTE_LIMIT,
+  botMentionPrefix,
   chatCooldownMs,
   chatTextBytes,
   drainChatBudget,
@@ -129,5 +130,25 @@ describe('chat send budget', () => {
     expect(chatCooldownMs(drained, t0 + 400)).toBe(600)
     expect(chatCooldownMs(drained, t0 + 1000)).toBe(0)
     expect(chatCooldownMs(newChatSendBudget(t0), t0)).toBe(0)
+  })
+})
+
+// Mirrors games_hub::BotMention (room_bot.cc): prefix only, any case,
+// then ASCII whitespace or end. Positive and negative twins pin the
+// cases RoomChat highlights against.
+describe('botMentionPrefix', () => {
+  it('matches a leading @bot the hub will answer', () => {
+    expect(botMentionPrefix('@bot hi')).toEqual({ mention: '@bot', rest: ' hi' })
+    expect(botMentionPrefix('@BOT hi')).toEqual({ mention: '@BOT', rest: ' hi' })
+    expect(botMentionPrefix('@bot')).toEqual({ mention: '@bot', rest: '' })
+    expect(botMentionPrefix('@bot\thi')).toEqual({ mention: '@bot', rest: '\thi' })
+  })
+
+  it('rejects non-prefix and glued tokens the hub ignores', () => {
+    expect(botMentionPrefix('hi @bot')).toBeNull()
+    expect(botMentionPrefix('@bots')).toBeNull()
+    expect(botMentionPrefix('@bot:hi')).toBeNull()
+    expect(botMentionPrefix(' @bot hi')).toBeNull()
+    expect(botMentionPrefix('')).toBeNull()
   })
 })

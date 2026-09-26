@@ -6,10 +6,38 @@
 
 export interface ChatMessage {
   messageId: number
+  // Reserved `microgpt` when the hub posts a bot reply (MoonBase#1591).
+  // Whimsical player ids never collide with it.
   playerId: string
   text: string
   sentAtUnixMillis: number
+  // Optional on the wire (games.smithy): true for microgpt's replies so
+  // clients style them without hard-coding the reserved playerId. Absent
+  // on ordinary messages and on hubs that predate the field.
+  bot?: boolean
 }
+
+// The reserved playerId the hub uses for microgpt replies, and the
+// label RoomChat shows for any message flagged `bot`.
+export const CHAT_BOT_PLAYER_ID = 'microgpt'
+
+// Mirrors games_hub::BotMention (MoonBase room_bot.cc): `@bot` at the
+// very start, any case, followed by ASCII whitespace or end of text.
+// Anything else is not a mention — so a client highlight never promises
+// a reply the hub won't give. Returns the exact prefix from `text` (to
+// preserve the typed casing) and the remainder, or null.
+export function botMentionPrefix(
+  text: string
+): { mention: string; rest: string } | null {
+  if (text.length < 4) return null
+  if (text.slice(0, 4).toLowerCase() !== '@bot') return null
+  const rest = text.slice(4)
+  if (rest.length > 0 && !isAsciiSpace(rest.charCodeAt(0))) return null
+  return { mention: text.slice(0, 4), rest }
+}
+
+const isAsciiSpace = (code: number): boolean =>
+  code === 0x20 || code === 0x09 || code === 0x0a || code === 0x0b || code === 0x0c || code === 0x0d
 
 // Mirrors the server's retention: rooms keep their newest 100 messages,
 // so a client holding more is holding rows the server already pruned.

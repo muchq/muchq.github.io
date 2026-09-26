@@ -341,4 +341,148 @@ describe('RoomChat', () => {
     expect((input as HTMLTextAreaElement).value).toBe('')
     expect(screen.queryByRole('status')).toBeNull()
   })
+
+  // microgpt replies (MoonBase#1591): bot flag styles and labels them;
+  // ordinary messages stay unmarked. Text is still a React text node.
+  it('renders a bot message with the microgpt label and style, and a normal one without', () => {
+    const bot: ChatMessage = {
+      messageId: 2,
+      playerId: 'microgpt',
+      text: 'forty-two',
+      sentAtUnixMillis: 1_700_000_000_002,
+      bot: true
+    }
+    render(
+      <RoomChat {...baseProps} messages={[msg(1, 'bob', 'what is life?'), bot]} />
+    )
+    const botRow = screen.getByText('forty-two').closest('[data-bot]')
+    expect(botRow).not.toBeNull()
+    expect(botRow!.getAttribute('data-bot')).toBe('true')
+    expect(botRow!.textContent).toContain('microgpt')
+    expect(botRow!.textContent).toContain('forty-two')
+    // Still literal text — no markdown, no links.
+    expect(botRow!.querySelector('a')).toBeNull()
+
+    expect(screen.getByText('what is life?').closest('[data-bot]')).toBeNull()
+    expect(screen.getByPlaceholderText(/@bot asks microgpt/)).toBeTruthy()
+  })
+
+  it('announces a live bot reply under the microgpt name', () => {
+    const { rerender } = render(<RoomChat {...baseProps} messages={[]} />)
+    rerender(
+      <RoomChat
+        {...baseProps}
+        messages={[
+          {
+            messageId: 1,
+            playerId: 'microgpt',
+            text: 'hi from the bot',
+            sentAtUnixMillis: 1,
+            bot: true
+          }
+        ]}
+      />
+    )
+    const live = document.querySelector('[aria-live="polite"]')
+    expect(live?.textContent).toBe('microgpt: hi from the bot')
+  })
+
+  it('askBot opens chat with @bot already typed and focus in the composer', () => {
+    const chat = createRef<RoomChatHandle>()
+    render(<RoomChat {...baseProps} ref={chat} messages={[]} />)
+    act(() => chat.current!.askBot())
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    const input = screen.getByLabelText('Chat message') as HTMLTextAreaElement
+    expect(document.activeElement).toBe(input)
+    expect(input.value).toBe('@bot ')
+    expect(input.selectionStart).toBe('@bot '.length)
+  })
+
+  it('askBot twice then typing does not yank the caret back to @bot', () => {
+    const chat = createRef<RoomChatHandle>()
+    render(<RoomChat {...baseProps} ref={chat} messages={[]} />)
+    act(() => chat.current!.askBot())
+    act(() => chat.current!.askBot())
+    const input = screen.getByLabelText('Chat message') as HTMLTextAreaElement
+    expect(input.value).toBe('@bot ')
+    // A stale caretAfterCommitRef would fire on this draft change and
+    // setSelectionRange(5), so the next keystroke lands before the `h`
+    // (`@bot eh`). After the second askBot the ref must be clear.
+    const setSelectionRange = vi.spyOn(input, 'setSelectionRange')
+    fireEvent.change(input, { target: { value: '@bot h' } })
+    expect(input.value).toBe('@bot h')
+    expect(setSelectionRange).not.toHaveBeenCalled()
+  })
+
+  it('askBot prepends @bot without discarding a half-written draft', () => {
+    const chat = createRef<RoomChatHandle>()
+    render(<RoomChat {...baseProps} ref={chat} messages={[]} />)
+    const input = screen.getByLabelText('Chat message') as HTMLTextAreaElement
+    fireEvent.change(input, { target: { value: 'who wins?' } })
+    act(() => chat.current!.askBot())
+    expect(input.value).toBe('@bot who wins?')
+    expect(input.selectionStart).toBe('@bot '.length)
+  })
+
+  it('typing @ at the start offers @bot as a completion', () => {
+    render(<RoomChat {...baseProps} messages={[]} />)
+    const input = screen.getByLabelText('Chat message')
+    expect(screen.queryByRole('button', { name: 'Complete @bot' })).toBeNull()
+    fireEvent.change(input, { target: { value: '@' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Complete @bot' }))
+    expect((input as HTMLTextAreaElement).value).toBe('@bot ')
+    expect(screen.queryByRole('button', { name: 'Complete @bot' })).toBeNull()
+    // Already a mention (any case): no chip that would only change case.
+    fireEvent.change(input, { target: { value: '@BOT ' } })
+    expect(screen.queryByRole('button', { name: 'Complete @bot' })).toBeNull()
+  })
+
+  // Mention highlight matches games_hub::BotMention: only a leading
+  // `@bot` + whitespace/end is styled; anything else stays plain text.
+  it('highlights a leading @bot the hub will answer, and leaves non-mentions plain', () => {
+    const cases: { text: string; highlighted: boolean }[] = [
+      { text: '@bot hi', highlighted: true },
+      { text: '@BOT hi', highlighted: true },
+      { text: '@bot', highlighted: true },
+      { text: 'hi @bot', highlighted: false },
+      { text: '@bots', highlighted: false },
+      { text: '@bot:hi', highlighted: false },
+    ]
+    for (const { text, highlighted } of cases) {
+      const { unmount, container } = render(
+        <RoomChat {...baseProps} messages={[msg(1, 'bob', text)]} />
+      )
+      const mention = container.querySelector('[data-bot-mention]')
+      if (highlighted) {
+        expect(mention, text).not.toBeNull()
+        expect(mention!.textContent?.toLowerCase()).toBe('@bot')
+        // Still React text nodes: the full string is readable, no links.
+        expect(screen.getByTestId('chat-messages').textContent).toContain(text)
+        expect(mention!.querySelector('a')).toBeNull()
+      } else {
+        expect(mention, text).toBeNull()
+        expect(screen.getByText(text)).toBeTruthy()
+      }
+      unmount()
+    }
+  })
+
+  it('does not highlight @bot on a bot reply row', () => {
+    const { container } = render(
+      <RoomChat
+        {...baseProps}
+        messages={[
+          {
+            messageId: 1,
+            playerId: 'microgpt',
+            text: '@bot echoed',
+            sentAtUnixMillis: 1,
+            bot: true
+          }
+        ]}
+      />
+    )
+    expect(container.querySelector('[data-bot-mention]')).toBeNull()
+    expect(screen.getByText('@bot echoed')).toBeTruthy()
+  })
 })

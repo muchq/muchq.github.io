@@ -86,6 +86,17 @@
   border-color: rgba(144, 238, 144, 0.3);
 }
 
+/* microgpt's replies (ChatMessage.bot): distinct from members, not "own". */
+.botMessage {
+  align-self: flex-start;
+  background: rgba(160, 200, 220, 0.12);
+  border-color: rgba(160, 200, 220, 0.35);
+}
+
+.botMessage .sender {
+  color: #a8d4e8;
+}
+
 .messageMeta {
   display: flex;
   gap: 0.5rem;
@@ -111,6 +122,12 @@
   overflow-wrap: anywhere;
 }
 
+/* Leading `@bot` the hub will answer (BotMention). Plain text otherwise. */
+.botMention {
+  color: #a8d4e8;
+  font-weight: 600;
+}
+
 .newMessages {
   margin: 0 auto 0.25rem;
   background: rgba(144, 238, 144, 0.2);
@@ -128,6 +145,19 @@
   padding: 0.75rem 1rem;
   border-top: 1px solid rgba(255, 255, 255, 0.15);
   align-items: flex-end;
+}
+
+.botCompletion {
+  flex: 0 0 auto;
+  align-self: center;
+  background: rgba(160, 200, 220, 0.15);
+  border: 1px solid rgba(160, 200, 220, 0.4);
+  border-radius: 0.375rem;
+  color: #a8d4e8;
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: 0.375rem 0.625rem;
+  cursor: pointer;
 }
 
 .input {

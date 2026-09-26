@@ -2,8 +2,10 @@ import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState,
 import styles from './RoomChat.module.css'
 import type { ChatMessage, ChatSendBudget } from '@/types/roomChat'
 import {
+  CHAT_BOT_PLAYER_ID,
   CHAT_SLOW_DOWN_REASON,
   CHAT_TEXT_BYTE_LIMIT,
+  botMentionPrefix,
   chatCooldownMs,
   chatTextBytes,
   drainChatBudget,
@@ -24,6 +26,8 @@ import {
 // Text renders exclusively as React text nodes — no
 // dangerouslySetInnerHTML, no linkification, no markdown — so a message
 // that looks like HTML stays a string on every screen it reaches.
+// microgpt's replies (ChatMessage.bot, MoonBase#1591) get their own
+// label and style; the text path is the same.
 
 interface RoomChatProps {
   messages: ChatMessage[]
@@ -42,9 +46,11 @@ interface RoomChatProps {
 }
 
 // Opening chat from outside it (the command menu): the drawer as its
-// toggle opens it, or, docked, the composer.
+// toggle opens it, or, docked, the composer. askBot seeds `@bot ` for
+// the "Ask the bot" command.
 export interface RoomChatHandle {
   open: () => void
+  askBot: () => void
 }
 
 // How close to the bottom (px) still counts as "following": auto-scroll
@@ -64,7 +70,43 @@ const DOCKED_QUERY = '(min-width: 1880px)'
 // refused. The pacing mirror makes this a rare path.
 const REJECTION_RESTORE_WINDOW_MS = 5000
 
+// What the "Ask the bot" command and the `@` completion leave in the
+// composer: the hub trigger prefix, with a trailing space so the player
+// types the question next.
+const BOT_DRAFT_PREFIX = '@bot '
+
 const timeFormat = new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' })
+
+// Typing `@` at the start (or a case-insensitive prefix of `@bot `)
+// offers completing to the bot mention. Already a real mention (any
+// casing), or anything else, offers nothing — including `@BOT `, which
+// would only change case.
+const botCompletionFor = (draft: string): string | null => {
+  if (!draft.startsWith('@')) return null
+  if (botMentionPrefix(draft)) return null
+  if (BOT_DRAFT_PREFIX.toLowerCase().startsWith(draft.toLowerCase())) return BOT_DRAFT_PREFIX
+  return null
+}
+
+const senderLabel = (message: ChatMessage): string =>
+  message.bot ? CHAT_BOT_PLAYER_ID : message.playerId
+
+// Highlight the leading `@bot` the hub will answer. Only that span is
+// styled; both halves stay React text nodes — no markdown, no links.
+// Bot rows are skipped: the hub never treats them as mentions.
+const messageTextNodes = (message: ChatMessage) => {
+  if (message.bot) return message.text
+  const mention = botMentionPrefix(message.text)
+  if (!mention) return message.text
+  return (
+    <>
+      <span className={styles.botMention} data-bot-mention>
+        {mention.mention}
+      </span>
+      {mention.rest}
+    </>
+  )
+}
 
 const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend, ref }: RoomChatProps) => {
   const [draft, setDraft] = useState('')
@@ -88,6 +130,9 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
   const toggleRef = useRef<HTMLButtonElement | null>(null)
   const wasDrawerOpenRef = useRef(false)
   const followingRef = useRef(true)
+  // After askBot / @bot completion, put the caret at the end once the
+  // controlled value has committed.
+  const caretAfterCommitRef = useRef<number | null>(null)
 
   const latestId = messages.length > 0 ? messages[messages.length - 1].messageId : 0
 
@@ -106,7 +151,7 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
     const last = messages[messages.length - 1]
     const entry =
       latestId > announced.upTo && last && last.messageId > replayUpTo
-        ? { id: last.messageId, text: `${last.playerId}: ${last.text}` }
+        ? { id: last.messageId, text: `${senderLabel(last)}: ${last.text}` }
         : latestId < announced.upTo
           ? null
           : announced.entry
@@ -185,6 +230,43 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
   const overLimit = draftBytes > CHAT_TEXT_BYTE_LIMIT
   const nearLimit = draftBytes > CHAT_TEXT_BYTE_LIMIT - 100
   const coolingDown = cooldownUntil !== null
+  const botCompletion = botCompletionFor(draft)
+
+  const placeCaret = useCallback((pos: number) => {
+    caretAfterCommitRef.current = pos
+  }, [])
+
+  useEffect(() => {
+    const pos = caretAfterCommitRef.current
+    if (pos === null) return
+    caretAfterCommitRef.current = null
+    const input = inputRef.current
+    if (!input) return
+    input.focus()
+    input.setSelectionRange(pos, pos)
+  }, [draft])
+
+  // Ask the bot / the completion chip. Already a BotMention: leave the
+  // draft, clear the caret ref, set selection directly (setDraft would
+  // be a no-op and leave the ref armed for the next keystroke). A
+  // partial `@…` prefix completes to `@bot `; anything else gets
+  // `@bot ` prepended so a half-written message is kept.
+  const applyBotDraft = useCallback(() => {
+    const prev = inputRef.current?.value ?? draft
+    if (botMentionPrefix(prev)) {
+      caretAfterCommitRef.current = null
+      const input = inputRef.current
+      if (input) {
+        const pos = Math.min(BOT_DRAFT_PREFIX.length, prev.length)
+        input.focus()
+        input.setSelectionRange(pos, pos)
+      }
+      return
+    }
+    const next = botCompletionFor(prev) ?? BOT_DRAFT_PREFIX + prev
+    placeCaret(BOT_DRAFT_PREFIX.length)
+    setDraft(next)
+  }, [draft, placeCaret])
 
   const send = useCallback(() => {
     if (!trimmedDraft || !connected || overLimit) return
@@ -245,9 +327,14 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
         // is up; open already, or docked, focus goes there now.
         inputRef.current?.focus()
         if (!docked) openDrawer()
+      },
+      askBot: () => {
+        applyBotDraft()
+        inputRef.current?.focus()
+        if (!docked) openDrawer()
       }
     }),
-    [docked, openDrawer]
+    [docked, openDrawer, applyBotDraft]
   )
 
   // Focus follows the drawer: into the composer on open, back to the
@@ -275,18 +362,26 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
   // the draft, so typing doesn't rebuild up to 100 rows per keystroke.
   const messageItems = useMemo(
     () =>
-      messages.map(message => (
-        <div
-          key={message.messageId}
-          className={`${styles.message} ${message.playerId === playerId ? styles.ownMessage : ''}`}
-        >
-          <div className={styles.messageMeta}>
-            <span className={styles.sender}>{message.playerId}</span>
-            <span className={styles.timestamp}>{timeFormat.format(message.sentAtUnixMillis)}</span>
+      messages.map(message => {
+        const kind = message.bot
+          ? styles.botMessage
+          : message.playerId === playerId
+            ? styles.ownMessage
+            : ''
+        return (
+          <div
+            key={message.messageId}
+            className={`${styles.message} ${kind}`}
+            data-bot={message.bot ? 'true' : undefined}
+          >
+            <div className={styles.messageMeta}>
+              <span className={styles.sender}>{senderLabel(message)}</span>
+              <span className={styles.timestamp}>{timeFormat.format(message.sentAtUnixMillis)}</span>
+            </div>
+            <div className={styles.messageText}>{messageTextNodes(message)}</div>
           </div>
-          <div className={styles.messageText}>{message.text}</div>
-        </div>
-      )),
+        )
+      }),
     [messages, playerId]
   )
 
@@ -351,11 +446,21 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
             value={draft}
             onChange={event => setDraft(event.target.value)}
             onKeyDown={onComposerKeyDown}
-            placeholder={connected ? 'Message the room' : 'Reconnecting…'}
+            placeholder={connected ? 'Message the room — @bot asks microgpt' : 'Reconnecting…'}
             disabled={!connected}
             rows={2}
             aria-label="Chat message"
           />
+          {botCompletion && (
+            <button
+              type="button"
+              className={styles.botCompletion}
+              onClick={applyBotDraft}
+              aria-label="Complete @bot"
+            >
+              @bot
+            </button>
+          )}
           <div className={styles.composerSide}>
             {/* role="status" is a polite live region, so the cooldown
               * and refusal reach screen readers without touching the

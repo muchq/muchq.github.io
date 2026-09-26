@@ -199,6 +199,24 @@ describe('HubStream', () => {
     expect(callbacks.onLost).not.toHaveBeenCalled()
   })
 
+  // A raw roomChat frame with bot: true reaches the chat callback intact
+  // (MoonBase#1591) — the stream does not strip unknown-to-older-clients
+  // optional fields.
+  it('hands a bot roomChat frame through with bot: true intact', async () => {
+    const [, ws] = await connect()
+    const botMessage = {
+      messageId: 8,
+      playerId: 'microgpt',
+      text: 'forty-two',
+      sentAtUnixMillis: 2,
+      bot: true
+    }
+    ws.receive('roomChat', botMessage)
+    expect(callbacks.onChat).toHaveBeenCalledWith(botMessage)
+    ws.receive('roomChatHistory', { messages: [botMessage] })
+    expect(callbacks.onChatHistory).toHaveBeenCalledWith([botMessage])
+  })
+
   it('hands each game envelope through by name, contents untouched', async () => {
     const [, ws] = await connect()
     ws.receive('castle', { update: { turnChanged: { playerId: 'bob' } } })

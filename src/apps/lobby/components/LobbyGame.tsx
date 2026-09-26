@@ -86,6 +86,7 @@ const LobbyGame = (props: UseLobbyProps) => {
       setRoomCodeAsked(asked => asked + 1)
     },
     openChat: () => chatRef.current?.open(),
+    askBot: () => chatRef.current?.askBot(),
     say: setSaid,
   })
   useEffect(() => commands.publish('lobby', offered))
