@@ -9,8 +9,6 @@
 
 .edge { fill: none; stroke: #adb5bd; stroke-width: 1.4; }
 .edge[data-kind='logs'], .edge[data-kind='metrics'] { stroke-dasharray: 4 3; }
-.edge[data-kind='events'] { stroke: #7048e8; stroke-width: 2; }
-.edge[data-kind='ssh'] { stroke: #e8590c; }
 .arrowHead { fill: #adb5bd; }
 
 .node rect, .clickable rect { fill: #fff; stroke: #868e96; }
