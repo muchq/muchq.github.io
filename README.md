@@ -52,10 +52,11 @@ npm run deploy
 | `/stats` | What the apps did — rooms, games and queries — and what the gateway saw: crawlers, scanners, short-link popularity |
 | `/deja` | The anomaly detector over the access-log token stream, live: its tape, learning curve, and a way to ask it |
 | `/resilience` | Distributed-systems game |
+| `/smallcat` | Pong, moved from smallcat.dog |
 | `/groups`, `/sets`, `/top` | Math learning modules (permutation groups, sets, Topology Quest) |
 
-The nav's **Elsewhere** menu links to apps hosted off muchq.com (see the
-`elsewhere` group in `src/shared/components/Navigation.tsx` for the current
+The nav's **Hmm** menu links to apps hosted off muchq.com (see the
+`hmm` group in `src/shared/components/Navigation.tsx` for the current
 list). Those are external links, not routes — their code lives in their own
 repos, not here.
 

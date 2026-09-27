@@ -17,6 +17,7 @@ import DejaPage from './apps/deja/pages/DejaPage'
 import TopologyPage from './apps/topology/pages/TopologyPage'
 import WordchainsPage from './apps/wordchains/pages/WordchainsPage'
 import IiliPage from './apps/iili/pages/IiliPage'
+import SmallcatPage from './apps/smallcat/pages/SmallcatPage'
 import NotFoundPage from './core/pages/NotFoundPage'
 
 function App() {
@@ -47,6 +48,7 @@ function App() {
       <Route path="/deja" element={<DejaPage />} />
       <Route path="/topology" element={<TopologyPage />} />
       <Route path="/resilience" element={<SystemsPage />} />
+      <Route path="/smallcat" element={<SmallcatPage />} />
       <Route path="/resilience/phase1/level1" element={<ResilienceGamePage />} />
       <Route path="/top" element={<Navigate to="/top/sets" replace />} />
       <Route path="/top/:module" element={<LearningPage />} />
