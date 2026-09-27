@@ -56,6 +56,7 @@ const MENU: MenuGroup[] = [
       { label: 'Lobby', to: '/games' },
       { label: 'Party', to: '/party' },
       { label: 'Resilience', to: '/resilience' },
+      { label: 'Smallcat', to: '/smallcat' },
     ],
   },
   {
@@ -67,7 +68,6 @@ const MENU: MenuGroup[] = [
       { label: 'HoverCrap', to: 'https://hovercrap.com', external: true, description: 'ASCII hovercraft' },
       { label: '3xe', to: 'https://3xe.org', external: true, description: 'Madrid-style cheesecake' },
       { label: 'BitFear', to: 'https://bitfear.net', external: true, description: 'Text-to-binary converter' },
-      { label: 'Smallcat', to: 'https://smallcat.dog', external: true, description: 'Pong' },
       { label: '2n-1', to: 'https://2n-1.org', external: true, description: 'Odd-number mathematics' },
       { label: 'tty1', to: 'https://tty1.uk', external: true, description: 'Web terminal' },
       { label: '里に春が来ました', to: 'https://sato-ni-haru-ga-kimashita.uk', external: true, description: 'Japanese sentence breakdown' },

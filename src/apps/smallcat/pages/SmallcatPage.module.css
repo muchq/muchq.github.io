@@ -1,0 +1,16 @@
+.container {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #dee;
+  padding: 60px 1rem 1rem;
+}
+
+.court {
+  display: block;
+  margin: 1rem auto 0;
+  max-width: 100%;
+  height: auto;
+  background: #fff;
+  border: 1px solid blue;
+  touch-action: none;
+}
