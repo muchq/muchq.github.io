@@ -25,7 +25,7 @@ export interface Pong {
   bounces: number
   paused: boolean
   /** What the paused screen says */
-  message: 'start' | 'continue' | 'won' | 'lost'
+  message: 'start' | 'paused' | 'continue' | 'won' | 'lost'
 }
 
 export interface Input {
@@ -52,6 +52,7 @@ export const newGame = (): Pong => ({
 
 export const togglePause = (game: Pong) => {
   game.paused = !game.paused
+  if (game.paused) game.message = 'paused'
 }
 
 const moveUs = (game: Pong, { up, down }: Input) => {
@@ -70,6 +71,7 @@ const moveThem = ({ ball, them }: Pong) => {
   } else if (ball.y < mid) {
     them.y -= 4
   }
+  them.y = Math.min(HEIGHT - PADDLE_HEIGHT, Math.max(0, them.y))
 }
 
 const within = (y: number, paddle: Paddle) => y >= paddle.y && y < paddle.y + PADDLE_HEIGHT
@@ -83,8 +85,8 @@ const english = (game: Pong, paddle: Paddle) => {
 const collide = (game: Pong): PongEvent[] => {
   const { ball } = game
   const events: PongEvent[] = []
-  const weHit = ball.x + ball.r >= WIDTH - PADDLE_WIDTH && within(ball.y, game.us)
-  const theyHit = ball.x - ball.r <= PADDLE_WIDTH && within(ball.y, game.them)
+  const weHit = ball.dx > 0 && ball.x + ball.r >= WIDTH - PADDLE_WIDTH && within(ball.y, game.us)
+  const theyHit = ball.dx < 0 && ball.x - ball.r <= PADDLE_WIDTH && within(ball.y, game.them)
   if (weHit || theyHit) {
     ball.dx = -ball.dx
     ball.x += ball.dx
@@ -130,10 +132,11 @@ export const step = (game: Pong, input: Input): PongEvent[] => {
 }
 
 const MESSAGES: Record<Pong['message'], string[]> = {
-  start: ['Press Space (or touch) to Start!'],
-  continue: ['Press Space to Continue'],
-  won: ['You Win!!', 'Press Space to Play Again'],
-  lost: ['They Win...', 'Press Space to Play Again'],
+  start: ['Space or tap to start!'],
+  paused: ['Paused', 'Space or tap to resume'],
+  continue: ['Space or tap to continue'],
+  won: ['You Win!!', 'Space or tap to play again'],
+  lost: ['They Win...', 'Space or tap to play again'],
 }
 
 const drawLife = (ctx: CanvasRenderingContext2D, x: number) => {
@@ -169,7 +172,9 @@ export const draw = (ctx: CanvasRenderingContext2D, game: Pong) => {
 
   if (!game.paused) return
   ctx.fillStyle = 'black'
-  ctx.font = '14px sans-serif'
+  ctx.font = '24px sans-serif'
   ctx.textAlign = 'center'
-  MESSAGES[game.message].forEach((line, i) => ctx.fillText(line, WIDTH / 2, HEIGHT / 2 + 40 * i))
+  // The last line sits below the ball; a headline goes above it.
+  const lines = MESSAGES[game.message]
+  lines.forEach((line, i) => ctx.fillText(line, WIDTH / 2, HEIGHT / 2 + 40 * (i + 2 - lines.length)))
 }

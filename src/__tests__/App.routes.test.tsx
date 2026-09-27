@@ -71,6 +71,11 @@ describe('App routes', () => {
     expect(ws.sentFrames().some(frame => frame.event === 'golf' || frame.event === 'castle')).toBe(false)
   })
 
+  it('serves the pong that lived at smallcat.dog at /smallcat', () => {
+    at('/smallcat')
+    expect(within(screen.getByRole('navigation')).getByText('MuchQ : Smallcat')).toBeDefined()
+  })
+
   it('serves the traffic stats at /stats', () => {
     at('/stats')
     expect(within(screen.getByRole('navigation')).getByText('MuchQ : Stats')).toBeDefined()

@@ -5,12 +5,23 @@
   padding: 60px 1rem 1rem;
 }
 
+/* Fits whichever way is tighter, so a landscape phone sees the whole court;
+   touch-action: none means it could not scroll to the rest. */
 .court {
   display: block;
   margin: 1rem auto 0;
   max-width: 100%;
+  max-height: calc(100dvh - 60px - 5rem);
+  width: auto;
   height: auto;
   background: #fff;
   border: 1px solid blue;
   touch-action: none;
+}
+
+.controls {
+  margin: 0.75rem 0 0;
+  text-align: center;
+  color: #355;
+  font-size: 0.9rem;
 }
