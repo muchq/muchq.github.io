@@ -3,6 +3,8 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import SmallcatPage from '../pages/SmallcatPage'
 
+const SHIPPED = Object.keys(import.meta.glob('/public/audio/smallcat/*.wav'))
+
 // Every 2D call is a no-op that records fillText, so the paused screen's
 // words are readable.
 const fakeContext = () => {
@@ -63,5 +65,17 @@ describe('SmallcatPage', () => {
     expect(press('a')).toBe(false)
     unmount()
     expect(press('ArrowUp')).toBe(false)
+  })
+
+  // The sounds are vendored from smallcat.dog; nothing else serves them.
+  it('asks only for sounds the site ships', () => {
+    const sources: string[] = []
+    vi.spyOn(window, 'Audio').mockImplementation(function (src?: string) {
+      sources.push(src ?? '')
+      return { play: () => Promise.resolve() } as HTMLAudioElement
+    })
+    mount()
+    expect(sources).toHaveLength(4)
+    for (const src of sources) expect(SHIPPED).toContain(`/public${src}`)
   })
 })
