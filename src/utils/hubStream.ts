@@ -1,7 +1,7 @@
 // The games hub's one stream, game-agnostic: the session mint, the
 // smithy event-stream socket with its reconnect loop, the room and chat
 // commands and events, the lobby envelope (the world), the voice
-// envelope (the room's voice), and one envelope per game (golf, castle)
+// envelope (the room's voice), and one envelope per game (golf, castle, rummy)
 // whose contents are the game client's business.
 //
 // Wire shape (smithy-cpp ADR-0018 JSON-text mode):
@@ -35,7 +35,7 @@ export { hubPlayUrl }
 const RECONNECT_DELAY_MS = 2000
 const MAX_RECONNECT_ATTEMPTS = 10
 
-// --- wire shapes (mirrors model/games.smithy + model/golf.smithy) ---
+// --- wire shapes (mirrors model/games.smithy; each game envelope stays opaque) ---
 
 export type HubGameName = 'golf' | 'castle' | 'rummy'
 
