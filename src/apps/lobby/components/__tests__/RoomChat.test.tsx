@@ -485,4 +485,156 @@ describe('RoomChat', () => {
     expect(container.querySelector('[data-bot-mention]')).toBeNull()
     expect(screen.getByText('@bot echoed')).toBeTruthy()
   })
+
+  // mithril's /wordchain replies: labelled with their source, the ladder
+  // drawn rung by rung from the structured field, never parsed from text.
+  it('draws a wordchain reply as its ladder under the mithril label', () => {
+    const ladder: ChatMessage = {
+      messageId: 2,
+      playerId: 'mithril',
+      text: 'cold → cord → card → ward → warm',
+      sentAtUnixMillis: 1_700_000_000_002,
+      bot: true,
+      wordchain: { start: 'cold', end: 'warm', path: ['cold', 'cord', 'card', 'ward', 'warm'] }
+    }
+    const { container } = render(
+      <RoomChat {...baseProps} messages={[msg(1, 'bob', '/wordchain cold warm'), ladder]} />
+    )
+    const row = container.querySelector('[data-wordchain]')
+    expect(row).not.toBeNull()
+    expect(row!.closest('[data-bot]')!.textContent).toContain('mithril')
+    const rungs = [...row!.querySelectorAll('li')].map(li => li.textContent)
+    expect(rungs).toEqual(['cold', 'cord', 'card', 'ward', 'warm'])
+    // Read once: the text for screen readers, the drawn ladder hidden.
+    expect(row!.getAttribute('aria-hidden')).toBe('true')
+    expect(screen.getByText('cold → cord → card → ward → warm')).toBeTruthy()
+  })
+
+  it('says so when no ladder joins the words', () => {
+    const none: ChatMessage = {
+      messageId: 1,
+      playerId: 'mithril',
+      text: 'no ladder from cold to hot',
+      sentAtUnixMillis: 1,
+      bot: true,
+      wordchain: { start: 'cold', end: 'hot' }
+    }
+    const { container } = render(<RoomChat {...baseProps} messages={[none]} />)
+    expect(container.querySelector('[data-wordchain] li')).toBeNull()
+    expect(screen.getByText('no ladder from cold to hot')).toBeTruthy()
+  })
+
+  it('draws no ladder for an empty path', () => {
+    const empty: ChatMessage = {
+      messageId: 1,
+      playerId: 'mithril',
+      text: 'no ladder from cold to hot',
+      sentAtUnixMillis: 1,
+      bot: true,
+      wordchain: { start: 'cold', end: 'hot', path: [] }
+    }
+    const { container } = render(<RoomChat {...baseProps} messages={[empty]} />)
+    expect(container.querySelector('[data-wordchain]')).toBeNull()
+    expect(screen.getByText('no ladder from cold to hot')).toBeTruthy()
+  })
+
+  it('labels any bot reply by its source', () => {
+    const { rerender } = render(<RoomChat {...baseProps} messages={[]} />)
+    rerender(
+      <RoomChat
+        {...baseProps}
+        messages={[{ messageId: 1, playerId: 'mithril', text: 'no ladder from cat to dog', sentAtUnixMillis: 1, bot: true }]}
+      />
+    )
+    expect(document.querySelector('[aria-live="polite"]')?.textContent).toBe(
+      'mithril: no ladder from cat to dog'
+    )
+  })
+
+  it('highlights a /wordchain command the hub will answer, and only that', () => {
+    for (const { text, highlighted } of [
+      { text: '/wordchain cold warm', highlighted: true },
+      { text: '/WORDCHAIN cold warm', highlighted: true },
+      { text: '/wordchain cold', highlighted: false },
+      { text: '/wordchain ox dog', highlighted: false }
+    ]) {
+      const { unmount, container } = render(<RoomChat {...baseProps} messages={[msg(1, 'bob', text)]} />)
+      const command = container.querySelector('[data-command]')
+      if (highlighted) {
+        expect(command?.textContent?.toLowerCase(), text).toBe('/wordchain')
+        expect(screen.getByTestId('chat-messages').textContent).toContain(text)
+      } else {
+        expect(command, text).toBeNull()
+      }
+      unmount()
+    }
+  })
+
+  // The slash menu: every command the draft could still become, usage and
+  // what it does; Tab or Enter (or a click) completes the highlighted one
+  // instead of sending, arrows move, Escape dismisses.
+  const commands = [
+    { name: 'wordchain', usage: '/wordchain start end', description: 'word ladder', accepts: () => true },
+    { name: 'wordle', usage: '/wordle', description: 'guess', accepts: () => true }
+  ]
+  const options = () => screen.queryAllByRole('option').map(o => o.getAttribute('data-command-name'))
+  const selected = () => screen.getByRole('option', { selected: true }).getAttribute('data-command-name')
+
+  it('typing / lists the slash commands and narrows as you type', () => {
+    render(<RoomChat {...baseProps} messages={[]} slashCommands={commands} />)
+    const input = screen.getByLabelText('Chat message')
+    expect(screen.queryByRole('listbox')).toBeNull()
+    fireEvent.change(input, { target: { value: '/' } })
+    expect(options()).toEqual(['wordchain', 'wordle'])
+    expect(screen.getByRole('listbox').textContent).toContain('/wordchain start end')
+    expect(screen.getByRole('listbox').textContent).toContain('word ladder')
+    fireEvent.change(input, { target: { value: '/wordc' } })
+    expect(options()).toEqual(['wordchain'])
+    fireEvent.change(input, { target: { value: '/x' } })
+    expect(screen.queryByRole('listbox')).toBeNull()
+  })
+
+  it('Enter completes the highlighted command rather than sending', () => {
+    const onSend = vi.fn()
+    render(<RoomChat {...baseProps} onSend={onSend} messages={[]} slashCommands={commands} />)
+    const input = screen.getByLabelText('Chat message') as HTMLTextAreaElement
+    fireEvent.change(input, { target: { value: '/w' } })
+    expect(selected()).toBe('wordchain')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    expect(selected()).toBe('wordle')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    expect(selected()).toBe('wordchain')
+    fireEvent.keyDown(input, { key: 'ArrowUp' })
+    expect(selected()).toBe('wordle')
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onSend).not.toHaveBeenCalled()
+    expect(input.value).toBe('/wordle ')
+    expect(screen.queryByRole('listbox')).toBeNull()
+  })
+
+  it('Tab or a click completes; Escape dismisses until the draft changes', () => {
+    render(<RoomChat {...baseProps} messages={[]} slashCommands={commands} />)
+    const input = screen.getByLabelText('Chat message') as HTMLTextAreaElement
+    fireEvent.change(input, { target: { value: '/' } })
+    fireEvent.keyDown(input, { key: 'Tab' })
+    expect(input.value).toBe('/wordchain ')
+
+    fireEvent.change(input, { target: { value: '/' } })
+    fireEvent.mouseDown(screen.getAllByRole('option')[1])
+    expect(input.value).toBe('/wordle ')
+
+    fireEvent.change(input, { target: { value: '/' } })
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(screen.queryByRole('listbox')).toBeNull()
+    fireEvent.change(input, { target: { value: '/w' } })
+    expect(options()).toEqual(['wordchain', 'wordle'])
+  })
+
+  it('offers /wordchain by default and says so in the placeholder', () => {
+    render(<RoomChat {...baseProps} messages={[]} />)
+    const input = screen.getByLabelText('Chat message')
+    fireEvent.change(input, { target: { value: '/' } })
+    expect(options()).toEqual(['wordchain'])
+    expect(screen.getByPlaceholderText(/\/ for commands/)).toBeTruthy()
+  })
 })

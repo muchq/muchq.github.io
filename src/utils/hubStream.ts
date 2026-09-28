@@ -16,8 +16,9 @@
 //   - a room's voice rides its own envelope the same way, action up and
 //     update down: {"event":"voice","payload":{"action":{"join":{}}}}
 //   - room chat: ChatMessage {messageId, playerId, text, sentAtUnixMillis,
-//     bot?}. `bot: true` marks a microgpt reply (playerId `microgpt`);
-//     ordinary messages omit it (MoonBase#1591 / games.smithy).
+//     bot?, wordchain?}. `bot: true` marks a bot's reply, whose playerId
+//     names it (`microgpt`, `mithril`); `wordchain` is mithril's ladder.
+//     Ordinary messages omit both (games.smithy).
 //   - a refusal that ends the stream: {"exception":"<shape>","payload":{"message":"..."}}
 //
 
