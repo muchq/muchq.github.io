@@ -124,7 +124,7 @@ button.meld {
   outline-offset: -4px;
 }
 
-/* A hand of ten or eleven is wider than castle's three. */
+/* A hand of seven or eight is wider than castle's three. */
 .hand {
   --overlap-max: 1.7rem;
 }
