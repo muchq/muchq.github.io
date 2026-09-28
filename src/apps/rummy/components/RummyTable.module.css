@@ -1,0 +1,174 @@
+/* Rummy's own furniture on castle's felt (CastleTable.module.css): the
+   middle holds the melds as well as the two piles, and the viewer's hand
+   has a line of tools under it. */
+
+/* The middle is wider than castle's pile: the melds wrap beneath the
+   piles, and a table of them wants the room. */
+.middle {
+  max-width: min(26rem, 90%);
+  gap: 0.6rem;
+}
+
+.melds {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem 0.6rem;
+  /* A long game's melds scroll inside the middle rather than pushing the
+     chairs off the felt. */
+  max-height: 11rem;
+  overflow-y: auto;
+}
+
+.noMelds {
+  font-size: 0.8rem;
+}
+
+/* A meld is its cards overlapped tight, drawn smaller than a hand: it is
+   read, not held. */
+.meld {
+  display: inline-flex;
+  padding: 0.2rem 0.3rem;
+  border-radius: 0.4rem;
+  border: 2px solid transparent;
+  background: none;
+  font: inherit;
+  color: inherit;
+  zoom: 0.72;
+}
+
+button.meld {
+  cursor: pointer;
+}
+
+.meldSlot {
+  position: relative;
+  display: block;
+  margin-left: -1.9rem;
+}
+
+.meldSlot:first-child {
+  margin-left: 0;
+}
+
+/* A meld the picked card would grow: lit, the place to tap. */
+.fits {
+  border-color: #f0c96a;
+  background: rgba(240, 201, 106, 0.15);
+  animation: fits 1.2s ease-in-out infinite alternate;
+}
+
+.fits:hover:enabled,
+.fits:focus-visible {
+  background: rgba(240, 201, 106, 0.3);
+}
+
+@keyframes fits {
+  from {
+    box-shadow: 0 0 0 0 rgba(240, 201, 106, 0);
+  }
+  to {
+    box-shadow: 0 0 0.6rem 0.1rem rgba(240, 201, 106, 0.55);
+  }
+}
+
+/* The meld the last move made or grew, while the moment lasts. */
+.justLaid {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* A pile to draw from, on the viewer's draw: the one thing to do. */
+.drawable {
+  cursor: pointer;
+  outline: 2px solid #f0c96a;
+  outline-offset: 2px;
+  animation: fits 1.2s ease-in-out infinite alternate;
+}
+
+/* The card just taken from the discard: it can't go straight back. */
+.taken {
+  outline: 2px dashed #f0c96a;
+  outline-offset: -4px;
+}
+
+/* A hand of ten or eleven is wider than castle's three. */
+.hand {
+  --overlap-max: 1.7rem;
+}
+
+.handTools {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+.sort {
+  display: inline-flex;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 0.4rem;
+  overflow: hidden;
+}
+
+.sortButton {
+  padding: 0.2rem 0.55rem;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.sortButton[aria-pressed='true'] {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.scores {
+  border-collapse: collapse;
+  min-width: 12rem;
+}
+
+.scores th,
+.scores td {
+  padding: 0.2rem 0.6rem;
+  text-align: left;
+  font-weight: normal;
+}
+
+.scores td {
+  text-align: right;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.winnerRow th,
+.winnerRow td {
+  color: #f0c96a;
+  font-weight: 600;
+}
+
+@media (max-width: 600px), (max-height: 900px) {
+  .hand {
+    --overlap-max: 1.4rem;
+  }
+
+  .melds {
+    max-height: 8rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .middle {
+    max-width: 92%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fits,
+  .drawable {
+    animation: none;
+  }
+}

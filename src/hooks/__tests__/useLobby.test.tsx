@@ -205,6 +205,37 @@ describe('useLobby', () => {
     expect(pathname()).toBe('/games/room/R1')
   })
 
+  it('a rummy table swaps in on its own envelope, names the table in the URL, and a reconnect drops it', async () => {
+    const { result, ws, pathname } = await open()
+    act(() => ws.receive('roomState', roomState('R1')))
+    act(() => result.current.rummy.createTable())
+    expect(ws.lastSent()).toEqual({ event: 'rummy', payload: { move: { createGame: {} } } })
+    const rummyView = { gameId: 'M1', phase: 'waiting', players: [], stockCount: 0, canDrawStock: false, discardCount: 0, melds: [] }
+    act(() => ws.receive('rummy', { update: { gameJoined: { view: rummyView } } }))
+    expect(result.current.rummy.view?.gameId).toBe('M1')
+    expect(result.current.castle.view).toBeNull()
+    expect(result.current.golf.view).toBeNull()
+    expect(pathname()).toBe('/games/room/R1/table/M1')
+    expect(result.current.world.isConnected).toBe(true)
+    // Its moves ride its envelope, as the wire spells them.
+    act(() => result.current.rummy.drawStock())
+    expect(ws.lastSent()).toEqual({ event: 'rummy', payload: { move: { drawStock: {} } } })
+    // A refusal frees the ask, whichever game asked.
+    act(() => result.current.rummy.playAgain())
+    expect(result.current.rummy.opening).toBe(true)
+    act(() => ws.receive('commandRejected', { reason: 'leave your current game first' }))
+    expect(result.current.rummy.opening).toBe(false)
+
+    act(() => ws.receive('roomLeft', { roomId: 'R1' }))
+    expect(result.current.rummy.view).toBeNull()
+  })
+
+  it('a share link to a rummy table sits at it in rummy’s envelope', async () => {
+    const { ws } = await open({ permalinkRoomId: 'R1', permalinkGameId: 'M1' }, '/games/room/R1/table/M1')
+    act(() => ws.receive('roomState', roomState('R1', [{ gameId: 'M1', game: 'rummy', status: 'waiting', playerCount: 1 }])))
+    expect(ws.lastSent()).toEqual({ event: 'rummy', payload: { move: { joinGame: { gameId: 'M1' } } } })
+  })
+
   it('joining a listed golf table sends its join, and the table answers', async () => {
     const { result, ws } = await open()
     act(() => ws.receive('roomState', roomState('R1', [{ gameId: 'G7', game: 'golf', status: 'waiting', playerCount: 1 }])))

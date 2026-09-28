@@ -19,7 +19,8 @@ const room = (over: Partial<HubRoom> = {}): HubRoom => ({
     { gameId: 'G1', game: 'castle', status: 'waiting', playerCount: 1 },
     { gameId: 'G2', game: 'golf', status: 'playing', playerCount: 2 },
     { gameId: 'G3', game: 'golf', status: 'waiting', playerCount: 4 },
-    { gameId: 'G4', game: 'golf', status: 'waiting', playerCount: 1 }
+    { gameId: 'G4', game: 'golf', status: 'waiting', playerCount: 1 },
+    { gameId: 'M1', game: 'rummy', status: 'waiting', playerCount: 2 }
   ],
   ...over
 })
@@ -43,6 +44,7 @@ const lobby = (over: Partial<UseLobby> = {}): UseLobby =>
     voice: fakeVoiceMesh() as unknown as UseLobby['voice'],
     castle: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['castle'],
     golf: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['golf'],
+    rummy: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['rummy'],
     ...over
   }) as UseLobby
 
@@ -76,6 +78,11 @@ describe('LobbyPanel', () => {
     expect(screen.getByRole('button', { name: 'Full golf G3' })).toHaveProperty('disabled', true)
     fireEvent.click(screen.getByRole('button', { name: 'Join golf G4' }))
     expect(hook.golf.joinTable).toHaveBeenCalledWith('G4')
+    fireEvent.click(screen.getByRole('button', { name: 'Join rummy M1' }))
+    expect(hook.rummy.joinTable).toHaveBeenCalledWith('M1')
+    expect(hook.castle.joinTable).toHaveBeenCalledTimes(1)
+    expect(hook.golf.joinTable).toHaveBeenCalledTimes(1)
+    expect(screen.getByText(/First to empty their hand wins/)).toBeTruthy()
 
     const openCastle = screen.getByRole('button', { name: 'Open a castle table' })
     const openGolf = screen.getByRole('button', { name: 'Open a golf table' })
@@ -86,6 +93,10 @@ describe('LobbyPanel', () => {
     expect(hook.castle.createTable).toHaveBeenCalled()
     fireEvent.click(openGolf)
     expect(hook.golf.createTable).toHaveBeenCalled()
+    const openRummy = screen.getByRole('button', { name: 'Open a rummy table' })
+    expect(openRummy.className).toBe(openCastle.className)
+    fireEvent.click(openRummy)
+    expect(hook.rummy.createTable).toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Leave room' }))
     expect(hook.leaveRoom).toHaveBeenCalled()
   })
@@ -96,6 +107,7 @@ describe('LobbyPanel', () => {
     render(<LobbyPanel lobby={lobby({ room: seated })} />)
     expect(screen.getByRole('button', { name: 'Open a castle table' })).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: 'Open a golf table' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Open a rummy table' })).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: 'Join castle G1' })).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: 'Join golf G4' })).toHaveProperty('disabled', true)
   })

@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { UseLobby } from '@/hooks/useLobby'
 import { fakeVoiceMesh } from '@/test/fakeVoice'
 import type { CastleView } from '@/apps/castle/wire'
+import type { RummyView } from '@/apps/rummy/wire'
 import type { GameState } from '@/types/golf'
 import type { CommandRegistry } from '@/utils/commandRegistry'
 import { COMMAND_HOTKEY } from '@/utils/hotkeys'
@@ -28,7 +29,8 @@ const state = {
   world: {},
   voice: fakeVoiceMesh(),
   castle: { view: null as CastleView | null, ended: null, selected: [] },
-  golf: { view: null as GameState | null, ended: null, peekCountdown: null }
+  golf: { view: null as GameState | null, ended: null, peekCountdown: null },
+  rummy: { view: null as RummyView | null, ended: null, selected: [] }
 } as unknown as UseLobby
 
 vi.mock('@/hooks/useLobby', async importOriginal => ({
@@ -54,6 +56,7 @@ vi.mock('@/apps/thoughts/components/ThoughtsGame', () => ({
   }
 }))
 vi.mock('@/apps/castle/components/CastleTable', () => ({ default: () => <div>table</div> }))
+vi.mock('@/apps/rummy/components/RummyTable', () => ({ default: () => <div>rummy table</div> }))
 const openChat = vi.fn()
 const askBot = vi.fn()
 vi.mock('../RoomChat', () => ({
@@ -134,6 +137,18 @@ describe('LobbyGame', () => {
     state.room = null
     rerender(<LobbyGame />)
     expect(screen.queryByText(/golf table/)).toBeNull()
+    expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
+  })
+
+  it('a rummy table is a table too: over the world, the panel folded', () => {
+    const { rerender } = render(<LobbyGame />)
+    state.rummy.view = { gameId: 'M1' } as RummyView
+    rerender(<LobbyGame />)
+    expect(screen.getByText('rummy table')).toBeTruthy()
+    expect(screen.queryByRole('complementary', { name: 'lobby' })).toBeNull()
+    state.rummy.view = null
+    rerender(<LobbyGame />)
+    expect(screen.queryByText('rummy table')).toBeNull()
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
   })
 

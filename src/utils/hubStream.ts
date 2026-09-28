@@ -37,7 +37,7 @@ const MAX_RECONNECT_ATTEMPTS = 10
 
 // --- wire shapes (mirrors model/games.smithy + model/golf.smithy) ---
 
-export type HubGameName = 'golf' | 'castle'
+export type HubGameName = 'golf' | 'castle' | 'rummy'
 
 // The table a member is at, pending or in play (MoonBase#1490); absent
 // while idle, which is how the lobby tells who is free.
@@ -107,6 +107,7 @@ type HubFrame =
   | { event: 'commandRejected'; payload: { reason: string } }
   | { event: 'golf'; payload: { update: Record<string, unknown> } }
   | { event: 'castle'; payload: { update: Record<string, unknown> } }
+  | { event: 'rummy'; payload: { update: Record<string, unknown> } }
   | { event: 'lobby'; payload: { update: LobbyUpdate } }
   | { event: 'voice'; payload: { update: VoiceUpdate } }
   | { event?: undefined; exception: string; payload: { message?: string } }
@@ -282,6 +283,7 @@ export class HubStream {
         return
       case 'golf':
       case 'castle':
+      case 'rummy':
         this.callbacks.onGame?.(frame.event, frame.payload.update)
         return
       case 'lobby':

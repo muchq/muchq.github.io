@@ -4,7 +4,7 @@ import type { UseLobby } from '@/hooks/useLobby'
 import { lobbyRoomPath } from '@/hooks/useLobby'
 import type { HubRoomPlayer } from '@/utils/hubStream'
 import type { VoiceMesh, VoiceView } from '@/utils/voiceMesh'
-import { atTable, tableOffer, TABLE_SEATS } from '../offers'
+import { atTable, tableFor, tableOffer, TABLE_SEATS } from '../offers'
 import styles from './LobbyPanel.module.css'
 
 // The side panel beside the world: where you are (the plaza, or a room
@@ -21,7 +21,8 @@ const record = (player: HubRoomPlayer): string => `${player.gamesWon}/${player.g
 
 const GAME_BLURB = {
   castle: 'Shed every card first. 2s reset the deck, 10s clear it, four of a kind counts as a 10.',
-  golf: 'Lowest hand wins. Peek at two, then draw and swap; knock to call the last round.'
+  golf: 'Lowest hand wins. Peek at two, then draw and swap; knock to call the last round.',
+  rummy: 'Draw, lay down sets and runs, discard. First to empty their hand wins.'
 }
 
 // The command menu has no button of its own: this is where it is told.
@@ -156,7 +157,7 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
                   <button
                     type="button"
                     className={styles.secondary}
-                    onClick={() => (game === 'castle' ? lobby.castle.joinTable(table.gameId) : lobby.golf.joinTable(table.gameId))}
+                    onClick={() => tableFor(lobby, game).joinTable(table.gameId)}
                     disabled={!offer.open || !connected || busy}
                     aria-label={`${offer.label} ${game} ${table.gameId}`}
                   >
@@ -167,8 +168,8 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
             })}
           </ul>
         )}
-        {/* One offer per game, and the room hosts both: neither is the
-            house game, so neither is the louder button. */}
+        {/* One offer per game, and the room hosts them all: none is the
+            house game, so none is the louder button. */}
         <div className={styles.stack}>
           <button type="button" className={styles.primary} onClick={lobby.castle.createTable} disabled={!connected || busy}>
             Open a castle table
@@ -178,6 +179,10 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
             Open a golf table
           </button>
           <p className={styles.muted}>{GAME_BLURB.golf}</p>
+          <button type="button" className={styles.primary} onClick={lobby.rummy.createTable} disabled={!connected || busy}>
+            Open a rummy table
+          </button>
+          <p className={styles.muted}>{GAME_BLURB.rummy}</p>
         </div>
       </section>
       {COMMAND_HINT}
