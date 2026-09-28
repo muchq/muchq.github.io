@@ -4,13 +4,16 @@ import type { ChatMessage, ChatSendBudget } from '@/types/roomChat'
 import {
   CHAT_SLOW_DOWN_REASON,
   CHAT_TEXT_BYTE_LIMIT,
+  SLASH_COMMANDS,
+  type SlashCommand,
   botMentionPrefix,
   chatCooldownMs,
   chatTextBytes,
   drainChatBudget,
   newChatSendBudget,
-  spendChatToken,
-  wordchainCommand
+  slashCommand,
+  slashCompletions,
+  spendChatToken
 } from '@/types/roomChat'
 
 // Room chat (MoonBase#1226): one stable instance for both the room
@@ -43,6 +46,8 @@ interface RoomChatProps {
   // composer reacts once per seq and only to the server's "slow down".
   rejection: { seq: number; reason: string } | null
   onSend: (text: string) => void
+  // The commands the slash menu offers; the hub's by default.
+  slashCommands?: SlashCommand[]
   ref?: Ref<RoomChatHandle>
 }
 
@@ -76,10 +81,6 @@ const REJECTION_RESTORE_WINDOW_MS = 5000
 // types the question next.
 const BOT_DRAFT_PREFIX = '@bot '
 
-// What the `/` completion leaves in the composer: the command, with a
-// trailing space so the player types the two words next.
-const WORDCHAIN_DRAFT_PREFIX = '/wordchain '
-
 const timeFormat = new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' })
 
 // Typing `@` at the start (or a case-insensitive prefix of `@bot `)
@@ -93,19 +94,9 @@ const botCompletionFor = (draft: string): string | null => {
   return null
 }
 
-// Typing `/` at the start (or a case-insensitive prefix of
-// `/wordchain `) offers completing to the command.
-const wordchainCompletionFor = (draft: string): string | null => {
-  if (!draft.startsWith('/')) return null
-  if (WORDCHAIN_DRAFT_PREFIX.startsWith(draft.toLowerCase()) && draft !== WORDCHAIN_DRAFT_PREFIX) {
-    return WORDCHAIN_DRAFT_PREFIX
-  }
-  return null
-}
-
 const senderLabel = (message: ChatMessage): string => message.playerId
 
-// Highlight the leading `@bot` or `/wordchain` the hub will answer. Only
+// Highlight the leading `@bot` or slash command the hub will answer. Only
 // that span is styled; both halves stay React text nodes — no markdown,
 // no links. Bot rows are skipped: the hub never answers a bot, and a
 // ladder is drawn from its structure rather than its text.
@@ -133,7 +124,7 @@ const messageTextNodes = (message: ChatMessage) => {
       </>
     )
   }
-  const command = wordchainCommand(message.text)
+  const command = slashCommand(message.text)
   if (command) {
     return (
       <>
@@ -147,8 +138,21 @@ const messageTextNodes = (message: ChatMessage) => {
   return message.text
 }
 
-const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend, ref }: RoomChatProps) => {
+const RoomChat = ({
+  messages,
+  playerId,
+  connected,
+  replayUpTo,
+  rejection,
+  onSend,
+  slashCommands = SLASH_COMMANDS,
+  ref
+}: RoomChatProps) => {
   const [draft, setDraft] = useState('')
+  // The slash menu's highlighted row, and the draft Escape dismissed it
+  // for; both belong to one draft and lapse when it changes.
+  const [slashIndex, setSlashIndex] = useState({ draft: '', index: 0 })
+  const [slashDismissedFor, setSlashDismissedFor] = useState<string | null>(null)
   // Drawer-mode only: whether the bottom sheet is open. The docked
   // panel ignores it — the .docked rules keep the panel visible.
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -270,7 +274,11 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
   const nearLimit = draftBytes > CHAT_TEXT_BYTE_LIMIT - 100
   const coolingDown = cooldownUntil !== null
   const botCompletion = botCompletionFor(draft)
-  const wordchainCompletion = wordchainCompletionFor(draft)
+  const completions = useMemo(
+    () => (slashDismissedFor === draft ? [] : slashCompletions(draft, slashCommands)),
+    [slashDismissedFor, draft, slashCommands]
+  )
+  const slashSelected = slashIndex.draft === draft ? slashIndex.index % Math.max(completions.length, 1) : 0
 
   const placeCaret = useCallback((pos: number) => {
     caretAfterCommitRef.current = pos
@@ -308,10 +316,14 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
     setDraft(next)
   }, [draft, placeCaret])
 
-  const applyWordchainDraft = useCallback(() => {
-    placeCaret(WORDCHAIN_DRAFT_PREFIX.length)
-    setDraft(WORDCHAIN_DRAFT_PREFIX)
-  }, [placeCaret])
+  const applySlashCommand = useCallback(
+    (spec: SlashCommand) => {
+      const next = `/${spec.name} `
+      placeCaret(next.length)
+      setDraft(next)
+    },
+    [placeCaret]
+  )
 
   const send = useCallback(() => {
     if (!trimmedDraft || !connected || overLimit) return
@@ -347,12 +359,33 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
 
   const onComposerKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (completions.length > 0) {
+        const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
+        if (step !== 0) {
+          event.preventDefault()
+          const n = completions.length
+          setSlashIndex({ draft, index: (slashSelected + step + n) % n })
+          return
+        }
+        if (event.key === 'Tab' || (event.key === 'Enter' && !event.shiftKey)) {
+          event.preventDefault()
+          applySlashCommand(completions[slashSelected])
+          return
+        }
+        if (event.key === 'Escape') {
+          // Only the menu closes, not the drawer around it.
+          event.preventDefault()
+          event.stopPropagation()
+          setSlashDismissedFor(draft)
+          return
+        }
+      }
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault()
         send()
       }
     },
-    [send]
+    [completions, draft, slashSelected, applySlashCommand, send]
   )
 
   const openDrawer = useCallback(() => {
@@ -484,6 +517,28 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
             {unreadCount} new message{unreadCount === 1 ? '' : 's'}
           </button>
         )}
+        {completions.length > 0 && (
+          <ul className={styles.slashMenu} role="listbox" id="slash-commands" aria-label="Slash commands">
+            {completions.map((spec, i) => (
+              <li
+                key={spec.name}
+                id={`slash-command-${spec.name}`}
+                role="option"
+                aria-selected={i === slashSelected}
+                data-command-name={spec.name}
+                className={i === slashSelected ? styles.slashSelected : undefined}
+                // mousedown, so the composer keeps focus.
+                onMouseDown={event => {
+                  event.preventDefault()
+                  applySlashCommand(spec)
+                }}
+              >
+                <span className={styles.slashUsage}>{spec.usage}</span>
+                <span className={styles.slashDescription}>{spec.description}</span>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className={styles.composer}>
           <textarea
             ref={inputRef}
@@ -492,11 +547,15 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
             onChange={event => setDraft(event.target.value)}
             onKeyDown={onComposerKeyDown}
             placeholder={
-              connected ? 'Message the room — @bot asks microgpt, /wordchain cold warm' : 'Reconnecting…'
+              connected ? 'Message the room — @bot asks microgpt, / for commands' : 'Reconnecting…'
             }
             disabled={!connected}
             rows={2}
             aria-label="Chat message"
+            aria-controls={completions.length > 0 ? 'slash-commands' : undefined}
+            aria-activedescendant={
+              completions.length > 0 ? `slash-command-${completions[slashSelected].name}` : undefined
+            }
           />
           {botCompletion && (
             <button
@@ -506,16 +565,6 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
               aria-label="Complete @bot"
             >
               @bot
-            </button>
-          )}
-          {wordchainCompletion && (
-            <button
-              type="button"
-              className={styles.botCompletion}
-              onClick={applyWordchainDraft}
-              aria-label="Complete /wordchain"
-            >
-              /wordchain
             </button>
           )}
           <div className={styles.composerSide}>

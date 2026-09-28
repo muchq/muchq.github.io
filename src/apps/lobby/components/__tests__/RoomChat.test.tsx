@@ -553,16 +553,71 @@ describe('RoomChat', () => {
     }
   })
 
-  it('typing / at the start offers /wordchain as a completion', () => {
-    render(<RoomChat {...baseProps} messages={[]} />)
-    const input = screen.getByLabelText('Chat message') as HTMLTextAreaElement
-    expect(screen.queryByRole('button', { name: 'Complete /wordchain' })).toBeNull()
-    fireEvent.change(input, { target: { value: '/wo' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Complete /wordchain' }))
-    expect(input.value).toBe('/wordchain ')
-    expect(screen.queryByRole('button', { name: 'Complete /wordchain' })).toBeNull()
+  // The slash menu: every command the draft could still become, usage and
+  // what it does; Tab or Enter (or a click) completes the highlighted one
+  // instead of sending, arrows move, Escape dismisses.
+  const commands = [
+    { name: 'wordchain', usage: '/wordchain start end', description: 'word ladder', accepts: () => true },
+    { name: 'wordle', usage: '/wordle', description: 'guess', accepts: () => true }
+  ]
+  const options = () => screen.queryAllByRole('option').map(o => o.getAttribute('data-command-name'))
+  const selected = () => screen.getByRole('option', { selected: true }).getAttribute('data-command-name')
+
+  it('typing / lists the slash commands and narrows as you type', () => {
+    render(<RoomChat {...baseProps} messages={[]} slashCommands={commands} />)
+    const input = screen.getByLabelText('Chat message')
+    expect(screen.queryByRole('listbox')).toBeNull()
+    fireEvent.change(input, { target: { value: '/' } })
+    expect(options()).toEqual(['wordchain', 'wordle'])
+    expect(screen.getByRole('listbox').textContent).toContain('/wordchain start end')
+    expect(screen.getByRole('listbox').textContent).toContain('word ladder')
+    fireEvent.change(input, { target: { value: '/wordc' } })
+    expect(options()).toEqual(['wordchain'])
     fireEvent.change(input, { target: { value: '/x' } })
-    expect(screen.queryByRole('button', { name: 'Complete /wordchain' })).toBeNull()
-    expect(screen.getByPlaceholderText(/\/wordchain/)).toBeTruthy()
+    expect(screen.queryByRole('listbox')).toBeNull()
+  })
+
+  it('Enter completes the highlighted command rather than sending', () => {
+    const onSend = vi.fn()
+    render(<RoomChat {...baseProps} onSend={onSend} messages={[]} slashCommands={commands} />)
+    const input = screen.getByLabelText('Chat message') as HTMLTextAreaElement
+    fireEvent.change(input, { target: { value: '/w' } })
+    expect(selected()).toBe('wordchain')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    expect(selected()).toBe('wordle')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    expect(selected()).toBe('wordchain')
+    fireEvent.keyDown(input, { key: 'ArrowUp' })
+    expect(selected()).toBe('wordle')
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onSend).not.toHaveBeenCalled()
+    expect(input.value).toBe('/wordle ')
+    expect(screen.queryByRole('listbox')).toBeNull()
+  })
+
+  it('Tab or a click completes; Escape dismisses until the draft changes', () => {
+    render(<RoomChat {...baseProps} messages={[]} slashCommands={commands} />)
+    const input = screen.getByLabelText('Chat message') as HTMLTextAreaElement
+    fireEvent.change(input, { target: { value: '/' } })
+    fireEvent.keyDown(input, { key: 'Tab' })
+    expect(input.value).toBe('/wordchain ')
+
+    fireEvent.change(input, { target: { value: '/' } })
+    fireEvent.mouseDown(screen.getAllByRole('option')[1])
+    expect(input.value).toBe('/wordle ')
+
+    fireEvent.change(input, { target: { value: '/' } })
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(screen.queryByRole('listbox')).toBeNull()
+    fireEvent.change(input, { target: { value: '/w' } })
+    expect(options()).toEqual(['wordchain', 'wordle'])
+  })
+
+  it('offers /wordchain by default and says so in the placeholder', () => {
+    render(<RoomChat {...baseProps} messages={[]} />)
+    const input = screen.getByLabelText('Chat message')
+    fireEvent.change(input, { target: { value: '/' } })
+    expect(options()).toEqual(['wordchain'])
+    expect(screen.getByPlaceholderText(/\/ for commands/)).toBeTruthy()
   })
 })

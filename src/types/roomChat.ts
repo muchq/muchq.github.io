@@ -46,21 +46,57 @@ export function botMentionPrefix(
 const isAsciiSpace = (code: number): boolean =>
   code === 0x20 || code === 0x09 || code === 0x0a || code === 0x0b || code === 0x0c || code === 0x0d
 
-const WORDCHAIN_COMMAND = '/wordchain'
+// A slash command the hub answers in room chat. `accepts` mirrors the
+// hub's grammar for the text after the command, so a highlight never
+// promises an answer the hub won't give.
+export interface SlashCommand {
+  name: string
+  usage: string
+  description: string
+  accepts: (args: string) => boolean
+}
+
 const WORDCHAIN_WORD = /^[A-Za-z]{3,9}$/
 
-// Mirrors games_hub::WordchainCommand (MoonBase wordchain.cc): `/wordchain`
-// at the very start, any case, whitespace, then exactly two words of 3 to
-// 9 ASCII letters. Returns the typed command and the remainder, or null
-// for text the hub leaves as chat.
-export function wordchainCommand(text: string): { command: string; rest: string } | null {
-  const command = text.slice(0, WORDCHAIN_COMMAND.length)
-  if (command.toLowerCase() !== WORDCHAIN_COMMAND) return null
-  const rest = text.slice(WORDCHAIN_COMMAND.length)
-  if (rest.length === 0 || !isAsciiSpace(rest.charCodeAt(0))) return null
-  const words = rest.split(/[ \t\r\n]+/).filter(word => word !== '')
-  if (words.length !== 2 || !words.every(word => WORDCHAIN_WORD.test(word))) return null
-  return { command, rest }
+// Every command the hub answers, in menu order.
+export const SLASH_COMMANDS: SlashCommand[] = [
+  {
+    // games_hub::WordchainCommand (MoonBase wordchain.cc): exactly two
+    // words of 3 to 9 ASCII letters.
+    name: 'wordchain',
+    usage: '/wordchain start end',
+    description: 'shortest word ladder, from mithril',
+    accepts: args => {
+      const words = args.split(/[ \t\r\n]+/).filter(word => word !== '')
+      return words.length === 2 && words.every(word => WORDCHAIN_WORD.test(word))
+    }
+  }
+]
+
+// The command at the very start of `text` (any case), followed by ASCII
+// whitespace and arguments it accepts. Returns the typed command, the
+// remainder, and the command's spec, or null for text the hub leaves as
+// chat.
+export function slashCommand(
+  text: string,
+  commands: SlashCommand[] = SLASH_COMMANDS
+): { command: string; rest: string; spec: SlashCommand } | null {
+  for (const spec of commands) {
+    const command = text.slice(0, spec.name.length + 1)
+    if (command.toLowerCase() !== `/${spec.name}`) continue
+    const rest = text.slice(command.length)
+    if (rest.length === 0 || !isAsciiSpace(rest.charCodeAt(0))) continue
+    if (spec.accepts(rest)) return { command, rest, spec }
+  }
+  return null
+}
+
+// The commands a draft of just `/` and a partial name could still
+// become, in menu order. Nothing once whitespace follows the name.
+export function slashCompletions(draft: string, commands: SlashCommand[] = SLASH_COMMANDS): SlashCommand[] {
+  if (!/^\/[A-Za-z]*$/.test(draft)) return []
+  const typed = draft.slice(1).toLowerCase()
+  return commands.filter(spec => spec.name.startsWith(typed))
 }
 
 // Mirrors the server's retention: rooms keep their newest 100 messages,
