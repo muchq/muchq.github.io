@@ -4,8 +4,9 @@ import type { CSSProperties, KeyboardEvent, MouseEvent, PointerEvent, ReactNode 
 import type { Standing } from '../rules'
 import type { CastleTableActions } from '@/hooks/useCastleTable'
 import type { Card, CastleGameEnded, CastleLastPlay, CastlePlayer, CastleView } from '../wire'
-import { cardsOf, describeEnding, describeLastPlay, describePile, enteredSince, face, headlineOf, isRed, rowInPlay, seatOf, standingOf } from '../rules'
+import { cardsOf, describeEnding, describeLastPlay, describePile, enteredSince, face, headlineOf, rowInPlay, seatOf, standingOf } from '../rules'
 import { clockOf, fromViewer } from '../seating'
+import { CardBack, CardFace } from './Cards'
 import styles from './CastleTable.module.css'
 
 // The table from the viewer's chair, seen from above: the viewer at 6
@@ -14,62 +15,6 @@ import styles from './CastleTable.module.css'
 // the pile in the middle. Every rule the UI enforces is the engine's too
 // — the buttons offer, the hub refuses in band, and the lobby's notice
 // says why.
-
-interface CardFaceProps {
-  card: Card
-  // Present only for a card the viewer can act on: those are buttons,
-  // the rest are pictures. A toggle (selection) reports its state.
-  onClick?: () => void
-  toggle?: boolean
-  label?: string
-  className?: string
-  style?: CSSProperties
-}
-
-// A card's face: the index in the top-left and, turned round, the
-// bottom-right, the way a real card carries it — so a card mostly under
-// its neighbour still says what it is — and its suit in the middle.
-const CardFaceMarks = ({ card }: { card: Card }) => (
-  <>
-    <span className={styles.index}>
-      <span className={styles.rank}>{card.rank}</span>
-      <span>{card.suit}</span>
-    </span>
-    <span className={styles.pip}>{card.suit}</span>
-    <span className={`${styles.index} ${styles.indexBottom}`}>
-      <span className={styles.rank}>{card.rank}</span>
-      <span>{card.suit}</span>
-    </span>
-  </>
-)
-
-const CardFace = ({ card, onClick, toggle, label, className = '', style }: CardFaceProps) => {
-  const classes = `${styles.card} ${isRed(card) ? styles.red : ''} ${toggle ? styles.selected : ''} ${className}`
-  if (onClick === undefined) {
-    return (
-      <span className={classes} style={style} role="img" aria-label={label ?? face(card)}>
-        <CardFaceMarks card={card} />
-      </span>
-    )
-  }
-  return (
-    <button type="button" className={classes} style={style} onClick={onClick} aria-pressed={toggle} aria-label={label ?? face(card)}>
-      <CardFaceMarks card={card} />
-    </button>
-  )
-}
-
-interface CardBackProps {
-  onClick?: () => void
-  label: string
-}
-
-const CardBack = ({ onClick, label }: CardBackProps) =>
-  onClick === undefined ? (
-    <span className={`${styles.card} ${styles.back}`} role="img" aria-label={label} />
-  ) : (
-    <button type="button" className={`${styles.card} ${styles.back}`} onClick={onClick} aria-label={label} />
-  )
 
 export interface CastleTableProps {
   playerId: string

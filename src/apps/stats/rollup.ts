@@ -300,6 +300,7 @@ export function rollupServices(services: StatsServices | null | undefined): Serv
 export const VARIANT_LABELS: Record<string, string> = {
   golf: 'Golf',
   castle: 'Castle',
+  rummy: 'Rummy',
   other: 'Other',
 }
 

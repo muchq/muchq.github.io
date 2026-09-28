@@ -12,17 +12,20 @@ import type { VoiceDevice } from '@/utils/voiceMesh'
 import { browserVoiceDevice } from '@/utils/voiceDevice'
 import type { CastleMoveName, CastleUpdate } from '@/apps/castle/wire'
 import type { GolfMoveName, GolfUpdate } from '@/apps/golf/wire'
+import type { RummyMoveName, RummyUpdate } from '@/apps/rummy/wire'
 import { useCastleTable } from './useCastleTable'
 import type { UseCastleTable } from './useCastleTable'
 import { useGolfTable } from './useGolfTable'
 import type { UseGolfTable } from './useGolfTable'
+import { useRummyTable } from './useRummyTable'
+import type { UseRummyTable } from './useRummyTable'
 
 // The lobby (MoonBase#1490): the one page for the games hub. One stream
 // carries the room, its chat, the world, and the tables. The world is
 // always up — the hub puts this session in its room's world, or the
 // plaza's — and a table of either game swaps the main view while the
 // world keeps ticking (MoonBase#1502). A seat is at one table at most,
-// so at most one of the two hooks holds a view.
+// so at most one of the table hooks holds a view.
 //
 // The world follows the hub's room. The hub leaves a world for this
 // session on every room change and at every close, and refuses a second
@@ -77,6 +80,7 @@ export interface UseLobby {
   voice: VoiceMesh
   castle: UseCastleTable
   golf: UseGolfTable
+  rummy: UseRummyTable
 }
 
 // A share link's room the session is on its way to: left the resumed
@@ -174,6 +178,9 @@ export const useLobby = ({
   const golfMove = useCallback((name: GolfMoveName, payload: unknown = {}) => {
     streamRef.current?.move('golf', name, payload)
   }, [])
+  const rummyMove = useCallback((name: RummyMoveName, payload: unknown = {}) => {
+    streamRef.current?.move('rummy', name, payload)
+  }, [])
   const onTableLeft = useCallback(() => {
     if (roomIdRef.current !== null) navigate(lobbyRoomPath(roomIdRef.current), { replace: true })
   }, [navigate])
@@ -183,9 +190,13 @@ export const useLobby = ({
   const golf = useGolfTable({ playerId, move: golfMove, showNotice, onLeft: onTableLeft })
   const golfRef = useRef(golf)
   golfRef.current = golf
+  const rummy = useRummyTable({ playerId, move: rummyMove, showNotice, onLeft: onTableLeft })
+  const rummyRef = useRef(rummy)
+  rummyRef.current = rummy
   const clearTables = useCallback(() => {
     castleRef.current.clear()
     golfRef.current.clear()
+    rummyRef.current.clear()
   }, [])
 
   // The share link's table, once its room is in hand: a table still
@@ -209,8 +220,9 @@ export const useLobby = ({
         showNotice(`Table ${gameId} is in play`)
         return
       }
-      if (table.game === 'golf') golfRef.current.joinTable(gameId)
-      else castleRef.current.joinTable(gameId)
+      if (table.game === 'castle') castleRef.current.joinTable(gameId)
+      else if (table.game === 'rummy') rummyRef.current.joinTable(gameId)
+      else golfRef.current.joinTable(gameId)
     },
     [showNotice]
   )
@@ -307,6 +319,7 @@ export const useLobby = ({
     (reason: string) => {
       // Whatever was refused, nothing a table asked for arrived.
       castleRef.current.handleRejected()
+      rummyRef.current.handleRejected()
       voice.rejected(reason)
       chatSeqRef.current += 1
       setChat(prev => ({ ...prev, rejection: { seq: chatSeqRef.current, reason } }))
@@ -336,6 +349,10 @@ export const useLobby = ({
         const castleUpdate = update as CastleUpdate
         castleRef.current.handleUpdate(castleUpdate)
         joined = castleUpdate.gameJoined?.view.gameId
+      } else if (game === 'rummy') {
+        const rummyUpdate = update as RummyUpdate
+        rummyRef.current.handleUpdate(rummyUpdate)
+        joined = rummyUpdate.gameJoined?.view.gameId
       } else if (game === 'golf') {
         const golfUpdate = update as GolfUpdate
         golfRef.current.handleUpdate(golfUpdate)
@@ -425,6 +442,7 @@ export const useLobby = ({
     world,
     voice,
     castle,
-    golf
+    golf,
+    rummy
   }
 }

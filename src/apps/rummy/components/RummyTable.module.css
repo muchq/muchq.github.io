@@ -1,0 +1,219 @@
+/* Rummy's own furniture on castle's felt (CastleTable.module.css): the
+   middle holds the melds as well as the two piles, and the viewer's hand
+   has a line of tools under it. */
+
+/* The middle is wider than castle's pile: the melds wrap beneath the
+   piles, and a table of them wants the room. */
+.middle {
+  max-width: min(36rem, 90%);
+  gap: 0.6rem;
+}
+
+.melds {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem 0.6rem;
+  /* A long game's melds scroll inside the middle rather than pushing the
+     chairs off the felt. */
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.noMelds {
+  font-size: 0.8rem;
+}
+
+/* A meld is its cards overlapped at full size, each showing its corner
+   index — the melds are the shared board, read by every chair — with who
+   laid it underneath. */
+.meld {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.25rem 0.35rem;
+  border-radius: 0.5rem;
+  border: 2px solid transparent;
+  background: none;
+  font: inherit;
+  color: inherit;
+}
+
+.meldCards {
+  display: flex;
+}
+
+.meldOwner {
+  max-width: 6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+button.meld {
+  cursor: pointer;
+}
+
+.meldSlot {
+  position: relative;
+  display: block;
+  /* What is left of each card under the next: its index, "10" included. */
+  margin-left: -1.75rem;
+}
+
+.meldSlot:first-child {
+  margin-left: 0;
+}
+
+/* A meld the picked card would grow: lit, the place to tap. */
+.fits {
+  border-width: 3px;
+  border-color: #f0c96a;
+  background: rgba(240, 201, 106, 0.15);
+  animation: fits 1.2s ease-in-out infinite alternate;
+}
+
+.fits:hover:enabled,
+.fits:focus-visible {
+  background: rgba(240, 201, 106, 0.3);
+}
+
+@keyframes fits {
+  from {
+    box-shadow: 0 0 0 0 rgba(240, 201, 106, 0);
+  }
+  to {
+    box-shadow: 0 0 0.6rem 0.1rem rgba(240, 201, 106, 0.55);
+  }
+}
+
+/* The meld the last move made or grew, while the moment lasts. */
+.justLaid {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* A pile to draw from, on the viewer's draw: the one thing to do. */
+.drawable {
+  cursor: pointer;
+  outline: 2px solid #f0c96a;
+  outline-offset: 2px;
+  animation: fits 1.2s ease-in-out infinite alternate;
+}
+
+/* A hand card that would grow a meld on the table: a gold dot, before it
+   is picked. */
+.laysOff::after {
+  content: '';
+  position: absolute;
+  top: -0.3rem;
+  left: 50%;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-left: -0.25rem;
+  border-radius: 50%;
+  background: #f0c96a;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
+}
+
+/* The card just taken from the discard: it can't go straight back. */
+.taken {
+  outline: 2px dashed #f0c96a;
+  outline-offset: -4px;
+}
+
+/* A hand of ten or eleven is wider than castle's three. */
+.hand {
+  --overlap-max: 1.7rem;
+}
+
+.handTools {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+.sort {
+  display: inline-flex;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 0.4rem;
+  overflow: hidden;
+}
+
+.sortButton {
+  padding: 0.2rem 0.55rem;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.sortButton[aria-pressed='true'] {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.scores {
+  border-collapse: collapse;
+  min-width: 12rem;
+}
+
+.scores th,
+.scores td {
+  padding: 0.2rem 0.6rem;
+  text-align: left;
+  font-weight: normal;
+}
+
+.scores td {
+  text-align: right;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.winnerRow th,
+.winnerRow td {
+  color: #f0c96a;
+  font-weight: 600;
+}
+
+@media (max-width: 600px), (max-height: 900px) {
+  .hand {
+    --overlap-max: 1.4rem;
+  }
+
+  .melds {
+    max-height: 10rem;
+  }
+
+  /* Smaller cards (2.6rem): the same index left showing. */
+  .meldSlot {
+    margin-left: -1.35rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .middle {
+    max-width: 92%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fits,
+  .drawable {
+    animation: none;
+  }
+}
+
+@media (max-height: 700px) and (min-width: 601px) {
+  /* The short window's cards (2.25rem). */
+  .meldSlot {
+    margin-left: -1.05rem;
+  }
+}

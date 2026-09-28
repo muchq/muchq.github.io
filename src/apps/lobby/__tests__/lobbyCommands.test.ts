@@ -17,6 +17,7 @@ const lobbyWith = (over: Partial<UseLobby>): UseLobby =>
     leaveRoom: vi.fn(),
     castle: { createTable: vi.fn(), joinTable: vi.fn() },
     golf: { createTable: vi.fn(), joinTable: vi.fn() },
+    rummy: { createTable: vi.fn(), joinTable: vi.fn() },
     voice: voiceIn(),
     ...over,
   }) as unknown as UseLobby
@@ -29,6 +30,7 @@ const room = (over: Partial<HubRoom> = {}): HubRoom => ({
     { gameId: 'G1', status: 'waiting', playerCount: 2 },
     { gameId: 'C2', game: 'castle', status: 'playing', playerCount: 2 },
     { gameId: 'C3', game: 'castle', status: 'waiting', playerCount: 4 },
+    { gameId: 'M1', game: 'rummy', status: 'waiting', playerCount: 1 },
   ],
   ...over,
 })
@@ -72,7 +74,7 @@ describe('lobbyCommands', () => {
     ])
   })
 
-  it('in a room: chat, ask the bot, its link, leaving, a table of either game, and every open table', () => {
+  it('in a room: chat, ask the bot, its link, leaving, a table of each game, and every open table', () => {
     const lobby = lobbyWith({ room: room() })
     const offered = lobbyCommands(lobby, ui)
     expect(offered.map(c => c.label)).toEqual([
@@ -83,8 +85,10 @@ describe('lobbyCommands', () => {
       'Join voice',
       'Open a castle table',
       'Open a golf table',
+      'Open a rummy table',
       'Join castle table C1',
       'Join golf table G1',
+      'Join rummy table M1',
       'Hide lobby panel',
     ])
     expect(offered.find(c => c.label === 'Join golf table G1')!.detail).toBe('2/4 seated')
@@ -97,8 +101,12 @@ describe('lobbyCommands', () => {
     expect(lobby.castle.joinTable).toHaveBeenCalledWith('C1')
     run(lobby, 'Join golf table G1')
     expect(lobby.golf.joinTable).toHaveBeenCalledWith('G1')
+    run(lobby, 'Join rummy table M1')
+    expect(lobby.rummy.joinTable).toHaveBeenCalledWith('M1')
     run(lobby, 'Open a golf table')
     expect(lobby.golf.createTable).toHaveBeenCalledTimes(1)
+    run(lobby, 'Open a rummy table')
+    expect(lobby.rummy.createTable).toHaveBeenCalledTimes(1)
     run(lobby, 'Leave the room')
     expect(lobby.leaveRoom).toHaveBeenCalledTimes(1)
     run(lobby, 'Open chat')
