@@ -2,7 +2,6 @@ import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState,
 import styles from './RoomChat.module.css'
 import type { ChatMessage, ChatSendBudget } from '@/types/roomChat'
 import {
-  CHAT_BOT_PLAYER_ID,
   CHAT_SLOW_DOWN_REASON,
   CHAT_TEXT_BYTE_LIMIT,
   botMentionPrefix,
@@ -10,7 +9,8 @@ import {
   chatTextBytes,
   drainChatBudget,
   newChatSendBudget,
-  spendChatToken
+  spendChatToken,
+  wordchainCommand
 } from '@/types/roomChat'
 
 // Room chat (MoonBase#1226): one stable instance for both the room
@@ -26,8 +26,9 @@ import {
 // Text renders exclusively as React text nodes — no
 // dangerouslySetInnerHTML, no linkification, no markdown — so a message
 // that looks like HTML stays a string on every screen it reaches.
-// microgpt's replies (ChatMessage.bot, MoonBase#1591) get their own
-// label and style; the text path is the same.
+// Bots' replies (ChatMessage.bot) get their own style under their
+// source's name: microgpt's (MoonBase#1591) as text, mithril's
+// /wordchain ladders drawn rung by rung from ChatMessage.wordchain.
 
 interface RoomChatProps {
   messages: ChatMessage[]
@@ -75,6 +76,10 @@ const REJECTION_RESTORE_WINDOW_MS = 5000
 // types the question next.
 const BOT_DRAFT_PREFIX = '@bot '
 
+// What the `/` completion leaves in the composer: the command, with a
+// trailing space so the player types the two words next.
+const WORDCHAIN_DRAFT_PREFIX = '/wordchain '
+
 const timeFormat = new Intl.DateTimeFormat([], { hour: '2-digit', minute: '2-digit' })
 
 // Typing `@` at the start (or a case-insensitive prefix of `@bot `)
@@ -88,24 +93,58 @@ const botCompletionFor = (draft: string): string | null => {
   return null
 }
 
-const senderLabel = (message: ChatMessage): string =>
-  message.bot ? CHAT_BOT_PLAYER_ID : message.playerId
+// Typing `/` at the start (or a case-insensitive prefix of
+// `/wordchain `) offers completing to the command.
+const wordchainCompletionFor = (draft: string): string | null => {
+  if (!draft.startsWith('/')) return null
+  if (WORDCHAIN_DRAFT_PREFIX.startsWith(draft.toLowerCase()) && draft !== WORDCHAIN_DRAFT_PREFIX) {
+    return WORDCHAIN_DRAFT_PREFIX
+  }
+  return null
+}
 
-// Highlight the leading `@bot` the hub will answer. Only that span is
-// styled; both halves stay React text nodes — no markdown, no links.
-// Bot rows are skipped: the hub never treats them as mentions.
+const senderLabel = (message: ChatMessage): string => message.playerId
+
+// Highlight the leading `@bot` or `/wordchain` the hub will answer. Only
+// that span is styled; both halves stay React text nodes — no markdown,
+// no links. Bot rows are skipped: the hub never answers a bot, and a
+// ladder is drawn from its structure rather than its text.
 const messageTextNodes = (message: ChatMessage) => {
+  if (message.wordchain?.path) {
+    return (
+      <ol className={styles.ladder} data-wordchain aria-label={message.text}>
+        {message.wordchain.path.map((word, i) => (
+          <li key={i}>
+            <span className={styles.rung}>{word}</span>
+          </li>
+        ))}
+      </ol>
+    )
+  }
   if (message.bot) return message.text
   const mention = botMentionPrefix(message.text)
-  if (!mention) return message.text
-  return (
-    <>
-      <span className={styles.botMention} data-bot-mention>
-        {mention.mention}
-      </span>
-      {mention.rest}
-    </>
-  )
+  if (mention) {
+    return (
+      <>
+        <span className={styles.botMention} data-bot-mention>
+          {mention.mention}
+        </span>
+        {mention.rest}
+      </>
+    )
+  }
+  const command = wordchainCommand(message.text)
+  if (command) {
+    return (
+      <>
+        <span className={styles.botMention} data-command>
+          {command.command}
+        </span>
+        {command.rest}
+      </>
+    )
+  }
+  return message.text
 }
 
 const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend, ref }: RoomChatProps) => {
@@ -231,6 +270,7 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
   const nearLimit = draftBytes > CHAT_TEXT_BYTE_LIMIT - 100
   const coolingDown = cooldownUntil !== null
   const botCompletion = botCompletionFor(draft)
+  const wordchainCompletion = wordchainCompletionFor(draft)
 
   const placeCaret = useCallback((pos: number) => {
     caretAfterCommitRef.current = pos
@@ -267,6 +307,11 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
     placeCaret(BOT_DRAFT_PREFIX.length)
     setDraft(next)
   }, [draft, placeCaret])
+
+  const applyWordchainDraft = useCallback(() => {
+    placeCaret(WORDCHAIN_DRAFT_PREFIX.length)
+    setDraft(WORDCHAIN_DRAFT_PREFIX)
+  }, [placeCaret])
 
   const send = useCallback(() => {
     if (!trimmedDraft || !connected || overLimit) return
@@ -446,7 +491,9 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
             value={draft}
             onChange={event => setDraft(event.target.value)}
             onKeyDown={onComposerKeyDown}
-            placeholder={connected ? 'Message the room — @bot asks microgpt' : 'Reconnecting…'}
+            placeholder={
+              connected ? 'Message the room — @bot asks microgpt, /wordchain cold warm' : 'Reconnecting…'
+            }
             disabled={!connected}
             rows={2}
             aria-label="Chat message"
@@ -459,6 +506,16 @@ const RoomChat = ({ messages, playerId, connected, replayUpTo, rejection, onSend
               aria-label="Complete @bot"
             >
               @bot
+            </button>
+          )}
+          {wordchainCompletion && (
+            <button
+              type="button"
+              className={styles.botCompletion}
+              onClick={applyWordchainDraft}
+              aria-label="Complete /wordchain"
+            >
+              /wordchain
             </button>
           )}
           <div className={styles.composerSide}>

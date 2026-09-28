@@ -10,6 +10,7 @@ import {
   mergeChatMessages,
   newChatSendBudget,
   spendChatToken,
+  wordchainCommand,
   type ChatMessage
 } from '../roomChat'
 
@@ -150,5 +151,33 @@ describe('botMentionPrefix', () => {
     expect(botMentionPrefix('@bot:hi')).toBeNull()
     expect(botMentionPrefix(' @bot hi')).toBeNull()
     expect(botMentionPrefix('')).toBeNull()
+  })
+})
+
+// Mirrors games_hub::WordchainCommand (MoonBase wordchain.cc): the same
+// cases its C++ test pins, so a highlight never promises an answer the
+// hub won't give.
+describe('wordchainCommand', () => {
+  it('is the command, any case, then two words of 3 to 9 letters', () => {
+    expect(wordchainCommand('/wordchain Cold  WARM ')).toEqual({ command: '/wordchain', rest: ' Cold  WARM ' })
+    expect(wordchainCommand('/WORDCHAIN cat dog')).toEqual({ command: '/WORDCHAIN', rest: ' cat dog' })
+    expect(wordchainCommand('/wordchain abc abcdefghi')).not.toBeNull()
+  })
+
+  it('is nothing for anything the hub leaves as chat', () => {
+    for (const text of [
+      '/wordchain',
+      '/wordchain cold',
+      '/wordchain cold warm hot',
+      '/wordchaincold warm',
+      '/wordchain ox dog',
+      '/wordchain cat abcdefghij',
+      '/wordchain c4t dog',
+      '/wordchain café dog',
+      'hi /wordchain cat dog',
+      ' /wordchain cat dog'
+    ]) {
+      expect(wordchainCommand(text), text).toBeNull()
+    }
   })
 })

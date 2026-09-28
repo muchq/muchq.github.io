@@ -6,20 +6,27 @@
 
 export interface ChatMessage {
   messageId: number
-  // Reserved `microgpt` when the hub posts a bot reply (MoonBase#1591).
-  // Whimsical player ids never collide with it.
+  // The author. A bot's reply carries its reserved id — `microgpt`
+  // answering `@bot` (MoonBase#1591), `mithril` answering `/wordchain` —
+  // shown as the reply's source. Whimsical player ids never collide.
   playerId: string
   text: string
   sentAtUnixMillis: number
-  // Optional on the wire (games.smithy): true for microgpt's replies so
-  // clients style them without hard-coding the reserved playerId. Absent
-  // on ordinary messages and on hubs that predate the field.
+  // Optional on the wire (games.smithy): true on a bot's replies so
+  // clients style them without hard-coding the reserved ids. Absent on
+  // ordinary messages and on hubs that predate the field.
   bot?: boolean
+  // On mithril's replies, the ladder `text` spells out.
+  wordchain?: Wordchain
 }
 
-// The reserved playerId the hub uses for microgpt replies, and the
-// label RoomChat shows for any message flagged `bot`.
-export const CHAT_BOT_PLAYER_ID = 'microgpt'
+// A word ladder: `path` is every rung, both ends included, and absent
+// when no ladder joins `start` to `end`.
+export interface Wordchain {
+  start: string
+  end: string
+  path?: string[]
+}
 
 // Mirrors games_hub::BotMention (MoonBase room_bot.cc): `@bot` at the
 // very start, any case, followed by ASCII whitespace or end of text.
@@ -38,6 +45,23 @@ export function botMentionPrefix(
 
 const isAsciiSpace = (code: number): boolean =>
   code === 0x20 || code === 0x09 || code === 0x0a || code === 0x0b || code === 0x0c || code === 0x0d
+
+const WORDCHAIN_COMMAND = '/wordchain'
+const WORDCHAIN_WORD = /^[A-Za-z]{3,9}$/
+
+// Mirrors games_hub::WordchainCommand (MoonBase wordchain.cc): `/wordchain`
+// at the very start, any case, whitespace, then exactly two words of 3 to
+// 9 ASCII letters. Returns the typed command and the remainder, or null
+// for text the hub leaves as chat.
+export function wordchainCommand(text: string): { command: string; rest: string } | null {
+  const command = text.slice(0, WORDCHAIN_COMMAND.length)
+  if (command.toLowerCase() !== WORDCHAIN_COMMAND) return null
+  const rest = text.slice(WORDCHAIN_COMMAND.length)
+  if (rest.length === 0 || !isAsciiSpace(rest.charCodeAt(0))) return null
+  const words = rest.split(/[ \t\r\n]+/).filter(word => word !== '')
+  if (words.length !== 2 || !words.every(word => WORDCHAIN_WORD.test(word))) return null
+  return { command, rest }
+}
 
 // Mirrors the server's retention: rooms keep their newest 100 messages,
 // so a client holding more is holding rows the server already pruned.

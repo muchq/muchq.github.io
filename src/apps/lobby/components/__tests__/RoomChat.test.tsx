@@ -485,4 +485,84 @@ describe('RoomChat', () => {
     expect(container.querySelector('[data-bot-mention]')).toBeNull()
     expect(screen.getByText('@bot echoed')).toBeTruthy()
   })
+
+  // mithril's /wordchain replies: labelled with their source, the ladder
+  // drawn rung by rung from the structured field, never parsed from text.
+  it('draws a wordchain reply as its ladder under the mithril label', () => {
+    const ladder: ChatMessage = {
+      messageId: 2,
+      playerId: 'mithril',
+      text: 'cold → cord → card → ward → warm',
+      sentAtUnixMillis: 1_700_000_000_002,
+      bot: true,
+      wordchain: { start: 'cold', end: 'warm', path: ['cold', 'cord', 'card', 'ward', 'warm'] }
+    }
+    const { container } = render(
+      <RoomChat {...baseProps} messages={[msg(1, 'bob', '/wordchain cold warm'), ladder]} />
+    )
+    const row = container.querySelector('[data-wordchain]')
+    expect(row).not.toBeNull()
+    expect(row!.closest('[data-bot]')!.textContent).toContain('mithril')
+    const rungs = [...row!.querySelectorAll('li')].map(li => li.textContent)
+    expect(rungs).toEqual(['cold', 'cord', 'card', 'ward', 'warm'])
+    expect(row!.getAttribute('aria-label')).toBe('cold → cord → card → ward → warm')
+  })
+
+  it('says so when no ladder joins the words', () => {
+    const none: ChatMessage = {
+      messageId: 1,
+      playerId: 'mithril',
+      text: 'no ladder from cold to hot',
+      sentAtUnixMillis: 1,
+      bot: true,
+      wordchain: { start: 'cold', end: 'hot' }
+    }
+    const { container } = render(<RoomChat {...baseProps} messages={[none]} />)
+    expect(container.querySelector('[data-wordchain] li')).toBeNull()
+    expect(screen.getByText('no ladder from cold to hot')).toBeTruthy()
+  })
+
+  it('labels any bot reply by its source', () => {
+    const { rerender } = render(<RoomChat {...baseProps} messages={[]} />)
+    rerender(
+      <RoomChat
+        {...baseProps}
+        messages={[{ messageId: 1, playerId: 'mithril', text: 'no ladder from cat to dog', sentAtUnixMillis: 1, bot: true }]}
+      />
+    )
+    expect(document.querySelector('[aria-live="polite"]')?.textContent).toBe(
+      'mithril: no ladder from cat to dog'
+    )
+  })
+
+  it('highlights a /wordchain command the hub will answer, and only that', () => {
+    for (const { text, highlighted } of [
+      { text: '/wordchain cold warm', highlighted: true },
+      { text: '/wordchain cold', highlighted: false },
+      { text: '/wordchain ox dog', highlighted: false }
+    ]) {
+      const { unmount, container } = render(<RoomChat {...baseProps} messages={[msg(1, 'bob', text)]} />)
+      const command = container.querySelector('[data-command]')
+      if (highlighted) {
+        expect(command?.textContent, text).toBe('/wordchain')
+        expect(screen.getByTestId('chat-messages').textContent).toContain(text)
+      } else {
+        expect(command, text).toBeNull()
+      }
+      unmount()
+    }
+  })
+
+  it('typing / at the start offers /wordchain as a completion', () => {
+    render(<RoomChat {...baseProps} messages={[]} />)
+    const input = screen.getByLabelText('Chat message') as HTMLTextAreaElement
+    expect(screen.queryByRole('button', { name: 'Complete /wordchain' })).toBeNull()
+    fireEvent.change(input, { target: { value: '/wo' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Complete /wordchain' }))
+    expect(input.value).toBe('/wordchain ')
+    expect(screen.queryByRole('button', { name: 'Complete /wordchain' })).toBeNull()
+    fireEvent.change(input, { target: { value: '/x' } })
+    expect(screen.queryByRole('button', { name: 'Complete /wordchain' })).toBeNull()
+    expect(screen.getByPlaceholderText(/\/wordchain/)).toBeTruthy()
+  })
 })
