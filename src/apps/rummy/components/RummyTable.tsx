@@ -84,6 +84,8 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
   const mayDeal = canDeal(view, playerId, away)
   // Once a deal is over every hand is face up, and stays so between deals.
   const handsShown = view.lastDeal !== undefined && view.phase !== 'playing'
+  // Before the first deal a seat is a name: there are no cards to count.
+  const dealt = view.dealNumber > 0
   const wonBy = (id: string) => view.standings.find(standing => standing.playerId === id)?.handsWon ?? 0
 
   // Cards that just entered the viewer's hand slide in, so a draw reads
@@ -285,10 +287,10 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
         <h3 className={felt.seatName}>
           {label}
           {onTurn && <span className={felt.turn}> · {view.stage === 'draw' ? 'to draw' : 'to play'}</span>}
-          {!mine && (
+          {!mine && dealt && (
             <span className={`${felt.handCount} ${seat.handCount > SHOWN_BACKS ? felt.handCountShown : ''}`}> · {seat.handCount} in hand</span>
           )}
-          {view.dealNumber > 0 && <span className={felt.muted}> · {wonBy(seat.playerId)} won</span>}
+          {dealt && <span className={felt.muted}> · {wonBy(seat.playerId)} won</span>}
           {handsShown && <span className={felt.muted}> · {deadwood(seat.hand)} pts left</span>}
         </h3>
         <div className={felt.seatFrame}>
@@ -335,7 +337,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
             </div>
           </div>
         </div>
-        {mine && view.phase !== 'waiting' && (
+        {mine && dealt && (
           <div className={styles.handTools}>
             <span className={felt.muted} title="What your hand would cost you if someone went out now">
               {deadwood(myHand)} pts in hand
@@ -360,7 +362,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
         <h1 ref={headingRef} tabIndex={-1} className={felt.title}>
           Rummy · {view.gameId}
         </h1>
-        {view.dealNumber > 0 && view.variant !== undefined && (
+        {dealt && view.variant !== undefined && (
           <p className={felt.muted}>
             Deal {view.dealNumber} · {variantLabel(view.variant)}
           </p>
@@ -463,7 +465,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
         )}
       <div className={felt.ring}>
         {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, clockOf(all.length, i)))}
-        {view.phase !== 'waiting' && view.dealNumber > 0 && (
+        {view.phase !== 'waiting' && dealt && (
           <section className={`${felt.pile} ${styles.middle}`} aria-label="table">
             <div className={felt.piles}>
               <div className={`${felt.drawPile} ${view.stockCount === 0 ? felt.drawn : ''}`}>

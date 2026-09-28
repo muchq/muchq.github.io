@@ -312,6 +312,13 @@ describe('RummyTable', () => {
     expect(screen.queryByRole('button', { name: /^Deal/ })).toBeNull()
   })
 
+  it('before any deal, a seat is a name: no card counts, no points, no sorting', () => {
+    mountWith(between({ dealer: 'alice', dealNumber: 0 }))
+    expect(screen.queryByText(/in hand/)).toBeNull()
+    expect(screen.queryByRole('group', { name: 'Sort your hand' })).toBeNull()
+    expect(screen.queryByText(/won/)).toBeNull()
+  })
+
   it('a dealer the room shows away lets anyone deal', () => {
     const { t } = mountWith(between({ dealer: 'bob', dealNumber: 0 }), {}, true, ['bob'])
     expect(screen.getByText('bob is away: you can deal.')).toBeDefined()
