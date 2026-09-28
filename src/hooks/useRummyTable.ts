@@ -15,7 +15,9 @@ const storedOrder = (): HandOrder => (safeLocalStorage.get(ORDER_KEY) === 'rank'
 
 // What the table's chrome calls; the lobby panel adds create and join.
 export interface RummyTableActions {
+  // Seats the table; the dealer's pick deals.
   startTable: () => void
+  chooseVariant: (variant: string) => void
   leaveTable: () => void
   // Another table, from the one that just ended: a create, since the
   // finished one is already gone from the hub.
@@ -95,13 +97,10 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
         if (update.gameCreated.createdBy !== playerId) showNotice(`${update.gameCreated.createdBy} opened table ${update.gameCreated.gameId}`)
         return
       }
-      if (update.gameStarted) {
-        showNotice('Dealt. Draw a card to open your turn.')
-        return
-      }
-      if (update.turnChanged) {
-        // The felt lights the seat on turn and the piles light up for its
-        // draw; a toast at the foot of the screen would sit on the hand.
+      if (update.gameStarted || update.turnChanged) {
+        // The felt says both: who deals between deals, and the seat on turn
+        // with its piles lit. A toast at the foot of the screen would sit
+        // on the hand.
         return
       }
       if (update.gameEnded) {
@@ -125,6 +124,7 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
   }, [move])
   const joinTable = useCallback((gameId: string) => move('joinGame', { gameId }), [move])
   const startTable = useCallback(() => move('startGame'), [move])
+  const chooseVariant = useCallback((variant: string) => move('chooseVariant', { variant }), [move])
   const leaveTable = useCallback(() => {
     if (view !== null && view.phase !== 'ended') {
       move('leaveGame')
@@ -194,6 +194,7 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
     createTable,
     joinTable,
     startTable,
+    chooseVariant,
     leaveTable,
     playAgain,
     drawStock,

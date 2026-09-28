@@ -6,16 +6,19 @@ import type { HandOrder } from '../rules'
 import type { Card, RummyGameEnded, RummyLastMove, RummyPlayer, RummyView } from '../wire'
 import {
   arrangedMeld,
+  canDeal,
   canDiscard,
   deadwood,
   describeEnding,
   describeLastMove,
+  describeTableEnd,
   enteredSince,
   face,
   headlineOf,
   meldsFitting,
   seatOf,
-  sortHand
+  sortHand,
+  variantLabel
 } from '../rules'
 import { CardBack, CardFace } from '@/apps/castle/components/Cards'
 import { clockOf, fromViewer } from '@/apps/castle/seating'
@@ -32,12 +35,20 @@ import styles from './RummyTable.module.css'
 // hand, with the meld and discard buttons beneath it and every meld a
 // picked card would grow lit as a place to lay it. Every rule offered is
 // the engine's too — the hub refuses in band and the lobby says why.
+//
+// The table is dealer's choice (MoonBase#1609): between deals the last
+// deal's cards stay on the felt, face up, under a sheet with its result,
+// and the dealer's pick deals the next. The table itself ends only when
+// too few seats are left, with the hands each seat won.
 
 export interface RummyTableProps {
   playerId: string
   connected: boolean
   view: RummyView
   table: RummyTableActions & { ended: RummyGameEnded | null; selected: string[]; order: HandOrder; opening: boolean }
+  // Seats the room shows as not connected: a dealer among them lets anyone
+  // deal.
+  away?: string[]
   children?: ReactNode
 }
 
@@ -51,13 +62,14 @@ const FAN_STEP = 4
 // repeats the last move until the next replaces it.
 const moveSignature = (move: RummyLastMove): string => `${move.playerId}:${move.move}:${move.cards.map(face).join(',')}:${move.meldIndex ?? ''}`
 
-const RummyTable = ({ playerId, connected, view, table, children }: RummyTableProps) => {
+const RummyTable = ({ playerId, connected, view, table, away = [], children }: RummyTableProps) => {
   const { ended, opening, selected, order } = table
   const headingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     headingRef.current?.focus()
   }, [])
   const [endingRead, setEndingRead] = useState<string | null>(null)
+  const [dealRead, setDealRead] = useState<string | null>(null)
   const [faded, setFaded] = useState<string | null>(null)
   const playAgainRef = useRef<HTMLButtonElement>(null)
   const endingRef = useRef<HTMLDivElement>(null)
@@ -67,6 +79,12 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
   const myTurn = view.phase === 'playing' && view.currentPlayerId === playerId
   const drawing = myTurn && view.stage === 'draw'
   const laying = myTurn && view.stage === 'play'
+  const between = view.phase === 'choosing'
+  const dealer = view.choosing?.dealer
+  const mayDeal = canDeal(view, playerId, away)
+  // Once a deal is over every hand is face up, and stays so between deals.
+  const handsShown = view.lastDeal !== undefined && view.phase !== 'playing'
+  const wonBy = (id: string) => view.standings.find(standing => standing.playerId === id)?.handsWon ?? 0
 
   // Cards that just entered the viewer's hand slide in, so a draw reads
   // as the card arriving. A new table's deal is not an arrival.
@@ -102,6 +120,9 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
   }
 
   const showEnding = view.phase === 'ended' && ended !== null && endingRead !== view.gameId
+  const dealKey = `${view.gameId}:${view.dealNumber}`
+  const lastDeal = view.lastDeal
+  const showDealEnd = between && lastDeal !== undefined && dealRead !== dealKey
   const keepFocusIn = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Tab') return
     const focusable = endingRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled)')
@@ -117,12 +138,13 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
     }
   }
   const dismissEnding = () => {
-    setEndingRead(view.gameId)
+    if (showDealEnd) setDealRead(dealKey)
+    else setEndingRead(view.gameId)
     headingRef.current?.focus()
   }
   useEffect(() => {
-    if (showEnding) playAgainRef.current?.focus()
-  }, [showEnding])
+    if (showEnding || showDealEnd) playAgainRef.current?.focus()
+  }, [showEnding, showDealEnd])
 
   const moment = view.lastMove !== undefined && `${view.gameId}:${moveSignature(view.lastMove)}` !== faded ? view.lastMove : undefined
 
@@ -132,6 +154,10 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
 
   const hint = (() => {
     if (view.phase === 'waiting') return view.players.length < 2 ? 'Waiting for a second seat.' : ''
+    if (between && dealer !== undefined) {
+      if (!mayDeal) return `Waiting for ${dealer} to deal.`
+      return dealer === playerId ? 'Your deal: pick the game.' : `${dealer} is away: you can deal.`
+    }
     if (drawing) {
       if (view.discardTop === undefined) return view.canDrawStock ? 'Draw from the stock.' : 'Nothing left to draw.'
       if (!view.canDrawStock) return `The stock is out: take the ${face(view.discardTop)}.`
@@ -173,14 +199,30 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
     </div>
   )
 
+  // One per variant on offer, in the hub's order.
+  const dealButtons = (focusFirst = false) =>
+    (view.choosing?.options ?? []).map((variant, i) => (
+      <button
+        key={variant}
+        ref={focusFirst && i === 0 ? playAgainRef : undefined}
+        type="button"
+        className={i === 0 ? felt.primary : felt.secondary}
+        onClick={() => table.chooseVariant(variant)}
+        disabled={!connected}
+      >
+        Deal {variantLabel(variant)}
+      </button>
+    ))
+
   const actions = (() => {
     if (view.phase === 'waiting') {
       return (
         <button type="button" className={felt.primary} onClick={table.startTable} disabled={view.players.length < 2 || !connected}>
-          Deal
+          Start table
         </button>
       )
     }
+    if (between && mayDeal && !showDealEnd) return dealButtons()
     if (drawing) {
       return (
         <>
@@ -246,7 +288,8 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
           {!mine && (
             <span className={`${felt.handCount} ${seat.handCount > SHOWN_BACKS ? felt.handCountShown : ''}`}> · {seat.handCount} in hand</span>
           )}
-          {view.phase === 'ended' && <span className={felt.muted}> · {deadwood(seat.hand)} pts left</span>}
+          {view.dealNumber > 0 && <span className={felt.muted}> · {wonBy(seat.playerId)} won</span>}
+          {handsShown && <span className={felt.muted}> · {deadwood(seat.hand)} pts left</span>}
         </h3>
         <div className={felt.seatFrame}>
           <div className={felt.seatCards}>
@@ -317,6 +360,11 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
         <h1 ref={headingRef} tabIndex={-1} className={felt.title}>
           Rummy · {view.gameId}
         </h1>
+        {view.dealNumber > 0 && view.variant !== undefined && (
+          <p className={felt.muted}>
+            Deal {view.dealNumber} · {variantLabel(view.variant)}
+          </p>
+        )}
         {status}
         {view.phase !== 'ended' && (
           <button type="button" className={felt.link} onClick={table.leaveTable} disabled={!connected}>
@@ -325,10 +373,13 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
         )}
       </div>
       <p className={felt.ending} role="status">
-        {view.phase === 'ended' && ended !== null ? describeEnding(ended, playerId) : ''}
+        {view.phase === 'ended' && ended !== null
+          ? describeTableEnd(ended, playerId)
+          : handsShown && lastDeal !== undefined
+            ? describeEnding(lastDeal, playerId)
+            : ''}
       </p>
-      {showEnding &&
-        ended !== null &&
+      {(showDealEnd || showEnding) &&
         createPortal(
           <div
             ref={endingRef}
@@ -344,43 +395,75 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
               keepFocusIn(event)
             }}
           >
-            <div className={felt.endingCard}>
-              <div className={felt.endingEmoji}>{ended.winner === playerId ? '🏆' : ended.winner === undefined ? '🤝' : '🃏'}</div>
-              <h2 id="rummy-ending" className={felt.endingTitle}>
-                {headlineOf(ended, playerId)}
-              </h2>
-              <p className={felt.endingLine}>{describeEnding(ended, playerId)}</p>
-              {ended.scores.length > 0 && (
-                <table className={styles.scores}>
-                  <caption className={felt.srOnly}>Points left in hand</caption>
-                  <tbody>
-                    {ended.scores.map(score => (
-                      <tr key={score.playerId} className={score.playerId === ended.winner ? styles.winnerRow : ''}>
-                        <th scope="row">{score.playerId === playerId ? 'You' : score.playerId}</th>
-                        <td>{score.playerId === ended.winner ? `wins ${ended.points} pts` : `${score.deadwood} pts left`}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-              <div className={felt.endingButtons}>
-                <button ref={playAgainRef} type="button" className={felt.primary} onClick={table.playAgain} disabled={!connected || opening}>
-                  {opening ? 'Opening…' : 'Play again'}
-                </button>
-                <button type="button" className={felt.secondary} onClick={table.leaveTable}>
-                  Back to the room
+            {showDealEnd && lastDeal !== undefined ? (
+              <div className={felt.endingCard}>
+                <div className={felt.endingEmoji}>{lastDeal.winner === playerId ? '🏆' : lastDeal.winner === undefined ? '🤝' : '🃏'}</div>
+                <h2 id="rummy-ending" className={felt.endingTitle}>
+                  {headlineOf(lastDeal, playerId)}
+                </h2>
+                <p className={felt.endingLine}>{describeEnding(lastDeal, playerId)}</p>
+                {lastDeal.scores.length > 0 && (
+                  <table className={styles.scores}>
+                    <caption className={felt.srOnly}>Points left in hand</caption>
+                    <tbody>
+                      {lastDeal.scores.map(score => (
+                        <tr key={score.playerId} className={score.playerId === lastDeal.winner ? styles.winnerRow : ''}>
+                          <th scope="row">{score.playerId === playerId ? 'You' : score.playerId}</th>
+                          <td>{score.playerId === lastDeal.winner ? `wins ${lastDeal.points} pts` : `${score.deadwood} pts left`}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                <p className={felt.endingLine}>
+                  {!mayDeal ? `${dealer} deals next.` : dealer === playerId ? 'Your deal next.' : `${dealer} is away: you can deal.`}
+                </p>
+                {mayDeal && <div className={felt.endingButtons}>{dealButtons(true)}</div>}
+                <button ref={mayDeal ? undefined : playAgainRef} type="button" className={felt.link} onClick={dismissEnding}>
+                  See the hands
                 </button>
               </div>
-              <button type="button" className={felt.link} onClick={dismissEnding}>
-                See the final hands
-              </button>
-            </div>
+            ) : (
+              ended !== null && (
+                <div className={felt.endingCard}>
+                  <div className={felt.endingEmoji}>🃏</div>
+                  <h2 id="rummy-ending" className={felt.endingTitle}>
+                    The table closed
+                  </h2>
+                  <p className={felt.endingLine}>{describeTableEnd(ended, playerId)}</p>
+                  {ended.standings.length > 0 && (
+                    <table className={styles.scores}>
+                      <caption className={felt.srOnly}>Hands won</caption>
+                      <tbody>
+                        {ended.standings.map(standing => (
+                          <tr key={standing.playerId}>
+                            <th scope="row">{standing.playerId === playerId ? 'You' : standing.playerId}</th>
+                            <td>{standing.handsWon} won</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  <div className={felt.endingButtons}>
+                    <button ref={playAgainRef} type="button" className={felt.primary} onClick={table.playAgain} disabled={!connected || opening}>
+                      {opening ? 'Opening…' : 'Play again'}
+                    </button>
+                    <button type="button" className={felt.secondary} onClick={table.leaveTable}>
+                      Back to the room
+                    </button>
+                  </div>
+                  <button type="button" className={felt.link} onClick={dismissEnding}>
+                    See the final hands
+                  </button>
+                </div>
+              )
+            )}
           </div>,
           document.body
         )}
       <div className={felt.ring}>
         {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, clockOf(all.length, i)))}
-        {(view.phase === 'playing' || view.phase === 'ended') && (
+        {view.phase !== 'waiting' && view.dealNumber > 0 && (
           <section className={`${felt.pile} ${styles.middle}`} aria-label="table">
             <div className={felt.piles}>
               <div className={`${felt.drawPile} ${view.stockCount === 0 ? felt.drawn : ''}`}>

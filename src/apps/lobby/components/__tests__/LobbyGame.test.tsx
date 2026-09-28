@@ -56,7 +56,9 @@ vi.mock('@/apps/thoughts/components/ThoughtsGame', () => ({
   }
 }))
 vi.mock('@/apps/castle/components/CastleTable', () => ({ default: () => <div>table</div> }))
-vi.mock('@/apps/rummy/components/RummyTable', () => ({ default: () => <div>rummy table</div> }))
+vi.mock('@/apps/rummy/components/RummyTable', () => ({
+  default: ({ away }: { away?: string[] }) => <div>rummy table{away !== undefined && away.length > 0 ? `, away: ${away.join(' ')}` : ''}</div>
+}))
 const openChat = vi.fn()
 const askBot = vi.fn()
 vi.mock('../RoomChat', () => ({
@@ -150,6 +152,26 @@ describe('LobbyGame', () => {
     rerender(<LobbyGame />)
     expect(screen.queryByText('rummy table')).toBeNull()
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
+  })
+
+  // Who the room shows gone is what lets a seat deal for an away dealer.
+  it('hands the rummy table the seats the room shows away', () => {
+    state.room = {
+      roomId: 'R1',
+      games: [],
+      players: [
+        { playerId: 'alice', connected: true, gamesPlayed: 0, gamesWon: 0, totalScore: 0 },
+        { playerId: 'bob', connected: false, gamesPlayed: 0, gamesWon: 0, totalScore: 0 }
+      ]
+    } as unknown as UseLobby['room']
+    state.rummy.view = { gameId: 'M1' } as RummyView
+    try {
+      render(<LobbyGame />)
+      expect(screen.getByText('rummy table, away: bob')).toBeTruthy()
+    } finally {
+      state.rummy.view = null
+      state.room = null
+    }
   })
 
   // The bare world is the panel hidden on purpose, and on purpose means

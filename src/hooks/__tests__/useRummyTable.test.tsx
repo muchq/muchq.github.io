@@ -20,6 +20,12 @@ const seat = (playerId: string, hand: string[] = []): RummyPlayer => ({
 const view = (over: Partial<RummyView> = {}): RummyView => ({
   gameId: 'GAME01',
   phase: 'playing',
+  variant: 'basic',
+  dealNumber: 1,
+  standings: [
+    { playerId: 'bob', handsWon: 0 },
+    { playerId: 'alice', handsWon: 0 }
+  ],
   players: [seat('bob'), seat('alice', ['7♥', '8♥', '9♥', 'K♣'])],
   currentPlayerId: 'alice',
   stage: 'play',
@@ -135,21 +141,27 @@ describe('useRummyTable', () => {
     expect(mount().result.current.order).toBe('rank')
   })
 
-  it('a turn is not a toast; the deal and another table opening are', () => {
+  it('a turn and the table starting are the felt’s to show; another table opening is a toast', () => {
     const { receive, showNotice } = mount()
     receive({ turnChanged: { playerId: 'alice' } })
-    expect(showNotice).not.toHaveBeenCalled()
     receive({ gameStarted: {} })
+    expect(showNotice).not.toHaveBeenCalled()
     receive({ gameCreated: { gameId: 'G2', createdBy: 'bob' } })
     receive({ gameCreated: { gameId: 'G3', createdBy: 'alice' } })
-    expect(showNotice.mock.calls).toEqual([['Dealt. Draw a card to open your turn.'], ['bob opened table G2']])
+    expect(showNotice.mock.calls).toEqual([['bob opened table G2']])
+  })
+
+  it('the dealer’s pick names the variant', () => {
+    const { result, move } = mount()
+    act(() => result.current.chooseVariant('basic'))
+    expect(move.mock.calls).toEqual([['chooseVariant', { variant: 'basic' }]])
   })
 
   it('play again opens another table; the ending goes with the old one', () => {
     const { result, receive, move } = mount()
     receive({ gameState: { view: view({ phase: 'ended' }) } })
-    receive({ gameEnded: { winner: 'alice', points: 30, scores: [] } })
-    expect(result.current.ended?.winner).toBe('alice')
+    receive({ gameEnded: { standings: [{ playerId: 'alice', handsWon: 2 }], dealsPlayed: 3 } })
+    expect(result.current.ended?.dealsPlayed).toBe(3)
     act(() => result.current.playAgain())
     expect(move.mock.calls).toEqual([['createGame']])
     expect(result.current.opening).toBe(true)
