@@ -95,6 +95,23 @@ describe('RummyTable', () => {
     expect(screen.getByRole('button', { name: 'Take Q♠' })).toHaveProperty('disabled', false)
   })
 
+  it('with the stock out but cards under the discard top, drawing turns the pile over', () => {
+    const { t } = mountWith(view({ stage: 'draw', stockCount: 0, canDrawStock: true }))
+    expect(screen.getByText('The stock is out: turn the discard pile over to draw, or take the Q♠.')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'turn the discard pile over and draw' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Turn the discard over' }))
+    expect(t.drawStock).toHaveBeenCalledTimes(2)
+  })
+
+  it('with no discard top, the hint only offers a draw there is', () => {
+    mountWith(view({ stage: 'draw', discardTop: undefined }))
+    expect(screen.getByText('Draw from the stock.')).toBeDefined()
+    cleanup()
+    mountWith(view({ stage: 'draw', discardTop: undefined, stockCount: 0, canDrawStock: false }))
+    expect(screen.queryByText('Draw from the stock.')).toBeNull()
+    expect(screen.getByText('Nothing left to draw.')).toBeDefined()
+  })
+
   it('off turn, nothing on the table is a button', () => {
     mountWith(view({ currentPlayerId: 'bob', stage: 'draw' }))
     expect(screen.queryByRole('button', { name: /draw from the stock/i })).toBeNull()

@@ -1,7 +1,7 @@
 // The games hub's one stream, game-agnostic: the session mint, the
 // smithy event-stream socket with its reconnect loop, the room and chat
 // commands and events, the lobby envelope (the world), the voice
-// envelope (the room's voice), and one envelope per game (golf, castle)
+// envelope (the room's voice), and one envelope per game (golf, castle, rummy)
 // whose contents are the game client's business.
 //
 // Wire shape (smithy-cpp ADR-0018 JSON-text mode):
@@ -16,8 +16,9 @@
 //   - a room's voice rides its own envelope the same way, action up and
 //     update down: {"event":"voice","payload":{"action":{"join":{}}}}
 //   - room chat: ChatMessage {messageId, playerId, text, sentAtUnixMillis,
-//     bot?}. `bot: true` marks a microgpt reply (playerId `microgpt`);
-//     ordinary messages omit it (MoonBase#1591 / games.smithy).
+//     bot?, wordchain?}. `bot: true` marks a bot's reply, whose playerId
+//     names it (`microgpt`, `mithril`); `wordchain` is mithril's ladder.
+//     Ordinary messages omit both (games.smithy).
 //   - a refusal that ends the stream: {"exception":"<shape>","payload":{"message":"..."}}
 //
 
@@ -35,7 +36,7 @@ export { hubPlayUrl }
 const RECONNECT_DELAY_MS = 2000
 const MAX_RECONNECT_ATTEMPTS = 10
 
-// --- wire shapes (mirrors model/games.smithy + model/golf.smithy) ---
+// --- wire shapes (mirrors model/games.smithy; each game envelope stays opaque) ---
 
 export type HubGameName = 'golf' | 'castle' | 'rummy'
 

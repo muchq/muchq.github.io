@@ -6,20 +6,27 @@
 
 export interface ChatMessage {
   messageId: number
-  // Reserved `microgpt` when the hub posts a bot reply (MoonBase#1591).
-  // Whimsical player ids never collide with it.
+  // The author. A bot's reply carries its reserved id — `microgpt`
+  // answering `@bot` (MoonBase#1591), `mithril` answering `/wordchain` —
+  // shown as the reply's source. Whimsical player ids never collide.
   playerId: string
   text: string
   sentAtUnixMillis: number
-  // Optional on the wire (games.smithy): true for microgpt's replies so
-  // clients style them without hard-coding the reserved playerId. Absent
-  // on ordinary messages and on hubs that predate the field.
+  // Optional on the wire (games.smithy): true on a bot's replies so
+  // clients style them without hard-coding the reserved ids. Absent on
+  // ordinary messages and on hubs that predate the field.
   bot?: boolean
+  // On mithril's replies, the ladder `text` spells out.
+  wordchain?: Wordchain
 }
 
-// The reserved playerId the hub uses for microgpt replies, and the
-// label RoomChat shows for any message flagged `bot`.
-export const CHAT_BOT_PLAYER_ID = 'microgpt'
+// A word ladder: `path` is every rung, both ends included, and absent
+// when no ladder joins `start` to `end`.
+export interface Wordchain {
+  start: string
+  end: string
+  path?: string[]
+}
 
 // Mirrors games_hub::BotMention (MoonBase room_bot.cc): `@bot` at the
 // very start, any case, followed by ASCII whitespace or end of text.
@@ -38,6 +45,59 @@ export function botMentionPrefix(
 
 const isAsciiSpace = (code: number): boolean =>
   code === 0x20 || code === 0x09 || code === 0x0a || code === 0x0b || code === 0x0c || code === 0x0d
+
+// A slash command the hub answers in room chat. `accepts` mirrors the
+// hub's grammar for the text after the command, so a highlight never
+// promises an answer the hub won't give.
+export interface SlashCommand {
+  name: string
+  usage: string
+  description: string
+  accepts: (args: string) => boolean
+}
+
+const WORDCHAIN_WORD = /^[A-Za-z]{3,8}$/
+
+// Every command the hub answers, in menu order.
+export const SLASH_COMMANDS: SlashCommand[] = [
+  {
+    // games_hub::WordchainCommand (MoonBase wordchain.cc): exactly two
+    // words of 3 to 8 ASCII letters, the words mithril's graph holds.
+    name: 'wordchain',
+    usage: '/wordchain start end',
+    description: 'shortest word ladder, from mithril',
+    accepts: args => {
+      const words = args.split(/[ \t\r\n]+/).filter(word => word !== '')
+      return words.length === 2 && words.every(word => WORDCHAIN_WORD.test(word))
+    }
+  }
+]
+
+// The command at the very start of `text` (any case), followed by ASCII
+// whitespace and arguments it accepts. Returns the typed command, the
+// remainder, and the command's spec, or null for text the hub leaves as
+// chat.
+export function slashCommand(
+  text: string,
+  commands: SlashCommand[] = SLASH_COMMANDS
+): { command: string; rest: string; spec: SlashCommand } | null {
+  for (const spec of commands) {
+    const command = text.slice(0, spec.name.length + 1)
+    if (command.toLowerCase() !== `/${spec.name}`) continue
+    const rest = text.slice(command.length)
+    if (rest.length === 0 || !isAsciiSpace(rest.charCodeAt(0))) continue
+    if (spec.accepts(rest)) return { command, rest, spec }
+  }
+  return null
+}
+
+// The commands a draft of just `/` and a partial name could still
+// become, in menu order. Nothing once whitespace follows the name.
+export function slashCompletions(draft: string, commands: SlashCommand[] = SLASH_COMMANDS): SlashCommand[] {
+  if (!/^\/[A-Za-z]*$/.test(draft)) return []
+  const typed = draft.slice(1).toLowerCase()
+  return commands.filter(spec => spec.name.startsWith(typed))
+}
 
 // Mirrors the server's retention: rooms keep their newest 100 messages,
 // so a client holding more is holding rows the server already pruned.

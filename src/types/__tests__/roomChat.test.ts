@@ -10,6 +10,9 @@ import {
   mergeChatMessages,
   newChatSendBudget,
   spendChatToken,
+  SLASH_COMMANDS,
+  slashCommand,
+  slashCompletions,
   type ChatMessage
 } from '../roomChat'
 
@@ -150,5 +153,53 @@ describe('botMentionPrefix', () => {
     expect(botMentionPrefix('@bot:hi')).toBeNull()
     expect(botMentionPrefix(' @bot hi')).toBeNull()
     expect(botMentionPrefix('')).toBeNull()
+  })
+})
+
+// /wordchain mirrors games_hub::WordchainCommand (MoonBase wordchain.cc):
+// the same cases its C++ test pins, so a highlight never promises an
+// answer the hub won't give.
+describe('slashCommand', () => {
+  it('matches /wordchain, any case, then two words of 3 to 8 letters', () => {
+    expect(slashCommand('/wordchain Cold  WARM ')).toMatchObject({ command: '/wordchain', rest: ' Cold  WARM ' })
+    expect(slashCommand('/WORDCHAIN cat dog')).toMatchObject({ command: '/WORDCHAIN', rest: ' cat dog' })
+    expect(slashCommand('/wordchain abc abcdefgh')?.spec.name).toBe('wordchain')
+  })
+
+  it('is nothing for anything the hub leaves as chat', () => {
+    for (const text of [
+      '/wordchain',
+      '/wordchain cold',
+      '/wordchain cold warm hot',
+      '/wordchaincold warm',
+      '/wordchain ox dog',
+      '/wordchain cat abcdefghi',
+      '/wordchain c4t dog',
+      '/wordchain café dog',
+      'hi /wordchain cat dog',
+      ' /wordchain cat dog',
+      '/nope cat dog'
+    ]) {
+      expect(slashCommand(text), text).toBeNull()
+    }
+  })
+})
+
+describe('slashCompletions', () => {
+  const commands = [
+    ...SLASH_COMMANDS,
+    { name: 'word', usage: '/word', description: 'test', accepts: () => true }
+  ]
+
+  it('offers every command a leading /-word could still become', () => {
+    expect(slashCompletions('/', commands).map(c => c.name)).toEqual(['wordchain', 'word'])
+    expect(slashCompletions('/WORDc', commands).map(c => c.name)).toEqual(['wordchain'])
+    expect(slashCompletions('/word', commands).map(c => c.name)).toEqual(['wordchain', 'word'])
+  })
+
+  it('offers nothing once the command is typed out, or for other text', () => {
+    for (const draft of ['', 'word', ' /word', '/x', '/wordchain ', '/wordchain cold']) {
+      expect(slashCompletions(draft, commands), draft).toEqual([])
+    }
   })
 })

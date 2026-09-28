@@ -126,11 +126,17 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
 
   const moment = view.lastMove !== undefined && `${view.gameId}:${moveSignature(view.lastMove)}` !== faded ? view.lastMove : undefined
 
+  // An empty stock that can still be drawn is the discard pile, turned over
+  // under its top card.
+  const turning = view.stockCount === 0 && view.canDrawStock
+
   const hint = (() => {
     if (view.phase === 'waiting') return view.players.length < 2 ? 'Waiting for a second seat.' : ''
     if (drawing) {
-      if (view.discardTop === undefined) return 'Draw from the stock.'
-      return view.canDrawStock ? `Draw from the stock, or take the ${face(view.discardTop)}.` : `The stock is out: take the ${face(view.discardTop)}.`
+      if (view.discardTop === undefined) return view.canDrawStock ? 'Draw from the stock.' : 'Nothing left to draw.'
+      if (!view.canDrawStock) return `The stock is out: take the ${face(view.discardTop)}.`
+      if (turning) return `The stock is out: turn the discard pile over to draw, or take the ${face(view.discardTop)}.`
+      return `Draw from the stock, or take the ${face(view.discardTop)}.`
     }
     if (laying) {
       if (single !== null && fitting.length > 0) return `Tap a lit meld to lay off ${face(single)}, or discard it.`
@@ -179,7 +185,7 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
       return (
         <>
           <button type="button" className={felt.primary} onClick={thenHand(table.drawStock)} disabled={!view.canDrawStock || !connected}>
-            Draw from the stock
+            {turning ? 'Turn the discard over' : 'Draw from the stock'}
           </button>
           <button type="button" className={felt.secondary} onClick={thenHand(table.drawDiscard)} disabled={view.discardTop === undefined || !connected}>
             {view.discardTop === undefined ? 'Discard pile empty' : `Take ${face(view.discardTop)}`}
@@ -384,7 +390,7 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
                     className={`${felt.card} ${felt.back} ${styles.drawable}`}
                     onClick={thenHand(table.drawStock)}
                     disabled={!connected}
-                    aria-label={`draw from the stock, ${view.stockCount} left`}
+                    aria-label={turning ? 'turn the discard pile over and draw' : `draw from the stock, ${view.stockCount} left`}
                   />
                 ) : (
                   <span className={`${felt.card} ${felt.back}`} role="img" aria-label={`stock, ${view.stockCount} left`} />

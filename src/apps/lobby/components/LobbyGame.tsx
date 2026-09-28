@@ -14,7 +14,7 @@ import { safeLocalStorage } from '@/utils/safeLocalStorage'
 import styles from './LobbyGame.module.css'
 
 // The lobby: the world as the main view, the panel beside it, the room's
-// chat, and — while this session sits at a table of either game — the
+// chat, and — while this session sits at a table of any game — the
 // table over the world, which keeps ticking underneath so presence and
 // chat never drop. The panel hides behind a toggle while a table is up.
 // Over all of it, the command menu: the world and the lobby both publish
