@@ -505,7 +505,9 @@ describe('RoomChat', () => {
     expect(row!.closest('[data-bot]')!.textContent).toContain('mithril')
     const rungs = [...row!.querySelectorAll('li')].map(li => li.textContent)
     expect(rungs).toEqual(['cold', 'cord', 'card', 'ward', 'warm'])
-    expect(row!.getAttribute('aria-label')).toBe('cold → cord → card → ward → warm')
+    // Read once: the text for screen readers, the drawn ladder hidden.
+    expect(row!.getAttribute('aria-hidden')).toBe('true')
+    expect(screen.getByText('cold → cord → card → ward → warm')).toBeTruthy()
   })
 
   it('says so when no ladder joins the words', () => {
@@ -519,6 +521,20 @@ describe('RoomChat', () => {
     }
     const { container } = render(<RoomChat {...baseProps} messages={[none]} />)
     expect(container.querySelector('[data-wordchain] li')).toBeNull()
+    expect(screen.getByText('no ladder from cold to hot')).toBeTruthy()
+  })
+
+  it('draws no ladder for an empty path', () => {
+    const empty: ChatMessage = {
+      messageId: 1,
+      playerId: 'mithril',
+      text: 'no ladder from cold to hot',
+      sentAtUnixMillis: 1,
+      bot: true,
+      wordchain: { start: 'cold', end: 'hot', path: [] }
+    }
+    const { container } = render(<RoomChat {...baseProps} messages={[empty]} />)
+    expect(container.querySelector('[data-wordchain]')).toBeNull()
     expect(screen.getByText('no ladder from cold to hot')).toBeTruthy()
   })
 
@@ -538,13 +554,14 @@ describe('RoomChat', () => {
   it('highlights a /wordchain command the hub will answer, and only that', () => {
     for (const { text, highlighted } of [
       { text: '/wordchain cold warm', highlighted: true },
+      { text: '/WORDCHAIN cold warm', highlighted: true },
       { text: '/wordchain cold', highlighted: false },
       { text: '/wordchain ox dog', highlighted: false }
     ]) {
       const { unmount, container } = render(<RoomChat {...baseProps} messages={[msg(1, 'bob', text)]} />)
       const command = container.querySelector('[data-command]')
       if (highlighted) {
-        expect(command?.textContent, text).toBe('/wordchain')
+        expect(command?.textContent?.toLowerCase(), text).toBe('/wordchain')
         expect(screen.getByTestId('chat-messages').textContent).toContain(text)
       } else {
         expect(command, text).toBeNull()

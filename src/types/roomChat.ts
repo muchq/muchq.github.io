@@ -56,13 +56,13 @@ export interface SlashCommand {
   accepts: (args: string) => boolean
 }
 
-const WORDCHAIN_WORD = /^[A-Za-z]{3,9}$/
+const WORDCHAIN_WORD = /^[A-Za-z]{3,8}$/
 
 // Every command the hub answers, in menu order.
 export const SLASH_COMMANDS: SlashCommand[] = [
   {
     // games_hub::WordchainCommand (MoonBase wordchain.cc): exactly two
-    // words of 3 to 9 ASCII letters.
+    // words of 3 to 8 ASCII letters, the words mithril's graph holds.
     name: 'wordchain',
     usage: '/wordchain start end',
     description: 'shortest word ladder, from mithril',

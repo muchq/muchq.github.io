@@ -160,10 +160,10 @@ describe('botMentionPrefix', () => {
 // the same cases its C++ test pins, so a highlight never promises an
 // answer the hub won't give.
 describe('slashCommand', () => {
-  it('matches /wordchain, any case, then two words of 3 to 9 letters', () => {
+  it('matches /wordchain, any case, then two words of 3 to 8 letters', () => {
     expect(slashCommand('/wordchain Cold  WARM ')).toMatchObject({ command: '/wordchain', rest: ' Cold  WARM ' })
     expect(slashCommand('/WORDCHAIN cat dog')).toMatchObject({ command: '/WORDCHAIN', rest: ' cat dog' })
-    expect(slashCommand('/wordchain abc abcdefghi')?.spec.name).toBe('wordchain')
+    expect(slashCommand('/wordchain abc abcdefgh')?.spec.name).toBe('wordchain')
   })
 
   it('is nothing for anything the hub leaves as chat', () => {
@@ -173,7 +173,7 @@ describe('slashCommand', () => {
       '/wordchain cold warm hot',
       '/wordchaincold warm',
       '/wordchain ox dog',
-      '/wordchain cat abcdefghij',
+      '/wordchain cat abcdefghi',
       '/wordchain c4t dog',
       '/wordchain café dog',
       'hi /wordchain cat dog',

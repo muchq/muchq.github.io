@@ -217,6 +217,23 @@ describe('HubStream', () => {
     expect(callbacks.onChatHistory).toHaveBeenCalledWith([botMessage])
   })
 
+  // mithril's reply exactly as MoonBase's golf_wire_test pins it
+  // (AWordchainReplyCarriesItsLadderOnTheWire): the ladder reaches the chat
+  // callbacks intact, live and replayed.
+  it('hands a wordchain roomChat frame through with its ladder intact', async () => {
+    const [, ws] = await connect()
+    const ladder = JSON.parse(
+      '{"bot":true,"messageId":2,"playerId":"mithril","sentAtUnixMillis":3,' +
+        '"text":"cold → cord → card → ward → warm",' +
+        '"wordchain":{"end":"warm","path":["cold","cord","card","ward","warm"],"start":"cold"}}'
+    )
+    ws.receive('roomChat', ladder)
+    expect(callbacks.onChat).toHaveBeenCalledWith(ladder)
+    expect(callbacks.onChat.mock.calls[0][0].wordchain?.path).toEqual(['cold', 'cord', 'card', 'ward', 'warm'])
+    ws.receive('roomChatHistory', { messages: [ladder] })
+    expect(callbacks.onChatHistory).toHaveBeenCalledWith([ladder])
+  })
+
   it('hands each game envelope through by name, contents untouched', async () => {
     const [, ws] = await connect()
     ws.receive('castle', { update: { turnChanged: { playerId: 'bob' } } })

@@ -101,15 +101,19 @@ const senderLabel = (message: ChatMessage): string => message.playerId
 // no links. Bot rows are skipped: the hub never answers a bot, and a
 // ladder is drawn from its structure rather than its text.
 const messageTextNodes = (message: ChatMessage) => {
-  if (message.wordchain?.path) {
+  if (message.wordchain?.path?.length) {
+    // Screen readers get the text once; the drawn ladder is for the eye.
     return (
-      <ol className={styles.ladder} data-wordchain aria-label={message.text}>
-        {message.wordchain.path.map((word, i) => (
-          <li key={i}>
-            <span className={styles.rung}>{word}</span>
-          </li>
-        ))}
-      </ol>
+      <>
+        <span className={styles.srOnly}>{message.text}</span>
+        <ol className={styles.ladder} data-wordchain aria-hidden="true">
+          {message.wordchain.path.map((word, i) => (
+            <li key={i}>
+              <span className={styles.rung}>{word}</span>
+            </li>
+          ))}
+        </ol>
+      </>
     )
   }
   if (message.bot) return message.text
