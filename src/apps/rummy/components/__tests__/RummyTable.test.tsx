@@ -114,15 +114,15 @@ describe('RummyTable', () => {
 
   it('lays the hand out in the order asked for, and the toggle asks', () => {
     const { t, rerender } = mountWith(view())
-    const faces = () => myHandGroup().getAllByRole('button').map(b => b.getAttribute('aria-label'))
+    const faces = () => myHandGroup().getAllByRole('button').map(b => b.getAttribute('aria-label')?.split(',')[0])
     expect(faces()).toEqual(['2♠', '7♥', '8♥', '9♥', '7♣', 'K♦'])
     fireEvent.click(screen.getByRole('button', { name: 'by rank' }))
     expect(t.setOrder).toHaveBeenCalledWith('rank')
     rerender(<RummyTable playerId="alice" connected view={view()} table={{ ...t, order: 'rank' }} />)
     expect(faces()).toEqual(['2♠', '7♥', '7♣', '8♥', '9♥', 'K♦'])
     expect(screen.getByRole('button', { name: 'by rank' }).getAttribute('aria-pressed')).toBe('true')
-    // Deadwood is the hand's cost, for deciding what to throw.
-    expect(screen.getByText('Deadwood 43')).toBeDefined()
+    // The hand's cost, for deciding what to throw.
+    expect(screen.getByText('43 pts in hand')).toBeDefined()
   })
 
   it('a tap picks a card, and three that make a meld arm the meld button', () => {
@@ -151,12 +151,63 @@ describe('RummyTable', () => {
     expect(t.discardSelected).toHaveBeenCalledTimes(1)
   })
 
+  it('marks the hand cards that would grow a meld before any is picked', () => {
+    mountWith(view())
+    // 7♣ runs on from 4♣ 5♣ 6♣; nothing else fits either meld.
+    expect(myHandGroup().getByRole('button', { name: '7♣, fits a meld' })).toBeDefined()
+    expect(myHandGroup().getAllByRole('button', { name: /fits a meld/ })).toHaveLength(1)
+    // Its twin: off the play stage nothing is marked.
+    cleanup()
+    mountWith(view({ stage: 'draw' }))
+    expect(screen.queryByRole('img', { name: /fits a meld/ })).toBeNull()
+    expect(screen.getByRole('img', { name: '7♣' })).toBeDefined()
+  })
+
+  it('says who laid each meld', () => {
+    mountWith(view({ melds: [{ owner: 'alice', cards: [c('4♣'), c('5♣'), c('6♣')] }, { owner: 'bob', cards: [c('J♣'), c('J♦'), c('J♥')] }] }))
+    const melds = within(screen.getByRole('group', { name: 'melds' }))
+    expect(melds.getByText('you')).toBeDefined()
+    expect(melds.getByText('bob')).toBeDefined()
+  })
+
+  it('two cards picked says what makes a move', () => {
+    mountWith(view(), { selected: ['7♥', '8♥'] })
+    expect(screen.getByText('Pick three or more to meld, or one to lay off or discard.')).toBeDefined()
+  })
+
+  it('says whose turn it is when it is not yours', () => {
+    mountWith(view({ currentPlayerId: 'bob', stage: 'play' }))
+    expect(screen.getByText('Waiting for bob to play.')).toBeDefined()
+  })
+
+  it('a move hands focus to the hand, since the button that made it goes', () => {
+    const { t } = mountWith(view({ stage: 'draw' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Draw from the stock' }))
+    expect(t.drawStock).toHaveBeenCalledTimes(1)
+    expect(document.activeElement).toBe(screen.getByRole('group', { name: 'Your hand' }))
+    cleanup()
+    const laid = mountWith(view(), { selected: ['7♣'] })
+    fireEvent.click(screen.getByRole('button', { name: "lay off 7♣ on 4♣ 5♣ 6♣, bob's" }))
+    expect(laid.t.layOffSelected).toHaveBeenCalledWith(0)
+    expect(document.activeElement).toBe(screen.getByRole('group', { name: 'Your hand' }))
+  })
+
   it('the card just taken from the discard is marked and cannot be thrown back', () => {
     const v = view({ takenDiscard: c('2♠') })
     mountWith(v, { selected: ['2♠'] })
     expect(myHandGroup().getByRole('button', { name: '2♠, just taken' })).toBeDefined()
     expect(screen.getByRole('button', { name: 'Discard 2♠' })).toHaveProperty('disabled', true)
     expect(screen.getByText(/can’t go straight back/)).toBeDefined()
+  })
+
+  it('the rule is said before it is broken', () => {
+    mountWith(view({ takenDiscard: c('2♠') }))
+    expect(screen.getByText('Meld or lay off if you can, then discard — not the 2♠ you just took.')).toBeDefined()
+  })
+
+  it('the taken card is the way out when it is all that is left', () => {
+    mountWith(view({ takenDiscard: c('2♠'), players: [seat('alice', ['2♠']), seat('bob')] }), { selected: ['2♠'] })
+    expect(screen.getByRole('button', { name: 'Discard 2♠' })).toHaveProperty('disabled', false)
   })
 
   it('offline, nothing is armed', () => {
@@ -180,8 +231,8 @@ describe('RummyTable', () => {
     const dialog = within(screen.getByRole('dialog'))
     expect(dialog.getByRole('heading', { name: 'bob wins' })).toBeDefined()
     expect(dialog.getByText('bob went out and scores 43 points.')).toBeDefined()
-    expect(dialog.getByRole('row', { name: 'You 43 left' })).toBeDefined()
-    expect(dialog.getByRole('row', { name: 'bob +43' })).toBeDefined()
+    expect(dialog.getByRole('row', { name: 'You 43 pts left' })).toBeDefined()
+    expect(dialog.getByRole('row', { name: 'bob wins 43 pts' })).toBeDefined()
     fireEvent.click(dialog.getByRole('button', { name: 'Play again' }))
     expect(t.playAgain).toHaveBeenCalledTimes(1)
     fireEvent.click(dialog.getByRole('button', { name: 'See the final hands' }))

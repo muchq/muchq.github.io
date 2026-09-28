@@ -37,7 +37,9 @@ export interface UseRummyTable extends RummyTableActions {
   joinTable: (gameId: string) => void
   view: RummyView | null
   ended: RummyGameEnded | null
-  // Faces of the selected cards, in the order they were picked.
+  // Faces of the selected cards, in the order they were picked. Kept until
+  // the hub answers: the next view clears them, and a refusal leaves them
+  // picked so the move can be fixed rather than rebuilt.
   selected: string[]
   order: HandOrder
   // A table has been asked for and not yet arrived.
@@ -158,7 +160,6 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
     const cards = selectedCards()
     if (cards === null) return
     move('meld', { cards })
-    setSelected([])
   }, [move, selectedCards])
 
   const layOffSelected = useCallback(
@@ -166,7 +167,6 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
       const cards = selectedCards()
       if (cards === null || cards.length !== 1) return
       move('layOff', { card: cards[0], meldIndex })
-      setSelected([])
     },
     [move, selectedCards]
   )
@@ -175,7 +175,6 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
     const cards = selectedCards()
     if (cards === null || cards.length !== 1) return
     move('discard', { card: cards[0] })
-    setSelected([])
   }, [move, selectedCards])
 
   const setOrder = useCallback((next: HandOrder) => {

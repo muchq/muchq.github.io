@@ -54,6 +54,11 @@ describe('useRummyTable', () => {
     act(() => result.current.meldSelected())
     // The whole transcript: one move.
     expect(move.mock.calls).toEqual([['meld', { cards: [c('9♥'), c('7♥'), c('8♥')] }]])
+    // Picked until the hub answers: a refusal leaves them to be fixed, the
+    // next view clears them.
+    act(() => result.current.handleRejected())
+    expect(result.current.selected).toEqual(['9♥', '7♥', '8♥'])
+    receive({ gameState: { view: view() } })
     expect(result.current.selected).toEqual([])
   })
 
@@ -70,6 +75,7 @@ describe('useRummyTable', () => {
     receive({ gameJoined: { view: view() } })
     act(() => result.current.toggleCard(c('K♣')))
     act(() => result.current.layOffSelected(0))
+    receive({ gameState: { view: view() } })
     act(() => result.current.toggleCard(c('K♣')))
     act(() => result.current.discardSelected())
     expect(move.mock.calls).toEqual([

@@ -5,7 +5,7 @@
 /* The middle is wider than castle's pile: the melds wrap beneath the
    piles, and a table of them wants the room. */
 .middle {
-  max-width: min(26rem, 90%);
+  max-width: min(36rem, 90%);
   gap: 0.6rem;
 }
 
@@ -16,7 +16,7 @@
   gap: 0.4rem 0.6rem;
   /* A long game's melds scroll inside the middle rather than pushing the
      chairs off the felt. */
-  max-height: 11rem;
+  max-height: 16rem;
   overflow-y: auto;
 }
 
@@ -24,17 +24,33 @@
   font-size: 0.8rem;
 }
 
-/* A meld is its cards overlapped tight, drawn smaller than a hand: it is
-   read, not held. */
+/* A meld is its cards overlapped at full size, each showing its corner
+   index — the melds are the shared board, read by every chair — with who
+   laid it underneath. */
 .meld {
   display: inline-flex;
-  padding: 0.2rem 0.3rem;
-  border-radius: 0.4rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.25rem 0.35rem;
+  border-radius: 0.5rem;
   border: 2px solid transparent;
   background: none;
   font: inherit;
   color: inherit;
-  zoom: 0.72;
+}
+
+.meldCards {
+  display: flex;
+}
+
+.meldOwner {
+  max-width: 6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.65);
 }
 
 button.meld {
@@ -44,7 +60,8 @@ button.meld {
 .meldSlot {
   position: relative;
   display: block;
-  margin-left: -1.9rem;
+  /* What is left of each card under the next: its index, "10" included. */
+  margin-left: -1.75rem;
 }
 
 .meldSlot:first-child {
@@ -53,6 +70,7 @@ button.meld {
 
 /* A meld the picked card would grow: lit, the place to tap. */
 .fits {
+  border-width: 3px;
   border-color: #f0c96a;
   background: rgba(240, 201, 106, 0.15);
   animation: fits 1.2s ease-in-out infinite alternate;
@@ -83,6 +101,21 @@ button.meld {
   outline: 2px solid #f0c96a;
   outline-offset: 2px;
   animation: fits 1.2s ease-in-out infinite alternate;
+}
+
+/* A hand card that would grow a meld on the table: a gold dot, before it
+   is picked. */
+.laysOff::after {
+  content: '';
+  position: absolute;
+  top: -0.3rem;
+  left: 50%;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-left: -0.25rem;
+  border-radius: 50%;
+  background: #f0c96a;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
 }
 
 /* The card just taken from the discard: it can't go straight back. */
@@ -156,7 +189,12 @@ button.meld {
   }
 
   .melds {
-    max-height: 8rem;
+    max-height: 10rem;
+  }
+
+  /* Smaller cards (2.6rem): the same index left showing. */
+  .meldSlot {
+    margin-left: -1.35rem;
   }
 }
 
@@ -170,5 +208,12 @@ button.meld {
   .fits,
   .drawable {
     animation: none;
+  }
+}
+
+@media (max-height: 700px) and (min-width: 601px) {
+  /* The short window's cards (2.25rem). */
+  .meldSlot {
+    margin-left: -1.05rem;
   }
 }

@@ -92,6 +92,15 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
   const fitting = single === null ? [] : meldsFitting(view.melds, single)
   const discardable = single !== null && canDiscard(view, myHand, single)
 
+  // A move takes the button that made it away — the picked card, the lit
+  // meld, the draw that becomes a disabled Meld — so focus goes to the hand,
+  // which is where the next move is picked.
+  const handRef = useRef<HTMLDivElement>(null)
+  const thenHand = (move: () => void) => () => {
+    move()
+    handRef.current?.focus()
+  }
+
   const showEnding = view.phase === 'ended' && ended !== null && endingRead !== view.gameId
   const keepFocusIn = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Tab') return
@@ -125,8 +134,13 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
     }
     if (laying) {
       if (single !== null && fitting.length > 0) return `Tap a lit meld to lay off ${face(single)}, or discard it.`
+      if (picked.length === 2) return 'Pick three or more to meld, or one to lay off or discard.'
       if (picked.length >= 3 && meld === null) return 'Those cards are not a set or a run.'
+      if (view.takenDiscard !== undefined) return `Meld or lay off if you can, then discard — not the ${face(view.takenDiscard)} you just took.`
       return 'Meld or lay off if you can, then discard to end your turn.'
+    }
+    if (view.phase === 'playing' && view.currentPlayerId !== undefined) {
+      return `Waiting for ${view.currentPlayerId} to ${view.stage === 'draw' ? 'draw' : 'play'}.`
     }
     return ''
   })()
@@ -164,10 +178,10 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
     if (drawing) {
       return (
         <>
-          <button type="button" className={felt.primary} onClick={table.drawStock} disabled={!view.canDrawStock || !connected}>
+          <button type="button" className={felt.primary} onClick={thenHand(table.drawStock)} disabled={!view.canDrawStock || !connected}>
             Draw from the stock
           </button>
-          <button type="button" className={felt.secondary} onClick={table.drawDiscard} disabled={view.discardTop === undefined || !connected}>
+          <button type="button" className={felt.secondary} onClick={thenHand(table.drawDiscard)} disabled={view.discardTop === undefined || !connected}>
             {view.discardTop === undefined ? 'Discard pile empty' : `Take ${face(view.discardTop)}`}
           </button>
         </>
@@ -176,13 +190,13 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
     if (laying) {
       return (
         <>
-          <button type="button" className={felt.primary} onClick={table.meldSelected} disabled={meld === null || !connected}>
+          <button type="button" className={felt.primary} onClick={thenHand(table.meldSelected)} disabled={meld === null || !connected}>
             {meld === null ? 'Meld' : `Meld ${meld.map(face).join(' ')}`}
           </button>
-          <button type="button" className={felt.secondary} onClick={table.discardSelected} disabled={!discardable || !connected}>
+          <button type="button" className={felt.secondary} onClick={thenHand(table.discardSelected)} disabled={!discardable || !connected}>
             {single === null ? 'Discard' : `Discard ${face(single)}`}
           </button>
-          {single !== null && !canDiscard(view, myHand, single) && (
+          {single !== null && !discardable && (
             <p className={felt.muted}>You just took {face(single)}: it can’t go straight back.</p>
           )}
         </>
@@ -226,12 +240,14 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
           {!mine && (
             <span className={`${felt.handCount} ${seat.handCount > SHOWN_BACKS ? felt.handCountShown : ''}`}> · {seat.handCount} in hand</span>
           )}
-          {view.phase === 'ended' && <span className={felt.muted}> · {deadwood(seat.hand)} left</span>}
+          {view.phase === 'ended' && <span className={felt.muted}> · {deadwood(seat.hand)} pts left</span>}
         </h3>
         <div className={felt.seatFrame}>
           <div className={felt.seatCards}>
             <div
               className={`${felt.hand} ${styles.hand}`}
+              ref={mine ? handRef : undefined}
+              tabIndex={mine ? -1 : undefined}
               role="group"
               aria-label={`${whose} hand`}
               style={{ '--overlap': `${Math.min(2, 1 + Math.max(0, shown.length - 6) * 0.15)}rem` } as CSSProperties}
@@ -241,6 +257,10 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
                   const angle = (i - (all.length - 1) / 2) * step
                   const entered = mine && handMark.entered.includes(i)
                   const taken = card !== null && laying && mine && view.takenDiscard !== undefined && face(view.takenDiscard) === face(card)
+                  // A card that would grow a meld on the table is marked
+                  // before it is picked, so a lay-off is seen, not guessed.
+                  const laysOff = card !== null && laying && mine && meldsFitting(view.melds, card).length > 0
+                  const notes = [taken ? 'just taken' : '', laysOff ? 'fits a meld' : ''].filter(Boolean)
                   return (
                     <span
                       key={mine && card !== null ? `${face(card)}:${entered ? handMark.gen : 0}` : i}
@@ -252,9 +272,9 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
                       ) : (
                         <CardFace
                           card={card}
-                          className={`${entered ? felt.entered : ''} ${taken ? styles.taken : ''}`}
+                          className={`${entered ? felt.entered : ''} ${taken ? styles.taken : ''} ${laysOff ? styles.laysOff : ''}`}
                           style={entered ? ({ '--i': handMark.entered.indexOf(i) } as CSSProperties) : undefined}
-                          label={taken ? `${face(card)}, just taken` : undefined}
+                          label={notes.length > 0 ? [face(card), ...notes].join(', ') : undefined}
                           toggle={mine && laying ? selected.includes(face(card)) : undefined}
                           onClick={mine && laying && connected ? () => table.toggleCard(card) : undefined}
                         />
@@ -268,7 +288,9 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
         </div>
         {mine && view.phase !== 'waiting' && (
           <div className={styles.handTools}>
-            <span className={felt.muted}>Deadwood {deadwood(myHand)}</span>
+            <span className={felt.muted} title="What your hand would cost you if someone went out now">
+              {deadwood(myHand)} pts in hand
+            </span>
             <span role="group" aria-label="Sort your hand" className={styles.sort}>
               {(['suit', 'rank'] as const).map(by => (
                 <button key={by} type="button" className={styles.sortButton} aria-pressed={order === by} onClick={() => table.setOrder(by)}>
@@ -324,12 +346,12 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
               <p className={felt.endingLine}>{describeEnding(ended, playerId)}</p>
               {ended.scores.length > 0 && (
                 <table className={styles.scores}>
-                  <caption className={felt.srOnly}>Cards left in hand</caption>
+                  <caption className={felt.srOnly}>Points left in hand</caption>
                   <tbody>
                     {ended.scores.map(score => (
                       <tr key={score.playerId} className={score.playerId === ended.winner ? styles.winnerRow : ''}>
                         <th scope="row">{score.playerId === playerId ? 'You' : score.playerId}</th>
-                        <td>{score.playerId === ended.winner ? `+${ended.points}` : `${score.deadwood} left`}</td>
+                        <td>{score.playerId === ended.winner ? `wins ${ended.points} pts` : `${score.deadwood} pts left`}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -360,7 +382,7 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
                   <button
                     type="button"
                     className={`${felt.card} ${felt.back} ${styles.drawable}`}
-                    onClick={table.drawStock}
+                    onClick={thenHand(table.drawStock)}
                     disabled={!connected}
                     aria-label={`draw from the stock, ${view.stockCount} left`}
                   />
@@ -377,7 +399,7 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
                     card={view.discardTop}
                     className={drawing ? styles.drawable : ''}
                     label={drawing ? `take ${face(view.discardTop)} from the discard pile` : `${face(view.discardTop)} on the discard pile`}
-                    onClick={drawing && connected ? table.drawDiscard : undefined}
+                    onClick={drawing && connected ? thenHand(table.drawDiscard) : undefined}
                   />
                 )}
                 {view.discardCount > 0 && <span className={felt.count}>{view.discardCount}</span>}
@@ -389,11 +411,22 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
               ) : (
                 view.melds.map((tableMeld, m) => {
                   const fits = fitting.includes(m)
-                  const cards = tableMeld.cards.map((card, i) => (
-                    <span key={face(card)} className={styles.meldSlot} style={{ zIndex: i }}>
-                      <CardFace card={card} />
-                    </span>
-                  ))
+                  const cards = (
+                    <>
+                      <span className={styles.meldCards}>
+                        {tableMeld.cards.map((card, i) => (
+                          <span key={face(card)} className={styles.meldSlot} style={{ zIndex: i }}>
+                            <CardFace card={card} />
+                          </span>
+                        ))}
+                      </span>
+                      {/* Who laid it: a lay-off can go on anyone's, but at three
+                          or four seats it helps to know whose run is whose. */}
+                      <span className={styles.meldOwner} aria-hidden="true">
+                        {tableMeld.owner === playerId ? 'you' : tableMeld.owner}
+                      </span>
+                    </>
+                  )
                   const lastLaid = view.lastMove?.meldIndex === m && moment !== undefined
                   const classes = `${styles.meld} ${fits ? styles.fits : ''} ${lastLaid ? styles.justLaid : ''}`
                   const named = `${tableMeld.cards.map(face).join(' ')}, ${tableMeld.owner === playerId ? 'yours' : `${tableMeld.owner}'s`}`
@@ -402,7 +435,7 @@ const RummyTable = ({ playerId, connected, view, table, children }: RummyTablePr
                       key={m}
                       type="button"
                       className={classes}
-                      onClick={() => table.layOffSelected(m)}
+                      onClick={thenHand(() => table.layOffSelected(m))}
                       disabled={!connected}
                       aria-label={`lay off ${face(single)} on ${named}`}
                     >
