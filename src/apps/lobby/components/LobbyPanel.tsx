@@ -152,7 +152,7 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
               return (
                 <li key={table.gameId} className={styles.row}>
                   <span>
-                    {game} {table.gameId} · {table.playerCount}/{TABLE_SEATS} · {table.status}
+                    {game} {table.gameId} · {table.playerCount}/{TABLE_SEATS} · {table.status === 'choosing' ? 'between deals' : table.status}
                   </span>
                   <button
                     type="button"

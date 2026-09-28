@@ -60,6 +60,7 @@ const table = (over: Partial<RummyTableProps['table']> = {}): RummyTableProps['t
   selected: [],
   order: 'suit',
   opening: false,
+  dealing: false,
   startTable: vi.fn(),
   chooseVariant: vi.fn(),
   leaveTable: vi.fn(),
@@ -317,6 +318,45 @@ describe('RummyTable', () => {
     expect(screen.queryByText(/in hand/)).toBeNull()
     expect(screen.queryByRole('group', { name: 'Sort your hand' })).toBeNull()
     expect(screen.queryByText(/won/)).toBeNull()
+  })
+
+  it('a deal asked for is not asked twice', () => {
+    mountWith(between({ dealer: 'alice', dealNumber: 0 }), { dealing: true })
+    expect(screen.getByRole('button', { name: 'Dealing…' })).toHaveProperty('disabled', true)
+  })
+
+  it('between deals every hand is face up, so the felt marks the showdown', () => {
+    const { container } = mountWith(between({ dealer: 'bob', lastDeal: { variant: 'basic', winner: 'bob', points: 3, scores: [] } }))
+    expect(container.querySelector('[data-showdown]')).not.toBeNull()
+    cleanup()
+    const live = mountWith(view())
+    expect(live.container.querySelector('[data-showdown]')).toBeNull()
+  })
+
+  it('the deal’s result is said once, by the sheet, and describes it', () => {
+    const lastDeal = { variant: 'basic', winner: 'bob', points: 3, scores: [] }
+    mountWith(between({ dealer: 'bob', lastDeal }))
+    const dialog = screen.getByRole('dialog')
+    expect(screen.getAllByText('bob went out and scores 3 points.')).toHaveLength(1)
+    const described = (dialog.getAttribute('aria-describedby') ?? '').split(' ').map(id => document.getElementById(id)?.textContent)
+    expect(described).toEqual(['bob went out and scores 3 points.', 'bob deals next.'])
+  })
+
+  it('the next deal arriving puts focus on the hand, from the sheet or from under it', () => {
+    const lastDeal = { variant: 'basic', winner: 'bob', points: 3, scores: [] }
+    const { rerender, t } = mountWith(between({ dealer: 'bob', lastDeal }))
+    expect(document.activeElement?.textContent).toBe('See the hands')
+    rerender(<RummyTable playerId="alice" connected view={view({ dealNumber: 2, stage: 'draw' })} table={t} away={[]} />)
+    expect(document.activeElement).toBe(screen.getByRole('group', { name: 'Your hand' }))
+  })
+
+  it('a dealer coming back while the sheet is up keeps focus in the sheet', () => {
+    const lastDeal = { variant: 'basic', winner: 'bob', points: 3, scores: [] }
+    const v = between({ dealer: 'bob', lastDeal })
+    const { rerender, t } = mountWith(v, {}, true, ['bob'])
+    expect(document.activeElement?.textContent).toBe('Deal Basic rummy')
+    rerender(<RummyTable playerId="alice" connected view={v} table={t} away={[]} />)
+    expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true)
   })
 
   it('a dealer the room shows away lets anyone deal', () => {

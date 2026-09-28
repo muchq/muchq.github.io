@@ -45,7 +45,7 @@ export interface RummyTableProps {
   playerId: string
   connected: boolean
   view: RummyView
-  table: RummyTableActions & { ended: RummyGameEnded | null; selected: string[]; order: HandOrder; opening: boolean }
+  table: RummyTableActions & { ended: RummyGameEnded | null; selected: string[]; order: HandOrder; opening: boolean; dealing: boolean }
   // Seats the room shows as not connected: a dealer among them lets anyone
   // deal.
   away?: string[]
@@ -63,7 +63,7 @@ const FAN_STEP = 4
 const moveSignature = (move: RummyLastMove): string => `${move.playerId}:${move.move}:${move.cards.map(face).join(',')}:${move.meldIndex ?? ''}`
 
 const RummyTable = ({ playerId, connected, view, table, away = [], children }: RummyTableProps) => {
-  const { ended, opening, selected, order } = table
+  const { ended, opening, dealing, selected, order } = table
   const headingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     headingRef.current?.focus()
@@ -147,6 +147,19 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
   useEffect(() => {
     if (showEnding || showDealEnd) playAgainRef.current?.focus()
   }, [showEnding, showDealEnd])
+  // A sheet whose focused button went — the away dealer came back — keeps
+  // focus inside it, where Escape and Tab are handled.
+  useEffect(() => {
+    if (!showDealEnd || endingRef.current === null || endingRef.current.contains(document.activeElement)) return
+    endingRef.current.querySelector<HTMLElement>('button:not(:disabled)')?.focus()
+  }, [showDealEnd, mayDeal])
+  // A deal arriving takes away whatever dealt it — the sheet, the buttons —
+  // so focus goes to the hand, where the deal is played.
+  const dealtBefore = useRef(view.dealNumber)
+  useEffect(() => {
+    if (view.dealNumber > dealtBefore.current && view.phase === 'playing') handRef.current?.focus()
+    dealtBefore.current = view.dealNumber
+  }, [view.dealNumber, view.phase])
 
   const moment = view.lastMove !== undefined && `${view.gameId}:${moveSignature(view.lastMove)}` !== faded ? view.lastMove : undefined
 
@@ -210,9 +223,9 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
         type="button"
         className={i === 0 ? felt.primary : felt.secondary}
         onClick={() => table.chooseVariant(variant)}
-        disabled={!connected}
+        disabled={!connected || dealing}
       >
-        Deal {variantLabel(variant)}
+        {dealing ? 'Dealing…' : `Deal ${variantLabel(variant)}`}
       </button>
     ))
 
@@ -357,7 +370,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
   }
 
   return (
-    <div className={felt.table} data-phase={view.phase}>
+    <div className={felt.table} data-phase={view.phase} data-showdown={handsShown || undefined}>
       <div className={felt.tableHeader}>
         <h1 ref={headingRef} tabIndex={-1} className={felt.title}>
           Rummy · {view.gameId}
@@ -377,7 +390,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
       <p className={felt.ending} role="status">
         {view.phase === 'ended' && ended !== null
           ? describeTableEnd(ended, playerId)
-          : handsShown && lastDeal !== undefined
+          : handsShown && lastDeal !== undefined && !showDealEnd
             ? describeEnding(lastDeal, playerId)
             : ''}
       </p>
@@ -389,6 +402,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
             role="dialog"
             aria-modal="true"
             aria-labelledby="rummy-ending"
+            aria-describedby={showDealEnd ? 'rummy-deal-result rummy-deal-next' : 'rummy-table-result'}
             onKeyDown={event => {
               if (event.key === 'Escape') {
                 event.preventDefault()
@@ -403,7 +417,9 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
                 <h2 id="rummy-ending" className={felt.endingTitle}>
                   {headlineOf(lastDeal, playerId)}
                 </h2>
-                <p className={felt.endingLine}>{describeEnding(lastDeal, playerId)}</p>
+                <p id="rummy-deal-result" className={felt.endingLine}>
+                  {describeEnding(lastDeal, playerId)}
+                </p>
                 {lastDeal.scores.length > 0 && (
                   <table className={styles.scores}>
                     <caption className={felt.srOnly}>Points left in hand</caption>
@@ -417,7 +433,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
                     </tbody>
                   </table>
                 )}
-                <p className={felt.endingLine}>
+                <p id="rummy-deal-next" className={felt.endingLine} role="status">
                   {!mayDeal ? `${dealer} deals next.` : dealer === playerId ? 'Your deal next.' : `${dealer} is away: you can deal.`}
                 </p>
                 {mayDeal && <div className={felt.endingButtons}>{dealButtons(true)}</div>}
@@ -432,7 +448,9 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
                   <h2 id="rummy-ending" className={felt.endingTitle}>
                     The table closed
                   </h2>
-                  <p className={felt.endingLine}>{describeTableEnd(ended, playerId)}</p>
+                  <p id="rummy-table-result" className={felt.endingLine}>
+                    {describeTableEnd(ended, playerId)}
+                  </p>
                   {ended.standings.length > 0 && (
                     <table className={styles.scores}>
                       <caption className={felt.srOnly}>Hands won</caption>

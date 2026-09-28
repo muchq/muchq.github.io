@@ -62,6 +62,11 @@ describe('LobbyPanel', () => {
     expect(hook.joinRoom).toHaveBeenCalledTimes(1)
   })
 
+  it('a rummy table between deals reads as that, not as its wire status', () => {
+    render(<LobbyPanel lobby={lobby({ room: room({ games: [{ gameId: 'M2', game: 'rummy', status: 'choosing', playerCount: 3 }] }) })} />)
+    expect(screen.getByText('rummy M2 · 3/4 · between deals')).toBeTruthy()
+  })
+
   it('in a room, reads presence off each member and offers only open tables', () => {
     const hook = lobby({ room: room() })
     render(<LobbyPanel lobby={hook} />)

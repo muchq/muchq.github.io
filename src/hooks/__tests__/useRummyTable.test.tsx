@@ -151,10 +151,16 @@ describe('useRummyTable', () => {
     expect(showNotice.mock.calls).toEqual([['bob opened table G2']])
   })
 
-  it('the dealer’s pick names the variant', () => {
-    const { result, move } = mount()
+  it('the dealer’s pick names the variant, once, until the hub answers', () => {
+    const { result, move, receive } = mount()
     act(() => result.current.chooseVariant('basic'))
     expect(move.mock.calls).toEqual([['chooseVariant', { variant: 'basic' }]])
+    expect(result.current.dealing).toBe(true)
+    receive({ gameState: { view: view() } })
+    expect(result.current.dealing).toBe(false)
+    act(() => result.current.chooseVariant('basic'))
+    act(() => result.current.handleRejected())
+    expect(result.current.dealing).toBe(false)
   })
 
   it('play again opens another table; the ending goes with the old one', () => {
