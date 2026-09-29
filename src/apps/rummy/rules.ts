@@ -4,7 +4,7 @@
 // only shape the offer, so they follow its rules to the letter — an offer
 // the engine refuses is a button that does nothing.
 
-import type { Card, RummyGameEnded, RummyLastMove, RummyMeld, RummyPlayer, RummyView } from './wire'
+import type { Card, RummyDealResult, RummyGameEnded, RummyLastMove, RummyMeld, RummyPlayer, RummyView } from './wire'
 import { face } from '@/apps/castle/rules'
 
 export { face, isRed, enteredSince } from '@/apps/castle/rules'
@@ -98,17 +98,42 @@ export function describeLastMove(move: RummyLastMove, viewer: string): string {
 
 const points = (n: number) => `${n} point${n === 1 ? '' : 's'}`
 
-// How a finished game reads from one chair.
-export function describeEnding(ended: RummyGameEnded, viewer: string): string {
-  if (ended.winner === undefined) return 'Nobody went out.'
-  return ended.winner === viewer
-    ? `You went out and score ${points(ended.points)}.`
-    : `${ended.winner} went out and scores ${points(ended.points)}.`
+// How a deal's end reads from one chair.
+export function describeEnding(deal: RummyDealResult, viewer: string): string {
+  if (deal.winner === undefined) return 'Nobody went out.'
+  return deal.winner === viewer
+    ? `You went out and score ${points(deal.points)}.`
+    : `${deal.winner} went out and scores ${points(deal.points)}.`
 }
 
-export function headlineOf(ended: RummyGameEnded, viewer: string): string {
-  if (ended.winner === undefined) return 'The table broke up'
-  return ended.winner === viewer ? 'You won!' : `${ended.winner} wins`
+export function headlineOf(deal: RummyDealResult, viewer: string): string {
+  if (deal.winner === undefined) return 'The deal broke up'
+  return deal.winner === viewer ? 'You won the hand!' : `${deal.winner} wins the hand`
+}
+
+const hands = (n: number) => `${n} hand${n === 1 ? '' : 's'}`
+
+// How the table's end reads from one chair: the hands it won, or, to a
+// chair that left before the end, what was played.
+export function describeTableEnd(ended: RummyGameEnded, viewer: string): string {
+  const mine = ended.standings.find(standing => standing.playerId === viewer)
+  if (mine !== undefined) return `You won ${mine.handsWon} of ${hands(ended.dealsPlayed)}.`
+  return ended.dealsPlayed === 0 ? 'No hands played.' : `${hands(ended.dealsPlayed)} played.`
+}
+
+// Between deals the dealer deals; a dealer the room shows as away lets
+// anyone. The hub decides the same way from the same room.
+export function canDeal(view: RummyView, viewer: string, away: string[]): boolean {
+  if (view.phase !== 'choosing' || view.choosing === undefined) return false
+  return view.choosing.dealer === viewer || away.includes(view.choosing.dealer)
+}
+
+const VARIANT_LABELS: Record<string, string> = { basic: 'Basic rummy' }
+
+// A variant as the table names it; one this build does not know yet reads
+// as the hub spelled it.
+export function variantLabel(variant: string): string {
+  return VARIANT_LABELS[variant] ?? variant
 }
 
 export function seatOf(view: RummyView, playerId: string): RummyPlayer | undefined {

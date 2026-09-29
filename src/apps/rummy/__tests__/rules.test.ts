@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
   arrangedMeld,
+  canDeal,
   canDiscard,
   deadwood,
   describeEnding,
   describeLastMove,
+  describeTableEnd,
   headlineOf,
   meldsFitting,
-  sortHand
+  sortHand,
+  variantLabel
 } from '../rules'
 import type { Card, RummyView } from '../wire'
 
@@ -90,6 +93,8 @@ describe('canDiscard', () => {
   const view = (over: Partial<RummyView> = {}): RummyView => ({
     gameId: 'G',
     phase: 'playing',
+    dealNumber: 1,
+    standings: [],
     players: [],
     stockCount: 0,
     canDrawStock: true,
@@ -118,18 +123,63 @@ describe('describeLastMove', () => {
   })
 })
 
-describe('the ending', () => {
-  const won = { winner: 'alice', points: 42, scores: [] }
+describe('a deal’s end', () => {
+  const won = { variant: 'basic', winner: 'alice', points: 42, scores: [] }
   it('reads from each chair', () => {
-    expect(headlineOf(won, 'alice')).toBe('You won!')
-    expect(headlineOf(won, 'bob')).toBe('alice wins')
+    expect(headlineOf(won, 'alice')).toBe('You won the hand!')
+    expect(headlineOf(won, 'bob')).toBe('alice wins the hand')
     expect(describeEnding(won, 'alice')).toBe('You went out and score 42 points.')
     expect(describeEnding(won, 'bob')).toBe('alice went out and scores 42 points.')
-    expect(describeEnding({ winner: 'alice', points: 1, scores: [] }, 'bob')).toBe('alice went out and scores 1 point.')
+    expect(describeEnding({ ...won, points: 1 }, 'bob')).toBe('alice went out and scores 1 point.')
   })
-  it('names nobody for a table that broke up', () => {
-    const broke = { points: 0, scores: [] }
-    expect(headlineOf(broke, 'alice')).toBe('The table broke up')
+  it('names nobody for a deal that broke up', () => {
+    const broke = { variant: 'basic', points: 0, scores: [] }
+    expect(headlineOf(broke, 'alice')).toBe('The deal broke up')
     expect(describeEnding(broke, 'alice')).toBe('Nobody went out.')
+  })
+})
+
+describe('the table’s end', () => {
+  const standings = [
+    { playerId: 'alice', handsWon: 2 },
+    { playerId: 'bob', handsWon: 1 }
+  ]
+  it('reads the hands each chair won', () => {
+    expect(describeTableEnd({ standings, dealsPlayed: 3 }, 'alice')).toBe('You won 2 of 3 hands.')
+    expect(describeTableEnd({ standings, dealsPlayed: 1 }, 'bob')).toBe('You won 1 of 1 hand.')
+  })
+  it('says what was played to a chair no longer in the standings', () => {
+    expect(describeTableEnd({ standings, dealsPlayed: 3 }, 'carol')).toBe('3 hands played.')
+    expect(describeTableEnd({ standings: [], dealsPlayed: 0 }, 'alice')).toBe('No hands played.')
+  })
+})
+
+describe('the dealer’s choice', () => {
+  const choosing = (dealer: string): RummyView => ({
+    gameId: 'M1',
+    phase: 'choosing',
+    players: [],
+    stockCount: 0,
+    canDrawStock: false,
+    discardCount: 0,
+    melds: [],
+    dealNumber: 1,
+    standings: [],
+    choosing: { dealer, options: ['basic'] }
+  })
+  it('is the dealer’s alone while they are here', () => {
+    expect(canDeal(choosing('alice'), 'alice', [])).toBe(true)
+    expect(canDeal(choosing('bob'), 'alice', [])).toBe(false)
+  })
+  it('passes to anyone while the dealer is away', () => {
+    expect(canDeal(choosing('bob'), 'alice', ['bob'])).toBe(true)
+    expect(canDeal(choosing('bob'), 'alice', ['carol'])).toBe(false)
+  })
+  it('is nobody’s outside the choosing', () => {
+    expect(canDeal({ ...choosing('alice'), phase: 'playing', choosing: undefined }, 'alice', [])).toBe(false)
+  })
+  it('names each variant, and an unknown one as it came', () => {
+    expect(variantLabel('basic')).toBe('Basic rummy')
+    expect(variantLabel('gin')).toBe('gin')
   })
 })

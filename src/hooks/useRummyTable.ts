@@ -15,7 +15,9 @@ const storedOrder = (): HandOrder => (safeLocalStorage.get(ORDER_KEY) === 'rank'
 
 // What the table's chrome calls; the lobby panel adds create and join.
 export interface RummyTableActions {
+  // Seats the table; the dealer's pick deals.
   startTable: () => void
+  chooseVariant: (variant: string) => void
   leaveTable: () => void
   // Another table, from the one that just ended: a create, since the
   // finished one is already gone from the hub.
@@ -44,6 +46,9 @@ export interface UseRummyTable extends RummyTableActions {
   order: HandOrder
   // A table has been asked for and not yet arrived.
   opening: boolean
+  // A deal has been asked for and the hub has not answered: a second ask
+  // would be refused and read as the first having failed.
+  dealing: boolean
   handleUpdate: (update: RummyUpdate) => void
   // Any refusal: whatever it was for, the table asked for did not
   // happen, so the ask can be made again.
@@ -67,6 +72,7 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
   const [ended, setEnded] = useState<RummyGameEnded | null>(null)
   const [selected, setSelected] = useState<string[]>([])
   const [opening, setOpening] = useState(false)
+  const [dealing, setDealing] = useState(false)
   const [order, setOrderState] = useState<HandOrder>(storedOrder)
 
   const clear = useCallback(() => {
@@ -74,8 +80,12 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
     setEnded(null)
     setSelected([])
     setOpening(false)
+    setDealing(false)
   }, [])
-  const handleRejected = useCallback(() => setOpening(false), [])
+  const handleRejected = useCallback(() => {
+    setOpening(false)
+    setDealing(false)
+  }, [])
 
   const handleUpdate = useCallback(
     (update: RummyUpdate) => {
@@ -84,24 +94,23 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
         setEnded(null)
         setSelected([])
         setOpening(false)
+        setDealing(false)
         return
       }
       if (update.gameState) {
         setView(update.gameState.view)
         setSelected([])
+        setDealing(false)
         return
       }
       if (update.gameCreated) {
         if (update.gameCreated.createdBy !== playerId) showNotice(`${update.gameCreated.createdBy} opened table ${update.gameCreated.gameId}`)
         return
       }
-      if (update.gameStarted) {
-        showNotice('Dealt. Draw a card to open your turn.')
-        return
-      }
-      if (update.turnChanged) {
-        // The felt lights the seat on turn and the piles light up for its
-        // draw; a toast at the foot of the screen would sit on the hand.
+      if (update.gameStarted || update.turnChanged) {
+        // The felt says both: who deals between deals, and the seat on turn
+        // with its piles lit. A toast at the foot of the screen would sit
+        // on the hand.
         return
       }
       if (update.gameEnded) {
@@ -125,6 +134,13 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
   }, [move])
   const joinTable = useCallback((gameId: string) => move('joinGame', { gameId }), [move])
   const startTable = useCallback(() => move('startGame'), [move])
+  const chooseVariant = useCallback(
+    (variant: string) => {
+      setDealing(true)
+      move('chooseVariant', { variant })
+    },
+    [move]
+  )
   const leaveTable = useCallback(() => {
     if (view !== null && view.phase !== 'ended') {
       move('leaveGame')
@@ -188,12 +204,14 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
     selected,
     order,
     opening,
+    dealing,
     handleUpdate,
     handleRejected,
     clear,
     createTable,
     joinTable,
     startTable,
+    chooseVariant,
     leaveTable,
     playAgain,
     drawStock,

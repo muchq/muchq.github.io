@@ -31,6 +31,8 @@ const LobbyGame = (props: UseLobbyProps) => {
   const lobby = useLobby(props)
   const { castle, golf, rummy, chat, connected, playerId, notice, room } = lobby
   const atTable = castle.view !== null || golf.view !== null || rummy.view !== null
+  // A rummy dealer among these lets any seat deal (MoonBase#1609).
+  const away = (room?.players ?? []).filter(player => !player.connected).map(player => player.playerId)
   // A table takes the screen, so the panel folds away when one comes up
   // and returns to what the player wants when it goes.
   const [panelOpen, setPanelOpen] = useState(panelWanted)
@@ -103,7 +105,7 @@ const LobbyGame = (props: UseLobbyProps) => {
       )}
       {rummy.view !== null && (
         <div className={styles.tableOverlay}>
-          <RummyTable playerId={playerId} connected={connected} view={rummy.view} table={rummy} />
+          <RummyTable playerId={playerId} connected={connected} view={rummy.view} table={rummy} away={away} />
         </div>
       )}
       {golf.view !== null && (

@@ -675,13 +675,14 @@ down and to the right so the back's corner shows under it. */
 
 /* Small or short screens: smaller cards, and the other seats fold their
    fan away for the count — except at the showdown, which is every hand
-   face up and nothing to fold. */
+   face up and nothing to fold: a game's end, or rummy between deals
+   (data-showdown). */
 @media (max-width: 600px), (max-height: 900px) {
-  .table:not([data-phase='ended']) .seat:not(.mine) .hand {
+  .table:not([data-phase='ended']):not([data-showdown]) .seat:not(.mine) .hand {
     display: none;
   }
 
-  .table:not([data-phase='ended']) .seat:not(.mine) .handCount {
+  .table:not([data-phase='ended']):not([data-showdown]) .seat:not(.mine) .handCount {
     display: inline;
   }
 
@@ -939,6 +940,9 @@ down and to the right so the back's corner shows under it. */
   padding: 1.5rem;
   border-radius: 1rem;
   background: rgba(12, 8, 32, 0.96);
+  /* Portaled to the body, so it inherits the page's text colour, not the
+     felt's: set its own for the dark card. */
+  color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   text-align: center;
