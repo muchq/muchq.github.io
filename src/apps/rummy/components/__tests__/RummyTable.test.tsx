@@ -602,6 +602,12 @@ describe('RummyTable', () => {
     expect(screen.getByText('Play the 9♥ you took the pile down to — meld it or lay it off — before you discard.')).toBeDefined()
     expect(screen.getByRole('button', { name: 'Discard K♦' })).toHaveProperty('disabled', true)
     expect(myHandGroup().getByRole('button', { name: /^9♥, must be played/ })).toBeDefined()
+    expect(myHandGroup().getAllByRole('button', { name: /must be played/ })).toHaveLength(1)
+  })
+
+  it('with only the top to take, the hint offers no take-down', () => {
+    mountWith(view({ stage: 'draw', discardPile: [c('4♦'), c('9♣'), c('Q♠')], discardTakeable: [c('Q♠')] }))
+    expect(screen.getByText('Draw from the stock, or take the Q♠.')).toBeDefined()
   })
 
   it('owing a card, a barred discard is blamed on the debt, not on a take', () => {
@@ -679,6 +685,14 @@ describe('RummyTable', () => {
       .getAllByRole('row')
       .map(row => row.textContent)
     expect(rows).toEqual(['#youbob', '3—3', '4—4', '5—5', '6—6', '7—7', 'Total028'])
+  })
+
+  it('a winner who has left keeps their column and total', () => {
+    mountWith(view({ scoreSheet: [{ variant: '7-card', winner: 'carol', points: 20 }] }))
+    const rows = within(screen.getByRole('table', { name: 'Score sheet' }))
+      .getAllByRole('row')
+      .map(row => row.textContent)
+    expect(rows).toEqual(['#youbobcarol', '1——20', 'Total0020'])
   })
 
   it('no notepad before the first deal', () => {
