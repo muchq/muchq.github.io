@@ -192,7 +192,8 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
   // A hub older than gin does not say; there, the discard is drawable
   // while it has a top.
   const discardDrawable = view.canDrawDiscard ?? view.discardTop !== undefined
-  const takeable = (drawing || upcard) && discardDrawable
+  // A take-down in the making is put back before any other draw.
+  const takeable = (drawing || upcard) && discardDrawable && downToCard === null
   // Rummy lays its whole discard pile out; gin keeps it squared, top only.
   const pile = gin ? [] : (view.discardPile ?? [])
   // On the draw, any card under the top may be taken down to; which of
@@ -624,7 +625,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
           <section className={`${felt.pile} ${styles.middle}`} aria-label="table">
             <div className={felt.piles}>
               <div className={`${felt.drawPile} ${view.stockCount === 0 ? felt.drawn : ''}`}>
-                {drawing && view.canDrawStock ? (
+                {drawing && view.canDrawStock && downToCard === null ? (
                   <button
                     type="button"
                     className={`${felt.card} ${felt.back} ${styles.drawable}`}

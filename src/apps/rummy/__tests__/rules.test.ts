@@ -119,6 +119,8 @@ describe('describeLastMove', () => {
     expect(describeLastMove({ playerId: 'bob', move: 'takeDown', cards: cards('5♥', '6♥', 'K♠'), meldIndex: 2 }, 'alice')).toBe(
       'bob took the pile down to 5♥ and played it'
     )
+    // A frame naming no card still reads.
+    expect(describeLastMove({ playerId: 'bob', move: 'takeDown', cards: [], meldIndex: 2 }, 'alice')).toBe('bob took the pile down')
     expect(describeLastMove({ playerId: 'bob', move: 'meld', cards: cards('7♥', '8♥', '9♥'), meldIndex: 0 }, 'alice')).toBe(
       'bob melded 7♥ 8♥ 9♥'
     )

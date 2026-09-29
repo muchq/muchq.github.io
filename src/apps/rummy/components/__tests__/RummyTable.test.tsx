@@ -630,6 +630,13 @@ describe('RummyTable', () => {
     expect(screen.queryByRole('button', { name: /^lay off/ })).toBeNull()
   })
 
+  it('taking down, the stock and the top are not draws: put the card back first', () => {
+    mountWith(view({ stage: 'draw', discardPile: [c('4♦'), c('7♦'), c('Q♠')] }), { downTo: '7♦' })
+    expect(screen.queryByRole('button', { name: /draw from the stock/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /take Q♠/ })).toBeNull()
+    expect(screen.getByRole('img', { name: 'Q♠ on the discard pile' })).toBeDefined()
+  })
+
   it('putting the pile card back hands focus to the hand, since the button goes', () => {
     const { t } = mountWith(view({ stage: 'draw', discardPile: [c('4♦'), c('7♦'), c('Q♠')] }), { downTo: '7♦' })
     fireEvent.click(screen.getByRole('button', { name: 'Put the 7♦ back' }))

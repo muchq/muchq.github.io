@@ -89,7 +89,7 @@ export function describeLastMove(move: RummyLastMove, viewer: string): string {
     case 'drawDiscard':
       return `${who} took ${faces}`
     case 'takeDown':
-      return `${who} took the pile down to ${face(move.cards[0])} and played it`
+      return move.cards.length === 0 ? `${who} took the pile down` : `${who} took the pile down to ${face(move.cards[0])} and played it`
     case 'meld':
       return `${who} melded ${faces}`
     case 'layOff':

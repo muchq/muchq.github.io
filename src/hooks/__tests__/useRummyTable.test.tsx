@@ -158,6 +158,16 @@ describe('useRummyTable', () => {
     expect(result.current.downTo).toBeNull()
   })
 
+  it('picking another pile card drops the hand cards picked for the first', () => {
+    const { result, receive } = mount()
+    receive({ gameJoined: { view: view({ stage: 'draw', discardPile: [c('5♥'), c('6♥'), c('2♠')] }) } })
+    act(() => result.current.pickDownTo(c('6♥')))
+    act(() => result.current.toggleCard(c('7♥')))
+    act(() => result.current.pickDownTo(c('5♥')))
+    expect(result.current.downTo).toBe('5♥')
+    expect(result.current.selected).toEqual([])
+  })
+
   it('a pile card picked goes with a new table or a cleared one', () => {
     const { result, receive } = mount()
     const pile = { stage: 'draw' as const, discardPile: [c('6♥'), c('2♠')] }
