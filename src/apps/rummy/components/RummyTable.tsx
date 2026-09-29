@@ -125,10 +125,10 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
   const meld = laying && picked.length >= 3 ? arrangedMeld(picked) : null
   const downMeld = downToCard !== null && picked.length >= 2 ? arrangedMeld([...picked, downToCard]) : null
   const single = laying && picked.length === 1 ? picked[0] : null
-  // The card a tap on a lit meld lays off: the one picked, or the pile
-  // card being taken down to.
-  const layingOff = single ?? (downToCard !== null && picked.length === 0 ? downToCard : null)
-  const fitting = layingOff === null ? [] : meldsFitting(view.melds, layingOff)
+  const fitting = single === null ? [] : meldsFitting(view.melds, single)
+  // The pile card being taken down to may be laid off on any meld, none
+  // lit: whether it fits is the player's to see and the hub's to judge.
+  const downLaysOff = downToCard !== null && picked.length === 0 ? downToCard : null
   const discardable = single !== null && canDiscard(view, myHand, single)
 
   // A move takes the button that made it away — the picked card, the lit
@@ -460,9 +460,12 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
         </div>
         {mine && dealt && (
           <div className={styles.handTools}>
-            <span className={felt.muted} title="What your cards count, melded or not">
-              {`${deadwood(myHand)} pts in hand`}
-            </span>
+            {/* Gin's reckoning is deadwood after melds: the player's to count. */}
+            {!gin && (
+              <span className={felt.muted} title="What your cards count, melded or not">
+                {`${deadwood(myHand)} pts in hand`}
+              </span>
+            )}
             <span role="group" aria-label="Sort your hand" className={styles.sort}>
               {(['suit', 'rank'] as const).map(by => (
                 <button key={by} type="button" className={styles.sortButton} aria-pressed={order === by} onClick={() => table.setOrder(by)}>
@@ -690,7 +693,8 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
                     const lastLaid = view.lastMove?.meldIndex === m && moment !== undefined
                     const classes = `${styles.meld} ${fits ? styles.fits : ''} ${lastLaid ? styles.justLaid : ''}`
                     const named = `${tableMeld.cards.map(face).join(' ')}, ${tableMeld.owner === playerId ? 'yours' : `${tableMeld.owner}'s`}`
-                    return fits && layingOff !== null ? (
+                    const layingOff = fits ? single : downLaysOff
+                    return layingOff !== null ? (
                       <button
                         key={m}
                         type="button"

@@ -495,6 +495,7 @@ describe('RummyTable', () => {
   it('gin: the card just taken can no more be knocked on than thrown', () => {
     mountWith(gin({ takenDiscard: c('K♦') }), { selected: ['K♦'] })
     expect(screen.getByRole('button', { name: 'Knock on K♦' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Discard K♦' })).toHaveProperty('disabled', true)
   })
 
   it('gin: between deals a seat shows the deadwood the hub reckoned, not its card total', () => {
@@ -534,10 +535,8 @@ describe('RummyTable', () => {
     const knocking = mountWith(gin(), { selected: ['K♦'] })
     expect(screen.queryByRole('button', { name: /^Meld/ })).toBeNull()
     expect(screen.queryByRole('group', { name: 'melds' })).toBeNull()
-    // The hand's points, not its deadwood after melds, and no word on what
-    // a throw would leave.
-    expect(screen.getByText('43 pts in hand')).toBeDefined()
-    expect(screen.queryByText(/\d+ deadwood|leaves/)).toBeNull()
+    // No count of the hand at all: its deadwood is the player's to reckon.
+    expect(screen.queryByText(/pts in hand|\d+ deadwood|leaves/)).toBeNull()
     expect(screen.getByText('Discard, or knock with 10 or less deadwood left.')).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: 'Knock on K♦' }))
     expect(knocking.t.knockSelected).toHaveBeenCalledTimes(1)
@@ -625,6 +624,12 @@ describe('RummyTable', () => {
     expect(screen.getByText('Those cards and the 7♦ are not a set or a run.')).toBeDefined()
   })
 
+  it('taking down, a hand card picked is pressed, and the melds are no lay-off for the pile card', () => {
+    mountWith(view({ stage: 'draw', discardPile: [c('4♦'), c('3♣'), c('Q♠')] }), { downTo: '3♣', selected: ['7♣'] })
+    expect(myHandGroup().getByRole('button', { name: '7♣' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.queryByRole('button', { name: /^lay off/ })).toBeNull()
+  })
+
   it('putting the pile card back hands focus to the hand, since the button goes', () => {
     const { t } = mountWith(view({ stage: 'draw', discardPile: [c('4♦'), c('7♦'), c('Q♠')] }), { downTo: '7♦' })
     fireEvent.click(screen.getByRole('button', { name: 'Put the 7♦ back' }))
@@ -632,12 +637,15 @@ describe('RummyTable', () => {
     expect(document.activeElement).toBe(screen.getByRole('group', { name: 'Your hand' }))
   })
 
-  it('a card picked to take down to lays off onto a meld it fits', () => {
+  it('a card picked to take down to may be laid off on any meld, none lit: the hub judges the fit', () => {
     const { t } = mountWith(view({ stage: 'draw', discardPile: [c('4♦'), c('3♣'), c('Q♠')] }), { downTo: '3♣' })
-    fireEvent.click(screen.getByRole('button', { name: "lay off 3♣ on 4♣ 5♣ 6♣, bob's" }))
+    const runs = screen.getByRole('button', { name: "lay off 3♣ on 4♣ 5♣ 6♣, bob's" })
+    const jacks = screen.getByRole('button', { name: "lay off 3♣ on J♣ J♦ J♥, bob's" })
+    expect(runs.className).toBe(jacks.className)
+    fireEvent.click(runs)
     expect(t.takeDownLayOff).toHaveBeenCalledWith(0)
-    expect(screen.getByRole('img', { name: "J♣ J♦ J♥, bob's" })).toBeDefined()
   })
+
 
   it('a long pile opens on its top card, scrolled to the end', () => {
     const scrolled: number[] = []

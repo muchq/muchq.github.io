@@ -158,6 +158,18 @@ describe('useRummyTable', () => {
     expect(result.current.downTo).toBeNull()
   })
 
+  it('a pile card picked goes with a new table or a cleared one', () => {
+    const { result, receive } = mount()
+    const pile = { stage: 'draw' as const, discardPile: [c('6♥'), c('2♠')] }
+    receive({ gameJoined: { view: view(pile) } })
+    act(() => result.current.pickDownTo(c('6♥')))
+    receive({ gameJoined: { view: view(pile) } })
+    expect(result.current.downTo).toBeNull()
+    act(() => result.current.pickDownTo(c('6♥')))
+    act(() => result.current.clear())
+    expect(result.current.downTo).toBeNull()
+  })
+
   it('a take-down with no pile card picked, or one the pile no longer holds, sends nothing', () => {
     const { result, receive, move } = mount()
     receive({ gameJoined: { view: view({ stage: 'draw', discardPile: [c('6♥'), c('2♠')] }) } })
