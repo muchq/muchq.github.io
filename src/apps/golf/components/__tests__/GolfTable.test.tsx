@@ -147,6 +147,18 @@ describe('GolfTable', () => {
     expect(screen.getAllByText('👑')).toHaveLength(2)
   })
 
+  // The contract requires winners (golf.smithy GameEnded); winner is only
+  // display text, so it never crowns anyone on its own.
+  it('only the winners list crowns; the display string does not', () => {
+    vi.useFakeTimers()
+    const t = table({ ended: { winner: 'alice', winners: [] } })
+    render(<GolfTable playerId="alice" connected view={view({ gamePhase: 'ended' })} table={t} />)
+    expect(screen.queryByText('You won!')).toBeNull()
+    expect(screen.getByText('alice wins!')).toBeTruthy()
+    act(() => vi.advanceTimersByTime(3000))
+    expect(screen.queryByText('👑')).toBeNull()
+  })
+
   it('an ended table with no result yet is just over', () => {
     render(<GolfTable playerId="alice" connected view={view({ gamePhase: 'ended' })} table={table()} />)
     expect(screen.getByText('Game over')).toBeTruthy()
