@@ -350,6 +350,22 @@ describe('RummyTable', () => {
     expect(document.activeElement).toBe(screen.getByRole('group', { name: 'Your hand' }))
   })
 
+  it('the dealer going away while the sheet is up puts focus on the deal it now offers', () => {
+    const lastDeal = { variant: 'basic', winner: 'bob', points: 3, scores: [] }
+    const v = between({ dealer: 'bob', lastDeal })
+    const { rerender, t } = mountWith(v)
+    expect(document.activeElement?.textContent).toBe('See the hands')
+    rerender(<RummyTable playerId="alice" connected view={v} table={t} away={['bob']} />)
+    expect(document.activeElement?.textContent).toBe('Deal Basic rummy')
+  })
+
+  it('face up between deals, a seat shows its cards and points, not a count', () => {
+    mountWith(between({ dealer: 'alice', lastDeal: { variant: 'basic', winner: 'alice', points: 1, scores: [] } }))
+    const bob = screen.getByRole('region', { name: /^bob/ })
+    expect(bob.textContent).not.toContain('in hand')
+    expect(bob.textContent).toContain('1 pts left')
+  })
+
   it('a dealer coming back while the sheet is up keeps focus in the sheet', () => {
     const lastDeal = { variant: 'basic', winner: 'bob', points: 3, scores: [] }
     const v = between({ dealer: 'bob', lastDeal })

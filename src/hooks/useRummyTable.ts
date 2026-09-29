@@ -94,6 +94,7 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
         setEnded(null)
         setSelected([])
         setOpening(false)
+        setDealing(false)
         return
       }
       if (update.gameState) {

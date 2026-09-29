@@ -147,11 +147,15 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
   useEffect(() => {
     if (showEnding || showDealEnd) playAgainRef.current?.focus()
   }, [showEnding, showDealEnd])
-  // A sheet whose focused button went — the away dealer came back — keeps
-  // focus inside it, where Escape and Tab are handled.
+  // The sheet follows the dealer's presence: a deal it comes to offer — the
+  // dealer went away — takes focus; a button it loses — they came back —
+  // leaves focus inside it, where Escape and Tab are handled.
   useEffect(() => {
-    if (!showDealEnd || endingRef.current === null || endingRef.current.contains(document.activeElement)) return
-    endingRef.current.querySelector<HTMLElement>('button:not(:disabled)')?.focus()
+    if (!showDealEnd || endingRef.current === null) return
+    if (mayDeal) playAgainRef.current?.focus()
+    else if (!endingRef.current.contains(document.activeElement)) {
+      endingRef.current.querySelector<HTMLElement>('button:not(:disabled)')?.focus()
+    }
   }, [showDealEnd, mayDeal])
   // A deal arriving takes away whatever dealt it — the sheet, the buttons —
   // so focus goes to the hand, where the deal is played.
@@ -300,7 +304,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
         <h3 className={felt.seatName}>
           {label}
           {onTurn && <span className={felt.turn}> · {view.stage === 'draw' ? 'to draw' : 'to play'}</span>}
-          {!mine && dealt && (
+          {!mine && dealt && !handsShown && (
             <span className={`${felt.handCount} ${seat.handCount > SHOWN_BACKS ? felt.handCountShown : ''}`}> · {seat.handCount} in hand</span>
           )}
           {dealt && <span className={felt.muted}> · {wonBy(seat.playerId)} won</span>}

@@ -161,6 +161,10 @@ describe('useRummyTable', () => {
     act(() => result.current.chooseVariant('basic'))
     act(() => result.current.handleRejected())
     expect(result.current.dealing).toBe(false)
+    // A table joined meanwhile answers it too.
+    act(() => result.current.chooseVariant('basic'))
+    receive({ gameJoined: { view: view() } })
+    expect(result.current.dealing).toBe(false)
   })
 
   it('play again opens another table; the ending goes with the old one', () => {

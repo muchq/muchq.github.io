@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import ThoughtsGame from '@/apps/thoughts/components/ThoughtsGame'
 import CastleTable from '@/apps/castle/components/CastleTable'
 import GolfTable from '@/apps/golf/components/GolfTable'
@@ -32,7 +32,7 @@ const LobbyGame = (props: UseLobbyProps) => {
   const { castle, golf, rummy, chat, connected, playerId, notice, room } = lobby
   const atTable = castle.view !== null || golf.view !== null || rummy.view !== null
   // A rummy dealer among these lets any seat deal (MoonBase#1609).
-  const away = useMemo(() => (room?.players ?? []).filter(player => !player.connected).map(player => player.playerId), [room])
+  const away = (room?.players ?? []).filter(player => !player.connected).map(player => player.playerId)
   // A table takes the screen, so the panel folds away when one comes up
   // and returns to what the player wants when it goes.
   const [panelOpen, setPanelOpen] = useState(panelWanted)
