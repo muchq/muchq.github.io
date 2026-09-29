@@ -29,11 +29,8 @@ const GolfTable = ({ playerId, connected, view, table, shareUrl = null }: GolfTa
   const acting = isMyTurn && connected
   const inPlay = view.gamePhase === 'playing' || view.gamePhase === 'knocked'
 
-  const isWinner = (player: Player | undefined) => {
-    if (player === undefined || ended === null) return false
-    if (ended.winners.length > 0) return ended.winners.includes(player.id)
-    return player.id === ended.winner
-  }
+  const isWinner = (player: Player | undefined) =>
+    player !== undefined && ended !== null && ended.winners.includes(player.id)
 
   useEffect(() => {
     if (view.gamePhase === 'ended') {
