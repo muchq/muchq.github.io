@@ -113,6 +113,11 @@ describe('canDiscard', () => {
     expect(canDiscard(view(taken), cards('9♠'), c('9♠'))).toBe(true)
     expect(canDiscard(view(), cards('9♠', '2♣'), c('9♠'))).toBe(true)
   })
+  it('refuses every discard while a card taken down to is still owed', () => {
+    const owing = view({ mustPlay: c('5♥') })
+    expect(canDiscard(owing, cards('5♥', '2♣'), c('2♣'))).toBe(false)
+    expect(canDiscard(owing, cards('5♥', '2♣'), c('5♥'))).toBe(false)
+  })
 })
 
 describe('describeLastMove', () => {

@@ -50,6 +50,17 @@ export interface RummyLastMove {
 export interface RummyStanding {
   playerId: string
   handsWon: number
+  // The running score: what the seat's won deals scored. Absent from a hub
+  // older than the score sheet.
+  points?: number
+}
+
+// A line of the table's score sheet: one deal played to its end. No winner
+// for a gin draw; the winner may have left since.
+export interface RummyScoreLine {
+  variant: string
+  winner?: string
+  points: number
 }
 
 export interface RummyScore {
@@ -120,11 +131,22 @@ export interface RummyView {
   canDrawDiscard?: boolean
   discardCount: number
   discardTop?: Card
+  // The whole pile, bottom to top, face up for everyone.
+  discardPile?: Card[]
+  // The cards the viewer may take the pile down to now, bottom to top:
+  // the top, and each deeper card it could then play. Empty but on the
+  // viewer's own draw, and in gin.
+  discardTakeable?: Card[]
+  // The deepest card the seat on turn took the pile down to, while it is
+  // still in hand: the turn cannot end until it is played.
+  mustPlay?: Card
   // Taken from the discard pile this turn: it may not go straight back
   // unless it is the last card in hand.
   takenDiscard?: Card
   melds: RummyMeld[]
   lastMove?: RummyLastMove
+  // Every deal played to its end, in order.
+  scoreSheet?: RummyScoreLine[]
 }
 
 // The table broke up, below two seats: the hands each seat still at it
@@ -155,7 +177,8 @@ export interface RummyMovePayloads {
   chooseVariant: { variant: string }
   pass: undefined
   drawStock: undefined
-  drawDiscard: undefined
+  // The deepest card to take; none, the top.
+  drawDiscard: { card: Card } | undefined
   meld: { cards: Card[] }
   layOff: { card: Card; meldIndex: number }
   discard: { card: Card }

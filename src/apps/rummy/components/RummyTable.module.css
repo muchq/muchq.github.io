@@ -240,3 +240,135 @@ button.meld {
 .ginHands td {
   text-align: left;
 }
+
+/* The score sheet: a notepad pinned in the felt's top corner, outside the
+   round of the felt, ruled like paper and written in a hand. */
+.notepad {
+  position: absolute;
+  top: -0.5rem;
+  left: -2.5rem;
+  z-index: 2;
+  width: max-content;
+  padding: 0.5rem 0.6rem 0.6rem 1.4rem;
+  border-radius: 2px;
+  background-color: #fdf8e2;
+  background-image:
+    linear-gradient(to right, transparent 1rem, rgba(214, 69, 65, 0.55) 1rem, rgba(214, 69, 65, 0.55) calc(1rem + 1px), transparent calc(1rem + 1px)),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 1.35rem, rgba(80, 120, 190, 0.28) 1.35rem, rgba(80, 120, 190, 0.28) calc(1.35rem + 1px));
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+  transform: rotate(-2deg);
+  color: #2a2a33;
+  font-family: 'Bradley Hand', 'Segoe Print', 'Comic Sans MS', cursive;
+  font-size: 0.85rem;
+  line-height: 1.35rem;
+}
+
+.notepadSheet {
+  border-collapse: collapse;
+}
+
+.notepadSheet th,
+.notepadSheet td {
+  padding: 0 0.35rem;
+  text-align: right;
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+.notepadName {
+  display: inline-block;
+  max-width: 4.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  font-weight: 700;
+}
+
+.notepadSheet tfoot td,
+.notepadSheet tfoot th {
+  border-top: 2px solid #2a2a33;
+  font-weight: 700;
+}
+
+.notepadSheet td.notepadDraw {
+  text-align: center;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+/* Where the felt fills the table there is no room left of it. */
+@media (max-width: 960px) {
+  .notepad {
+    left: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .notepad {
+    padding-left: 1.1rem;
+    font-size: 0.7rem;
+    line-height: 1.1rem;
+  }
+
+  .notepadName {
+    max-width: 3rem;
+  }
+}
+
+/* The discard pile spread: each card peeks from under the next, showing
+   enough to read its corner. A long pile tightens to fit, down to a
+   corner's width, and scrolls past that. --gaps is the card count less
+   one, set by the table. */
+.discardSpread {
+  --card-w: 3.2rem;
+  --spread-max: 16rem;
+  --step: max(0.8rem, min(1.65rem, calc((var(--spread-max) - var(--card-w)) / var(--gaps, 1))));
+  display: flex;
+  align-items: flex-end;
+  max-width: var(--spread-max);
+  overflow: auto hidden;
+  /* Room inside the scroll box for a raised card and its outline. */
+  padding: 0.8rem 0.3rem 0.3rem;
+}
+
+.discardSpread > * {
+  flex-shrink: 0;
+}
+
+.discardSpread > * + * {
+  margin-left: calc(var(--step) - var(--card-w));
+}
+
+@media (max-width: 600px), (max-height: 900px) {
+  .discardSpread {
+    --card-w: 2.6rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .discardSpread {
+    --spread-max: 11rem;
+  }
+}
+
+/* The short window's cards (2.25rem). */
+@media (max-height: 700px) and (min-width: 601px) {
+  .discardSpread {
+    --card-w: 2.25rem;
+  }
+}
+
+/* The card the pile was taken down to, still owed to the table. */
+.owed {
+  outline: 2px solid #e8674a;
+  outline-offset: -4px;
+}
+
+/* A card the pile may be taken down to rises out of the spread, over its
+   neighbours, so all of it is there to tap. */
+.discardSpread > .drawable,
+.discardSpread > .drawable:enabled:hover {
+  position: relative;
+  z-index: 1;
+  transform: translateY(-0.6rem);
+}

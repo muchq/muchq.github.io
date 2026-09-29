@@ -134,6 +134,13 @@ describe('useRummyTable', () => {
     expect(move.mock.calls).toEqual([['drawStock'], ['drawDiscard'], ['pass']])
   })
 
+  it('taking the pile down names the deepest card', () => {
+    const { result, receive, move } = mount()
+    receive({ gameJoined: { view: view({ stage: 'draw' }) } })
+    act(() => result.current.drawDiscard(c('7♥')))
+    expect(move.mock.calls).toEqual([['drawDiscard', { card: c('7♥') }]])
+  })
+
   it('a knock names the one card thrown', () => {
     const { result, receive, move } = mount()
     receive({ gameJoined: { view: view() } })
