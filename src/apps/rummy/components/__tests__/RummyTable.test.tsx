@@ -576,6 +576,65 @@ describe('RummyTable', () => {
   })
 
 
+  it('the discard pile lies spread, every card face up', () => {
+    mountWith(view({ currentPlayerId: 'bob', discardPile: [c('4♦'), c('9♣'), c('Q♠')] }))
+    const pile = within(screen.getByRole('group', { name: 'discard pile' }))
+    expect(pile.getAllByRole('img').map(card => card.getAttribute('aria-label'))).toEqual([
+      '4♦ in the discard pile',
+      '9♣ in the discard pile',
+      'Q♠ on the discard pile'
+    ])
+  })
+
+  it('on the draw, the pile can be taken down to any card the seat could then play', () => {
+    const { t } = mountWith(view({ stage: 'draw', discardPile: [c('4♦'), c('9♣'), c('Q♠')], discardTakeable: [c('9♣'), c('Q♠')] }))
+    expect(screen.getByText('Draw from the stock, take the Q♠, or take the pile down to a lit card.')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'take the pile down to 9♣' }))
+    expect(t.drawDiscard).toHaveBeenCalledWith(c('9♣'))
+    // A card it could not play is no offer.
+    expect(screen.queryByRole('button', { name: /down to 4♦/ })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'take Q♠ from the discard pile' }))
+    expect(t.drawDiscard).toHaveBeenLastCalledWith()
+  })
+
+  it('the card taken down to is owed: marked in hand, and no discard until it is played', () => {
+    mountWith(view({ mustPlay: c('9♥') }), { selected: ['K♦'] })
+    expect(screen.getByText('Play the 9♥ you took the pile down to — meld it or lay it off — before you discard.')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Discard K♦' })).toHaveProperty('disabled', true)
+    expect(myHandGroup().getByRole('button', { name: /^9♥, must be played/ })).toBeDefined()
+  })
+
+  it('gin keeps the pile squared: only its top shows, and only it is taken', () => {
+    mountWith(view({ variant: 'gin', melds: [], stage: 'draw', discardPile: [c('4♦'), c('Q♠')], discardTakeable: [] }))
+    expect(screen.queryByRole('img', { name: '4♦ in the discard pile' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'take Q♠ from the discard pile' })).toBeDefined()
+  })
+
+  it('keeps score on a notepad: a line a deal, the winner’s column scored, totals under', () => {
+    mountWith(
+      view({
+        dealNumber: 3,
+        standings: [
+          { playerId: 'alice', handsWon: 1, points: 12 },
+          { playerId: 'bob', handsWon: 1, points: 43 }
+        ],
+        scoreSheet: [
+          { variant: '7-card', winner: 'bob', points: 43 },
+          { variant: 'gin', points: 0 },
+          { variant: '7-card', winner: 'alice', points: 12 }
+        ]
+      })
+    )
+    const sheet = within(screen.getByRole('table', { name: 'Score sheet' }))
+    const rows = sheet.getAllByRole('row').map(row => row.textContent)
+    expect(rows).toEqual(['#youbob', '1—43', '2draw', '312—', 'Total1243'])
+  })
+
+  it('no notepad before the first deal', () => {
+    mountWith(between({ dealer: 'alice', dealNumber: 0 }))
+    expect(screen.queryByRole('table', { name: 'Score sheet' })).toBeNull()
+  })
+
   it('the table’s end is the hands each seat won, then another table or the room', () => {
     const ended = { standings: [{ playerId: 'alice', handsWon: 2 }], dealsPlayed: 3 }
     const { t } = mountWith(view({ phase: 'ended', currentPlayerId: undefined, stage: undefined, players: [seat('alice', myHand)] }), { ended })

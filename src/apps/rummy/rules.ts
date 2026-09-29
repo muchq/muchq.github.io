@@ -150,9 +150,12 @@ export function deadwood(hand: Card[]): number {
   return hand.reduce((sum, card) => sum + cardPoints(card), 0)
 }
 
-// The card just taken from the discard pile may not go straight back,
-// unless it is all the hand has left.
+// The card just taken alone from the discard pile may not go straight
+// back, unless it is all the hand has left; and nothing goes down while a
+// card the pile was taken down to is still owed.
 export function canDiscard(view: RummyView, hand: Card[], card: Card): boolean {
+  // A card the pile was taken down to is owed to the table first.
+  if (view.mustPlay !== undefined) return false
   return view.takenDiscard === undefined || face(view.takenDiscard) !== face(card) || hand.length === 1
 }
 

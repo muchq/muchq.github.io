@@ -25,7 +25,9 @@ export interface RummyTableActions {
   // finished one is already gone from the hub.
   playAgain: () => void
   drawStock: () => void
-  drawDiscard: () => void
+  // The top of the discard pile, or every card from the top down to
+  // `downTo`, which must then be played before the turn ends.
+  drawDiscard: (downTo?: Card) => void
   // Gin: turn the upcard down.
   pass: () => void
   // Selection is by card, not by slot: the hand is shown sorted, and a
@@ -158,7 +160,7 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
   }, [clear, move, onLeft, view])
 
   const drawStock = useCallback(() => move('drawStock'), [move])
-  const drawDiscard = useCallback(() => move('drawDiscard'), [move])
+  const drawDiscard = useCallback((downTo?: Card) => (downTo === undefined ? move('drawDiscard') : move('drawDiscard', { card: downTo })), [move])
   const pass = useCallback(() => move('pass'), [move])
 
   const toggleCard = useCallback((card: Card) => {
