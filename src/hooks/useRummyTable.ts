@@ -174,10 +174,15 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
 
   const drawStock = useCallback(() => move('drawStock'), [move])
   const drawDiscard = useCallback(() => move('drawDiscard'), [move])
-  const pickDownTo = useCallback((card: Card) => {
-    const picked = face(card)
-    setDownTo(prev => (prev === picked ? null : picked))
-  }, [])
+  // Putting the pile card back puts back the hand cards picked for it.
+  const pickDownTo = useCallback(
+    (card: Card) => {
+      const picked = face(card)
+      if (downTo === picked) setSelected([])
+      setDownTo(downTo === picked ? null : picked)
+    },
+    [downTo]
+  )
   // The picked pile card, read out of the pile now on screen.
   const downToCard = useCallback((): Card | null => view?.discardPile?.find(card => face(card) === downTo) ?? null, [downTo, view])
   const pass = useCallback(() => move('pass'), [move])

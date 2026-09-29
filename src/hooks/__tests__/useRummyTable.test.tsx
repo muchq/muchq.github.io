@@ -148,9 +148,11 @@ describe('useRummyTable', () => {
       ['takeDown', { card: c('6♥'), cards: [c('7♥'), c('8♥')] }],
       ['takeDown', { card: c('6♥'), meldIndex: 0 }]
     ])
-    // A second tap puts the pile card back; the next view clears it.
+    // A second tap puts the pile card back, and the hand cards picked for
+    // it with it; the next view clears a pick too.
     act(() => result.current.pickDownTo(c('6♥')))
     expect(result.current.downTo).toBeNull()
+    expect(result.current.selected).toEqual([])
     act(() => result.current.pickDownTo(c('5♥')))
     receive({ gameState: { view: view({ stage: 'draw', ...pile }) } })
     expect(result.current.downTo).toBeNull()

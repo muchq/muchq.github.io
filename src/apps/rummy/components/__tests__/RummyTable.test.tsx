@@ -616,6 +616,22 @@ describe('RummyTable', () => {
     expect(armed.t.takeDownMeld).toHaveBeenCalledTimes(1)
   })
 
+  it('taking down, the hint follows the hand cards picked', () => {
+    const pile = [c('4♦'), c('7♦'), c('Q♠')]
+    mountWith(view({ stage: 'draw', discardPile: pile }), { downTo: '7♦', selected: ['7♥'] })
+    expect(screen.getByText('Pick cards to meld with the 7♦, or clear them to lay it off.')).toBeDefined()
+    cleanup()
+    mountWith(view({ stage: 'draw', discardPile: pile }), { downTo: '7♦', selected: ['K♦', '2♠'] })
+    expect(screen.getByText('Those cards and the 7♦ are not a set or a run.')).toBeDefined()
+  })
+
+  it('putting the pile card back hands focus to the hand, since the button goes', () => {
+    const { t } = mountWith(view({ stage: 'draw', discardPile: [c('4♦'), c('7♦'), c('Q♠')] }), { downTo: '7♦' })
+    fireEvent.click(screen.getByRole('button', { name: 'Put the 7♦ back' }))
+    expect(t.pickDownTo).toHaveBeenCalledWith(c('7♦'))
+    expect(document.activeElement).toBe(screen.getByRole('group', { name: 'Your hand' }))
+  })
+
   it('a card picked to take down to lays off onto a meld it fits', () => {
     const { t } = mountWith(view({ stage: 'draw', discardPile: [c('4♦'), c('3♣'), c('Q♠')] }), { downTo: '3♣' })
     fireEvent.click(screen.getByRole('button', { name: "lay off 3♣ on 4♣ 5♣ 6♣, bob's" }))

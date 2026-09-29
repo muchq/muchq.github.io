@@ -313,7 +313,7 @@ button.meld {
   max-width: var(--spread-max);
   overflow: auto hidden;
   /* Room inside the scroll box for a raised card and its outline. */
-  padding: 0.8rem 0.3rem 0.3rem;
+  padding: 0.9rem 0.3rem 0.3rem;
 }
 
 .discardSpread > * {
@@ -358,7 +358,15 @@ button.meld {
   cursor: pointer;
 }
 
-.discardSpread > .pickable[aria-pressed='true'] {
+.discardSpread > .pickable:enabled:hover,
+.discardSpread > .pickable:focus-visible {
+  position: relative;
+  z-index: 2;
+  transform: translateY(-0.3rem);
+}
+
+.discardSpread > .pickable[aria-pressed='true'],
+.discardSpread > .pickable[aria-pressed='true']:enabled:hover {
   position: relative;
   z-index: 1;
   transform: translateY(-0.6rem);

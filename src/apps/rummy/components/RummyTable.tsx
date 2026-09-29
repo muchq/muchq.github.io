@@ -222,7 +222,12 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
     if (drawing) {
       if (view.discardTop !== undefined && !discardDrawable) return 'The upcard was passed: draw from the stock.'
       if (view.discardTop === undefined) return view.canDrawStock ? 'Draw from the stock.' : 'Nothing left to draw.'
-      if (downToCard !== null) return `Pick cards from your hand to meld with the ${face(downToCard)}, or tap a meld to lay it off.`
+      if (downToCard !== null) {
+        const bottom = face(downToCard)
+        if (picked.length >= 2 && downMeld === null) return `Those cards and the ${bottom} are not a set or a run.`
+        if (picked.length > 0) return `Pick cards to meld with the ${bottom}, or clear them to lay it off.`
+        return `Pick cards from your hand to meld with the ${bottom}, or tap a meld to lay it off.`
+      }
       const down = deeperPickable ? ', or pick a card deeper in the pile to take it down to' : ''
       if (!view.canDrawStock) return `The stock is out: take the ${face(view.discardTop)}${down}.`
       if (turning) return `The stock is out: turn the discard pile over to draw, or take the ${face(view.discardTop)}${down}.`
@@ -323,7 +328,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
           <button type="button" className={felt.primary} onClick={thenHand(table.takeDownMeld)} disabled={downMeld === null || !connected}>
             {downMeld === null ? 'Take down and meld' : `Take down and meld ${downMeld.map(face).join(' ')}`}
           </button>
-          <button type="button" className={felt.secondary} onClick={() => table.pickDownTo(downToCard)} disabled={!connected}>
+          <button type="button" className={felt.secondary} onClick={thenHand(() => table.pickDownTo(downToCard))} disabled={!connected}>
             {`Put the ${face(downToCard)} back`}
           </button>
         </>
@@ -344,7 +349,6 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
     if (laying && gin) {
       return (
         <>
-          {/* A knock the throw allows is the move to make: it leads. */}
           <button type="button" className={felt.primary} onClick={thenHand(table.discardSelected)} disabled={!discardable || !connected}>
             {single === null ? 'Discard' : `Discard ${face(single)}`}
           </button>
