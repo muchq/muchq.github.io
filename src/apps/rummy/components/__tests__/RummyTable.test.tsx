@@ -73,6 +73,7 @@ const between = ({
 const table = (over: Partial<RummyTableProps['table']> = {}): RummyTableProps['table'] => ({
   ended: null,
   selected: [],
+  downTo: null,
   order: 'suit',
   opening: false,
   dealing: false,
@@ -82,6 +83,9 @@ const table = (over: Partial<RummyTableProps['table']> = {}): RummyTableProps['t
   playAgain: vi.fn(),
   drawStock: vi.fn(),
   drawDiscard: vi.fn(),
+  pickDownTo: vi.fn(),
+  takeDownMeld: vi.fn(),
+  takeDownLayOff: vi.fn(),
   pass: vi.fn(),
   toggleCard: vi.fn(),
   meldSelected: vi.fn(),
@@ -180,6 +184,8 @@ describe('RummyTable', () => {
     rerender(<RummyTable playerId="alice" connected view={view()} table={{ ...t, order: 'rank' }} />)
     expect(faces()).toEqual(['2♠', '7♥', '7♣', '8♥', '9♥', 'K♦'])
     expect(screen.getByRole('button', { name: 'by rank' }).getAttribute('aria-pressed')).toBe('true')
+    // Seeing the melds in a hand is the player's game: no order finds them.
+    expect(screen.queryByRole('button', { name: 'by melds' })).toBeNull()
     // The hand's cost, for deciding what to throw.
     expect(screen.getByText('43 pts in hand')).toBeDefined()
   })
@@ -210,16 +216,11 @@ describe('RummyTable', () => {
     expect(t.discardSelected).toHaveBeenCalledTimes(1)
   })
 
-  it('marks the hand cards that would grow a meld before any is picked', () => {
+  it('marks nothing in hand as fitting a meld: that is the player’s to see', () => {
     mountWith(view())
-    // 7♣ runs on from 4♣ 5♣ 6♣; nothing else fits either meld.
-    expect(myHandGroup().getByRole('button', { name: '7♣, fits a meld' })).toBeDefined()
-    expect(myHandGroup().getAllByRole('button', { name: /fits a meld/ })).toHaveLength(1)
-    // Its twin: off the play stage nothing is marked.
-    cleanup()
-    mountWith(view({ stage: 'draw' }))
-    expect(screen.queryByRole('img', { name: /fits a meld/ })).toBeNull()
-    expect(screen.getByRole('img', { name: '7♣' })).toBeDefined()
+    // 7♣ runs on from 4♣ 5♣ 6♣, and nothing says so.
+    expect(myHandGroup().getByRole('button', { name: '7♣' })).toBeDefined()
+    expect(myHandGroup().queryAllByRole('button', { name: /fits a meld/ })).toHaveLength(0)
   })
 
   it('says who laid each meld', () => {
@@ -529,23 +530,18 @@ describe('RummyTable', () => {
     expect(screen.queryByRole('button', { name: /take Q♠ from the discard pile/ })).toBeNull()
   })
 
-  it('gin: no melding, and a knock is armed only by a throw that leaves ten or less', () => {
-    // 7-8-9♥ melds; K♦ 7♣ 2♠ are 19 over.
+  it('gin: no melding, and no reckoning: any throw may be knocked on, and the hub judges it', () => {
     const knocking = mountWith(gin(), { selected: ['K♦'] })
     expect(screen.queryByRole('button', { name: /^Meld/ })).toBeNull()
     expect(screen.queryByRole('group', { name: 'melds' })).toBeNull()
-    expect(screen.getByText('19 deadwood')).toBeDefined()
-    expect(screen.getByText('Throwing K♦ leaves 9 deadwood: you can knock.')).toBeDefined()
-    // An armed knock is the move to make: it leads, the discard follows.
-    expect(screen.getByRole('button', { name: 'Knock on K♦' }).className).toContain('primary')
-    expect(screen.getByRole('button', { name: 'Discard K♦' }).className).toContain('secondary')
+    // The hand's points, not its deadwood after melds, and no word on what
+    // a throw would leave.
+    expect(screen.getByText('43 pts in hand')).toBeDefined()
+    expect(screen.queryByText(/\d+ deadwood|leaves/)).toBeNull()
+    expect(screen.getByText('Discard, or knock with 10 or less deadwood left.')).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: 'Knock on K♦' }))
     expect(knocking.t.knockSelected).toHaveBeenCalledTimes(1)
-    cleanup()
-    mountWith(gin(), { selected: ['2♠'] })
-    expect(screen.getByText('Throwing 2♠ leaves 17 deadwood.')).toBeDefined()
-    expect(screen.getByRole('button', { name: 'Knock on 2♠' })).toHaveProperty('disabled', true)
-    expect(screen.getByRole('button', { name: 'Discard 2♠' }).className).toContain('primary')
+    expect(screen.getByRole('button', { name: 'Discard K♦' })).toHaveProperty('disabled', false)
   })
 
   it('gin: the deal’s end lays out both hands as the hub arranged them', () => {
@@ -586,46 +582,45 @@ describe('RummyTable', () => {
     ])
   })
 
-  it('on the draw, the pile can be taken down to any card the seat could then play', () => {
-    const { t } = mountWith(view({ stage: 'draw', discardPile: [c('4♦'), c('9♣'), c('Q♠')], discardTakeable: [c('9♣'), c('Q♠')] }))
-    expect(screen.getByText('Draw from the stock, take the Q♠, or take the pile down to a lit card.')).toBeDefined()
-    fireEvent.click(screen.getByRole('button', { name: 'take the pile down to 9♣' }))
-    expect(t.drawDiscard).toHaveBeenCalledWith(c('9♣'))
-    // A card it could not play is no offer.
-    expect(screen.queryByRole('button', { name: /down to 4♦/ })).toBeNull()
+  it('on the draw every deeper card of the pile can be picked, and none is singled out', () => {
+    const { t } = mountWith(view({ stage: 'draw', discardPile: [c('4♦'), c('9♣'), c('Q♠')] }))
+    expect(screen.getByText('Draw from the stock, take the Q♠, or pick a card deeper in the pile to take it down to.')).toBeDefined()
+    const deeper = [screen.getByRole('button', { name: 'take the pile down to 4♦' }), screen.getByRole('button', { name: 'take the pile down to 9♣' })]
+    // Alike but for the suit's colour: nothing says which the hand could play.
+    const marks = (el: HTMLElement) => el.className.split(/\s+/).filter(name => !/red/.test(name) && name !== '')
+    expect(marks(deeper[0])).toEqual(marks(deeper[1]))
+    fireEvent.click(deeper[1])
+    expect(t.pickDownTo).toHaveBeenCalledWith(c('9♣'))
+    // The top is a plain draw.
     fireEvent.click(screen.getByRole('button', { name: 'take Q♠ from the discard pile' }))
-    expect(t.drawDiscard).toHaveBeenLastCalledWith()
+    expect(t.drawDiscard).toHaveBeenCalledWith()
   })
 
-  it('the card taken down to is owed: marked in hand, and no discard until it is played', () => {
-    mountWith(view({ mustPlay: c('9♥') }), { selected: ['K♦'] })
-    expect(screen.getByText('Play the 9♥ you took the pile down to — meld it or lay it off — before you discard.')).toBeDefined()
-    expect(screen.getByRole('button', { name: 'Discard K♦' })).toHaveProperty('disabled', true)
-    expect(myHandGroup().getByRole('button', { name: /^9♥, must be played/ })).toBeDefined()
-    expect(myHandGroup().getAllByRole('button', { name: /must be played/ })).toHaveLength(1)
-  })
-
-  it('with only the top to take, the hint offers no take-down', () => {
-    mountWith(view({ stage: 'draw', discardPile: [c('4♦'), c('9♣'), c('Q♠')], discardTakeable: [c('Q♠')] }))
+  it('a pile of one has nothing deeper to take down to', () => {
+    mountWith(view({ stage: 'draw', discardPile: [c('Q♠')] }))
     expect(screen.getByText('Draw from the stock, or take the Q♠.')).toBeDefined()
   })
 
-  it('owing a card, a barred discard is blamed on the debt, not on a take', () => {
-    mountWith(view({ mustPlay: c('9♥') }), { selected: ['K♦'] })
-    expect(screen.queryByText(/can’t go straight back/)).toBeNull()
-  })
-
-  it('owing a card, laying off and melding still say what they would do', () => {
-    mountWith(view({ mustPlay: c('9♥') }), { selected: ['7♣'] })
-    expect(screen.getByText('Tap a lit meld to lay off 7♣.')).toBeDefined()
+  it('a card picked to take down to: the hand picks its meld, and Meld takes the pile down', () => {
+    const pile = [c('4♦'), c('7♦'), c('Q♠')]
+    const { t } = mountWith(view({ stage: 'draw', discardPile: pile }), { downTo: '7♦' })
+    expect(screen.getByRole('button', { name: 'take the pile down to 7♦' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByText('Pick cards from your hand to meld with the 7♦, or tap a meld to lay it off.')).toBeDefined()
+    // The hand is picked from on the draw now.
+    fireEvent.click(myHandGroup().getByRole('button', { name: '7♣' }))
+    expect(t.toggleCard).toHaveBeenCalledWith(c('7♣'))
+    expect(screen.getByRole('button', { name: 'Take down and meld' })).toHaveProperty('disabled', true)
     cleanup()
-    mountWith(view({ mustPlay: c('9♥') }), { selected: ['K♦', '7♣', '2♠'] })
-    expect(screen.getByText('Those cards are not a set or a run.')).toBeDefined()
+    const armed = mountWith(view({ stage: 'draw', discardPile: pile }), { downTo: '7♦', selected: ['7♥', '7♣'] })
+    fireEvent.click(screen.getByRole('button', { name: 'Take down and meld 7♣ 7♦ 7♥' }))
+    expect(armed.t.takeDownMeld).toHaveBeenCalledTimes(1)
   })
 
-  it('with the stock out, the lit cards are still offered', () => {
-    mountWith(view({ stage: 'draw', stockCount: 0, canDrawStock: false, discardPile: [c('4♦'), c('9♣'), c('Q♠')], discardTakeable: [c('9♣'), c('Q♠')] }))
-    expect(screen.getByText('The stock is out: take the Q♠, or take the pile down to a lit card.')).toBeDefined()
+  it('a card picked to take down to lays off onto a meld it fits', () => {
+    const { t } = mountWith(view({ stage: 'draw', discardPile: [c('4♦'), c('3♣'), c('Q♠')] }), { downTo: '3♣' })
+    fireEvent.click(screen.getByRole('button', { name: "lay off 3♣ on 4♣ 5♣ 6♣, bob's" }))
+    expect(t.takeDownLayOff).toHaveBeenCalledWith(0)
+    expect(screen.getByRole('img', { name: "J♣ J♦ J♥, bob's" })).toBeDefined()
   })
 
   it('a long pile opens on its top card, scrolled to the end', () => {
@@ -645,8 +640,9 @@ describe('RummyTable', () => {
   })
 
   it('gin keeps the pile squared: only its top shows, and only it is taken', () => {
-    mountWith(view({ variant: 'gin', melds: [], stage: 'draw', discardPile: [c('4♦'), c('Q♠')], discardTakeable: [] }))
+    mountWith(view({ variant: 'gin', melds: [], stage: 'draw', discardPile: [c('4♦'), c('Q♠')] }))
     expect(screen.queryByRole('img', { name: '4♦ in the discard pile' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /take the pile down/ })).toBeNull()
     expect(screen.getByRole('button', { name: 'take Q♠ from the discard pile' })).toBeDefined()
   })
 

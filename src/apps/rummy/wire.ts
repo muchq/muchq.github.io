@@ -34,12 +34,12 @@ export interface RummyMeld {
   cards: Card[]
 }
 
-export type RummyMoveKind = 'drawStock' | 'drawDiscard' | 'meld' | 'layOff' | 'discard' | 'pass' | 'knock'
+export type RummyMoveKind = 'drawStock' | 'drawDiscard' | 'takeDown' | 'meld' | 'layOff' | 'discard' | 'pass' | 'knock'
 
 // The table's most recent move: nothing for a stock draw (nobody else
-// sees it), the card taken, the meld as laid, the card laid off, the card
-// discarded or knocked on; nothing for a pass. The seat named may have
-// left since.
+// sees it), the card taken, the cards a take-down took (the one it played
+// first), the meld as laid, the card laid off, the card discarded or
+// knocked on; nothing for a pass. The seat named may have left since.
 export interface RummyLastMove {
   playerId: string
   move: RummyMoveKind
@@ -133,13 +133,6 @@ export interface RummyView {
   discardTop?: Card
   // The whole pile, bottom to top, face up for everyone.
   discardPile?: Card[]
-  // The cards the viewer may take the pile down to now, bottom to top:
-  // the top, and each deeper card it could then play. Empty but on the
-  // viewer's own draw, and in gin.
-  discardTakeable?: Card[]
-  // The deepest card the seat on turn took the pile down to, while it is
-  // still in hand: the turn cannot end until it is played.
-  mustPlay?: Card
   // Taken from the discard pile this turn: it may not go straight back
   // unless it is the last card in hand.
   takenDiscard?: Card
@@ -177,8 +170,11 @@ export interface RummyMovePayloads {
   chooseVariant: { variant: string }
   pass: undefined
   drawStock: undefined
-  // The deepest card to take; none, the top.
-  drawDiscard: { card: Card } | undefined
+  drawDiscard: undefined
+  // Every card of the discard pile from the top down to `card`, which is
+  // played at once: melded with `cards` from the hand, or laid off onto
+  // the table meld `meldIndex`.
+  takeDown: { card: Card; cards: Card[] } | { card: Card; meldIndex: number }
   meld: { cards: Card[] }
   layOff: { card: Card; meldIndex: number }
   discard: { card: Card }

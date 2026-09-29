@@ -103,21 +103,6 @@ button.meld {
   animation: fits 1.2s ease-in-out infinite alternate;
 }
 
-/* A hand card that would grow a meld on the table: a gold dot, before it
-   is picked. */
-.laysOff::after {
-  content: '';
-  position: absolute;
-  top: -0.3rem;
-  left: 50%;
-  width: 0.5rem;
-  height: 0.5rem;
-  margin-left: -0.25rem;
-  border-radius: 50%;
-  background: #f0c96a;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
-}
-
 /* The card just taken from the discard: it can't go straight back. */
 .taken {
   outline: 2px dashed #f0c96a;
@@ -358,17 +343,25 @@ button.meld {
   }
 }
 
-/* The card the pile was taken down to, still owed to the table. */
-.owed {
-  outline: 2px solid #e8674a;
-  outline-offset: -4px;
-}
-
-/* A card the pile may be taken down to rises out of the spread, over its
-   neighbours, so all of it is there to tap. */
+/* The top card, to take, rises out of the spread over its neighbours, so
+   all of it is there to tap. */
 .discardSpread > .drawable,
 .discardSpread > .drawable:enabled:hover {
   position: relative;
   z-index: 1;
   transform: translateY(-0.6rem);
+}
+
+/* On the draw any card under the top can be picked to take the pile down
+   to: all alike, none lit. The one picked rises and is outlined. */
+.pickable {
+  cursor: pointer;
+}
+
+.discardSpread > .pickable[aria-pressed='true'] {
+  position: relative;
+  z-index: 1;
+  transform: translateY(-0.6rem);
+  outline: 2px solid #f0c96a;
+  outline-offset: 2px;
 }

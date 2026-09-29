@@ -11,7 +11,7 @@ import { safeLocalStorage } from '@/utils/safeLocalStorage'
 // How the viewer likes the hand laid out outlives the table.
 const ORDER_KEY = 'rummy.order'
 
-const ORDERS: HandOrder[] = ['suit', 'rank', 'melds']
+const ORDERS: HandOrder[] = ['suit', 'rank']
 
 const storedOrder = (): HandOrder => ORDERS.find(order => order === safeLocalStorage.get(ORDER_KEY)) ?? 'suit'
 
@@ -25,9 +25,15 @@ export interface RummyTableActions {
   // finished one is already gone from the hub.
   playAgain: () => void
   drawStock: () => void
-  // The top of the discard pile, or every card from the top down to
-  // `downTo`, which must then be played before the turn ends.
-  drawDiscard: (downTo?: Card) => void
+  // The top of the discard pile.
+  drawDiscard: () => void
+  // A card deeper in the discard pile to take it down to, picked or put
+  // back; the take-down is sent by one of the two below.
+  pickDownTo: (card: Card) => void
+  // The pile down to the picked card, melded with the selected cards.
+  takeDownMeld: () => void
+  // The pile down to the picked card, laid off onto this table meld.
+  takeDownLayOff: (meldIndex: number) => void
   // Gin: turn the upcard down.
   pass: () => void
   // Selection is by card, not by slot: the hand is shown sorted, and a
@@ -51,6 +57,9 @@ export interface UseRummyTable extends RummyTableActions {
   // the hub answers: the next view clears them, and a refusal leaves them
   // picked so the move can be fixed rather than rebuilt.
   selected: string[]
+  // The face of the discard pile card picked to take the pile down to;
+  // cleared like the selection.
+  downTo: string | null
   order: HandOrder
   // A table has been asked for and not yet arrived.
   opening: boolean
@@ -79,6 +88,7 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
   const [view, setView] = useState<RummyView | null>(null)
   const [ended, setEnded] = useState<RummyGameEnded | null>(null)
   const [selected, setSelected] = useState<string[]>([])
+  const [downTo, setDownTo] = useState<string | null>(null)
   const [opening, setOpening] = useState(false)
   const [dealing, setDealing] = useState(false)
   const [order, setOrderState] = useState<HandOrder>(storedOrder)
@@ -87,6 +97,7 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
     setView(null)
     setEnded(null)
     setSelected([])
+    setDownTo(null)
     setOpening(false)
     setDealing(false)
   }, [])
@@ -101,6 +112,7 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
         setView(update.gameJoined.view)
         setEnded(null)
         setSelected([])
+        setDownTo(null)
         setOpening(false)
         setDealing(false)
         return
@@ -108,6 +120,7 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
       if (update.gameState) {
         setView(update.gameState.view)
         setSelected([])
+        setDownTo(null)
         setDealing(false)
         return
       }
@@ -160,7 +173,13 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
   }, [clear, move, onLeft, view])
 
   const drawStock = useCallback(() => move('drawStock'), [move])
-  const drawDiscard = useCallback((downTo?: Card) => (downTo === undefined ? move('drawDiscard') : move('drawDiscard', { card: downTo })), [move])
+  const drawDiscard = useCallback(() => move('drawDiscard'), [move])
+  const pickDownTo = useCallback((card: Card) => {
+    const picked = face(card)
+    setDownTo(prev => (prev === picked ? null : picked))
+  }, [])
+  // The picked pile card, read out of the pile now on screen.
+  const downToCard = useCallback((): Card | null => view?.discardPile?.find(card => face(card) === downTo) ?? null, [downTo, view])
   const pass = useCallback(() => move('pass'), [move])
 
   const toggleCard = useCallback((card: Card) => {
@@ -196,6 +215,22 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
     [move, selectedCards]
   )
 
+  const takeDownMeld = useCallback(() => {
+    const card = downToCard()
+    const cards = selectedCards()
+    if (card === null || cards === null) return
+    move('takeDown', { card, cards })
+  }, [downToCard, move, selectedCards])
+
+  const takeDownLayOff = useCallback(
+    (meldIndex: number) => {
+      const card = downToCard()
+      if (card === null) return
+      move('takeDown', { card, meldIndex })
+    },
+    [downToCard, move]
+  )
+
   const discardSelected = useCallback(() => {
     const cards = selectedCards()
     if (cards === null || cards.length !== 1) return
@@ -217,6 +252,7 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
     view,
     ended,
     selected,
+    downTo,
     order,
     opening,
     dealing,
@@ -231,6 +267,9 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
     playAgain,
     drawStock,
     drawDiscard,
+    pickDownTo,
+    takeDownMeld,
+    takeDownLayOff,
     pass,
     toggleCard,
     meldSelected,

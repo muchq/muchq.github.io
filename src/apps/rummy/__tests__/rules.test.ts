@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   arrangedMeld,
-  bestArrangement,
   canDeal,
   canDiscard,
   deadwood,
@@ -9,13 +8,11 @@ import {
   describeLastMove,
   describeTableEnd,
   headlineOf,
-  knockable,
   meldsFitting,
   sortHand,
   variantLabel
 } from '../rules'
 import type { Card, RummyView } from '../wire'
-import corpus from './arrange_corpus.json'
 
 // The UI's copy of the engine's rules only shapes the offer — the hub
 // refuses in band — but an offer that disagrees with the engine is a
@@ -113,17 +110,15 @@ describe('canDiscard', () => {
     expect(canDiscard(view(taken), cards('9♠'), c('9♠'))).toBe(true)
     expect(canDiscard(view(), cards('9♠', '2♣'), c('9♠'))).toBe(true)
   })
-  it('refuses every discard while a card taken down to is still owed', () => {
-    const owing = view({ mustPlay: c('5♥') })
-    expect(canDiscard(owing, cards('5♥', '2♣'), c('2♣'))).toBe(false)
-    expect(canDiscard(owing, cards('5♥', '2♣'), c('5♥'))).toBe(false)
-  })
 })
 
 describe('describeLastMove', () => {
   it('says each move, in the second person for the viewer', () => {
     expect(describeLastMove({ playerId: 'bob', move: 'drawStock', cards: [] }, 'alice')).toBe('bob drew from the stock')
     expect(describeLastMove({ playerId: 'alice', move: 'drawDiscard', cards: cards('9♠') }, 'alice')).toBe('You took 9♠')
+    expect(describeLastMove({ playerId: 'bob', move: 'takeDown', cards: cards('5♥', '6♥', 'K♠'), meldIndex: 2 }, 'alice')).toBe(
+      'bob took the pile down to 5♥ and played it'
+    )
     expect(describeLastMove({ playerId: 'bob', move: 'meld', cards: cards('7♥', '8♥', '9♥'), meldIndex: 0 }, 'alice')).toBe(
       'bob melded 7♥ 8♥ 9♥'
     )
@@ -200,31 +195,6 @@ describe('the dealer’s choice', () => {
   })
 })
 
-// The hub arranges gin hands; the UI arranges the viewer's own to say
-// what a knock would leave. The corpus is MoonBase's
-// libs/cards/rummy/testdata/arrange_corpus.json, copied: both searches
-// replay the same cases, which an independent brute force generated.
-describe('bestArrangement', () => {
-  it.each(corpus.arrange.map(({ hand, deadwood }) => [hand.join(' '), hand, deadwood] as const))('%s', (_, hand, expected) => {
-    const arranged = bestArrangement(cards(...hand))
-    expect(arranged.points).toBe(expected)
-    expect(deadwood(arranged.deadwood)).toBe(expected)
-    for (const meld of arranged.melds) expect(arrangedMeld(meld)).not.toBeNull()
-    const used = [...arranged.melds.flat(), ...arranged.deadwood].map(card => card.rank + card.suit)
-    expect(used.sort()).toEqual([...hand].sort())
-  })
-})
-
-describe('knockable', () => {
-  it('is throwing a card that leaves ten or less', () => {
-    // A-2-3♠ and 7-8-9♥ melded: K♣ and 9♦ left over.
-    const hand = cards('A♠', '2♠', '3♠', '7♥', '8♥', '9♥', 'K♣', '9♦', 'A♦')
-    expect(knockable(hand, c('K♣'))).toBe(true)
-    expect(knockable(hand, c('9♦'))).toBe(false)
-    expect(knockable(hand, c('Q♥'))).toBe(false)
-  })
-})
-
 describe('the ace, in every variant', () => {
   const melds = [
     { owner: 'bob', cards: cards('J♣', 'Q♣', 'K♣') },
@@ -237,19 +207,6 @@ describe('the ace, in every variant', () => {
     expect(meldsFitting(melds, c('A♥'))).toEqual([1])
     expect(meldsFitting(melds, c('2♠'))).toEqual([])
     expect(meldsFitting(melds, c('K♦'))).toEqual([])
-  })
-  it('counts toward a gin knock at either end, never round the corner', () => {
-    const sets = ['7♣', '7♦', '7♥', '3♥', '4♥', '5♥', '2♦', 'K♦']
-    expect(knockable(cards('Q♠', 'K♠', 'A♠', ...sets), c('K♦'))).toBe(true)
-    expect(knockable(cards('A♠', '2♠', '3♠', ...sets), c('K♦'))).toBe(true)
-    expect(knockable(cards('K♠', 'A♠', '2♠', ...sets), c('K♦'))).toBe(false)
-  })
-})
-
-describe('sortHand by melds', () => {
-  it('lays each meld together, then the deadwood by suit', () => {
-    const hand = cards('K♣', '9♥', 'A♠', '8♥', '2♠', '7♥', '3♠', '4♦')
-    expect(faces(sortHand(hand, 'melds'))).toEqual(['A♠', '2♠', '3♠', '7♥', '8♥', '9♥', 'K♣', '4♦'])
   })
 })
 
