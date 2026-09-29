@@ -134,11 +134,59 @@ describe('useRummyTable', () => {
     expect(move.mock.calls).toEqual([['drawStock'], ['drawDiscard'], ['pass']])
   })
 
-  it('taking the pile down names the deepest card', () => {
+  it('taking the pile down: a pile card picked, then the hand’s meld or a lay-off', () => {
     const { result, receive, move } = mount()
-    receive({ gameJoined: { view: view({ stage: 'draw' }) } })
-    act(() => result.current.drawDiscard(c('7♥')))
-    expect(move.mock.calls).toEqual([['drawDiscard', { card: c('7♥') }]])
+    const pile = { discardPile: [c('5♥'), c('6♥'), c('2♠')], discardCount: 3 }
+    receive({ gameJoined: { view: view({ stage: 'draw', ...pile }) } })
+    act(() => result.current.pickDownTo(c('6♥')))
+    expect(result.current.downTo).toBe('6♥')
+    act(() => result.current.toggleCard(c('7♥')))
+    act(() => result.current.toggleCard(c('8♥')))
+    act(() => result.current.takeDownMeld())
+    act(() => result.current.takeDownLayOff(0))
+    expect(move.mock.calls).toEqual([
+      ['takeDown', { card: c('6♥'), cards: [c('7♥'), c('8♥')] }],
+      ['takeDown', { card: c('6♥'), meldIndex: 0 }]
+    ])
+    // A second tap puts the pile card back, and the hand cards picked for
+    // it with it; the next view clears a pick too.
+    act(() => result.current.pickDownTo(c('6♥')))
+    expect(result.current.downTo).toBeNull()
+    expect(result.current.selected).toEqual([])
+    act(() => result.current.pickDownTo(c('5♥')))
+    receive({ gameState: { view: view({ stage: 'draw', ...pile }) } })
+    expect(result.current.downTo).toBeNull()
+  })
+
+  it('picking another pile card drops the hand cards picked for the first', () => {
+    const { result, receive } = mount()
+    receive({ gameJoined: { view: view({ stage: 'draw', discardPile: [c('5♥'), c('6♥'), c('2♠')] }) } })
+    act(() => result.current.pickDownTo(c('6♥')))
+    act(() => result.current.toggleCard(c('7♥')))
+    act(() => result.current.pickDownTo(c('5♥')))
+    expect(result.current.downTo).toBe('5♥')
+    expect(result.current.selected).toEqual([])
+  })
+
+  it('a pile card picked goes with a new table or a cleared one', () => {
+    const { result, receive } = mount()
+    const pile = { stage: 'draw' as const, discardPile: [c('6♥'), c('2♠')] }
+    receive({ gameJoined: { view: view(pile) } })
+    act(() => result.current.pickDownTo(c('6♥')))
+    receive({ gameJoined: { view: view(pile) } })
+    expect(result.current.downTo).toBeNull()
+    act(() => result.current.pickDownTo(c('6♥')))
+    act(() => result.current.clear())
+    expect(result.current.downTo).toBeNull()
+  })
+
+  it('a take-down with no pile card picked, or one the pile no longer holds, sends nothing', () => {
+    const { result, receive, move } = mount()
+    receive({ gameJoined: { view: view({ stage: 'draw', discardPile: [c('6♥'), c('2♠')] }) } })
+    act(() => result.current.takeDownLayOff(0))
+    act(() => result.current.pickDownTo(c('5♥')))
+    act(() => result.current.takeDownLayOff(0))
+    expect(move).not.toHaveBeenCalled()
   })
 
   it('a knock names the one card thrown', () => {
@@ -159,9 +207,10 @@ describe('useRummyTable', () => {
     first.unmount()
     const second = mount()
     expect(second.result.current.order).toBe('rank')
-    act(() => second.result.current.setOrder('melds'))
     second.unmount()
-    expect(mount().result.current.order).toBe('melds')
+    // An order no longer offered reads as the default.
+    window.localStorage.setItem('rummy.order', 'melds')
+    expect(mount().result.current.order).toBe('suit')
   })
 
   it('a turn and the table starting are the felt’s to show; another table opening is a toast', () => {

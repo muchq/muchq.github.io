@@ -49,94 +49,15 @@ export function meldsFitting(melds: RummyMeld[], card: Card): number[] {
   return melds.flatMap((meld, i) => (arrangedMeld([...meld.cards, card]) === null ? [] : [i]))
 }
 
-// A hand's best split into melds and deadwood: the least deadwood left,
-// which is what gin reckons a hand by.
-export interface Arrangement {
-  // Each as it would lie on the table.
-  melds: Card[][]
-  deadwood: Card[]
-  points: number
-}
-
-// Every meld the hand could make: each three or four of a rank, and each
-// stretch of three or more in a suit, the ace low or high.
-function candidateMelds(hand: Card[]): Card[][] {
-  const found = new Map<string, Card[]>()
-  const add = (cards: Card[]) => {
-    const meld = arrangedMeld(cards)
-    if (meld !== null) found.set(meld.map(face).join(','), meld)
-  }
-  for (const rank of RANKS) {
-    const same = hand.filter(card => card.rank === rank)
-    if (same.length >= 3) add(same)
-    if (same.length === 4) same.forEach((_, skip) => add(same.filter((__, i) => i !== skip)))
-  }
-  for (const suit of HAND_SUITS) {
-    for (const aceHigh of [false, true]) {
-      const run = hand.filter(card => card.suit === suit).sort((a, b) => rankOf(a, aceHigh) - rankOf(b, aceHigh))
-      for (let from = 0; from < run.length; from++) {
-        for (let to = from + 1; to < run.length && rankOf(run[to], aceHigh) === rankOf(run[to - 1], aceHigh) + 1; to++) {
-          if (to - from >= 2) add(run.slice(from, to + 1))
-        }
-      }
-    }
-  }
-  return [...found.values()]
-}
-
-export function bestArrangement(hand: Card[]): Arrangement {
-  const candidates = candidateMelds(hand)
-  const faces = hand.map(face)
-  const decided = new Set<string>()
-  const chosen: Card[][] = []
-  let best: Arrangement = { melds: [], deadwood: hand, points: deadwood(hand) }
-  // Card by card: each is deadwood or in a meld with cards still free.
-  // Deadwood only grows, so a branch already past the best is dropped.
-  const search = (at: number, points: number) => {
-    if (points >= best.points && at > 0) return
-    while (at < hand.length && decided.has(faces[at])) at++
-    if (at === hand.length) {
-      best = { melds: [...chosen], deadwood: hand.filter(card => !chosen.some(meld => meld.includes(card))), points }
-      return
-    }
-    for (const meld of candidates) {
-      const cards = meld.map(face)
-      if (!cards.includes(faces[at]) || cards.some(f => decided.has(f))) continue
-      cards.forEach(f => decided.add(f))
-      chosen.push(meld.map(card => hand[faces.indexOf(face(card))]))
-      search(at + 1, points)
-      chosen.pop()
-      cards.forEach(f => decided.delete(f))
-    }
-    decided.add(faces[at])
-    search(at + 1, points + cardPoints(hand[at]))
-    decided.delete(faces[at])
-  }
-  search(0, 0)
-  return best
-}
-
-// Gin: whether throwing this card leaves ten or less deadwood.
-export function knockable(hand: Card[], card: Card): boolean {
-  if (!hand.some(held => face(held) === face(card))) return false
-  return bestArrangement(hand.filter(held => face(held) !== face(card))).points <= 10
-}
-
-export type HandOrder = 'suit' | 'rank' | 'melds'
+export type HandOrder = 'suit' | 'rank'
 
 // A copy of the hand in the order asked for: by suit for runs, by rank
-// for sets, or each meld of its best arrangement together, then the
-// deadwood. The hub keeps the hand in the order it arrived; this is only
-// how it is laid out.
+// for sets. The hub keeps the hand in the order it arrived; this is only
+// how it is laid out. Which cards meld is the player's to see.
 export function sortHand(hand: Card[], order: HandOrder): Card[] {
   const bySuit = (a: Card, b: Card) => HAND_SUITS.indexOf(a.suit) - HAND_SUITS.indexOf(b.suit)
   const byRank = (a: Card, b: Card) => rankOf(a) - rankOf(b)
   const suitThenRank = (a: Card, b: Card) => bySuit(a, b) || byRank(a, b)
-  if (order === 'melds') {
-    const arranged = bestArrangement(hand)
-    const melds = [...arranged.melds].sort((a, b) => suitThenRank(a[0], b[0]))
-    return [...melds.flat(), ...[...arranged.deadwood].sort(suitThenRank)]
-  }
   return [...hand].sort(order === 'suit' ? suitThenRank : (a, b) => byRank(a, b) || bySuit(a, b))
 }
 
@@ -150,12 +71,9 @@ export function deadwood(hand: Card[]): number {
   return hand.reduce((sum, card) => sum + cardPoints(card), 0)
 }
 
-// The card just taken alone from the discard pile may not go straight
-// back, unless it is all the hand has left; and nothing goes down while a
-// card the pile was taken down to is still owed.
+// The card just taken from the discard pile may not go straight back,
+// unless it is all the hand has left.
 export function canDiscard(view: RummyView, hand: Card[], card: Card): boolean {
-  // A card the pile was taken down to is owed to the table first.
-  if (view.mustPlay !== undefined) return false
   return view.takenDiscard === undefined || face(view.takenDiscard) !== face(card) || hand.length === 1
 }
 
@@ -170,6 +88,8 @@ export function describeLastMove(move: RummyLastMove, viewer: string): string {
       return `${who} drew from the stock`
     case 'drawDiscard':
       return `${who} took ${faces}`
+    case 'takeDown':
+      return move.cards.length === 0 ? `${who} took the pile down` : `${who} took the pile down to ${face(move.cards[0])} and played it`
     case 'meld':
       return `${who} melded ${faces}`
     case 'layOff':

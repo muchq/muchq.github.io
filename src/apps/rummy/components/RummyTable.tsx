@@ -6,7 +6,6 @@ import type { HandOrder } from '../rules'
 import type { Card, RummyGameEnded, RummyLastMove, RummyPlayer, RummyView } from '../wire'
 import {
   arrangedMeld,
-  bestArrangement,
   canDeal,
   canDiscard,
   deadwood,
@@ -16,7 +15,6 @@ import {
   enteredSince,
   face,
   headlineOf,
-  knockable,
   meldsFitting,
   seatOf,
   sortHand,
@@ -51,7 +49,7 @@ export interface RummyTableProps {
   playerId: string
   connected: boolean
   view: RummyView
-  table: RummyTableActions & { ended: RummyGameEnded | null; selected: string[]; order: HandOrder; opening: boolean; dealing: boolean }
+  table: RummyTableActions & { ended: RummyGameEnded | null; selected: string[]; downTo: string | null; order: HandOrder; opening: boolean; dealing: boolean }
   // Seats the room shows as not connected: a dealer among them lets anyone
   // deal.
   away?: string[]
@@ -72,7 +70,7 @@ const moveSignature = (move: RummyLastMove): string => `${move.playerId}:${move.
 const stageWords = (stage?: RummyView['stage']) => (stage === 'upcard' ? 'take or pass' : stage === 'draw' ? 'draw' : 'play')
 
 const RummyTable = ({ playerId, connected, view, table, away = [], children }: RummyTableProps) => {
-  const { ended, opening, dealing, selected, order } = table
+  const { ended, opening, dealing, selected, downTo, order } = table
   const headingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     headingRef.current?.focus()
@@ -119,15 +117,19 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
     })
   }
 
+  // A take-down in the making: on the draw, a card deeper in the pile
+  // picked to take it down to, played at once from the hand's cards.
+  const downToCard = drawing && !gin && downTo !== null ? ((view.discardPile ?? []).slice(0, -1).find(card => face(card) === downTo) ?? null) : null
+  const handPickable = laying || downToCard !== null
   const picked = selected.map(f => myHand.find(card => face(card) === f)).filter((card): card is Card => card !== undefined)
   const meld = laying && picked.length >= 3 ? arrangedMeld(picked) : null
+  const downMeld = downToCard !== null && picked.length >= 2 ? arrangedMeld([...picked, downToCard]) : null
   const single = laying && picked.length === 1 ? picked[0] : null
   const fitting = single === null ? [] : meldsFitting(view.melds, single)
+  // The pile card being taken down to may be laid off on any meld, none
+  // lit: whether it fits is the player's to see and the hub's to judge.
+  const downLaysOff = downToCard !== null && picked.length === 0 ? downToCard : null
   const discardable = single !== null && canDiscard(view, myHand, single)
-  const mayKnock = gin && discardable && single !== null && knockable(myHand, single)
-  // Gin: what the hand is reckoned by, and what a throw would leave.
-  const myDeadwood = gin ? bestArrangement(myHand).points : deadwood(myHand)
-  const leftAfter = gin && single !== null ? bestArrangement(myHand.filter(card => face(card) !== face(single))).points : null
 
   // A move takes the button that made it away — the picked card, the lit
   // meld, the draw that becomes a disabled Meld — so focus goes to the hand,
@@ -190,11 +192,13 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
   // A hub older than gin does not say; there, the discard is drawable
   // while it has a top.
   const discardDrawable = view.canDrawDiscard ?? view.discardTop !== undefined
-  const takeable = (drawing || upcard) && discardDrawable
+  // A take-down in the making is put back before any other draw.
+  const takeable = (drawing || upcard) && discardDrawable && downToCard === null
   // Rummy lays its whole discard pile out; gin keeps it squared, top only.
   const pile = gin ? [] : (view.discardPile ?? [])
-  // The deeper cards the viewer may take the pile down to, on its draw.
-  const deeper = drawing && !gin ? (view.discardTakeable ?? []).map(face).filter(f => view.discardTop === undefined || f !== face(view.discardTop)) : []
+  // On the draw, any card under the top may be taken down to; which of
+  // them the hand could play is the player's to see.
+  const deeperPickable = drawing && pile.length > 1
   // Between deals a seat shows what the hub reckoned it held — gin's
   // deadwood after its melds — or, for a seat not in the reckoning, its cards.
   const leftIn = (seat: RummyPlayer) => lastDeal?.scores.find(score => score.playerId === seat.playerId)?.deadwood ?? deadwood(seat.hand)
@@ -219,23 +223,25 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
     if (drawing) {
       if (view.discardTop !== undefined && !discardDrawable) return 'The upcard was passed: draw from the stock.'
       if (view.discardTop === undefined) return view.canDrawStock ? 'Draw from the stock.' : 'Nothing left to draw.'
-      const down = deeper.length > 0 ? ', or take the pile down to a lit card' : ''
+      if (downToCard !== null) {
+        const bottom = face(downToCard)
+        if (picked.length >= 2 && downMeld === null) return `Those cards and the ${bottom} are not a set or a run.`
+        if (picked.length > 0) return `Pick cards to meld with the ${bottom}, or clear them to lay it off.`
+        return `Pick cards from your hand to meld with the ${bottom}, or tap a meld to lay it off.`
+      }
+      const down = deeperPickable ? ', or pick a card deeper in the pile to take it down to' : ''
       if (!view.canDrawStock) return `The stock is out: take the ${face(view.discardTop)}${down}.`
       if (turning) return `The stock is out: turn the discard pile over to draw, or take the ${face(view.discardTop)}${down}.`
-      if (deeper.length > 0) return `Draw from the stock, take the ${face(view.discardTop)}${down}.`
+      if (deeperPickable) return `Draw from the stock, take the ${face(view.discardTop)}${down}.`
       return `Draw from the stock, or take the ${face(view.discardTop)}.`
     }
     if (laying && gin) {
-      if (single !== null && leftAfter !== null) return `Throwing ${face(single)} leaves ${leftAfter} deadwood${mayKnock ? ': you can knock.' : '.'}`
       if (picked.length > 1) return 'Pick one card to discard or knock with.'
       return 'Discard, or knock with 10 or less deadwood left.'
     }
     if (laying) {
-      if (single !== null && fitting.length > 0) return `Tap a lit meld to lay off ${face(single)}${view.mustPlay === undefined ? ', or discard it' : ''}.`
+      if (single !== null && fitting.length > 0) return `Tap a lit meld to lay off ${face(single)}, or discard it.`
       if (picked.length >= 3 && meld === null) return 'Those cards are not a set or a run.'
-      if (view.mustPlay !== undefined) {
-        return `Play the ${face(view.mustPlay)} you took the pile down to — meld it or lay it off — before you discard.`
-      }
       if (picked.length === 2) return 'Pick three or more to meld, or one to lay off or discard.'
       if (view.takenDiscard !== undefined) return `Meld or lay off if you can, then discard — not the ${face(view.takenDiscard)} you just took.`
       return 'Meld or lay off if you can, then discard to end your turn.'
@@ -317,6 +323,18 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
         </>
       )
     }
+    if (drawing && downToCard !== null) {
+      return (
+        <>
+          <button type="button" className={felt.primary} onClick={thenHand(table.takeDownMeld)} disabled={downMeld === null || !connected}>
+            {downMeld === null ? 'Take down and meld' : `Take down and meld ${downMeld.map(face).join(' ')}`}
+          </button>
+          <button type="button" className={felt.secondary} onClick={thenHand(() => table.pickDownTo(downToCard))} disabled={!connected}>
+            {`Put the ${face(downToCard)} back`}
+          </button>
+        </>
+      )
+    }
     if (drawing) {
       return (
         <>
@@ -332,11 +350,10 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
     if (laying && gin) {
       return (
         <>
-          {/* A knock the throw allows is the move to make: it leads. */}
-          <button type="button" className={mayKnock ? felt.secondary : felt.primary} onClick={thenHand(table.discardSelected)} disabled={!discardable || !connected}>
+          <button type="button" className={felt.primary} onClick={thenHand(table.discardSelected)} disabled={!discardable || !connected}>
             {single === null ? 'Discard' : `Discard ${face(single)}`}
           </button>
-          <button type="button" className={mayKnock ? felt.primary : felt.secondary} onClick={thenHand(table.knockSelected)} disabled={!mayKnock || !connected}>
+          <button type="button" className={felt.secondary} onClick={thenHand(table.knockSelected)} disabled={!discardable || !connected}>
             {single === null ? 'Knock' : `Knock on ${face(single)}`}
           </button>
           {single !== null && view.takenDiscard !== undefined && face(single) === face(view.takenDiscard) && !discardable && (
@@ -416,11 +433,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
                   const angle = (i - (all.length - 1) / 2) * step
                   const entered = mine && handMark.entered.includes(i)
                   const taken = card !== null && laying && mine && view.takenDiscard !== undefined && face(view.takenDiscard) === face(card)
-                  // A card that would grow a meld on the table is marked
-                  // before it is picked, so a lay-off is seen, not guessed.
-                  const laysOff = card !== null && laying && mine && meldsFitting(view.melds, card).length > 0
-                  const owed = card !== null && mine && view.mustPlay !== undefined && face(view.mustPlay) === face(card)
-                  const notes = [owed ? 'must be played' : '', taken ? 'just taken' : '', laysOff ? 'fits a meld' : ''].filter(Boolean)
+                  const notes = taken ? ['just taken'] : []
                   return (
                     <span
                       key={mine && card !== null ? `${face(card)}:${entered ? handMark.gen : 0}` : i}
@@ -432,11 +445,11 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
                       ) : (
                         <CardFace
                           card={card}
-                          className={`${entered ? felt.entered : ''} ${taken ? styles.taken : ''} ${laysOff ? styles.laysOff : ''} ${owed ? styles.owed : ''}`}
+                          className={`${entered ? felt.entered : ''} ${taken ? styles.taken : ''}`}
                           style={entered ? ({ '--i': handMark.entered.indexOf(i) } as CSSProperties) : undefined}
                           label={notes.length > 0 ? [face(card), ...notes].join(', ') : undefined}
-                          toggle={mine && laying ? selected.includes(face(card)) : undefined}
-                          onClick={mine && laying && connected ? () => table.toggleCard(card) : undefined}
+                          toggle={mine && handPickable ? selected.includes(face(card)) : undefined}
+                          onClick={mine && handPickable && connected ? () => table.toggleCard(card) : undefined}
                         />
                       )}
                     </span>
@@ -448,11 +461,14 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
         </div>
         {mine && dealt && (
           <div className={styles.handTools}>
-            <span className={felt.muted} title={gin ? 'Your deadwood: what your best melds leave over' : 'What your hand would cost you if someone went out now'}>
-              {gin ? `${myDeadwood} deadwood` : `${myDeadwood} pts in hand`}
-            </span>
+            {/* Gin's reckoning is deadwood after melds: the player's to count. */}
+            {!gin && (
+              <span className={felt.muted} title="What your cards count, melded or not">
+                {`${deadwood(myHand)} pts in hand`}
+              </span>
+            )}
             <span role="group" aria-label="Sort your hand" className={styles.sort}>
-              {(['suit', 'rank', 'melds'] as const).map(by => (
+              {(['suit', 'rank'] as const).map(by => (
                 <button key={by} type="button" className={styles.sortButton} aria-pressed={order === by} onClick={() => table.setOrder(by)}>
                   by {by}
                 </button>
@@ -609,7 +625,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
           <section className={`${felt.pile} ${styles.middle}`} aria-label="table">
             <div className={felt.piles}>
               <div className={`${felt.drawPile} ${view.stockCount === 0 ? felt.drawn : ''}`}>
-                {drawing && view.canDrawStock ? (
+                {drawing && view.canDrawStock && downToCard === null ? (
                   <button
                     type="button"
                     className={`${felt.card} ${felt.back} ${styles.drawable}`}
@@ -625,13 +641,14 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
               <div className={felt.pileCards} role="group" aria-label="discard pile">
                 <div ref={spreadRef} className={gin ? '' : styles.discardSpread} style={{ '--gaps': Math.max(pile.length - 1, 1) } as CSSProperties}>
                   {pile.slice(0, -1).map(card =>
-                    deeper.includes(face(card)) ? (
+                    deeperPickable ? (
                       <CardFace
                         key={face(card)}
                         card={card}
-                        className={styles.drawable}
+                        className={styles.pickable}
                         label={`take the pile down to ${face(card)}`}
-                        onClick={connected ? thenHand(() => table.drawDiscard(card)) : undefined}
+                        toggle={downTo === face(card)}
+                        onClick={connected ? thenHand(() => table.pickDownTo(card)) : undefined}
                       />
                     ) : (
                       <CardFace key={face(card)} card={card} label={`${face(card)} in the discard pile`} />
@@ -677,14 +694,15 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
                     const lastLaid = view.lastMove?.meldIndex === m && moment !== undefined
                     const classes = `${styles.meld} ${fits ? styles.fits : ''} ${lastLaid ? styles.justLaid : ''}`
                     const named = `${tableMeld.cards.map(face).join(' ')}, ${tableMeld.owner === playerId ? 'yours' : `${tableMeld.owner}'s`}`
-                    return fits && single !== null ? (
+                    const layingOff = fits ? single : downLaysOff
+                    return layingOff !== null ? (
                       <button
                         key={m}
                         type="button"
                         className={classes}
-                        onClick={thenHand(() => table.layOffSelected(m))}
+                        onClick={thenHand(() => (single !== null ? table.layOffSelected(m) : table.takeDownLayOff(m)))}
                         disabled={!connected}
-                        aria-label={`lay off ${face(single)} on ${named}`}
+                        aria-label={`lay off ${face(layingOff)} on ${named}`}
                       >
                         {cards}
                       </button>
