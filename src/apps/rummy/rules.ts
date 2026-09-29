@@ -221,7 +221,8 @@ export function canDeal(view: RummyView, viewer: string, away: string[]): boolea
   return view.choosing.dealer === viewer || away.includes(view.choosing.dealer)
 }
 
-const VARIANT_LABELS: Record<string, string> = { '7-card': '7-card rummy', '10-card': '10-card rummy', gin: 'Gin rummy' }
+// `basic` is 7-card's name on a hub from before 7-card had its own.
+const VARIANT_LABELS: Record<string, string> = { '7-card': '7-card rummy', basic: '7-card rummy', '10-card': '10-card rummy', gin: 'Gin rummy' }
 
 // A variant as the table names it; one this build does not know yet reads
 // as the hub spelled it.

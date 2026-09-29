@@ -190,6 +190,8 @@ describe('the dealer’s choice', () => {
     expect(variantLabel('10-card')).toBe('10-card rummy')
     expect(variantLabel('gin')).toBe('Gin rummy')
     expect(variantLabel('canasta')).toBe('canasta')
+    // A hub from before 7-card had its name still offers `basic`.
+    expect(variantLabel('basic')).toBe('7-card rummy')
   })
 })
 

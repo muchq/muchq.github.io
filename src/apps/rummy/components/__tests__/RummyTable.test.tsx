@@ -536,12 +536,16 @@ describe('RummyTable', () => {
     expect(screen.queryByRole('group', { name: 'melds' })).toBeNull()
     expect(screen.getByText('19 deadwood')).toBeDefined()
     expect(screen.getByText('Throwing K♦ leaves 9 deadwood: you can knock.')).toBeDefined()
+    // An armed knock is the move to make: it leads, the discard follows.
+    expect(screen.getByRole('button', { name: 'Knock on K♦' }).className).toContain('primary')
+    expect(screen.getByRole('button', { name: 'Discard K♦' }).className).toContain('secondary')
     fireEvent.click(screen.getByRole('button', { name: 'Knock on K♦' }))
     expect(knocking.t.knockSelected).toHaveBeenCalledTimes(1)
     cleanup()
     mountWith(gin(), { selected: ['2♠'] })
     expect(screen.getByText('Throwing 2♠ leaves 17 deadwood.')).toBeDefined()
     expect(screen.getByRole('button', { name: 'Knock on 2♠' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Discard 2♠' }).className).toContain('primary')
   })
 
   it('gin: the deal’s end lays out both hands as the hub arranged them', () => {

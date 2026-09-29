@@ -314,10 +314,11 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
     if (laying && gin) {
       return (
         <>
-          <button type="button" className={felt.primary} onClick={thenHand(table.discardSelected)} disabled={!discardable || !connected}>
+          {/* A knock the throw allows is the move to make: it leads. */}
+          <button type="button" className={mayKnock ? felt.secondary : felt.primary} onClick={thenHand(table.discardSelected)} disabled={!discardable || !connected}>
             {single === null ? 'Discard' : `Discard ${face(single)}`}
           </button>
-          <button type="button" className={felt.secondary} onClick={thenHand(table.knockSelected)} disabled={!mayKnock || !connected}>
+          <button type="button" className={mayKnock ? felt.primary : felt.secondary} onClick={thenHand(table.knockSelected)} disabled={!mayKnock || !connected}>
             {single === null ? 'Knock' : `Knock on ${face(single)}`}
           </button>
           {single !== null && !discardable && (
