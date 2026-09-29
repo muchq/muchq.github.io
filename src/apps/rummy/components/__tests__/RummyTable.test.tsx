@@ -20,7 +20,7 @@ const myHand = ['K♦', '7♥', '7♣', '8♥', '9♥', '2♠']
 const view = (over: Partial<RummyView> = {}): RummyView => ({
   gameId: 'M1',
   phase: 'playing',
-  variant: 'basic',
+  variant: '7-card',
   dealNumber: 1,
   standings: [
     { playerId: 'alice', handsWon: 0 },
@@ -31,6 +31,7 @@ const view = (over: Partial<RummyView> = {}): RummyView => ({
   stage: 'play',
   stockCount: 30,
   canDrawStock: true,
+  canDrawDiscard: true,
   discardCount: 3,
   discardTop: c('Q♠'),
   melds: [
@@ -42,16 +43,30 @@ const view = (over: Partial<RummyView> = {}): RummyView => ({
 
 // Between deals: the last deal's cards still on the felt, every hand
 // face up, and the next dealer choosing.
-const between = ({ dealer, dealNumber = 1, lastDeal }: { dealer: string; dealNumber?: number; lastDeal?: RummyView['lastDeal'] }): RummyView =>
+const between = ({
+  dealer,
+  dealNumber = 1,
+  lastDeal,
+  options = ['7-card'],
+  variant = '7-card'
+}: {
+  dealer: string
+  dealNumber?: number
+  lastDeal?: RummyView['lastDeal']
+  options?: string[]
+  variant?: string
+}): RummyView =>
   view({
     phase: 'choosing',
     dealNumber,
     currentPlayerId: undefined,
     stage: undefined,
     canDrawStock: false,
+    canDrawDiscard: false,
     players: dealNumber === 0 ? [seat('alice', []), seat('bob', [])] : [seat('alice', myHand), seat('bob', ['A♠'])],
     melds: dealNumber === 0 ? [] : view().melds,
-    choosing: { dealer, options: ['basic'] },
+    choosing: { dealer, options },
+    variant,
     lastDeal
   })
 
@@ -67,10 +82,12 @@ const table = (over: Partial<RummyTableProps['table']> = {}): RummyTableProps['t
   playAgain: vi.fn(),
   drawStock: vi.fn(),
   drawDiscard: vi.fn(),
+  pass: vi.fn(),
   toggleCard: vi.fn(),
   meldSelected: vi.fn(),
   layOffSelected: vi.fn(),
   discardSelected: vi.fn(),
+  knockSelected: vi.fn(),
   setOrder: vi.fn(),
   ...over
 })
@@ -265,7 +282,7 @@ describe('RummyTable', () => {
   })
 
   it('the deal’s end names the winner and what everyone held; the dealer deals on from it', () => {
-    const lastDeal = { variant: 'basic', winner: 'bob', points: 43, scores: [{ playerId: 'alice', deadwood: 43 }, { playerId: 'bob', deadwood: 0 }] }
+    const lastDeal = { variant: '7-card', winner: 'bob', points: 43, scores: [{ playerId: 'alice', deadwood: 43 }, { playerId: 'bob', deadwood: 0 }] }
     const { t } = mountWith(between({ lastDeal, dealer: 'alice' }))
     const dialog = within(screen.getByRole('dialog'))
     expect(dialog.getByRole('heading', { name: 'bob wins the hand' })).toBeDefined()
@@ -273,19 +290,19 @@ describe('RummyTable', () => {
     expect(dialog.getByRole('row', { name: 'You 43 pts left' })).toBeDefined()
     expect(dialog.getByRole('row', { name: 'bob wins 43 pts' })).toBeDefined()
     expect(dialog.getByText('Your deal next.')).toBeDefined()
-    fireEvent.click(dialog.getByRole('button', { name: 'Deal Basic rummy' }))
-    expect(t.chooseVariant).toHaveBeenCalledWith('basic')
+    fireEvent.click(dialog.getByRole('button', { name: 'Deal 7-card rummy' }))
+    expect(t.chooseVariant).toHaveBeenCalledWith('7-card')
     fireEvent.click(dialog.getByRole('button', { name: 'See the hands' }))
     expect(screen.queryByRole('dialog')).toBeNull()
     // The deal stays under the hand once the dialog is gone, and the last
     // deal's cards stay on the felt to be read.
-    expect(screen.getByRole('button', { name: 'Deal Basic rummy' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Deal 7-card rummy' })).toBeDefined()
     expect(screen.getByRole('group', { name: 'melds' })).toBeDefined()
     expect(screen.getByText('bob went out and scores 43 points.')).toBeDefined()
   })
 
   it('at another seat, the deal’s end says who deals next and offers no deal', () => {
-    const lastDeal = { variant: 'basic', winner: 'alice', points: 12, scores: [] }
+    const lastDeal = { variant: '7-card', winner: 'alice', points: 12, scores: [] }
     mountWith(between({ lastDeal, dealer: 'bob' }))
     const dialog = within(screen.getByRole('dialog'))
     expect(dialog.getByRole('heading', { name: 'You won the hand!' })).toBeDefined()
@@ -296,7 +313,7 @@ describe('RummyTable', () => {
   })
 
   it('a deal broken up by a leave names nobody', () => {
-    mountWith(between({ lastDeal: { variant: 'basic', points: 0, scores: [] }, dealer: 'alice' }))
+    mountWith(between({ lastDeal: { variant: '7-card', points: 0, scores: [] }, dealer: 'alice' }))
     expect(within(screen.getByRole('dialog')).getByRole('heading', { name: 'The deal broke up' })).toBeDefined()
   })
 
@@ -305,8 +322,8 @@ describe('RummyTable', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByText('Your deal: pick the game.')).toBeDefined()
     expect(screen.queryByRole('group', { name: 'melds' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Deal Basic rummy' }))
-    expect(t.chooseVariant).toHaveBeenCalledWith('basic')
+    fireEvent.click(screen.getByRole('button', { name: 'Deal 7-card rummy' }))
+    expect(t.chooseVariant).toHaveBeenCalledWith('7-card')
     cleanup()
     mountWith(between({ dealer: 'bob', dealNumber: 0 }))
     expect(screen.getByText('Waiting for bob to deal.')).toBeDefined()
@@ -326,7 +343,7 @@ describe('RummyTable', () => {
   })
 
   it('between deals every hand is face up, so the felt marks the showdown', () => {
-    const { container } = mountWith(between({ dealer: 'bob', lastDeal: { variant: 'basic', winner: 'bob', points: 3, scores: [] } }))
+    const { container } = mountWith(between({ dealer: 'bob', lastDeal: { variant: '7-card', winner: 'bob', points: 3, scores: [] } }))
     expect(container.querySelector('[data-showdown]')).not.toBeNull()
     cleanup()
     const live = mountWith(view())
@@ -334,7 +351,7 @@ describe('RummyTable', () => {
   })
 
   it('the deal’s result is said once, by the sheet, and describes it', () => {
-    const lastDeal = { variant: 'basic', winner: 'bob', points: 3, scores: [] }
+    const lastDeal = { variant: '7-card', winner: 'bob', points: 3, scores: [] }
     mountWith(between({ dealer: 'bob', lastDeal }))
     const dialog = screen.getByRole('dialog')
     expect(screen.getAllByText('bob went out and scores 3 points.')).toHaveLength(1)
@@ -343,7 +360,7 @@ describe('RummyTable', () => {
   })
 
   it('the next deal arriving puts focus on the hand, from the sheet or from under it', () => {
-    const lastDeal = { variant: 'basic', winner: 'bob', points: 3, scores: [] }
+    const lastDeal = { variant: '7-card', winner: 'bob', points: 3, scores: [] }
     const { rerender, t } = mountWith(between({ dealer: 'bob', lastDeal }))
     expect(document.activeElement?.textContent).toBe('See the hands')
     rerender(<RummyTable playerId="alice" connected view={view({ dealNumber: 2, stage: 'draw' })} table={t} away={[]} />)
@@ -351,26 +368,26 @@ describe('RummyTable', () => {
   })
 
   it('the dealer going away while the sheet is up puts focus on the deal it now offers', () => {
-    const lastDeal = { variant: 'basic', winner: 'bob', points: 3, scores: [] }
+    const lastDeal = { variant: '7-card', winner: 'bob', points: 3, scores: [] }
     const v = between({ dealer: 'bob', lastDeal })
     const { rerender, t } = mountWith(v)
     expect(document.activeElement?.textContent).toBe('See the hands')
     rerender(<RummyTable playerId="alice" connected view={v} table={t} away={['bob']} />)
-    expect(document.activeElement?.textContent).toBe('Deal Basic rummy')
+    expect(document.activeElement?.textContent).toBe('Deal 7-card rummy')
   })
 
   it('face up between deals, a seat shows its cards and points, not a count', () => {
-    mountWith(between({ dealer: 'alice', lastDeal: { variant: 'basic', winner: 'alice', points: 1, scores: [] } }))
+    mountWith(between({ dealer: 'alice', lastDeal: { variant: '7-card', winner: 'alice', points: 1, scores: [] } }))
     const bob = screen.getByRole('region', { name: /^bob/ })
     expect(bob.textContent).not.toContain('in hand')
     expect(bob.textContent).toContain('1 pts left')
   })
 
   it('a dealer coming back while the sheet is up keeps focus in the sheet', () => {
-    const lastDeal = { variant: 'basic', winner: 'bob', points: 3, scores: [] }
+    const lastDeal = { variant: '7-card', winner: 'bob', points: 3, scores: [] }
     const v = between({ dealer: 'bob', lastDeal })
     const { rerender, t } = mountWith(v, {}, true, ['bob'])
-    expect(document.activeElement?.textContent).toBe('Deal Basic rummy')
+    expect(document.activeElement?.textContent).toBe('Deal 7-card rummy')
     rerender(<RummyTable playerId="alice" connected view={v} table={t} away={[]} />)
     expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true)
   })
@@ -378,8 +395,8 @@ describe('RummyTable', () => {
   it('a dealer the room shows away lets anyone deal', () => {
     const { t } = mountWith(between({ dealer: 'bob', dealNumber: 0 }), {}, true, ['bob'])
     expect(screen.getByText('bob is away: you can deal.')).toBeDefined()
-    fireEvent.click(screen.getByRole('button', { name: 'Deal Basic rummy' }))
-    expect(t.chooseVariant).toHaveBeenCalledWith('basic')
+    fireEvent.click(screen.getByRole('button', { name: 'Deal 7-card rummy' }))
+    expect(t.chooseVariant).toHaveBeenCalledWith('7-card')
   })
 
   it('says which deal is on and what it plays, and the hands each seat has won', () => {
@@ -392,10 +409,98 @@ describe('RummyTable', () => {
         ]
       })
     )
-    expect(screen.getByText('Deal 3 · Basic rummy')).toBeDefined()
+    expect(screen.getByText('Deal 3 · 7-card rummy')).toBeDefined()
     expect(screen.getByRole('region', { name: /^alice \(you\)/ }).textContent).toContain('2 won')
     expect(screen.getByRole('region', { name: /^bob/ }).textContent).toContain('0 won')
   })
+
+  it('the dealer picks the game from a list, one Deal button, the last deal’s game first', () => {
+    const options = ['7-card', '10-card', 'gin']
+    const { t } = mountWith(between({ dealer: 'alice', dealNumber: 0, options }))
+    const game = screen.getByRole('combobox', { name: 'Game' })
+    expect(
+      within(game)
+        .getAllByRole('option')
+        .map(o => o.textContent)
+    ).toEqual(['7-card rummy', '10-card rummy', 'Gin rummy'])
+    expect(screen.getAllByRole('button', { name: /^Deal/ })).toHaveLength(1)
+    fireEvent.change(game, { target: { value: 'gin' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Deal Gin rummy' }))
+    expect(t.chooseVariant).toHaveBeenCalledWith('gin')
+    cleanup()
+    const lastDeal = { variant: '10-card', winner: 'bob', points: 3, scores: [] }
+    mountWith(between({ dealer: 'alice', options, variant: '10-card', lastDeal }))
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Deal 10-card rummy' })).toBeDefined()
+  })
+
+  it('with one game on offer there is nothing to pick', () => {
+    mountWith(between({ dealer: 'alice', dealNumber: 0 }))
+    expect(screen.queryByRole('combobox')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Deal 7-card rummy' })).toBeDefined()
+  })
+
+  const gin = (over: Partial<RummyView> = {}) => view({ variant: 'gin', melds: [], ...over })
+
+  it('gin: the upcard is taken or passed, and the stock waits', () => {
+    const { t } = mountWith(gin({ stage: 'upcard', canDrawStock: false }))
+    expect(screen.getByText('Take the Q♠, or pass.')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Take Q♠' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pass' }))
+    expect(t.drawDiscard).toHaveBeenCalledTimes(1)
+    expect(t.pass).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('button', { name: /draw from the stock,/ })).toBeNull()
+    expect(screen.getByRole('region', { name: /^alice \(you\), to take or pass/ })).toBeDefined()
+  })
+
+  it('gin: an upcard passed by both leaves only the stock', () => {
+    mountWith(gin({ stage: 'draw', canDrawDiscard: false }))
+    expect(screen.getByText('The upcard was passed: draw from the stock.')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Take Q♠' })).toHaveProperty('disabled', true)
+    expect(screen.queryByRole('button', { name: /take Q♠ from the discard pile/ })).toBeNull()
+  })
+
+  it('gin: no melding, and a knock is armed only by a throw that leaves ten or less', () => {
+    // 7-8-9♥ melds; K♦ 7♣ 2♠ are 19 over.
+    const knocking = mountWith(gin(), { selected: ['K♦'] })
+    expect(screen.queryByRole('button', { name: /^Meld/ })).toBeNull()
+    expect(screen.queryByRole('group', { name: 'melds' })).toBeNull()
+    expect(screen.getByText('19 deadwood')).toBeDefined()
+    expect(screen.getByText('Throwing K♦ leaves 9 deadwood: you can knock.')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Knock on K♦' }))
+    expect(knocking.t.knockSelected).toHaveBeenCalledTimes(1)
+    cleanup()
+    mountWith(gin(), { selected: ['2♠'] })
+    expect(screen.getByText('Throwing 2♠ leaves 17 deadwood.')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Knock on 2♠' })).toHaveProperty('disabled', true)
+  })
+
+  it('gin: the deal’s end lays out both hands as the hub arranged them', () => {
+    const lastDeal = {
+      variant: 'gin',
+      winner: 'bob',
+      points: 14,
+      scores: [
+        { playerId: 'alice', deadwood: 17 },
+        { playerId: 'bob', deadwood: 3 }
+      ],
+      gin: {
+        ending: 'knock' as const,
+        knocker: 'bob',
+        hands: [
+          { playerId: 'alice', melds: [[c('7♥'), c('8♥'), c('9♥')]], deadwood: [c('7♣'), c('K♦')] },
+          { playerId: 'bob', melds: [[c('A♠'), c('2♠'), c('3♠')], [c('Q♣'), c('Q♦'), c('Q♥')]], deadwood: [c('3♦')] }
+        ],
+        laidOff: [c('4♠')]
+      }
+    }
+    mountWith(between({ dealer: 'alice', variant: 'gin', options: ['7-card', 'gin'], lastDeal }))
+    const dialog = within(screen.getByRole('dialog'))
+    expect(dialog.getByText('bob knocked and scores 14 points.')).toBeDefined()
+    expect(dialog.getByRole('row', { name: 'You 7♥ 8♥ 9♥ 7♣ K♦ · 17' })).toBeDefined()
+    expect(dialog.getByRole('row', { name: 'bob A♠ 2♠ 3♠ Q♣ Q♦ Q♥ 3♦ · 3' })).toBeDefined()
+    expect(dialog.getByText('You laid off 4♠.')).toBeDefined()
+  })
+
 
   it('the table’s end is the hands each seat won, then another table or the room', () => {
     const ended = { standings: [{ playerId: 'alice', handsWon: 2 }], dealsPlayed: 3 }

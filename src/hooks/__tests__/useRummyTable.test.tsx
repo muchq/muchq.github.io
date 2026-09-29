@@ -20,7 +20,7 @@ const seat = (playerId: string, hand: string[] = []): RummyPlayer => ({
 const view = (over: Partial<RummyView> = {}): RummyView => ({
   gameId: 'GAME01',
   phase: 'playing',
-  variant: 'basic',
+  variant: '7-card',
   dealNumber: 1,
   standings: [
     { playerId: 'bob', handsWon: 0 },
@@ -31,6 +31,7 @@ const view = (over: Partial<RummyView> = {}): RummyView => ({
   stage: 'play',
   stockCount: 30,
   canDrawStock: true,
+  canDrawDiscard: true,
   discardCount: 1,
   discardTop: c('2♠'),
   melds: [{ owner: 'bob', cards: [c('4♣'), c('5♣'), c('6♣')] }],
@@ -124,12 +125,23 @@ describe('useRummyTable', () => {
     expect(result.current.selected).toEqual([])
   })
 
-  it('the draws are bare moves', () => {
+  it('the draws and gin’s pass are bare moves', () => {
     const { result, receive, move } = mount()
     receive({ gameJoined: { view: view({ stage: 'draw' }) } })
     act(() => result.current.drawStock())
     act(() => result.current.drawDiscard())
-    expect(move.mock.calls).toEqual([['drawStock'], ['drawDiscard']])
+    act(() => result.current.pass())
+    expect(move.mock.calls).toEqual([['drawStock'], ['drawDiscard'], ['pass']])
+  })
+
+  it('a knock names the one card thrown', () => {
+    const { result, receive, move } = mount()
+    receive({ gameJoined: { view: view() } })
+    act(() => result.current.toggleCard(c('K♣')))
+    act(() => result.current.knockSelected())
+    act(() => result.current.toggleCard(c('7♥')))
+    act(() => result.current.knockSelected())
+    expect(move.mock.calls).toEqual([['knock', { card: c('K♣') }]])
   })
 
   it('the hand order is the viewer’s, and outlives the table', () => {
@@ -138,7 +150,11 @@ describe('useRummyTable', () => {
     act(() => first.result.current.setOrder('rank'))
     expect(first.result.current.order).toBe('rank')
     first.unmount()
-    expect(mount().result.current.order).toBe('rank')
+    const second = mount()
+    expect(second.result.current.order).toBe('rank')
+    act(() => second.result.current.setOrder('melds'))
+    second.unmount()
+    expect(mount().result.current.order).toBe('melds')
   })
 
   it('a turn and the table starting are the felt’s to show; another table opening is a toast', () => {
@@ -153,16 +169,16 @@ describe('useRummyTable', () => {
 
   it('the dealer’s pick names the variant, once, until the hub answers', () => {
     const { result, move, receive } = mount()
-    act(() => result.current.chooseVariant('basic'))
-    expect(move.mock.calls).toEqual([['chooseVariant', { variant: 'basic' }]])
+    act(() => result.current.chooseVariant('7-card'))
+    expect(move.mock.calls).toEqual([['chooseVariant', { variant: '7-card' }]])
     expect(result.current.dealing).toBe(true)
     receive({ gameState: { view: view() } })
     expect(result.current.dealing).toBe(false)
-    act(() => result.current.chooseVariant('basic'))
+    act(() => result.current.chooseVariant('7-card'))
     act(() => result.current.handleRejected())
     expect(result.current.dealing).toBe(false)
     // A table joined meanwhile answers it too.
-    act(() => result.current.chooseVariant('basic'))
+    act(() => result.current.chooseVariant('7-card'))
     receive({ gameJoined: { view: view() } })
     expect(result.current.dealing).toBe(false)
   })

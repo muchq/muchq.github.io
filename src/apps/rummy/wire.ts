@@ -4,8 +4,9 @@
 // translate.
 //
 // Every table is dealer's choice (MoonBase#1609): started, it waits
-// between deals on its dealer's pick; each deal's end passes the deal on;
-// it ends only when fewer than two seats are left.
+// between deals on its dealer's pick — 7-card or 10-card rummy, or gin
+// heads-up (#1610); each deal's end passes the deal on; it ends only when
+// fewer than two seats are left.
 
 import type { Card } from '@/apps/castle/wire'
 
@@ -13,9 +14,10 @@ export type { Card }
 
 export type RummyPhase = 'waiting' | 'choosing' | 'playing' | 'ended'
 
-// Where the seat on turn is: about to draw, or holding the drawn card
-// with melds, lay-offs and the discard to come.
-export type RummyStage = 'draw' | 'play'
+// Where the seat on turn is: gin's upcard (take it or pass), about to
+// draw, or holding the drawn card with melds, lay-offs and the discard to
+// come — in gin, a discard or a knock.
+export type RummyStage = 'upcard' | 'draw' | 'play'
 
 export interface RummyPlayer {
   playerId: string
@@ -32,11 +34,12 @@ export interface RummyMeld {
   cards: Card[]
 }
 
-export type RummyMoveKind = 'drawStock' | 'drawDiscard' | 'meld' | 'layOff' | 'discard'
+export type RummyMoveKind = 'drawStock' | 'drawDiscard' | 'meld' | 'layOff' | 'discard' | 'pass' | 'knock'
 
 // The table's most recent move: nothing for a stock draw (nobody else
 // sees it), the card taken, the meld as laid, the card laid off, the card
-// discarded. The seat named may have left since.
+// discarded or knocked on; nothing for a pass. The seat named may have
+// left since.
 export interface RummyLastMove {
   playerId: string
   move: RummyMoveKind
@@ -54,14 +57,35 @@ export interface RummyScore {
   deadwood: number
 }
 
-// A deal's result: the seat that went out and what it scored (everyone
-// else's cards left in hand), or no winner and no points for a deal
-// broken up by a leave.
+// A gin hand as the hub arranged it at the end; the defender's without
+// what it laid off.
+export interface RummyArrangedHand {
+  playerId: string
+  melds: Card[][]
+  deadwood: Card[]
+}
+
+export type RummyGinEnding = 'knock' | 'gin' | 'undercut' | 'draw'
+
+export interface RummyGinResult {
+  ending: RummyGinEnding
+  // Absent for a draw.
+  knocker?: string
+  // Seat order.
+  hands: RummyArrangedHand[]
+  // The defender's cards laid off onto the knocker's melds.
+  laidOff: Card[]
+}
+
+// A deal's result: the seat that scored and what (everyone else's cards
+// left in hand, or gin's reckoning), or no winner and no points for a
+// deal broken up by a leave or drawn.
 export interface RummyDealResult {
   variant: string
   winner?: string
   points: number
   scores: RummyScore[]
+  gin?: RummyGinResult
 }
 
 // Between deals: who deals next and what they may deal. A dealer the
@@ -90,6 +114,9 @@ export interface RummyView {
   // Whether a stock draw would take a card: the stock has one, or the
   // discard pile has cards under its top to turn over.
   canDrawStock: boolean
+  // Whether a discard draw would take the top: not once gin's upcard was
+  // passed by both.
+  canDrawDiscard: boolean
   discardCount: number
   discardTop?: Card
   // Taken from the discard pile this turn: it may not go straight back
@@ -125,11 +152,13 @@ export interface RummyMovePayloads {
   startGame: undefined
   leaveGame: undefined
   chooseVariant: { variant: string }
+  pass: undefined
   drawStock: undefined
   drawDiscard: undefined
   meld: { cards: Card[] }
   layOff: { card: Card; meldIndex: number }
   discard: { card: Card }
+  knock: { card: Card }
 }
 
 export type RummyMoveName = keyof RummyMovePayloads
