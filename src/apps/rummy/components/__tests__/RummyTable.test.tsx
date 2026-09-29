@@ -604,6 +604,40 @@ describe('RummyTable', () => {
     expect(myHandGroup().getByRole('button', { name: /^9♥, must be played/ })).toBeDefined()
   })
 
+  it('owing a card, a barred discard is blamed on the debt, not on a take', () => {
+    mountWith(view({ mustPlay: c('9♥') }), { selected: ['K♦'] })
+    expect(screen.queryByText(/can’t go straight back/)).toBeNull()
+  })
+
+  it('owing a card, laying off and melding still say what they would do', () => {
+    mountWith(view({ mustPlay: c('9♥') }), { selected: ['7♣'] })
+    expect(screen.getByText('Tap a lit meld to lay off 7♣.')).toBeDefined()
+    cleanup()
+    mountWith(view({ mustPlay: c('9♥') }), { selected: ['K♦', '7♣', '2♠'] })
+    expect(screen.getByText('Those cards are not a set or a run.')).toBeDefined()
+  })
+
+  it('with the stock out, the lit cards are still offered', () => {
+    mountWith(view({ stage: 'draw', stockCount: 0, canDrawStock: false, discardPile: [c('4♦'), c('9♣'), c('Q♠')], discardTakeable: [c('9♣'), c('Q♠')] }))
+    expect(screen.getByText('The stock is out: take the Q♠, or take the pile down to a lit card.')).toBeDefined()
+  })
+
+  it('a long pile opens on its top card, scrolled to the end', () => {
+    const scrolled: number[] = []
+    const width = vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(900)
+    const left = vi.spyOn(HTMLElement.prototype, 'scrollLeft', 'set').mockImplementation(value => {
+      scrolled.push(value)
+    })
+    try {
+      const pile = ['2♦', '3♦', '4♦', '5♦', '6♦', '7♦', '8♦', '9♦', '10♦', 'J♦', 'Q♦', 'K♦', '2♥', '3♥', '4♥', '5♥', '6♥', '7♥', '8♥', 'Q♠'].map(c)
+      mountWith(view({ currentPlayerId: 'bob', discardPile: pile, discardCount: pile.length }))
+      expect(scrolled).toContain(900)
+    } finally {
+      width.mockRestore()
+      left.mockRestore()
+    }
+  })
+
   it('gin keeps the pile squared: only its top shows, and only it is taken', () => {
     mountWith(view({ variant: 'gin', melds: [], stage: 'draw', discardPile: [c('4♦'), c('Q♠')], discardTakeable: [] }))
     expect(screen.queryByRole('img', { name: '4♦ in the discard pile' })).toBeNull()
@@ -628,6 +662,23 @@ describe('RummyTable', () => {
     const sheet = within(screen.getByRole('table', { name: 'Score sheet' }))
     const rows = sheet.getAllByRole('row').map(row => row.textContent)
     expect(rows).toEqual(['#youbob', '1—43', '2draw', '312—', 'Total1243'])
+  })
+
+  it('the notepad is the score sheet, not a landmark, and an empty cell says nothing', () => {
+    mountWith(view({ scoreSheet: [{ variant: '7-card', winner: 'bob', points: 43 }] }))
+    expect(screen.queryByRole('complementary')).toBeNull()
+    const sheet = within(screen.getByRole('table', { name: 'Score sheet' }))
+    expect(sheet.getAllByRole('cell').map(cell => cell.textContent)).toContain('—')
+    expect(screen.getByText('—').getAttribute('aria-hidden')).toBe('true')
+  })
+
+  it('the notepad keeps the last five deals on its page, and totals them all', () => {
+    const scoreSheet = [1, 2, 3, 4, 5, 6, 7].map(points => ({ variant: '7-card', winner: 'bob', points }))
+    mountWith(view({ dealNumber: 7, scoreSheet }))
+    const rows = within(screen.getByRole('table', { name: 'Score sheet' }))
+      .getAllByRole('row')
+      .map(row => row.textContent)
+    expect(rows).toEqual(['#youbob', '3—3', '4—4', '5—5', '6—6', '7—7', 'Total028'])
   })
 
   it('no notepad before the first deal', () => {

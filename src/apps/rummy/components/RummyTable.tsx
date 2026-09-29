@@ -201,6 +201,14 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
   // Gin is heads-up: the defender is the seat that did not knock.
   const defenderOf = (knocker?: string) => view.players.find(seat => seat.playerId !== knocker)?.playerId
 
+  // A pile too long for the spread scrolls; it opens on the top card, the
+  // one usually taken.
+  const spreadRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const spread = spreadRef.current
+    if (spread !== null) spread.scrollLeft = spread.scrollWidth
+  }, [pile.length])
+
   const hint = (() => {
     if (view.phase === 'waiting') return view.players.length < 2 ? 'Waiting for a second seat.' : ''
     if (between && dealer !== undefined) {
@@ -211,9 +219,10 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
     if (drawing) {
       if (view.discardTop !== undefined && !discardDrawable) return 'The upcard was passed: draw from the stock.'
       if (view.discardTop === undefined) return view.canDrawStock ? 'Draw from the stock.' : 'Nothing left to draw.'
-      if (!view.canDrawStock) return `The stock is out: take the ${face(view.discardTop)}.`
-      if (turning) return `The stock is out: turn the discard pile over to draw, or take the ${face(view.discardTop)}.`
-      if (deeper.length > 0) return `Draw from the stock, take the ${face(view.discardTop)}, or take the pile down to a lit card.`
+      const down = deeper.length > 0 ? ', or take the pile down to a lit card' : ''
+      if (!view.canDrawStock) return `The stock is out: take the ${face(view.discardTop)}${down}.`
+      if (turning) return `The stock is out: turn the discard pile over to draw, or take the ${face(view.discardTop)}${down}.`
+      if (deeper.length > 0) return `Draw from the stock, take the ${face(view.discardTop)}${down}.`
       return `Draw from the stock, or take the ${face(view.discardTop)}.`
     }
     if (laying && gin) {
@@ -221,13 +230,13 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
       if (picked.length > 1) return 'Pick one card to discard or knock with.'
       return 'Discard, or knock with 10 or less deadwood left.'
     }
-    if (laying && view.mustPlay !== undefined) {
-      return `Play the ${face(view.mustPlay)} you took the pile down to — meld it or lay it off — before you discard.`
-    }
     if (laying) {
-      if (single !== null && fitting.length > 0) return `Tap a lit meld to lay off ${face(single)}, or discard it.`
-      if (picked.length === 2) return 'Pick three or more to meld, or one to lay off or discard.'
+      if (single !== null && fitting.length > 0) return `Tap a lit meld to lay off ${face(single)}${view.mustPlay === undefined ? ', or discard it' : ''}.`
       if (picked.length >= 3 && meld === null) return 'Those cards are not a set or a run.'
+      if (view.mustPlay !== undefined) {
+        return `Play the ${face(view.mustPlay)} you took the pile down to — meld it or lay it off — before you discard.`
+      }
+      if (picked.length === 2) return 'Pick three or more to meld, or one to lay off or discard.'
       if (view.takenDiscard !== undefined) return `Meld or lay off if you can, then discard — not the ${face(view.takenDiscard)} you just took.`
       return 'Meld or lay off if you can, then discard to end your turn.'
     }
@@ -330,7 +339,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
           <button type="button" className={mayKnock ? felt.primary : felt.secondary} onClick={thenHand(table.knockSelected)} disabled={!mayKnock || !connected}>
             {single === null ? 'Knock' : `Knock on ${face(single)}`}
           </button>
-          {single !== null && !discardable && (
+          {single !== null && view.takenDiscard !== undefined && face(single) === face(view.takenDiscard) && !discardable && (
             <p className={felt.muted}>You just took {face(single)}: it can’t go straight back.</p>
           )}
         </>
@@ -345,7 +354,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
           <button type="button" className={felt.secondary} onClick={thenHand(table.discardSelected)} disabled={!discardable || !connected}>
             {single === null ? 'Discard' : `Discard ${face(single)}`}
           </button>
-          {single !== null && !discardable && (
+          {single !== null && view.takenDiscard !== undefined && face(single) === face(view.takenDiscard) && !discardable && (
             <p className={felt.muted}>You just took {face(single)}: it can’t go straight back.</p>
           )}
         </>
@@ -613,35 +622,32 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
                 )}
                 <span className={felt.count}>{view.stockCount}</span>
               </div>
-              <div
-                className={`${felt.pileCards} ${styles.discardSpread}`}
-                role="group"
-                aria-label="discard pile"
-                style={{ '--gaps': Math.max(pile.length - 1, 1) } as CSSProperties}
-              >
-                {pile.slice(0, -1).map(card =>
-                  deeper.includes(face(card)) ? (
-                    <CardFace
-                      key={face(card)}
-                      card={card}
-                      className={styles.drawable}
-                      label={`take the pile down to ${face(card)}`}
-                      onClick={connected ? thenHand(() => table.drawDiscard(card)) : undefined}
-                    />
+              <div className={felt.pileCards} role="group" aria-label="discard pile">
+                <div ref={spreadRef} className={gin ? '' : styles.discardSpread} style={{ '--gaps': Math.max(pile.length - 1, 1) } as CSSProperties}>
+                  {pile.slice(0, -1).map(card =>
+                    deeper.includes(face(card)) ? (
+                      <CardFace
+                        key={face(card)}
+                        card={card}
+                        className={styles.drawable}
+                        label={`take the pile down to ${face(card)}`}
+                        onClick={connected ? thenHand(() => table.drawDiscard(card)) : undefined}
+                      />
+                    ) : (
+                      <CardFace key={face(card)} card={card} label={`${face(card)} in the discard pile`} />
+                    )
+                  )}
+                  {view.discardTop === undefined ? (
+                    <div className={felt.emptyPile}>discard</div>
                   ) : (
-                    <CardFace key={face(card)} card={card} label={`${face(card)} in the discard pile`} />
-                  )
-                )}
-                {view.discardTop === undefined ? (
-                  <div className={felt.emptyPile}>discard</div>
-                ) : (
-                  <CardFace
-                    card={view.discardTop}
-                    className={takeable ? styles.drawable : ''}
-                    label={takeable ? `take ${face(view.discardTop)} from the discard pile` : `${face(view.discardTop)} on the discard pile`}
-                    onClick={takeable && connected ? thenHand(() => table.drawDiscard()) : undefined}
-                  />
-                )}
+                    <CardFace
+                      card={view.discardTop}
+                      className={takeable ? styles.drawable : ''}
+                      label={takeable ? `take ${face(view.discardTop)} from the discard pile` : `${face(view.discardTop)} on the discard pile`}
+                      onClick={takeable && connected ? thenHand(() => table.drawDiscard()) : undefined}
+                    />
+                  )}
+                </div>
                 {view.discardCount > 0 && <span className={felt.count}>{view.discardCount}</span>}
               </div>
             </div>

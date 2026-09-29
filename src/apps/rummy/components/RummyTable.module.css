@@ -275,10 +275,12 @@ button.meld {
   white-space: nowrap;
 }
 
-.notepadSheet thead th {
+.notepadName {
+  display: inline-block;
   max-width: 4.5rem;
   overflow: hidden;
   text-overflow: ellipsis;
+  vertical-align: bottom;
   font-weight: 700;
 }
 
@@ -288,21 +290,27 @@ button.meld {
   font-weight: 700;
 }
 
-.notepadDraw {
+.notepadSheet td.notepadDraw {
   text-align: center;
   font-style: italic;
   opacity: 0.7;
 }
 
-@media (max-width: 600px) {
+/* Where the felt fills the table there is no room left of it. */
+@media (max-width: 960px) {
   .notepad {
     left: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .notepad {
     padding-left: 1.1rem;
     font-size: 0.7rem;
     line-height: 1.1rem;
   }
 
-  .notepadSheet thead th {
+  .notepadName {
     max-width: 3rem;
   }
 }
@@ -318,8 +326,9 @@ button.meld {
   display: flex;
   align-items: flex-end;
   max-width: var(--spread-max);
-  overflow-x: auto;
-  padding-top: 0.7rem;
+  overflow: auto hidden;
+  /* Room inside the scroll box for a raised card and its outline. */
+  padding: 0.8rem 0.3rem 0.3rem;
 }
 
 .discardSpread > * {
@@ -342,6 +351,13 @@ button.meld {
   }
 }
 
+/* The short window's cards (2.25rem). */
+@media (max-height: 700px) and (min-width: 601px) {
+  .discardSpread {
+    --card-w: 2.25rem;
+  }
+}
+
 /* The card the pile was taken down to, still owed to the table. */
 .owed {
   outline: 2px solid #e8674a;
@@ -350,7 +366,8 @@ button.meld {
 
 /* A card the pile may be taken down to rises out of the spread, over its
    neighbours, so all of it is there to tap. */
-.discardSpread > .drawable {
+.discardSpread > .drawable,
+.discardSpread > .drawable:enabled:hover {
   position: relative;
   z-index: 1;
   transform: translateY(-0.6rem);
