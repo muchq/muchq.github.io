@@ -441,6 +441,76 @@ describe('RummyTable', () => {
 
   const gin = (over: Partial<RummyView> = {}) => view({ variant: 'gin', melds: [], ...over })
 
+  it('three seats offer two games, and the list is there to pick between them', () => {
+    mountWith(between({ dealer: 'alice', dealNumber: 0, options: ['7-card', '10-card'] }))
+    expect(within(screen.getByRole('combobox', { name: 'Game' })).getAllByRole('option')).toHaveLength(2)
+  })
+
+  it('the list is inside the sheet’s tab loop', () => {
+    const lastDeal = { variant: '7-card', winner: 'bob', points: 3, scores: [] }
+    mountWith(between({ dealer: 'alice', options: ['7-card', 'gin'], lastDeal }))
+    const game = screen.getByRole('combobox', { name: 'Game' })
+    expect(document.activeElement?.textContent).toBe('Deal 7-card rummy')
+    screen.getByRole('button', { name: 'See the hands' }).focus()
+    fireEvent.keyDown(document.activeElement as Element, { key: 'Tab' })
+    expect(document.activeElement).toBe(game)
+    fireEvent.keyDown(game, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement?.textContent).toBe('See the hands')
+  })
+
+  it('a game picked for one deal is not the pick for the next', () => {
+    const options = ['7-card', '10-card', 'gin']
+    const { rerender, t } = mountWith(between({ dealer: 'alice', dealNumber: 0, options }))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Game' }), { target: { value: 'gin' } })
+    const later = between({ dealer: 'alice', dealNumber: 3, options, variant: '7-card', lastDeal: { variant: '7-card', winner: 'bob', points: 3, scores: [] } })
+    rerender(<RummyTable playerId="alice" connected view={later} table={t} away={[]} />)
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Deal 7-card rummy' })).toBeDefined()
+  })
+
+  it('against a hub that does not say whether the discard can be drawn, it can while there is one', () => {
+    mountWith(view({ stage: 'draw', canDrawDiscard: undefined }))
+    expect(screen.getByText('Draw from the stock, or take the Q♠.')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Take Q♠' })).toHaveProperty('disabled', false)
+  })
+
+  it('gin: the upcard is the opener’s to take; the other seat waits', () => {
+    mountWith(gin({ stage: 'upcard', currentPlayerId: 'bob', canDrawStock: false }))
+    expect(screen.getByText('Waiting for bob to take or pass.')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Pass' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Take/ })).toBeNull()
+  })
+
+  it('gin: a pass hands focus to the hand, since the button goes', () => {
+    mountWith(gin({ stage: 'upcard', canDrawStock: false }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pass' }))
+    expect(document.activeElement).toBe(screen.getByRole('group', { name: 'Your hand' }))
+  })
+
+  it('gin: two cards picked says to pick one', () => {
+    mountWith(gin(), { selected: ['K♦', '2♠'] })
+    expect(screen.getByText('Pick one card to discard or knock with.')).toBeDefined()
+  })
+
+  it('gin: the card just taken can no more be knocked on than thrown', () => {
+    mountWith(gin({ takenDiscard: c('K♦') }), { selected: ['K♦'] })
+    expect(screen.getByRole('button', { name: 'Knock on K♦' })).toHaveProperty('disabled', true)
+  })
+
+  it('gin: between deals a seat shows the deadwood the hub reckoned, not its card total', () => {
+    const lastDeal = {
+      variant: 'gin',
+      winner: 'alice',
+      points: 9,
+      scores: [
+        { playerId: 'alice', deadwood: 0 },
+        { playerId: 'bob', deadwood: 9 }
+      ],
+      gin: { ending: 'knock' as const, knocker: 'alice', hands: [], laidOff: [] }
+    }
+    mountWith(between({ dealer: 'bob', variant: 'gin', lastDeal }))
+    expect(screen.getByRole('region', { name: /^bob/ }).textContent).toContain('9 pts left')
+  })
+
   it('gin: the upcard is taken or passed, and the stock waits', () => {
     const { t } = mountWith(gin({ stage: 'upcard', canDrawStock: false }))
     expect(screen.getByText('Take the Q♠, or pass.')).toBeDefined()

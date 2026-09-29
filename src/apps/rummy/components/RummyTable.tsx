@@ -79,7 +79,8 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
   const [endingRead, setEndingRead] = useState<string | null>(null)
   const [dealRead, setDealRead] = useState<string | null>(null)
   const [faded, setFaded] = useState<string | null>(null)
-  const [picking, setPicking] = useState<string | null>(null)
+  // The game picked in the list, for the deal it was picked for.
+  const [picking, setPicking] = useState<{ deal: string; variant: string } | null>(null)
   const playAgainRef = useRef<HTMLButtonElement>(null)
   const endingRef = useRef<HTMLDivElement>(null)
 
@@ -142,7 +143,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
   const showDealEnd = between && lastDeal !== undefined && dealRead !== dealKey
   const keepFocusIn = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Tab') return
-    const focusable = endingRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled)')
+    const focusable = endingRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), select:not(:disabled)')
     if (focusable === undefined || focusable.length === 0) return
     const first = focusable[0]
     const last = focusable[focusable.length - 1]
@@ -185,7 +186,10 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
   // An empty stock that can still be drawn is the discard pile, turned over
   // under its top card.
   const turning = view.stockCount === 0 && view.canDrawStock
-  const takeable = (drawing || upcard) && view.canDrawDiscard
+  // A hub older than gin does not say; there, the discard is drawable
+  // while it has a top.
+  const discardDrawable = view.canDrawDiscard ?? view.discardTop !== undefined
+  const takeable = (drawing || upcard) && discardDrawable
   // Between deals a seat shows what the hub reckoned it held — gin's
   // deadwood after its melds — or, for a seat not in the reckoning, its cards.
   const leftIn = (seat: RummyPlayer) => lastDeal?.scores.find(score => score.playerId === seat.playerId)?.deadwood ?? deadwood(seat.hand)
@@ -200,7 +204,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
     }
     if (upcard && view.discardTop !== undefined) return `Take the ${face(view.discardTop)}, or pass.`
     if (drawing) {
-      if (view.discardTop !== undefined && !view.canDrawDiscard) return 'The upcard was passed: draw from the stock.'
+      if (view.discardTop !== undefined && !discardDrawable) return 'The upcard was passed: draw from the stock.'
       if (view.discardTop === undefined) return view.canDrawStock ? 'Draw from the stock.' : 'Nothing left to draw.'
       if (!view.canDrawStock) return `The stock is out: take the ${face(view.discardTop)}.`
       if (turning) return `The stock is out: turn the discard pile over to draw, or take the ${face(view.discardTop)}.`
@@ -208,6 +212,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
     }
     if (laying && gin) {
       if (single !== null && leftAfter !== null) return `Throwing ${face(single)} leaves ${leftAfter} deadwood${mayKnock ? ': you can knock.' : '.'}`
+      if (picked.length > 1) return 'Pick one card to discard or knock with.'
       return 'Discard, or knock with 10 or less deadwood left.'
     }
     if (laying) {
@@ -248,12 +253,12 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
   // The games on offer, in the hub's order, as one list and one button:
   // the pick starts at the last deal's game, so dealing it again is a tap.
   const options = view.choosing?.options ?? []
-  const choice = [picking, view.variant].find((v): v is string => v !== null && v !== undefined && options.includes(v)) ?? options[0]
+  const choice = [picking?.deal === dealKey ? picking.variant : undefined, view.variant].find((v): v is string => v !== null && v !== undefined && options.includes(v)) ?? options[0]
   const dealButtons = (focusButton = false) =>
     choice !== undefined && (
       <>
         {options.length > 1 && (
-          <select className={styles.pick} aria-label="Game" value={choice} onChange={event => setPicking(event.target.value)} disabled={dealing}>
+          <select className={styles.pick} aria-label="Game" value={choice} onChange={event => setPicking({ deal: dealKey, variant: event.target.value })} disabled={dealing}>
             {options.map(variant => (
               <option key={variant} value={variant}>
                 {variantLabel(variant)}
@@ -285,10 +290,10 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
     if (upcard) {
       return (
         <>
-          <button type="button" className={felt.primary} onClick={thenHand(table.drawDiscard)} disabled={!view.canDrawDiscard || !connected}>
+          <button type="button" className={felt.primary} onClick={thenHand(table.drawDiscard)} disabled={!discardDrawable || !connected}>
             {view.discardTop === undefined ? 'Take the upcard' : `Take ${face(view.discardTop)}`}
           </button>
-          <button type="button" className={felt.secondary} onClick={table.pass} disabled={!connected}>
+          <button type="button" className={felt.secondary} onClick={thenHand(table.pass)} disabled={!connected}>
             Pass
           </button>
         </>
@@ -300,7 +305,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
           <button type="button" className={felt.primary} onClick={thenHand(table.drawStock)} disabled={!view.canDrawStock || !connected}>
             {turning ? 'Turn the discard over' : 'Draw from the stock'}
           </button>
-          <button type="button" className={felt.secondary} onClick={thenHand(table.drawDiscard)} disabled={!view.canDrawDiscard || !connected}>
+          <button type="button" className={felt.secondary} onClick={thenHand(table.drawDiscard)} disabled={!discardDrawable || !connected}>
             {view.discardTop === undefined ? 'Discard pile empty' : `Take ${face(view.discardTop)}`}
           </button>
         </>

@@ -115,8 +115,9 @@ export interface RummyView {
   // discard pile has cards under its top to turn over.
   canDrawStock: boolean
   // Whether a discard draw would take the top: not once gin's upcard was
-  // passed by both.
-  canDrawDiscard: boolean
+  // passed by both. Absent from a hub older than gin, where it is whether
+  // there is a top.
+  canDrawDiscard?: boolean
   discardCount: number
   discardTop?: Card
   // Taken from the discard pile this turn: it may not go straight back
