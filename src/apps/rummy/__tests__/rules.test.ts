@@ -218,6 +218,27 @@ describe('knockable', () => {
   })
 })
 
+describe('the ace, in every variant', () => {
+  const melds = [
+    { owner: 'bob', cards: cards('J♣', 'Q♣', 'K♣') },
+    { owner: 'bob', cards: cards('2♥', '3♥', '4♥') },
+    { owner: 'bob', cards: cards('Q♠', 'K♠', 'A♠') },
+    { owner: 'bob', cards: cards('A♦', '2♦', '3♦') }
+  ]
+  it('lays off high over the king or low under the two, never round the corner', () => {
+    expect(meldsFitting(melds, c('A♣'))).toEqual([0])
+    expect(meldsFitting(melds, c('A♥'))).toEqual([1])
+    expect(meldsFitting(melds, c('2♠'))).toEqual([])
+    expect(meldsFitting(melds, c('K♦'))).toEqual([])
+  })
+  it('counts toward a gin knock at either end, never round the corner', () => {
+    const sets = ['7♣', '7♦', '7♥', '3♥', '4♥', '5♥', '2♦', 'K♦']
+    expect(knockable(cards('Q♠', 'K♠', 'A♠', ...sets), c('K♦'))).toBe(true)
+    expect(knockable(cards('A♠', '2♠', '3♠', ...sets), c('K♦'))).toBe(true)
+    expect(knockable(cards('K♠', 'A♠', '2♠', ...sets), c('K♦'))).toBe(false)
+  })
+})
+
 describe('sortHand by melds', () => {
   it('lays each meld together, then the deadwood by suit', () => {
     const hand = cards('K♣', '9♥', 'A♠', '8♥', '2♠', '7♥', '3♠', '4♦')
