@@ -219,6 +219,16 @@ describe('rollupHubEvents', () => {
     ])
   })
 
+  // A rummy table's deals are recorded by game: rummy at either hand size,
+  // gin as its own (MoonBase#1610).
+  it('names each rummy game the hub records', () => {
+    const labels = rollupHubEvents({
+      days: 30,
+      rows: ['rummy', 'gin'].map(variant => ({ date: '2026-09-21', event: 'game_started', variant, surface: '', outcome: '', players: 2, events: 1 })),
+    }).variants.map(v => v.label)
+    expect(labels.sort()).toEqual(['Gin', 'Rummy'])
+  })
+
   // game_finished's players is the seats still held — 1 for nearly every
   // abandonment — so only game_started may reach this table. A finish
   // folded in here would report a flood of one-player tables that were

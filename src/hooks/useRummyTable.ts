@@ -11,7 +11,9 @@ import { safeLocalStorage } from '@/utils/safeLocalStorage'
 // How the viewer likes the hand laid out outlives the table.
 const ORDER_KEY = 'rummy.order'
 
-const storedOrder = (): HandOrder => (safeLocalStorage.get(ORDER_KEY) === 'rank' ? 'rank' : 'suit')
+const ORDERS: HandOrder[] = ['suit', 'rank', 'melds']
+
+const storedOrder = (): HandOrder => ORDERS.find(order => order === safeLocalStorage.get(ORDER_KEY)) ?? 'suit'
 
 // What the table's chrome calls; the lobby panel adds create and join.
 export interface RummyTableActions {
@@ -24,6 +26,8 @@ export interface RummyTableActions {
   playAgain: () => void
   drawStock: () => void
   drawDiscard: () => void
+  // Gin: turn the upcard down.
+  pass: () => void
   // Selection is by card, not by slot: the hand is shown sorted, and a
   // view that lands between two taps can move a card but not rename it.
   toggleCard: (card: Card) => void
@@ -31,6 +35,8 @@ export interface RummyTableActions {
   // The one selected card, onto the meld at this place on the table.
   layOffSelected: (meldIndex: number) => void
   discardSelected: () => void
+  // Gin: end the deal throwing the one selected card.
+  knockSelected: () => void
   setOrder: (order: HandOrder) => void
 }
 
@@ -153,6 +159,7 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
 
   const drawStock = useCallback(() => move('drawStock'), [move])
   const drawDiscard = useCallback(() => move('drawDiscard'), [move])
+  const pass = useCallback(() => move('pass'), [move])
 
   const toggleCard = useCallback((card: Card) => {
     const picked = face(card)
@@ -193,6 +200,12 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
     move('discard', { card: cards[0] })
   }, [move, selectedCards])
 
+  const knockSelected = useCallback(() => {
+    const cards = selectedCards()
+    if (cards === null || cards.length !== 1) return
+    move('knock', { card: cards[0] })
+  }, [move, selectedCards])
+
   const setOrder = useCallback((next: HandOrder) => {
     setOrderState(next)
     safeLocalStorage.set(ORDER_KEY, next)
@@ -216,10 +229,12 @@ export const useRummyTable = ({ playerId, move, showNotice, onLeft }: UseRummyTa
     playAgain,
     drawStock,
     drawDiscard,
+    pass,
     toggleCard,
     meldSelected,
     layOffSelected,
     discardSelected,
+    knockSelected,
     setOrder
   }
 }

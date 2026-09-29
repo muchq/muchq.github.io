@@ -49,15 +49,95 @@ export function meldsFitting(melds: RummyMeld[], card: Card): number[] {
   return melds.flatMap((meld, i) => (arrangedMeld([...meld.cards, card]) === null ? [] : [i]))
 }
 
-export type HandOrder = 'suit' | 'rank'
+// A hand's best split into melds and deadwood: the least deadwood left,
+// which is what gin reckons a hand by.
+export interface Arrangement {
+  // Each as it would lie on the table.
+  melds: Card[][]
+  deadwood: Card[]
+  points: number
+}
+
+// Every meld the hand could make: each three or four of a rank, and each
+// stretch of three or more in a suit, the ace low or high.
+function candidateMelds(hand: Card[]): Card[][] {
+  const found = new Map<string, Card[]>()
+  const add = (cards: Card[]) => {
+    const meld = arrangedMeld(cards)
+    if (meld !== null) found.set(meld.map(face).join(','), meld)
+  }
+  for (const rank of RANKS) {
+    const same = hand.filter(card => card.rank === rank)
+    if (same.length >= 3) add(same)
+    if (same.length === 4) same.forEach((_, skip) => add(same.filter((__, i) => i !== skip)))
+  }
+  for (const suit of HAND_SUITS) {
+    for (const aceHigh of [false, true]) {
+      const run = hand.filter(card => card.suit === suit).sort((a, b) => rankOf(a, aceHigh) - rankOf(b, aceHigh))
+      for (let from = 0; from < run.length; from++) {
+        for (let to = from + 1; to < run.length && rankOf(run[to], aceHigh) === rankOf(run[to - 1], aceHigh) + 1; to++) {
+          if (to - from >= 2) add(run.slice(from, to + 1))
+        }
+      }
+    }
+  }
+  return [...found.values()]
+}
+
+export function bestArrangement(hand: Card[]): Arrangement {
+  const candidates = candidateMelds(hand)
+  const faces = hand.map(face)
+  const decided = new Set<string>()
+  const chosen: Card[][] = []
+  let best: Arrangement = { melds: [], deadwood: hand, points: deadwood(hand) }
+  // Card by card: each is deadwood or in a meld with cards still free.
+  // Deadwood only grows, so a branch already past the best is dropped.
+  const search = (at: number, points: number) => {
+    if (points >= best.points && at > 0) return
+    while (at < hand.length && decided.has(faces[at])) at++
+    if (at === hand.length) {
+      best = { melds: [...chosen], deadwood: hand.filter(card => !chosen.some(meld => meld.includes(card))), points }
+      return
+    }
+    for (const meld of candidates) {
+      const cards = meld.map(face)
+      if (!cards.includes(faces[at]) || cards.some(f => decided.has(f))) continue
+      cards.forEach(f => decided.add(f))
+      chosen.push(meld.map(card => hand[faces.indexOf(face(card))]))
+      search(at + 1, points)
+      chosen.pop()
+      cards.forEach(f => decided.delete(f))
+    }
+    decided.add(faces[at])
+    search(at + 1, points + cardPoints(hand[at]))
+    decided.delete(faces[at])
+  }
+  search(0, 0)
+  return best
+}
+
+// Gin: whether throwing this card leaves ten or less deadwood.
+export function knockable(hand: Card[], card: Card): boolean {
+  if (!hand.some(held => face(held) === face(card))) return false
+  return bestArrangement(hand.filter(held => face(held) !== face(card))).points <= 10
+}
+
+export type HandOrder = 'suit' | 'rank' | 'melds'
 
 // A copy of the hand in the order asked for: by suit for runs, by rank
-// for sets. The hub keeps the hand in the order it arrived; this is only
+// for sets, or each meld of its best arrangement together, then the
+// deadwood. The hub keeps the hand in the order it arrived; this is only
 // how it is laid out.
 export function sortHand(hand: Card[], order: HandOrder): Card[] {
   const bySuit = (a: Card, b: Card) => HAND_SUITS.indexOf(a.suit) - HAND_SUITS.indexOf(b.suit)
   const byRank = (a: Card, b: Card) => rankOf(a) - rankOf(b)
-  return [...hand].sort(order === 'suit' ? (a, b) => bySuit(a, b) || byRank(a, b) : (a, b) => byRank(a, b) || bySuit(a, b))
+  const suitThenRank = (a: Card, b: Card) => bySuit(a, b) || byRank(a, b)
+  if (order === 'melds') {
+    const arranged = bestArrangement(hand)
+    const melds = [...arranged.melds].sort((a, b) => suitThenRank(a[0], b[0]))
+    return [...melds.flat(), ...[...arranged.deadwood].sort(suitThenRank)]
+  }
+  return [...hand].sort(order === 'suit' ? suitThenRank : (a, b) => byRank(a, b) || bySuit(a, b))
 }
 
 // What a card left in hand costs at the end.
@@ -93,6 +173,10 @@ export function describeLastMove(move: RummyLastMove, viewer: string): string {
       return `${who} laid off ${faces}`
     case 'discard':
       return `${who} discarded ${faces}`
+    case 'pass':
+      return `${who} passed on the upcard`
+    case 'knock':
+      return `${who} knocked on ${faces}`
   }
 }
 
@@ -100,6 +184,14 @@ const points = (n: number) => `${n} point${n === 1 ? '' : 's'}`
 
 // How a deal's end reads from one chair.
 export function describeEnding(deal: RummyDealResult, viewer: string): string {
+  const gin = deal.gin
+  if (gin !== undefined) {
+    if (gin.ending === 'draw' || deal.winner === undefined) return 'The stock ran down: a draw.'
+    const scores = deal.winner === viewer ? `score ${points(deal.points)}` : `scores ${points(deal.points)}`
+    const who = you(deal.winner, viewer)
+    if (gin.ending === 'undercut') return `${who} undercut ${gin.knocker === viewer ? 'you' : gin.knocker} and ${scores}.`
+    return `${who} ${gin.ending === 'gin' ? 'went gin' : 'knocked'} and ${scores}.`
+  }
   if (deal.winner === undefined) return 'Nobody went out.'
   return deal.winner === viewer
     ? `You went out and score ${points(deal.points)}.`
@@ -107,6 +199,7 @@ export function describeEnding(deal: RummyDealResult, viewer: string): string {
 }
 
 export function headlineOf(deal: RummyDealResult, viewer: string): string {
+  if (deal.gin?.ending === 'draw') return 'A draw'
   if (deal.winner === undefined) return 'The deal broke up'
   return deal.winner === viewer ? 'You won the hand!' : `${deal.winner} wins the hand`
 }
@@ -128,7 +221,8 @@ export function canDeal(view: RummyView, viewer: string, away: string[]): boolea
   return view.choosing.dealer === viewer || away.includes(view.choosing.dealer)
 }
 
-const VARIANT_LABELS: Record<string, string> = { basic: 'Basic rummy' }
+// `basic` is 7-card's name on a hub from before 7-card had its own.
+const VARIANT_LABELS: Record<string, string> = { '7-card': '7-card rummy', basic: '7-card rummy', '10-card': '10-card rummy', gin: 'Gin rummy' }
 
 // A variant as the table names it; one this build does not know yet reads
 // as the hub spelled it.

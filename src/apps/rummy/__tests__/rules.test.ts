@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   arrangedMeld,
+  bestArrangement,
   canDeal,
   canDiscard,
   deadwood,
@@ -8,11 +9,13 @@ import {
   describeLastMove,
   describeTableEnd,
   headlineOf,
+  knockable,
   meldsFitting,
   sortHand,
   variantLabel
 } from '../rules'
 import type { Card, RummyView } from '../wire'
+import corpus from './arrange_corpus.json'
 
 // The UI's copy of the engine's rules only shapes the offer — the hub
 // refuses in band — but an offer that disagrees with the engine is a
@@ -98,6 +101,7 @@ describe('canDiscard', () => {
     players: [],
     stockCount: 0,
     canDrawStock: true,
+    canDrawDiscard: true,
     discardCount: 0,
     melds: [],
     ...over
@@ -120,11 +124,13 @@ describe('describeLastMove', () => {
     )
     expect(describeLastMove({ playerId: 'bob', move: 'layOff', cards: cards('10♥'), meldIndex: 0 }, 'alice')).toBe('bob laid off 10♥')
     expect(describeLastMove({ playerId: 'bob', move: 'discard', cards: cards('K♣') }, 'alice')).toBe('bob discarded K♣')
+    expect(describeLastMove({ playerId: 'bob', move: 'pass', cards: [] }, 'alice')).toBe('bob passed on the upcard')
+    expect(describeLastMove({ playerId: 'alice', move: 'knock', cards: cards('K♣') }, 'alice')).toBe('You knocked on K♣')
   })
 })
 
 describe('a deal’s end', () => {
-  const won = { variant: 'basic', winner: 'alice', points: 42, scores: [] }
+  const won = { variant: '7-card', winner: 'alice', points: 42, scores: [] }
   it('reads from each chair', () => {
     expect(headlineOf(won, 'alice')).toBe('You won the hand!')
     expect(headlineOf(won, 'bob')).toBe('alice wins the hand')
@@ -133,7 +139,7 @@ describe('a deal’s end', () => {
     expect(describeEnding({ ...won, points: 1 }, 'bob')).toBe('alice went out and scores 1 point.')
   })
   it('names nobody for a deal that broke up', () => {
-    const broke = { variant: 'basic', points: 0, scores: [] }
+    const broke = { variant: '7-card', points: 0, scores: [] }
     expect(headlineOf(broke, 'alice')).toBe('The deal broke up')
     expect(describeEnding(broke, 'alice')).toBe('Nobody went out.')
   })
@@ -161,11 +167,12 @@ describe('the dealer’s choice', () => {
     players: [],
     stockCount: 0,
     canDrawStock: false,
+    canDrawDiscard: false,
     discardCount: 0,
     melds: [],
     dealNumber: 1,
     standings: [],
-    choosing: { dealer, options: ['basic'] }
+    choosing: { dealer, options: ['7-card'] }
   })
   it('is the dealer’s alone while they are here', () => {
     expect(canDeal(choosing('alice'), 'alice', [])).toBe(true)
@@ -179,7 +186,90 @@ describe('the dealer’s choice', () => {
     expect(canDeal({ ...choosing('alice'), phase: 'playing', choosing: undefined }, 'alice', [])).toBe(false)
   })
   it('names each variant, and an unknown one as it came', () => {
-    expect(variantLabel('basic')).toBe('Basic rummy')
-    expect(variantLabel('gin')).toBe('gin')
+    expect(variantLabel('7-card')).toBe('7-card rummy')
+    expect(variantLabel('10-card')).toBe('10-card rummy')
+    expect(variantLabel('gin')).toBe('Gin rummy')
+    expect(variantLabel('canasta')).toBe('canasta')
+    // A hub from before 7-card had its name still offers `basic`.
+    expect(variantLabel('basic')).toBe('7-card rummy')
+  })
+})
+
+// The hub arranges gin hands; the UI arranges the viewer's own to say
+// what a knock would leave. The corpus is MoonBase's
+// libs/cards/rummy/testdata/arrange_corpus.json, copied: both searches
+// replay the same cases, which an independent brute force generated.
+describe('bestArrangement', () => {
+  it.each(corpus.arrange.map(({ hand, deadwood }) => [hand.join(' '), hand, deadwood] as const))('%s', (_, hand, expected) => {
+    const arranged = bestArrangement(cards(...hand))
+    expect(arranged.points).toBe(expected)
+    expect(deadwood(arranged.deadwood)).toBe(expected)
+    for (const meld of arranged.melds) expect(arrangedMeld(meld)).not.toBeNull()
+    const used = [...arranged.melds.flat(), ...arranged.deadwood].map(card => card.rank + card.suit)
+    expect(used.sort()).toEqual([...hand].sort())
+  })
+})
+
+describe('knockable', () => {
+  it('is throwing a card that leaves ten or less', () => {
+    // A-2-3♠ and 7-8-9♥ melded: K♣ and 9♦ left over.
+    const hand = cards('A♠', '2♠', '3♠', '7♥', '8♥', '9♥', 'K♣', '9♦', 'A♦')
+    expect(knockable(hand, c('K♣'))).toBe(true)
+    expect(knockable(hand, c('9♦'))).toBe(false)
+    expect(knockable(hand, c('Q♥'))).toBe(false)
+  })
+})
+
+describe('the ace, in every variant', () => {
+  const melds = [
+    { owner: 'bob', cards: cards('J♣', 'Q♣', 'K♣') },
+    { owner: 'bob', cards: cards('2♥', '3♥', '4♥') },
+    { owner: 'bob', cards: cards('Q♠', 'K♠', 'A♠') },
+    { owner: 'bob', cards: cards('A♦', '2♦', '3♦') }
+  ]
+  it('lays off high over the king or low under the two, never round the corner', () => {
+    expect(meldsFitting(melds, c('A♣'))).toEqual([0])
+    expect(meldsFitting(melds, c('A♥'))).toEqual([1])
+    expect(meldsFitting(melds, c('2♠'))).toEqual([])
+    expect(meldsFitting(melds, c('K♦'))).toEqual([])
+  })
+  it('counts toward a gin knock at either end, never round the corner', () => {
+    const sets = ['7♣', '7♦', '7♥', '3♥', '4♥', '5♥', '2♦', 'K♦']
+    expect(knockable(cards('Q♠', 'K♠', 'A♠', ...sets), c('K♦'))).toBe(true)
+    expect(knockable(cards('A♠', '2♠', '3♠', ...sets), c('K♦'))).toBe(true)
+    expect(knockable(cards('K♠', 'A♠', '2♠', ...sets), c('K♦'))).toBe(false)
+  })
+})
+
+describe('sortHand by melds', () => {
+  it('lays each meld together, then the deadwood by suit', () => {
+    const hand = cards('K♣', '9♥', 'A♠', '8♥', '2♠', '7♥', '3♠', '4♦')
+    expect(faces(sortHand(hand, 'melds'))).toEqual(['A♠', '2♠', '3♠', '7♥', '8♥', '9♥', 'K♣', '4♦'])
+  })
+})
+
+describe('a gin deal’s end', () => {
+  const hands = [
+    { playerId: 'alice', melds: [], deadwood: [] },
+    { playerId: 'bob', melds: [], deadwood: [] }
+  ]
+  const ending = (kind: 'knock' | 'gin' | 'undercut' | 'draw', winner?: string) => ({
+    variant: 'gin',
+    winner,
+    points: 12,
+    scores: [],
+    gin: { ending: kind, knocker: kind === 'draw' ? undefined : 'alice', hands, laidOff: [] }
+  })
+  it('says how it ended, from each chair', () => {
+    expect(describeEnding(ending('knock', 'alice'), 'alice')).toBe('You knocked and score 12 points.')
+    expect(describeEnding(ending('knock', 'alice'), 'bob')).toBe('alice knocked and scores 12 points.')
+    expect(describeEnding(ending('gin', 'alice'), 'alice')).toBe('You went gin and score 12 points.')
+    expect(describeEnding(ending('gin', 'alice'), 'bob')).toBe('alice went gin and scores 12 points.')
+    expect(describeEnding(ending('undercut', 'bob'), 'bob')).toBe('You undercut alice and score 12 points.')
+    expect(describeEnding(ending('undercut', 'bob'), 'alice')).toBe('bob undercut you and scores 12 points.')
+    expect(describeEnding(ending('undercut', 'bob'), 'carol')).toBe('bob undercut alice and scores 12 points.')
+    expect(describeEnding(ending('draw'), 'alice')).toBe('The stock ran down: a draw.')
+    expect(headlineOf(ending('draw'), 'alice')).toBe('A draw')
+    expect(headlineOf(ending('gin', 'alice'), 'alice')).toBe('You won the hand!')
   })
 })
