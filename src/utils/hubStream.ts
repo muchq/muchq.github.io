@@ -1,7 +1,7 @@
 // The games hub's one stream, game-agnostic: the session mint, the
 // smithy event-stream socket with its reconnect loop, the room and chat
 // commands and events, the lobby envelope (the world), the voice
-// envelope (the room's voice), and one envelope per game (golf, castle, rummy)
+// envelope (the room's voice), and one envelope per game (golf, castle, rummy, chess)
 // whose contents are the game client's business.
 //
 // Wire shape (smithy-cpp ADR-0018 JSON-text mode):
@@ -38,7 +38,7 @@ const MAX_RECONNECT_ATTEMPTS = 10
 
 // --- wire shapes (mirrors model/games.smithy; each game envelope stays opaque) ---
 
-export type HubGameName = 'golf' | 'castle' | 'rummy'
+export type HubGameName = 'golf' | 'castle' | 'rummy' | 'chess'
 
 // The table a member is at, pending or in play (MoonBase#1490); absent
 // while idle, which is how the lobby tells who is free.
@@ -109,6 +109,7 @@ type HubFrame =
   | { event: 'golf'; payload: { update: Record<string, unknown> } }
   | { event: 'castle'; payload: { update: Record<string, unknown> } }
   | { event: 'rummy'; payload: { update: Record<string, unknown> } }
+  | { event: 'chess'; payload: { update: Record<string, unknown> } }
   | { event: 'lobby'; payload: { update: LobbyUpdate } }
   | { event: 'voice'; payload: { update: VoiceUpdate } }
   | { event?: undefined; exception: string; payload: { message?: string } }
@@ -285,6 +286,7 @@ export class HubStream {
       case 'golf':
       case 'castle':
       case 'rummy':
+      case 'chess':
         this.callbacks.onGame?.(frame.event, frame.payload.update)
         return
       case 'lobby':

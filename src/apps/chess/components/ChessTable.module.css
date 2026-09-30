@@ -1,0 +1,244 @@
+.table {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  color: white;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.muted {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 400;
+  font-size: 1rem;
+}
+
+.tableHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.hint {
+  flex: 1 1 10rem;
+  margin: 0;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.85);
+  min-height: 1.5rem;
+}
+
+.primary,
+.secondary,
+.danger,
+.link {
+  padding: 0.6rem 1.25rem;
+  font-size: 1rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  border: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.primary {
+  background: #f0c96a;
+  color: #3a2a00;
+  font-weight: 600;
+}
+
+.secondary {
+  background: transparent;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.danger {
+  background: #c0392b;
+  color: white;
+  font-weight: 600;
+}
+
+.link {
+  background: none;
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: underline;
+  padding: 0.25rem 0;
+}
+
+.primary:disabled,
+.secondary:disabled,
+.danger:disabled,
+.link:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.waiting {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.seats {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.clockPick {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.play {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* The board fits the narrower of the column and the screen's height
+   less the two clocks and the actions, so the whole of it is on screen. */
+.board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  width: min(100%, calc(100vh - 14rem));
+  aspect-ratio: 1;
+  align-self: center;
+  border: 2px solid rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.square {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  font-size: clamp(1.25rem, 6vmin, 2.75rem);
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.light {
+  background: #eeeed2;
+}
+
+.dark {
+  background: #769656;
+}
+
+.square[data-last='true'] {
+  box-shadow: inset 0 0 0 100vmax rgba(246, 246, 105, 0.45);
+}
+
+.square[aria-pressed='true'] {
+  box-shadow: inset 0 0 0 100vmax rgba(20, 85, 30, 0.5);
+}
+
+.square[data-check='true'] {
+  background: radial-gradient(circle, #ff3b30 0%, rgba(255, 59, 48, 0.4) 55%, transparent 75%);
+}
+
+/* A move's target: a dot on an empty square, a ring round a capture. */
+.target::after {
+  content: '';
+  position: absolute;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.square:focus-visible {
+  outline: 3px solid #f0c96a;
+  outline-offset: -3px;
+}
+
+.whitePiece {
+  color: #fff;
+  text-shadow: 0 0 2px #000, 0 0 1px #000;
+}
+
+.blackPiece {
+  color: #111;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.clockRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.running {
+  background: rgba(240, 201, 106, 0.25);
+}
+
+.clockName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clock {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.low {
+  color: #ff6b5e;
+}
+
+.promotion,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.ending {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.result {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #f0c96a;
+}

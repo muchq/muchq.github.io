@@ -60,14 +60,16 @@ The nav's **Hmm** menu links to apps hosted off muchq.com (see the
 list). Those are external links, not routes — their code lives in their own
 repos, not here.
 
-### The lobby, golf, castle, rummy, and thoughts
+### The lobby, golf, castle, rummy, chess, and thoughts
 
 `/games` is the lobby (MoonBase#1490): the thoughts world with a panel for the room, its
 players and their tables, and the room's chat, all on one stream. A table of any game opens
 over the world (MoonBase#1502); `GolfTable`, `CastleTable` and `RummyTable` (MoonBase#245)
 are the tables, `useGolfTable`, `useCastleTable` and `useRummyTable` their state over the
 room stream's game envelopes. Castle and rummy share the felt and the card faces
-(`castle/components/Cards.tsx`, `CastleTable.module.css`). Share links are
+(`castle/components/Cards.tsx`, `CastleTable.module.css`). `ChessTable` and `useChessTable`
+are chess's: two seats, the board from the viewer's side, the moves the hub lists for the
+side to move (the client holds no rules), and the clocks counted down from each view. Share links are
 `/games/room/:roomId` and `/games/room/:roomId/table/:gameId`; the old `/golf` and `/castle`
 links redirect to them, and `/thoughts` to `/games`. Hiding the panel is how the bare world
 is asked for, so that choice is remembered across visits.
