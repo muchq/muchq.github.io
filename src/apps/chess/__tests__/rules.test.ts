@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  glyph,
   describeResult,
   formatClock,
   lastMoveSquares,
@@ -85,6 +86,19 @@ describe('formatClock', () => {
     expect(formatClock(50)).toBe('0.1')
     expect(formatClock(0)).toBe('0.0')
     expect(formatClock(-50)).toBe('0.0')
+  })
+})
+
+describe('glyph', () => {
+  // U+265F is an emoji: without the text selector, phones draw the pawn
+  // as a black emoji whatever its side's color.
+  it('asks for text presentation, so CSS colors every piece', () => {
+    for (const piece of 'KQRBNPkqrbnp') expect(glyph(piece).endsWith('\uFE0E')).toBe(true)
+  })
+
+  it('draws both sides with the filled glyph', () => {
+    expect(glyph('P')).toBe(glyph('p'))
+    expect(glyph('K')).toBe('♚\uFE0E')
   })
 })
 

@@ -86,11 +86,13 @@ export function pieceName(piece: string): string {
 }
 
 // Filled glyphs for both sides, told apart by color, so neither side's
-// pieces read as outlines.
+// pieces read as outlines. U+FE0E asks for text presentation: ♟ is also
+// an emoji, which phones draw black whatever the CSS color says.
 const GLYPHS: Record<string, string> = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
 
 export function glyph(piece: string): string {
-  return GLYPHS[piece.toLowerCase()] ?? ''
+  const shape = GLYPHS[piece.toLowerCase()]
+  return shape === undefined ? '' : `${shape}\uFE0E`
 }
 
 const WON_BY: Record<ChessEnding, string> = {
