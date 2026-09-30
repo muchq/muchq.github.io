@@ -3,6 +3,7 @@ import ThoughtsGame from '@/apps/thoughts/components/ThoughtsGame'
 import CastleTable from '@/apps/castle/components/CastleTable'
 import GolfTable from '@/apps/golf/components/GolfTable'
 import RummyTable from '@/apps/rummy/components/RummyTable'
+import ChessTable from '@/apps/chess/components/ChessTable'
 import RoomChat, { type RoomChatHandle } from './RoomChat'
 import CommandMenu, { type CommandMenuHandle } from './CommandMenu'
 import { lobbyCommands } from '../lobbyCommands'
@@ -29,8 +30,8 @@ const panelWanted = (): boolean => safeLocalStorage.get(PANEL_KEY) !== 'hidden' 
 
 const LobbyGame = (props: UseLobbyProps) => {
   const lobby = useLobby(props)
-  const { castle, golf, rummy, chat, connected, playerId, notice, room } = lobby
-  const atTable = castle.view !== null || golf.view !== null || rummy.view !== null
+  const { castle, golf, rummy, chess, chat, connected, playerId, notice, room } = lobby
+  const atTable = castle.view !== null || golf.view !== null || rummy.view !== null || chess.view !== null
   // A rummy dealer among these lets any seat deal (MoonBase#1609).
   const away = (room?.players ?? []).filter(player => !player.connected).map(player => player.playerId)
   // A table takes the screen, so the panel folds away when one comes up
@@ -106,6 +107,11 @@ const LobbyGame = (props: UseLobbyProps) => {
       {rummy.view !== null && (
         <div className={styles.tableOverlay}>
           <RummyTable playerId={playerId} connected={connected} view={rummy.view} table={rummy} away={away} />
+        </div>
+      )}
+      {chess.view !== null && (
+        <div className={styles.tableOverlay}>
+          <ChessTable playerId={playerId} connected={connected} view={chess.view} table={chess} />
         </div>
       )}
       {golf.view !== null && (

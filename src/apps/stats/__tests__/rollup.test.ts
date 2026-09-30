@@ -229,6 +229,14 @@ describe('rollupHubEvents', () => {
     expect(labels.sort()).toEqual(['Gin', 'Rummy'])
   })
 
+  it('names chess', () => {
+    const labels = rollupHubEvents({
+      days: 30,
+      rows: [{ date: '2026-09-30', event: 'game_started', variant: 'chess', surface: '', outcome: '', players: 2, events: 1 }],
+    }).variants.map(v => v.label)
+    expect(labels).toEqual(['Chess'])
+  })
+
   // game_finished's players is the seats still held — 1 for nearly every
   // abandonment — so only game_started may reach this table. A finish
   // folded in here would report a flood of one-player tables that were

@@ -45,6 +45,7 @@ const lobby = (over: Partial<UseLobby> = {}): UseLobby =>
     castle: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['castle'],
     golf: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['golf'],
     rummy: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['rummy'],
+    chess: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['chess'],
     ...over
   }) as UseLobby
 
@@ -106,6 +107,25 @@ describe('LobbyPanel', () => {
     expect(hook.leaveRoom).toHaveBeenCalled()
   })
 
+  // Chess seats two, where every other game seats four.
+  it('a chess table reads its own seats, is full at two, and opens from its own button', () => {
+    const hook = lobby({
+      room: room({
+        games: [
+          { gameId: 'K1', game: 'chess', status: 'waiting', playerCount: 1 },
+          { gameId: 'K2', game: 'chess', status: 'waiting', playerCount: 2 }
+        ]
+      })
+    })
+    render(<LobbyPanel lobby={hook} />)
+    expect(screen.getByText('chess K1 · 1/2 · waiting')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Full chess K2' })).toHaveProperty('disabled', true)
+    fireEvent.click(screen.getByRole('button', { name: 'Join chess K1' }))
+    expect(hook.chess.joinTable).toHaveBeenCalledWith('K1')
+    fireEvent.click(screen.getByRole('button', { name: 'Open a chess table' }))
+    expect(hook.chess.createTable).toHaveBeenCalled()
+  })
+
   it('a member already at a table is offered no other', () => {
     const seated = room()
     seated.players[0] = { ...seated.players[0], table: { game: 'castle', gameId: 'G1' } }
@@ -113,6 +133,7 @@ describe('LobbyPanel', () => {
     expect(screen.getByRole('button', { name: 'Open a castle table' })).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: 'Open a golf table' })).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: 'Open a rummy table' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Open a chess table' })).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: 'Join castle G1' })).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: 'Join golf G4' })).toHaveProperty('disabled', true)
   })

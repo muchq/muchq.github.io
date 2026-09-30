@@ -11,10 +11,13 @@ import { VoiceMesh } from '@/utils/voiceMesh'
 import type { VoiceDevice } from '@/utils/voiceMesh'
 import { browserVoiceDevice } from '@/utils/voiceDevice'
 import type { CastleMoveName, CastleUpdate } from '@/apps/castle/wire'
+import type { ChessMoveName, ChessUpdate } from '@/apps/chess/wire'
 import type { GolfMoveName, GolfUpdate } from '@/apps/golf/wire'
 import type { RummyMoveName, RummyUpdate } from '@/apps/rummy/wire'
 import { useCastleTable } from './useCastleTable'
 import type { UseCastleTable } from './useCastleTable'
+import { useChessTable } from './useChessTable'
+import type { UseChessTable } from './useChessTable'
 import { useGolfTable } from './useGolfTable'
 import type { UseGolfTable } from './useGolfTable'
 import { useRummyTable } from './useRummyTable'
@@ -81,6 +84,7 @@ export interface UseLobby {
   castle: UseCastleTable
   golf: UseGolfTable
   rummy: UseRummyTable
+  chess: UseChessTable
 }
 
 // A share link's room the session is on its way to: left the resumed
@@ -181,6 +185,9 @@ export const useLobby = ({
   const rummyMove = useCallback((name: RummyMoveName, payload: unknown = {}) => {
     streamRef.current?.move('rummy', name, payload)
   }, [])
+  const chessMove = useCallback((name: ChessMoveName, payload: unknown = {}) => {
+    streamRef.current?.move('chess', name, payload)
+  }, [])
   const onTableLeft = useCallback(() => {
     if (roomIdRef.current !== null) navigate(lobbyRoomPath(roomIdRef.current), { replace: true })
   }, [navigate])
@@ -193,10 +200,14 @@ export const useLobby = ({
   const rummy = useRummyTable({ playerId, move: rummyMove, showNotice, onLeft: onTableLeft })
   const rummyRef = useRef(rummy)
   rummyRef.current = rummy
+  const chess = useChessTable({ playerId, move: chessMove, showNotice, onLeft: onTableLeft })
+  const chessRef = useRef(chess)
+  chessRef.current = chess
   const clearTables = useCallback(() => {
     castleRef.current.clear()
     golfRef.current.clear()
     rummyRef.current.clear()
+    chessRef.current.clear()
   }, [])
 
   // The share link's table, once its room is in hand: a table still
@@ -222,6 +233,7 @@ export const useLobby = ({
       }
       if (table.game === 'castle') castleRef.current.joinTable(gameId)
       else if (table.game === 'rummy') rummyRef.current.joinTable(gameId)
+      else if (table.game === 'chess') chessRef.current.joinTable(gameId)
       else golfRef.current.joinTable(gameId)
     },
     [showNotice]
@@ -320,6 +332,7 @@ export const useLobby = ({
       // Whatever was refused, nothing a table asked for arrived.
       castleRef.current.handleRejected()
       rummyRef.current.handleRejected()
+      chessRef.current.handleRejected()
       voice.rejected(reason)
       chatSeqRef.current += 1
       setChat(prev => ({ ...prev, rejection: { seq: chatSeqRef.current, reason } }))
@@ -353,6 +366,10 @@ export const useLobby = ({
         const rummyUpdate = update as RummyUpdate
         rummyRef.current.handleUpdate(rummyUpdate)
         joined = rummyUpdate.gameJoined?.view.gameId
+      } else if (game === 'chess') {
+        const chessUpdate = update as ChessUpdate
+        chessRef.current.handleUpdate(chessUpdate)
+        joined = chessUpdate.gameJoined?.view.gameId
       } else if (game === 'golf') {
         const golfUpdate = update as GolfUpdate
         golfRef.current.handleUpdate(golfUpdate)
@@ -443,6 +460,7 @@ export const useLobby = ({
     voice,
     castle,
     golf,
-    rummy
+    rummy,
+    chess
   }
 }

@@ -5,6 +5,7 @@ import type { UseLobby } from '@/hooks/useLobby'
 import { fakeVoiceMesh } from '@/test/fakeVoice'
 import type { CastleView } from '@/apps/castle/wire'
 import type { RummyView } from '@/apps/rummy/wire'
+import type { ChessView } from '@/apps/chess/wire'
 import type { GameState } from '@/types/golf'
 import type { CommandRegistry } from '@/utils/commandRegistry'
 import { COMMAND_HOTKEY } from '@/utils/hotkeys'
@@ -30,7 +31,8 @@ const state = {
   voice: fakeVoiceMesh(),
   castle: { view: null as CastleView | null, ended: null, selected: [] },
   golf: { view: null as GameState | null, ended: null, peekCountdown: null },
-  rummy: { view: null as RummyView | null, ended: null, selected: [] }
+  rummy: { view: null as RummyView | null, ended: null, selected: [] },
+  chess: { view: null as ChessView | null, opening: false }
 } as unknown as UseLobby
 
 vi.mock('@/hooks/useLobby', async importOriginal => ({
@@ -56,6 +58,7 @@ vi.mock('@/apps/thoughts/components/ThoughtsGame', () => ({
   }
 }))
 vi.mock('@/apps/castle/components/CastleTable', () => ({ default: () => <div>table</div> }))
+vi.mock('@/apps/chess/components/ChessTable', () => ({ default: () => <div>chess table</div> }))
 vi.mock('@/apps/rummy/components/RummyTable', () => ({
   default: ({ away }: { away?: string[] }) => <div>rummy table{away !== undefined && away.length > 0 ? `, away: ${away.join(' ')}` : ''}</div>
 }))
@@ -81,6 +84,7 @@ describe('LobbyGame', () => {
     cleanup()
     state.castle.view = null
     state.golf.view = null
+    state.chess.view = null
     state.lost = null
     state.room = null
     localStorage.clear()
@@ -151,6 +155,18 @@ describe('LobbyGame', () => {
     state.rummy.view = null
     rerender(<LobbyGame />)
     expect(screen.queryByText('rummy table')).toBeNull()
+    expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
+  })
+
+  it('a chess table is a table too: over the world, the panel folded', () => {
+    const { rerender } = render(<LobbyGame />)
+    state.chess.view = { gameId: 'K1' } as ChessView
+    rerender(<LobbyGame />)
+    expect(screen.getByText('chess table')).toBeTruthy()
+    expect(screen.queryByRole('complementary', { name: 'lobby' })).toBeNull()
+    state.chess.view = null
+    rerender(<LobbyGame />)
+    expect(screen.queryByText('chess table')).toBeNull()
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
   })
 

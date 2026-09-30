@@ -236,6 +236,35 @@ describe('useLobby', () => {
     expect(ws.lastSent()).toEqual({ event: 'rummy', payload: { move: { joinGame: { gameId: 'M1' } } } })
   })
 
+  it('a chess table swaps in on its own envelope, and its moves ride it', async () => {
+    const { result, ws, pathname } = await open()
+    act(() => ws.receive('roomState', roomState('R1')))
+    act(() => result.current.chess.createTable())
+    expect(ws.lastSent()).toEqual({ event: 'chess', payload: { move: { createGame: {} } } })
+    const chessView = { gameId: 'K1', phase: 'waiting', players: [], moves: [], inCheck: false, legalMoves: [] }
+    act(() => ws.receive('chess', { update: { gameJoined: { view: chessView } } }))
+    expect(result.current.chess.view?.gameId).toBe('K1')
+    expect(result.current.rummy.view).toBeNull()
+    expect(pathname()).toBe('/games/room/R1/table/K1')
+    act(() => result.current.chess.startTable({ initialSeconds: 60, incrementSeconds: 0 }))
+    expect(ws.lastSent()).toEqual({ event: 'chess', payload: { move: { startGame: { initialSeconds: 60, incrementSeconds: 0 } } } })
+    act(() => result.current.chess.play('e2e4'))
+    expect(ws.lastSent()).toEqual({ event: 'chess', payload: { move: { play: { uci: 'e2e4' } } } })
+    act(() => result.current.chess.resign())
+    expect(ws.lastSent()).toEqual({ event: 'chess', payload: { move: { resign: {} } } })
+    act(() => result.current.chess.playAgain())
+    act(() => ws.receive('commandRejected', { reason: 'leave your current game first' }))
+    expect(result.current.chess.opening).toBe(false)
+    act(() => ws.receive('roomLeft', { roomId: 'R1' }))
+    expect(result.current.chess.view).toBeNull()
+  })
+
+  it('a share link to a chess table sits at it in chess’s envelope', async () => {
+    const { ws } = await open({ permalinkRoomId: 'R1', permalinkGameId: 'K1' }, '/games/room/R1/table/K1')
+    act(() => ws.receive('roomState', roomState('R1', [{ gameId: 'K1', game: 'chess', status: 'waiting', playerCount: 1 }])))
+    expect(ws.lastSent()).toEqual({ event: 'chess', payload: { move: { joinGame: { gameId: 'K1' } } } })
+  })
+
   it('joining a listed golf table sends its join, and the table answers', async () => {
     const { result, ws } = await open()
     act(() => ws.receive('roomState', roomState('R1', [{ gameId: 'G7', game: 'golf', status: 'waiting', playerCount: 1 }])))

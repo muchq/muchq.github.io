@@ -302,6 +302,7 @@ export const VARIANT_LABELS: Record<string, string> = {
   castle: 'Castle',
   rummy: 'Rummy',
   gin: 'Gin',
+  chess: 'Chess',
   other: 'Other',
 }
 

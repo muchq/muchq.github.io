@@ -18,6 +18,7 @@ const lobbyWith = (over: Partial<UseLobby>): UseLobby =>
     castle: { createTable: vi.fn(), joinTable: vi.fn() },
     golf: { createTable: vi.fn(), joinTable: vi.fn() },
     rummy: { createTable: vi.fn(), joinTable: vi.fn() },
+    chess: { createTable: vi.fn(), joinTable: vi.fn() },
     voice: voiceIn(),
     ...over,
   }) as unknown as UseLobby
@@ -31,6 +32,8 @@ const room = (over: Partial<HubRoom> = {}): HubRoom => ({
     { gameId: 'C2', game: 'castle', status: 'playing', playerCount: 2 },
     { gameId: 'C3', game: 'castle', status: 'waiting', playerCount: 4 },
     { gameId: 'M1', game: 'rummy', status: 'waiting', playerCount: 1 },
+    { gameId: 'K1', game: 'chess', status: 'waiting', playerCount: 1 },
+    { gameId: 'K2', game: 'chess', status: 'waiting', playerCount: 2 },
   ],
   ...over,
 })
@@ -86,12 +89,16 @@ describe('lobbyCommands', () => {
       'Open a castle table',
       'Open a golf table',
       'Open a rummy table',
+      'Open a chess table',
       'Join castle table C1',
       'Join golf table G1',
       'Join rummy table M1',
+      'Join chess table K1',
       'Hide lobby panel',
     ])
     expect(offered.find(c => c.label === 'Join golf table G1')!.detail).toBe('2/4 seated')
+    // Chess seats two: a table of two is full, and one of one says so.
+    expect(offered.find(c => c.label === 'Join chess table K1')!.detail).toBe('1/2 seated')
   })
 
   it('a table in play or full is not offered, and one in the list is joined as its game', () => {
@@ -107,6 +114,10 @@ describe('lobbyCommands', () => {
     expect(lobby.golf.createTable).toHaveBeenCalledTimes(1)
     run(lobby, 'Open a rummy table')
     expect(lobby.rummy.createTable).toHaveBeenCalledTimes(1)
+    run(lobby, 'Join chess table K1')
+    expect(lobby.chess.joinTable).toHaveBeenCalledWith('K1')
+    run(lobby, 'Open a chess table')
+    expect(lobby.chess.createTable).toHaveBeenCalledTimes(1)
     run(lobby, 'Leave the room')
     expect(lobby.leaveRoom).toHaveBeenCalledTimes(1)
     run(lobby, 'Open chat')

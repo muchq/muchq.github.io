@@ -242,6 +242,8 @@ describe('HubStream', () => {
     expect(callbacks.onGame).toHaveBeenCalledWith('golf', { gameStarted: {} })
     ws.receive('rummy', { update: { gameLeft: { playerId: 'bob' } } })
     expect(callbacks.onGame).toHaveBeenCalledWith('rummy', { gameLeft: { playerId: 'bob' } })
+    ws.receive('chess', { update: { gameEnded: { result: { ending: 'stalemate' } } } })
+    expect(callbacks.onGame).toHaveBeenCalledWith('chess', { gameEnded: { result: { ending: 'stalemate' } } })
   })
 
   it('a terminal refusal is lost, not rejected, named by its shape when it says nothing', async () => {

@@ -4,7 +4,7 @@ import type { UseLobby } from '@/hooks/useLobby'
 import { lobbyRoomPath } from '@/hooks/useLobby'
 import type { HubRoomPlayer } from '@/utils/hubStream'
 import type { VoiceMesh, VoiceView } from '@/utils/voiceMesh'
-import { atTable, tableFor, tableOffer, TABLE_SEATS } from '../offers'
+import { atTable, seatsOf, tableFor, tableOffer } from '../offers'
 import styles from './LobbyPanel.module.css'
 
 // The side panel beside the world: where you are (the plaza, or a room
@@ -22,7 +22,8 @@ const record = (player: HubRoomPlayer): string => `${player.gamesWon}/${player.g
 const GAME_BLURB = {
   castle: 'Shed every card first. 2s reset the deck, 10s clear it, four of a kind counts as a 10.',
   golf: 'Lowest hand wins. Peek at two, then draw and swap; knock to call the last round.',
-  rummy: 'Draw, lay down sets and runs, discard. First to empty their hand wins.'
+  rummy: 'Draw, lay down sets and runs, discard. First to empty their hand wins.',
+  chess: 'King and pawn against king, from a random position, on the clock. Promote and mate, or hold the draw.'
 }
 
 // The command menu has no button of its own: this is where it is told.
@@ -152,7 +153,7 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
               return (
                 <li key={table.gameId} className={styles.row}>
                   <span>
-                    {game} {table.gameId} · {table.playerCount}/{TABLE_SEATS} · {table.status === 'choosing' ? 'between deals' : table.status}
+                    {game} {table.gameId} · {table.playerCount}/{seatsOf(game)} · {table.status === 'choosing' ? 'between deals' : table.status}
                   </span>
                   <button
                     type="button"
@@ -183,6 +184,10 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
             Open a rummy table
           </button>
           <p className={styles.muted}>{GAME_BLURB.rummy}</p>
+          <button type="button" className={styles.primary} onClick={lobby.chess.createTable} disabled={!connected || busy}>
+            Open a chess table
+          </button>
+          <p className={styles.muted}>{GAME_BLURB.chess}</p>
         </div>
       </section>
       {COMMAND_HINT}
