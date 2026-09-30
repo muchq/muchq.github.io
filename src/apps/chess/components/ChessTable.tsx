@@ -207,7 +207,8 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
             {squares.map((square, index) => {
               const piece = board.get(square)
               const mine = piece !== undefined && colorOfPiece(piece) === myColor
-              const light = (square.charCodeAt(0) - 97 + Number(square[1])) % 2 === 1
+              // a1 dark: a square is dark where its file and rank index sum even.
+              const light = (square.charCodeAt(0) - 97 + Number(square[1])) % 2 === 0
               const target = targets.includes(square)
               return (
                 <button
@@ -217,6 +218,8 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                   className={`${styles.square} ${light ? styles.light : styles.dark} ${target ? styles.target : ''}`}
                   aria-label={piece === undefined ? square : `${square}, ${pieceName(piece)}`}
                   aria-pressed={mine ? from === square : undefined}
+                  aria-disabled={!myTurn || !connected ? true : undefined}
+                  data-shade={light ? 'light' : 'dark'}
                   aria-describedby={target ? targetNote : undefined}
                   data-last={last.includes(square) ? 'true' : undefined}
                   data-check={piece !== undefined && piece === checkedKing ? 'true' : undefined}
@@ -318,7 +321,9 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
 
           {view.phase === 'ended' && (
             <div className={styles.ending}>
-              <p className={styles.result}>{status}</p>
+              <p className={styles.result} aria-hidden="true">
+                {status}
+              </p>
               <div className={styles.actions}>
                 <button ref={playAgainRef} type="button" className={felt.primary} onClick={table.playAgain} disabled={!connected || opening}>
                   {opening ? 'Opening…' : 'Play again'}

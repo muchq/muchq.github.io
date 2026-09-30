@@ -105,6 +105,24 @@ describe('ChessTable', () => {
       expect(within(flipped).getAllByTestId('coordinate').map(c => c.textContent)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', 'h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'])
     })
 
+    // a1 is dark, as on every board; so is h8, and d1 and e4 are light.
+    it('colors the squares as a chessboard is colored', () => {
+      mountWith(view())
+      expect(square('a1').dataset.shade).toBe('dark')
+      expect(square('h8').dataset.shade).toBe('dark')
+      expect(square('d1').dataset.shade).toBe('light')
+      expect(square('e4').dataset.shade).toBe('light')
+    })
+
+    it('marks the squares inert off turn, and still focusable', () => {
+      const { unmount } = mountWith(view())
+      expect(square('g6')).not.toHaveAttribute('aria-disabled', 'true')
+      unmount()
+      mountWith(view(), {}, 'bob')
+      expect(square('g6')).toHaveAttribute('aria-disabled', 'true')
+      expect(square('g6')).not.toBeDisabled()
+    })
+
     it('reads as a toggle only on the viewer’s own pieces', () => {
       mountWith(view())
       expect(square('g6')).toHaveAttribute('aria-pressed', 'false')
@@ -324,6 +342,8 @@ describe('ChessTable', () => {
       const { t, rerender } = mountWith(view())
       rerender(ended())
       expect(status()).toHaveTextContent('You won by checkmate')
+      // Said once: the panel's copy is for the eye, not read again.
+      expect(screen.getByText('You won by checkmate', { selector: 'p:not([data-testid])' })).toHaveAttribute('aria-hidden', 'true')
       expect(screen.queryByRole('button', { name: 'Resign' })).toBeNull()
       expect(screen.getByRole('button', { name: 'Play again' })).toHaveFocus()
       fireEvent.click(screen.getByRole('button', { name: 'Play again' }))
