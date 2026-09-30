@@ -250,6 +250,8 @@ describe('useLobby', () => {
     expect(ws.lastSent()).toEqual({ event: 'chess', payload: { move: { startGame: { initialSeconds: 60, incrementSeconds: 0 } } } })
     act(() => result.current.chess.play('e2e4'))
     expect(ws.lastSent()).toEqual({ event: 'chess', payload: { move: { play: { uci: 'e2e4' } } } })
+    act(() => result.current.chess.resign())
+    expect(ws.lastSent()).toEqual({ event: 'chess', payload: { move: { resign: {} } } })
     act(() => result.current.chess.playAgain())
     act(() => ws.receive('commandRejected', { reason: 'leave your current game first' }))
     expect(result.current.chess.opening).toBe(false)

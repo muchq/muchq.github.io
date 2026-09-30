@@ -1,3 +1,7 @@
+/* The board, the clocks and chess's own controls. The table's chrome —
+   title, header row, status line, buttons — is castle's
+   (CastleTable.module.css), as rummy's is. */
+
 .table {
   width: 100%;
   max-width: 560px;
@@ -8,90 +12,27 @@
   color: white;
 }
 
-.title {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.muted {
+.variant {
   color: rgba(255, 255, 255, 0.7);
   font-weight: 400;
   font-size: 1rem;
 }
 
-.tableHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.hint {
-  flex: 1 1 10rem;
-  margin: 0;
-  text-align: center;
-  color: rgba(255, 255, 255, 0.85);
-  min-height: 1.5rem;
-}
-
-.primary,
-.secondary,
-.danger,
-.link {
-  padding: 0.6rem 1.25rem;
+.danger {
+  padding: 0.75rem 1.5rem;
   font-size: 1rem;
   border-radius: 0.5rem;
-  cursor: pointer;
   border: none;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-.primary {
-  background: #f0c96a;
-  color: #3a2a00;
-  font-weight: 600;
-}
-
-.secondary {
-  background: transparent;
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-}
-
-.danger {
+  cursor: pointer;
   background: #c0392b;
   color: white;
   font-weight: 600;
+  touch-action: manipulation;
 }
 
-.link {
-  background: none;
-  color: rgba(255, 255, 255, 0.7);
-  text-decoration: underline;
-  padding: 0.25rem 0;
-}
-
-.primary:disabled,
-.secondary:disabled,
-.danger:disabled,
-.link:disabled {
+.danger:disabled {
   opacity: 0.45;
   cursor: default;
-}
-
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
 }
 
 .waiting {
@@ -118,12 +59,16 @@
   gap: 0.5rem;
 }
 
-/* The board fits the narrower of the column and the screen's height
-   less the two clocks and the actions, so the whole of it is on screen. */
+/* The board fits the narrower of the column and the screen's height less
+   the header, both clocks and the actions (about 19rem), so the whole of
+   it is on screen; below 16rem the overlay scrolls instead of shrinking
+   the squares past a tap. The pieces are sized from the board, not the
+   screen, so they always fit their squares. */
 .board {
+  container-type: inline-size;
   display: grid;
   grid-template-columns: repeat(8, 1fr);
-  width: min(100%, calc(100vh - 14rem));
+  width: max(16rem, min(100%, calc(100dvh - 19rem)));
   aspect-ratio: 1;
   align-self: center;
   border: 2px solid rgba(0, 0, 0, 0.5);
@@ -140,18 +85,18 @@
   padding: 0;
   border: none;
   cursor: pointer;
-  font-size: clamp(1.25rem, 6vmin, 2.75rem);
+  font-size: 9cqi;
   line-height: 1;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
 .light {
-  background: #eeeed2;
+  background-color: #eeeed2;
 }
 
 .dark {
-  background: #769656;
+  background-color: #769656;
 }
 
 .square[data-last='true'] {
@@ -159,11 +104,12 @@
 }
 
 .square[aria-pressed='true'] {
-  box-shadow: inset 0 0 0 100vmax rgba(20, 85, 30, 0.5);
+  box-shadow: inset 0 0 0 100vmax rgba(246, 246, 105, 0.8);
 }
 
+/* An image over the square's own colour, never in place of it. */
 .square[data-check='true'] {
-  background: radial-gradient(circle, #ff3b30 0%, rgba(255, 59, 48, 0.4) 55%, transparent 75%);
+  background-image: radial-gradient(circle, #ff3b30 0%, rgba(255, 59, 48, 0.45) 55%, transparent 75%);
 }
 
 /* A move's target: a dot on an empty square, a ring round a capture. */
@@ -173,8 +119,16 @@
   width: 30%;
   height: 30%;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.4);
   pointer-events: none;
+}
+
+.target:has(.whitePiece, .blackPiece)::after {
+  width: 88%;
+  height: 88%;
+  background: none;
+  border: 4px solid rgba(0, 0, 0, 0.4);
+  box-sizing: border-box;
 }
 
 .square:focus-visible {
@@ -190,6 +144,37 @@
 .blackPiece {
   color: #111;
   text-shadow: 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+/* The files along the bottom edge and the ranks down the left, from the
+   viewer's side, in the colour of the other square. */
+.rank,
+.file {
+  position: absolute;
+  font-size: 2.6cqi;
+  font-weight: 600;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.rank {
+  top: 0.15em;
+  left: 0.2em;
+}
+
+.file {
+  bottom: 0.15em;
+  right: 0.25em;
+}
+
+.light .rank,
+.light .file {
+  color: #769656;
+}
+
+.dark .rank,
+.dark .file {
+  color: #eeeed2;
 }
 
 .clockRow {

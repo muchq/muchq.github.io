@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react'
-import type { ChessMoveName, ChessMovePayloads, ChessResult, ChessUpdate, ChessView } from '@/apps/chess/wire'
+import type { ChessMoveName, ChessMovePayloads, ChessUpdate, ChessView } from '@/apps/chess/wire'
 
 // A chess table as the wire sends it, over the lobby's stream (useLobby).
 // The owner feeds handleUpdate every chess update and clears the table on
-// a resume. The board's own selection is the component's: it lives and
-// dies with one view.
+// a resume. The view is the whole truth: an ended one carries the result,
+// and arrives before gameEnded. The board's own selection is the
+// component's: it lives and dies with one view.
 
 export interface ChessTableActions {
   // Seconds; absent is the hub's default.
@@ -21,7 +22,6 @@ export interface UseChessTable extends ChessTableActions {
   createTable: () => void
   joinTable: (gameId: string) => void
   view: ChessView | null
-  ended: ChessResult | null
   // A table has been asked for and not yet arrived.
   opening: boolean
   handleUpdate: (update: ChessUpdate) => void
@@ -38,12 +38,10 @@ export interface UseChessTableProps {
 
 export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTableProps): UseChessTable => {
   const [view, setView] = useState<ChessView | null>(null)
-  const [ended, setEnded] = useState<ChessResult | null>(null)
   const [opening, setOpening] = useState(false)
 
   const clear = useCallback(() => {
     setView(null)
-    setEnded(null)
     setOpening(false)
   }, [])
   const handleRejected = useCallback(() => setOpening(false), [])
@@ -52,7 +50,6 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
     (update: ChessUpdate) => {
       if (update.gameJoined) {
         setView(update.gameJoined.view)
-        setEnded(null)
         setOpening(false)
         return
       }
@@ -64,15 +61,11 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
         if (update.gameCreated.createdBy !== playerId) showNotice(`${update.gameCreated.createdBy} opened chess table ${update.gameCreated.gameId}`)
         return
       }
-      if (update.gameEnded) {
-        setEnded(update.gameEnded.result)
-        return
-      }
       if (update.gameLeft) {
         clear()
         onLeft?.()
       }
-      // gameStarted and turnChanged: the view that follows says it all.
+      // gameStarted, turnChanged and gameEnded: the view says it all.
     },
     [clear, onLeft, playerId, showNotice]
   )
@@ -96,5 +89,5 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
   const play = useCallback((uci: string) => move('play', { uci }), [move])
   const resign = useCallback(() => move('resign'), [move])
 
-  return { view, ended, opening, handleUpdate, handleRejected, clear, createTable, joinTable, startTable, leaveTable, playAgain, play, resign }
+  return { view, opening, handleUpdate, handleRejected, clear, createTable, joinTable, startTable, leaveTable, playAgain, play, resign }
 }

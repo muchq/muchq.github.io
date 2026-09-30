@@ -32,15 +32,18 @@ describe('useChessTable', () => {
     return { ...hook, move, onLeft, showNotice, receive }
   }
 
-  it('holds the latest view, and the result once the game ends', () => {
+  // The ended view carries the result, and the hub sends it before
+  // gameEnded: the view is the table's one source of truth.
+  it('holds the latest view, and gameEnded changes nothing the view does not already say', () => {
     const { result, receive } = mount()
     receive({ gameJoined: { view: view({ phase: 'waiting' }) } })
     expect(result.current.view?.phase).toBe('waiting')
     receive({ gameState: { view: view() } })
     expect(result.current.view?.phase).toBe('playing')
-    expect(result.current.ended).toBeNull()
+    const over = view({ phase: 'ended', result: { ending: 'resignation', winner: 'alice', winnerColor: 'white' } })
+    receive({ gameState: { view: over } })
     receive({ gameEnded: { result: { ending: 'resignation', winner: 'alice', winnerColor: 'white' } } })
-    expect(result.current.ended?.ending).toBe('resignation')
+    expect(result.current.view).toBe(over)
   })
 
   it('a start names the clock in seconds', () => {

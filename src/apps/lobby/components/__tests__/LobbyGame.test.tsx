@@ -32,7 +32,7 @@ const state = {
   castle: { view: null as CastleView | null, ended: null, selected: [] },
   golf: { view: null as GameState | null, ended: null, peekCountdown: null },
   rummy: { view: null as RummyView | null, ended: null, selected: [] },
-  chess: { view: null as ChessView | null, ended: null, opening: false }
+  chess: { view: null as ChessView | null, opening: false }
 } as unknown as UseLobby
 
 vi.mock('@/hooks/useLobby', async importOriginal => ({

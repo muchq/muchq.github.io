@@ -48,16 +48,25 @@ export function movesTo(legal: string[], from: string, to: string): string[] {
   return legal.filter(uci => uci.slice(0, 2) === from && uci.slice(2, 4) === to)
 }
 
+const PROMOTED: Record<string, string> = { q: 'queen', r: 'rook', b: 'bishop', n: 'knight' }
+
+// A move as a sentence's tail: "h7 to h8", "b2 to b1, promoting to a queen".
+export function describeMove(uci: string): string {
+  const promoted = PROMOTED[uci[4] ?? '']
+  return `${uci.slice(0, 2)} to ${uci.slice(2, 4)}${promoted === undefined ? '' : `, promoting to a ${promoted}`}`
+}
+
 export function lastMoveSquares(moves: string[]): string[] {
   const last = moves[moves.length - 1]
   return last === undefined ? [] : [last.slice(0, 2), last.slice(2, 4)]
 }
 
-// m:ss, rounded up so a clock reads zero only once it is gone; tenths
-// under ten seconds, where they decide games.
+// m:ss, or tenths under ten seconds, where they decide games; rounded up
+// either way, so a clock reads zero only once it is gone.
 export function formatClock(ms: number): string {
   const left = Math.max(0, ms)
-  if (left < 10_000) return (Math.floor(left / 100) / 10).toFixed(1)
+  const tenths = Math.ceil(left / 100)
+  if (tenths < 100) return (tenths / 10).toFixed(1)
   const seconds = Math.ceil(left / 1000)
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 }

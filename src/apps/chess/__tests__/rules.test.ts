@@ -78,9 +78,11 @@ describe('formatClock', () => {
     expect(formatClock(10_000)).toBe('0:10')
   })
 
-  it('shows tenths under ten seconds', () => {
-    expect(formatClock(9_950)).toBe('9.9')
-    expect(formatClock(420)).toBe('0.4')
+  it('shows tenths under ten seconds, still rounding up', () => {
+    expect(formatClock(9_950)).toBe('0:10')
+    expect(formatClock(9_900)).toBe('9.9')
+    expect(formatClock(420)).toBe('0.5')
+    expect(formatClock(50)).toBe('0.1')
     expect(formatClock(0)).toBe('0.0')
     expect(formatClock(-50)).toBe('0.0')
   })
