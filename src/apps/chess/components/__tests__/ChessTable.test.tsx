@@ -338,23 +338,70 @@ describe('ChessTable', () => {
   })
 
   describe('the ending', () => {
-    it('is said, and focus goes to another game', () => {
+    it('is said, and focus goes to the next game at this table', () => {
       const { t, rerender } = mountWith(view())
       rerender(ended())
       expect(status()).toHaveTextContent('You won by checkmate')
       // Said once: the panel's copy is for the eye, not read again.
       expect(screen.getByText('You won by checkmate', { selector: 'p:not([data-testid])' })).toHaveAttribute('aria-hidden', 'true')
       expect(screen.queryByRole('button', { name: 'Resign' })).toBeNull()
-      expect(screen.getByRole('button', { name: 'Play again' })).toHaveFocus()
+      expect(screen.getByRole('button', { name: 'Next game' })).toHaveFocus()
+      fireEvent.click(screen.getByRole('button', { name: 'Next game' }))
+      expect(t.playAgain).toHaveBeenCalledTimes(1)
+      fireEvent.click(screen.getByRole('button', { name: 'Leave table' }))
+      expect(t.leaveTable).toHaveBeenCalledTimes(1)
+    })
+
+    it('once the opponent leaves between games, says so and offers another table', () => {
+      const { t } = mountWith(ended({ phase: 'closed' }))
+      expect(status()).toHaveTextContent('bob left the table.')
+      expect(screen.queryByRole('button', { name: 'Next game' })).toBeNull()
       fireEvent.click(screen.getByRole('button', { name: 'Play again' }))
       expect(t.playAgain).toHaveBeenCalledTimes(1)
       fireEvent.click(screen.getByRole('button', { name: 'Back to the room' }))
       expect(t.leaveTable).toHaveBeenCalledTimes(1)
     })
 
+    it('a leave mid-game is the result itself', () => {
+      mountWith(ended({ phase: 'closed', result: { ending: 'abandoned', winner: 'alice', winnerColor: 'white' } }))
+      expect(status()).toHaveTextContent('You won: your opponent left')
+    })
+
     it('holds Play again while another table is opening', () => {
-      mountWith(ended(), { opening: true })
+      mountWith(ended({ phase: 'closed' }), { opening: true })
       expect(screen.getByRole('button', { name: 'Opening…' })).toBeDisabled()
+    })
+  })
+
+  describe('the score sheet', () => {
+    it('is not there before a game has finished', () => {
+      mountWith(view())
+      expect(screen.queryByRole('table', { name: 'Score sheet' })).toBeNull()
+    })
+
+    it('marks each game’s winner, a draw for neither, and totals the wins', () => {
+      mountWith(
+        view({
+          scoreSheet: [
+            { winner: 'alice', ending: 'checkmate' },
+            { ending: 'stalemate' },
+            { winner: 'bob', ending: 'resignation' },
+            { winner: 'alice', ending: 'timeout' }
+          ]
+        })
+      )
+      const sheet = screen.getByRole('table', { name: 'Score sheet' })
+      const rows = within(sheet).getAllByRole('row').map(row => row.textContent)
+      expect(rows).toEqual(['#youbob', '11—', '2draw', '3—1', '41—', 'Total21'])
+    })
+
+    it('pages the last five games and totals them all', () => {
+      const won = (winner: string) => ({ winner, ending: 'checkmate' as const })
+      mountWith(view({ scoreSheet: [won('alice'), won('alice'), won('bob'), won('alice'), won('bob'), won('bob'), won('alice')] }))
+      const rows = within(screen.getByRole('table', { name: 'Score sheet' }))
+        .getAllByRole('row')
+        .map(row => row.textContent)
+      expect(rows).toEqual(['#youbob', '3—1', '41—', '5—1', '6—1', '71—', 'Total43'])
     })
   })
 })

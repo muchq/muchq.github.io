@@ -11,8 +11,8 @@ export interface ChessTableActions {
   // Seconds; absent is the hub's default.
   startTable: (clock?: ChessMovePayloads['startGame']) => void
   leaveTable: () => void
-  // Another table, from the one that just ended: a create, since the
-  // finished game is already gone from the hub.
+  // Another game: the table's next, on its clock, while it is open; a new
+  // table once it has closed.
   playAgain: () => void
   play: (uci: string) => void
   resign: () => void
@@ -22,7 +22,7 @@ export interface UseChessTable extends ChessTableActions {
   createTable: () => void
   joinTable: (gameId: string) => void
   view: ChessView | null
-  // A table has been asked for and not yet arrived.
+  // Another game has been asked for and not yet arrived.
   opening: boolean
   handleUpdate: (update: ChessUpdate) => void
   handleRejected: () => void
@@ -55,6 +55,7 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
       }
       if (update.gameState) {
         setView(update.gameState.view)
+        setOpening(false)
         return
       }
       if (update.gameCreated) {
@@ -71,18 +72,24 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
   )
 
   const createTable = useCallback(() => move('createGame'), [move])
+  // Either way held until the hub answers: the next game's view, or the
+  // new table's.
   const playAgain = useCallback(() => {
     setOpening(true)
+    if (view?.phase === 'ended' && view.clock !== undefined) {
+      move('startGame', { initialSeconds: view.clock.initialMs / 1000, incrementSeconds: view.clock.incrementMs / 1000 })
+      return
+    }
     move('createGame')
-  }, [move])
+  }, [move, view])
   const joinTable = useCallback((gameId: string) => move('joinGame', { gameId }), [move])
   const startTable = useCallback((clock: ChessMovePayloads['startGame'] = {}) => move('startGame', clock), [move])
   const leaveTable = useCallback(() => {
-    if (view !== null && view.phase !== 'ended') {
+    if (view !== null && view.phase !== 'closed') {
       move('leaveGame')
       return
     }
-    // An ended table is already gone from the hub: only the view lingers.
+    // A closed table is already gone from the hub: only the view lingers.
     clear()
     onLeft?.()
   }, [clear, move, onLeft, view])

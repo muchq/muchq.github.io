@@ -228,3 +228,63 @@
   font-size: 1.15rem;
   color: #f0c96a;
 }
+
+/* The header, and the score sheet beside it once there is one. */
+.top {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+/* The score sheet: rummy's notepad, ruled like paper and written in a
+   hand, set at the side of the table rather than pinned over a felt. */
+.notepad {
+  flex: none;
+  width: max-content;
+  padding: 0.4rem 0.6rem 0.5rem 1.3rem;
+  border-radius: 2px;
+  background-color: #fdf8e2;
+  background-image:
+    linear-gradient(to right, transparent 0.95rem, rgba(214, 69, 65, 0.55) 0.95rem, rgba(214, 69, 65, 0.55) calc(0.95rem + 1px), transparent calc(0.95rem + 1px)),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 1.2rem, rgba(80, 120, 190, 0.28) 1.2rem, rgba(80, 120, 190, 0.28) calc(1.2rem + 1px));
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+  transform: rotate(-1.5deg);
+  color: #2a2a33;
+  font-family: 'Bradley Hand', 'Segoe Print', 'Comic Sans MS', cursive;
+  font-size: 0.8rem;
+  line-height: 1.2rem;
+}
+
+.notepadSheet {
+  border-collapse: collapse;
+}
+
+.notepadSheet th,
+.notepadSheet td {
+  padding: 0 0.35rem;
+  text-align: right;
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+.notepadName {
+  display: inline-block;
+  max-width: 4.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  font-weight: 700;
+}
+
+.notepadSheet tfoot td,
+.notepadSheet tfoot th {
+  border-top: 2px solid #2a2a33;
+  font-weight: 700;
+}
+
+.notepadSheet td.notepadDraw {
+  text-align: center;
+  font-style: italic;
+  opacity: 0.7;
+}

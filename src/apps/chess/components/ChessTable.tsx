@@ -4,6 +4,7 @@ import felt from '@/apps/castle/components/CastleTable.module.css'
 import type { ChessColor, ChessView } from '../wire'
 import { describeMove, describeResult, formatClock, glyph, lastMoveSquares, movesTo, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
 import styles from './ChessTable.module.css'
+import ScoreSheet from './ScoreSheet'
 
 // The board from the viewer's chair: their side at the bottom, the
 // opponent's clock above it and their own below. A tap on a piece offers
@@ -90,7 +91,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   })
   // The game's end is where the next thing to do is: another game.
   useEffect(() => {
-    if (view.phase === 'ended') playAgainRef.current?.focus()
+    if (view.phase === 'ended' || view.phase === 'closed') playAgainRef.current?.focus()
   }, [view.phase])
 
   const targetNote = useId()
@@ -140,6 +141,12 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const status = (() => {
     if (view.phase === 'waiting') return view.players.length < 2 ? 'Waiting for a second seat.' : 'Pick a clock and start.'
     if (view.phase === 'ended') return view.result === undefined ? '' : describeResult(view.result, playerId)
+    if (view.phase === 'closed') {
+      // A leave mid-game is that game's result; between games, the news.
+      if (view.result?.ending === 'abandoned') return describeResult(view.result, playerId)
+      const left = view.players.find(player => player.playerId !== playerId)
+      return `${left?.playerId ?? 'Your opponent'} left the table.`
+    }
     if (pendingPromotion !== null) return 'Choose a piece to promote to.'
     if (!myTurn) return `${view.currentPlayerId ?? ''} to move.`
     // The move just made is the opponent's: say it, since the board only
@@ -154,21 +161,24 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
 
   return (
     <div className={styles.table} data-phase={view.phase}>
-      <div className={felt.tableHeader}>
-        <h1 ref={headingRef} tabIndex={-1} className={felt.title}>
-          Chess {view.gameId}
-          {view.variant === 'kpk' && <span className={styles.variant}> · king and pawn</span>}
-        </h1>
-        <p className={felt.hint} role="status" data-testid="chess-status">
-          {status}
-        </p>
-        {/* Leaving a game in play forfeits it: Resign is that, and it asks
-            first. Before the start, leaving costs nothing. */}
-        {view.phase === 'waiting' && (
-          <button type="button" className={felt.link} onClick={table.leaveTable} disabled={!connected}>
-            Leave table
-          </button>
-        )}
+      <div className={styles.top}>
+        <div className={felt.tableHeader}>
+          <h1 ref={headingRef} tabIndex={-1} className={felt.title}>
+            Chess {view.gameId}
+            {view.variant === 'kpk' && <span className={styles.variant}> · king and pawn</span>}
+          </h1>
+          <p className={felt.hint} role="status" data-testid="chess-status">
+            {status}
+          </p>
+          {/* Leaving a game in play forfeits it: Resign is that, and it asks
+              first. Before the start, leaving costs nothing. */}
+          {view.phase === 'waiting' && (
+            <button type="button" className={felt.link} onClick={table.leaveTable} disabled={!connected}>
+              Leave table
+            </button>
+          )}
+        </div>
+        <ScoreSheet view={view} playerId={playerId} />
       </div>
 
       {view.phase === 'waiting' ? (
@@ -319,17 +329,19 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
             </div>
           )}
 
-          {view.phase === 'ended' && (
+          {(view.phase === 'ended' || view.phase === 'closed') && (
             <div className={styles.ending}>
               <p className={styles.result} aria-hidden="true">
                 {status}
               </p>
+              {/* Between games the table is still both seats': the next game
+                  is played here. Once a seat has left, another table. */}
               <div className={styles.actions}>
                 <button ref={playAgainRef} type="button" className={felt.primary} onClick={table.playAgain} disabled={!connected || opening}>
-                  {opening ? 'Opening…' : 'Play again'}
+                  {opening ? 'Opening…' : view.phase === 'ended' ? 'Next game' : 'Play again'}
                 </button>
                 <button type="button" className={felt.secondary} onClick={table.leaveTable}>
-                  Back to the room
+                  {view.phase === 'ended' ? 'Leave table' : 'Back to the room'}
                 </button>
               </div>
             </div>

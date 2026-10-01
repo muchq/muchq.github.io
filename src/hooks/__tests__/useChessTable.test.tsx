@@ -60,16 +60,20 @@ describe('useChessTable', () => {
     expect(move.mock.calls).toEqual([['play', { uci: 'e7e8q' }], ['resign']])
   })
 
-  it('leaving a game in play asks the hub; leaving an ended one only clears', () => {
+  // A table outlives its games: leaving one in play or between games asks
+  // the hub; only a closed table is gone already.
+  it('leaving a table asks the hub; leaving a closed one only clears', () => {
     const { result, receive, move, onLeft } = mount()
     receive({ gameJoined: { view: view() } })
     act(() => result.current.leaveTable())
-    expect(move.mock.calls).toEqual([['leaveGame']])
-    expect(result.current.view).not.toBeNull()
-
     receive({ gameState: { view: view({ phase: 'ended' }) } })
     act(() => result.current.leaveTable())
-    expect(move.mock.calls).toHaveLength(1)
+    expect(move.mock.calls).toEqual([['leaveGame'], ['leaveGame']])
+    expect(result.current.view).not.toBeNull()
+
+    receive({ gameState: { view: view({ phase: 'closed' }) } })
+    act(() => result.current.leaveTable())
+    expect(move.mock.calls).toHaveLength(2)
     expect(result.current.view).toBeNull()
     expect(onLeft).toHaveBeenCalledTimes(1)
   })
@@ -82,8 +86,20 @@ describe('useChessTable', () => {
     expect(onLeft).toHaveBeenCalledTimes(1)
   })
 
-  it('play again opens a table, and a refusal lets it be asked again', () => {
-    const { result, move } = mount()
+  it('play again at an open table is its next game, on the same clock', () => {
+    const { result, receive, move } = mount()
+    receive({ gameState: { view: view({ phase: 'ended' }) } })
+    act(() => result.current.playAgain())
+    expect(move.mock.calls).toEqual([['startGame', { initialSeconds: 180, incrementSeconds: 2 }]])
+    // Held until the next game's view arrives, so a second tap cannot ask twice.
+    expect(result.current.opening).toBe(true)
+    receive({ gameState: { view: view() } })
+    expect(result.current.opening).toBe(false)
+  })
+
+  it('play again from a closed table opens another, and a refusal lets it be asked again', () => {
+    const { result, receive, move } = mount()
+    receive({ gameState: { view: view({ phase: 'closed' }) } })
     act(() => result.current.playAgain())
     expect(result.current.opening).toBe(true)
     expect(move.mock.calls).toEqual([['createGame']])
