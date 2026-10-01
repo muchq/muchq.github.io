@@ -288,3 +288,24 @@
   font-style: italic;
   opacity: 0.7;
 }
+
+/* A drag: the viewer's movable pieces take the touch, so the page does not
+   scroll under it; the piece rides the pointer over the page, a size up,
+   and its square holds a faint copy until it lands. */
+.square[data-grab='true'] {
+  touch-action: none;
+  cursor: grab;
+}
+
+.square[data-dragging='true'] > span:last-child {
+  opacity: 0.3;
+}
+
+.ghost {
+  position: fixed;
+  z-index: 1000;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  cursor: grabbing;
+}

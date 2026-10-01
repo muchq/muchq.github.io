@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
+import { createPortal } from 'react-dom'
 import type { ChessTableActions } from '@/hooks/useChessTable'
 import felt from '@/apps/castle/components/CastleTable.module.css'
 import type { ChessColor, ChessView } from '../wire'
@@ -36,6 +38,9 @@ const PROMOTIONS: Array<{ letter: string; name: string }> = [
 
 // How often a running clock repaints: fine enough for its tenths.
 const TICK_MS = 100
+
+// How far a press travels before it is a drag rather than a tap.
+const DRAG_SLOP_PX = 6
 
 const colorOfPiece = (piece: string): ChessColor => (piece === piece.toUpperCase() ? 'white' : 'black')
 const other = (color: ChessColor): ChessColor => (color === 'white' ? 'black' : 'white')
@@ -115,22 +120,80 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   // The king of the side to move — or, once mated, of the side that was.
   const checkedKing = view.inCheck ? (view.fen?.split(' ')[1] === 'b' ? 'k' : 'K') : null
 
+  // The move from `start` to `square`: played, or the promotion asked.
+  const land = (start: string, square: string) => {
+    const moves = movesTo(view.legalMoves, start, square)
+    setPicked(null)
+    if (moves.length === 1) table.play(moves[0])
+    else setPromoting({ view, from: start, moves })
+  }
+
   const tap = (square: string) => {
+    // The click a release fires after a drag is the drag's, already done.
+    if (dragged.current) {
+      dragged.current = false
+      return
+    }
     if (!myTurn || !connected) return
     // A tap on the board is a new gesture: a promotion still asking is
     // abandoned, never left up to send a second move for this turn.
     setPromoting(null)
     if (from !== null && targets.includes(square)) {
-      const moves = movesTo(view.legalMoves, from, square)
-      setPicked(null)
-      if (moves.length === 1) table.play(moves[0])
-      else setPromoting({ view, from, moves })
+      land(from, square)
       return
     }
     // Another of the viewer's pieces with a move picks it up; anything
     // else lets go.
     const movable = targetsFrom(view.legalMoves, square).length > 0
     setPicked(movable && square !== from ? { view, square } : null)
+  }
+
+  // A drag: a press on a piece with moves that travels past the slop. The
+  // piece follows the pointer and its squares show; the release lands it on
+  // the square under the pointer — not the event's target, which for a
+  // touch stays the square the press began on. A drop anywhere else leaves
+  // the piece picked up, for a tap to finish.
+  const press = useRef<{ id: number; square: string; x: number; y: number; moving: boolean } | null>(null)
+  const dragged = useRef(false)
+  const [ghost, setGhost] = useState<{ piece: string; x: number; y: number; size: number } | null>(null)
+  const squareAt = (x: number, y: number) =>
+    document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-square]')?.dataset.square ?? null
+
+  const onPointerDown = (event: ReactPointerEvent, square: string) => {
+    dragged.current = false
+    if (!myTurn || !connected || event.button !== 0) return
+    if (targetsFrom(view.legalMoves, square).length === 0) return
+    press.current = { id: event.pointerId, square, x: event.clientX, y: event.clientY, moving: false }
+  }
+  const onPointerMove = (event: ReactPointerEvent) => {
+    const held = press.current
+    if (held === null || held.id !== event.pointerId) return
+    if (!held.moving && Math.hypot(event.clientX - held.x, event.clientY - held.y) < DRAG_SLOP_PX) return
+    if (!held.moving) {
+      held.moving = true
+      setPromoting(null)
+      setPicked({ view, square: held.square })
+      // Past the slop, not on the press: captured at once, a tap's click
+      // would land on the board rather than its square.
+      boardRef.current?.setPointerCapture?.(event.pointerId)
+    }
+    // A size up from the board's own pieces, which are 9% of its width.
+    const width = boardRef.current?.getBoundingClientRect().width ?? 0
+    setGhost({ piece: board.get(held.square) ?? '', x: event.clientX, y: event.clientY, size: width * 0.11 })
+  }
+  const onPointerUp = (event: ReactPointerEvent) => {
+    const held = press.current
+    if (held === null || held.id !== event.pointerId) return
+    press.current = null
+    setGhost(null)
+    if (!held.moving) return
+    dragged.current = true
+    const square = squareAt(event.clientX, event.clientY)
+    if (square !== null && targetsFrom(view.legalMoves, held.square).includes(square)) land(held.square, square)
+  }
+  const onPointerCancel = () => {
+    press.current = null
+    setGhost(null)
   }
 
   const cancelPromotion = () => {
@@ -213,13 +276,22 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
           <span id={targetNote} className={felt.srOnly}>
             a move
           </span>
-          <div ref={boardRef} className={styles.board} role="group" aria-label="board">
+          <div
+            ref={boardRef}
+            className={styles.board}
+            role="group"
+            aria-label="board"
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerCancel}
+          >
             {squares.map((square, index) => {
               const piece = board.get(square)
               const mine = piece !== undefined && colorOfPiece(piece) === myColor
               // a1 dark: a square is dark where its file and rank index sum even.
               const light = (square.charCodeAt(0) - 97 + Number(square[1])) % 2 === 0
               const target = targets.includes(square)
+              const grab = mine && myTurn && connected && targetsFrom(view.legalMoves, square).length > 0
               return (
                 <button
                   key={square}
@@ -233,6 +305,9 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                   aria-describedby={target ? targetNote : undefined}
                   data-last={last.includes(square) ? 'true' : undefined}
                   data-check={piece !== undefined && piece === checkedKing ? 'true' : undefined}
+                  data-grab={grab ? 'true' : undefined}
+                  data-dragging={ghost !== null && from === square ? 'true' : undefined}
+                  onPointerDown={event => onPointerDown(event, square)}
                   onClick={() => tap(square)}
                 >
                   {index % 8 === 0 && (
@@ -255,6 +330,20 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
             })}
           </div>
           {me?.color !== undefined && <ClockRow view={view} seatId={me.playerId} color={me.color} you />}
+          {/* On the page, not the board: the board clips its overflow, and a
+              captured drag may stray past its edge. */}
+          {ghost !== null &&
+            createPortal(
+              <span
+                className={`${styles.ghost} ${colorOfPiece(ghost.piece) === 'white' ? styles.whitePiece : styles.blackPiece}`}
+                style={{ left: ghost.x, top: ghost.y, fontSize: ghost.size }}
+                aria-hidden="true"
+                data-testid="drag-ghost"
+              >
+                {glyph(ghost.piece)}
+              </span>,
+              document.body
+            )}
 
           {pendingPromotion !== null && (
             <div
