@@ -91,6 +91,9 @@ describe('useChessTable', () => {
     receive({ gameState: { view: view({ phase: 'ended' }) } })
     act(() => result.current.playAgain())
     expect(move.mock.calls).toEqual([['startGame', { initialSeconds: 180, incrementSeconds: 2 }]])
+    // Held until the next game's view arrives, so a second tap cannot ask twice.
+    expect(result.current.opening).toBe(true)
+    receive({ gameState: { view: view() } })
     expect(result.current.opening).toBe(false)
   })
 

@@ -394,5 +394,14 @@ describe('ChessTable', () => {
       const rows = within(sheet).getAllByRole('row').map(row => row.textContent)
       expect(rows).toEqual(['#youbob', '11—', '2draw', '3—1', '41—', 'Total21'])
     })
+
+    it('pages the last five games and totals them all', () => {
+      const won = (winner: string) => ({ winner, ending: 'checkmate' as const })
+      mountWith(view({ scoreSheet: [won('alice'), won('alice'), won('bob'), won('alice'), won('bob'), won('bob'), won('alice')] }))
+      const rows = within(screen.getByRole('table', { name: 'Score sheet' }))
+        .getAllByRole('row')
+        .map(row => row.textContent)
+      expect(rows).toEqual(['#youbob', '3—1', '41—', '5—1', '6—1', '71—', 'Total43'])
+    })
   })
 })

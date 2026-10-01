@@ -22,7 +22,7 @@ export interface UseChessTable extends ChessTableActions {
   createTable: () => void
   joinTable: (gameId: string) => void
   view: ChessView | null
-  // A table has been asked for and not yet arrived.
+  // Another game has been asked for and not yet arrived.
   opening: boolean
   handleUpdate: (update: ChessUpdate) => void
   handleRejected: () => void
@@ -55,6 +55,7 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
       }
       if (update.gameState) {
         setView(update.gameState.view)
+        setOpening(false)
         return
       }
       if (update.gameCreated) {
@@ -71,12 +72,14 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
   )
 
   const createTable = useCallback(() => move('createGame'), [move])
+  // Either way held until the hub answers: the next game's view, or the
+  // new table's.
   const playAgain = useCallback(() => {
+    setOpening(true)
     if (view?.phase === 'ended' && view.clock !== undefined) {
       move('startGame', { initialSeconds: view.clock.initialMs / 1000, incrementSeconds: view.clock.incrementMs / 1000 })
       return
     }
-    setOpening(true)
     move('createGame')
   }, [move, view])
   const joinTable = useCallback((gameId: string) => move('joinGame', { gameId }), [move])
