@@ -140,3 +140,22 @@
     border-top-right-radius: 0.75rem;
   }
 }
+
+/* The new-table picker: the game and its button on one line, the button
+   taking what the select leaves. */
+.picker {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.picker select {
+  min-width: 0;
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.4rem;
+  font: inherit;
+}
+
+.picker button {
+  flex: 1;
+}

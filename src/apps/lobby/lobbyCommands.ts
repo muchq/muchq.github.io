@@ -1,6 +1,7 @@
 import type { UseLobby } from '@/hooks/useLobby'
 import { lobbyRoomPath } from '@/hooks/useLobby'
 import type { Command } from '@/utils/commandRegistry'
+import { CATALOG } from './catalog'
 import { atTable, seatsOf, tableFor, tableOffer } from './offers'
 
 // What the page around the lobby does for these entries: the panel and
@@ -55,10 +56,10 @@ export function lobbyCommands(lobby: UseLobby, ui: LobbyUi): Command[] {
         }
       }
       if (!atTable(room, playerId)) {
-        commands.push({ id: 'open-castle', label: 'Open a castle table', run: lobby.castle.createTable })
-        commands.push({ id: 'open-golf', label: 'Open a golf table', run: lobby.golf.createTable })
-        commands.push({ id: 'open-rummy', label: 'Open a rummy table', run: lobby.rummy.createTable })
-        commands.push({ id: 'open-chess', label: 'Open a chess table', run: lobby.chess.createTable })
+        // The menu is searched, so it lists every game where the panel picks one.
+        for (const { game } of CATALOG) {
+          commands.push({ id: `open-${game}`, label: `Open a ${game} table`, run: tableFor(lobby, game).createTable })
+        }
         for (const table of room.games) {
           if (!tableOffer(table).open) continue
           const game = table.game ?? 'golf'

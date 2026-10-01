@@ -75,8 +75,6 @@ describe('LobbyPanel', () => {
     expect(players.getByText('free · 0/0 won')).toBeTruthy()
     expect(players.getByText('at castle G1 · 1/3 won')).toBeTruthy()
     expect(players.getByText('away · 0/0 won')).toBeTruthy()
-    expect(screen.getByText(/Shed every card first/)).toBeTruthy()
-    expect(screen.getByText(/Lowest hand wins/)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Join castle G1' }))
     expect(hook.castle.joinTable).toHaveBeenCalledWith('G1')
@@ -88,27 +86,12 @@ describe('LobbyPanel', () => {
     expect(hook.rummy.joinTable).toHaveBeenCalledWith('M1')
     expect(hook.castle.joinTable).toHaveBeenCalledTimes(1)
     expect(hook.golf.joinTable).toHaveBeenCalledTimes(1)
-    expect(screen.getByText(/First to empty their hand wins/)).toBeTruthy()
-
-    const openCastle = screen.getByRole('button', { name: 'Open a castle table' })
-    const openGolf = screen.getByRole('button', { name: 'Open a golf table' })
-    // The same offer for either game: whichever the room plays, the
-    // button for it looks the same.
-    expect(openGolf.className).toBe(openCastle.className)
-    fireEvent.click(openCastle)
-    expect(hook.castle.createTable).toHaveBeenCalled()
-    fireEvent.click(openGolf)
-    expect(hook.golf.createTable).toHaveBeenCalled()
-    const openRummy = screen.getByRole('button', { name: 'Open a rummy table' })
-    expect(openRummy.className).toBe(openCastle.className)
-    fireEvent.click(openRummy)
-    expect(hook.rummy.createTable).toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Leave room' }))
     expect(hook.leaveRoom).toHaveBeenCalled()
   })
 
   // Chess seats two, where every other game seats four.
-  it('a chess table reads its own seats, is full at two, and opens from its own button', () => {
+  it('a chess table reads its own seats and is full at two', () => {
     const hook = lobby({
       room: room({
         games: [
@@ -122,8 +105,37 @@ describe('LobbyPanel', () => {
     expect(screen.getByRole('button', { name: 'Full chess K2' })).toHaveProperty('disabled', true)
     fireEvent.click(screen.getByRole('button', { name: 'Join chess K1' }))
     expect(hook.chess.joinTable).toHaveBeenCalledWith('K1')
-    fireEvent.click(screen.getByRole('button', { name: 'Open a chess table' }))
-    expect(hook.chess.createTable).toHaveBeenCalled()
+  })
+
+  // One picker and one button however many games there are: the games
+  // grouped by family, and the chosen one described under it.
+  it('opens a table of whichever game is picked, and says what that game is', () => {
+    const hook = lobby({ room: room() })
+    render(<LobbyPanel lobby={hook} />)
+    const picker = screen.getByRole('combobox', { name: 'Game' })
+    expect(within(picker).getAllByRole('group').map(group => group.getAttribute('label'))).toEqual(['Cards', 'Board'])
+    expect(within(picker).getAllByRole('option').map(option => option.textContent)).toEqual(['Castle', 'Golf', 'Rummy', 'Chess'])
+    expect(screen.getAllByRole('button', { name: /^Open a .* table$/ })).toHaveLength(1)
+
+    expect(screen.getByText(/Shed every card first/)).toBeTruthy()
+    expect(screen.getByText('2–4 players')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Open a castle table' }))
+    expect(hook.castle.createTable).toHaveBeenCalledTimes(1)
+
+    for (const [game, blurb] of [
+      ['golf', /Lowest hand wins/],
+      ['rummy', /First to empty their hand wins/],
+      ['chess', /King and pawn against king/]
+    ] as const) {
+      fireEvent.change(picker, { target: { value: game } })
+      expect(screen.getByText(blurb)).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: `Open a ${game} table` }))
+      expect(hook[game].createTable).toHaveBeenCalledTimes(1)
+    }
+    expect(screen.getByText('2 players')).toBeTruthy()
+    fireEvent.change(picker, { target: { value: 'rummy' } })
+    expect(screen.getByText('2–4 players · 7-card, 10-card or gin, chosen at the table')).toBeTruthy()
+    expect(hook.castle.createTable).toHaveBeenCalledTimes(1)
   })
 
   it('a member already at a table is offered no other', () => {
@@ -131,9 +143,6 @@ describe('LobbyPanel', () => {
     seated.players[0] = { ...seated.players[0], table: { game: 'castle', gameId: 'G1' } }
     render(<LobbyPanel lobby={lobby({ room: seated })} />)
     expect(screen.getByRole('button', { name: 'Open a castle table' })).toHaveProperty('disabled', true)
-    expect(screen.getByRole('button', { name: 'Open a golf table' })).toHaveProperty('disabled', true)
-    expect(screen.getByRole('button', { name: 'Open a rummy table' })).toHaveProperty('disabled', true)
-    expect(screen.getByRole('button', { name: 'Open a chess table' })).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: 'Join castle G1' })).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: 'Join golf G4' })).toHaveProperty('disabled', true)
   })

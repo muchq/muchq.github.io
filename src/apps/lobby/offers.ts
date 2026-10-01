@@ -1,14 +1,11 @@
 import type { UseLobby } from '@/hooks/useLobby'
 import type { HubGameName, HubGameSummary, HubRoom } from '@/utils/hubStream'
+import { seatsOf } from './catalog'
+
+export { seatsOf }
 
 // What the lobby offers and when, read the same way by the panel's
 // buttons and the command menu's entries.
-
-// Chess seats two; every other game, four. A summary from before the
-// game was named is golf's.
-export function seatsOf(game: HubGameName | undefined): number {
-  return game === 'chess' ? 2 : 4
-}
 
 // How a table reads: open to join, or why not.
 export function tableOffer(table: HubGameSummary): { label: string; open: boolean } {

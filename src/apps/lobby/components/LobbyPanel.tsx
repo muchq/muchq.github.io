@@ -1,9 +1,10 @@
-import { useSyncExternalStore, type Ref } from 'react'
+import { useState, useSyncExternalStore, type Ref } from 'react'
 import PermalinkDisplay from './PermalinkDisplay'
 import type { UseLobby } from '@/hooks/useLobby'
 import { lobbyRoomPath } from '@/hooks/useLobby'
 import type { HubRoomPlayer } from '@/utils/hubStream'
 import type { VoiceMesh, VoiceView } from '@/utils/voiceMesh'
+import { CATALOG, FAMILIES, catalogEntry, seatsLine } from '../catalog'
 import { atTable, seatsOf, tableFor, tableOffer } from '../offers'
 import styles from './LobbyPanel.module.css'
 
@@ -19,11 +20,34 @@ const presence = (player: HubRoomPlayer): string => {
 // The room's running record, kept by the hub across its tables.
 const record = (player: HubRoomPlayer): string => `${player.gamesWon}/${player.gamesPlayed} won`
 
-const GAME_BLURB = {
-  castle: 'Shed every card first. 2s reset the deck, 10s clear it, four of a kind counts as a 10.',
-  golf: 'Lowest hand wins. Peek at two, then draw and swap; knock to call the last round.',
-  rummy: 'Draw, lay down sets and runs, discard. First to empty their hand wins.',
-  chess: 'King and pawn against king, from a random position, on the clock. Promote and mate, or hold the draw.'
+// A new table: one picker of every game, grouped by family, one button
+// that opens the picked one, and what that game is and who it seats. A
+// game more is an entry in the catalog, never a button more here.
+const NewTable = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean }) => {
+  const [game, setGame] = useState(CATALOG[0].game)
+  const entry = catalogEntry(game)
+  return (
+    <div className={styles.stack}>
+      <div className={styles.picker}>
+        <select aria-label="Game" value={game} onChange={event => setGame(catalogEntry(event.target.value as typeof game).game)} disabled={disabled}>
+          {FAMILIES.map(family => (
+            <optgroup key={family} label={family}>
+              {CATALOG.filter(option => option.family === family).map(option => (
+                <option key={option.game} value={option.game}>
+                  {option.label}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        <button type="button" className={styles.primary} onClick={tableFor(lobby, game).createTable} disabled={disabled}>
+          Open a {game} table
+        </button>
+      </div>
+      <p className={styles.muted}>{entry.blurb}</p>
+      <p className={styles.muted}>{seatsLine(entry)}</p>
+    </div>
+  )
 }
 
 // The command menu has no button of its own: this is where it is told.
@@ -169,26 +193,7 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
             })}
           </ul>
         )}
-        {/* One offer per game, and the room hosts them all: none is the
-            house game, so none is the louder button. */}
-        <div className={styles.stack}>
-          <button type="button" className={styles.primary} onClick={lobby.castle.createTable} disabled={!connected || busy}>
-            Open a castle table
-          </button>
-          <p className={styles.muted}>{GAME_BLURB.castle}</p>
-          <button type="button" className={styles.primary} onClick={lobby.golf.createTable} disabled={!connected || busy}>
-            Open a golf table
-          </button>
-          <p className={styles.muted}>{GAME_BLURB.golf}</p>
-          <button type="button" className={styles.primary} onClick={lobby.rummy.createTable} disabled={!connected || busy}>
-            Open a rummy table
-          </button>
-          <p className={styles.muted}>{GAME_BLURB.rummy}</p>
-          <button type="button" className={styles.primary} onClick={lobby.chess.createTable} disabled={!connected || busy}>
-            Open a chess table
-          </button>
-          <p className={styles.muted}>{GAME_BLURB.chess}</p>
-        </div>
+        <NewTable lobby={lobby} disabled={!connected || busy} />
       </section>
       {COMMAND_HINT}
     </aside>
