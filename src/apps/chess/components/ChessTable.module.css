@@ -65,6 +65,7 @@
    the squares past a tap. The pieces are sized from the board, not the
    screen, so they always fit their squares. */
 .board {
+  position: relative;
   container-type: inline-size;
   display: grid;
   grid-template-columns: repeat(8, 1fr);
@@ -287,4 +288,26 @@
   text-align: center;
   font-style: italic;
   opacity: 0.7;
+}
+
+/* A drag: the viewer's movable pieces take the touch, so the page does not
+   scroll under it; the piece rides the pointer over the board, a size up,
+   and its square holds a faint copy until it lands. */
+.square[data-grab='true'] {
+  touch-action: none;
+  cursor: grab;
+}
+
+.square[data-dragging='true'] > span:last-child {
+  opacity: 0.3;
+}
+
+.ghost {
+  position: absolute;
+  z-index: 3;
+  font-size: 11cqi;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  cursor: grabbing;
 }

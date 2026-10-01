@@ -68,7 +68,7 @@ over the world (MoonBase#1502); `GolfTable`, `CastleTable` and `RummyTable` (Moo
 are the tables, `useGolfTable`, `useCastleTable` and `useRummyTable` their state over the
 room stream's game envelopes. Castle and rummy share the felt and the card faces
 (`castle/components/Cards.tsx`, `CastleTable.module.css`). `ChessTable` and `useChessTable`
-are chess's: two seats, the board from the viewer's side, the moves the hub lists for the
+are chess's: two seats, the board from the viewer's side (tap a piece then its square, or drag it), the moves the hub lists for the
 side to move (the client holds no rules), the clocks counted down from each view, and a
 score notepad as the table plays on: Next game starts another there, sides swapped. Share links are
 `/games/room/:roomId` and `/games/room/:roomId/table/:gameId`; the old `/golf` and `/castle`
