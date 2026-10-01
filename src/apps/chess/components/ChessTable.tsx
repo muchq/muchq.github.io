@@ -283,101 +283,103 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
           <span id={targetNote} className={felt.srOnly}>
             a move
           </span>
-          <div
-            ref={boardRef}
-            className={styles.board}
-            role="group"
-            aria-label="board"
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerCancel}
-          >
-            {squares.map((square, index) => {
-              const piece = shown.get(square)
-              const mine = piece !== undefined && colorOfPiece(piece) === myColor
-              // a1 dark: a square is dark where its file and rank index sum even.
-              const light = (square.charCodeAt(0) - 97 + Number(square[1])) % 2 === 0
-              const target = targets.includes(square)
-              const grab = mine && myTurn && connected && targetsFrom(view.legalMoves, square).length > 0
-              return (
-                <button
-                  key={square}
-                  type="button"
-                  data-square={square}
-                  className={`${styles.square} ${light ? styles.light : styles.dark} ${target ? styles.target : ''}`}
-                  aria-label={piece === undefined ? square : `${square}, ${pieceName(piece)}`}
-                  aria-pressed={mine ? from === square : undefined}
-                  aria-disabled={!myTurn || !connected ? true : undefined}
-                  data-shade={light ? 'light' : 'dark'}
-                  aria-describedby={target ? targetNote : undefined}
-                  data-last={last.includes(square) ? 'true' : undefined}
-                  data-check={piece !== undefined && piece === checkedKing ? 'true' : undefined}
-                  data-grab={grab ? 'true' : undefined}
-                  data-dragging={ghost !== null && from === square ? 'true' : undefined}
-                  // Under the picker's scrim, out of reach of the keyboard as of the pointer.
-                  inert={pendingPromotion !== null}
-                  onPointerDown={event => onPointerDown(event, square)}
-                  onClick={() => tap(square)}
+          <div className={styles.boardSlot}>
+            <div
+              ref={boardRef}
+              className={styles.board}
+              role="group"
+              aria-label="board"
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerCancel}
+            >
+              {squares.map((square, index) => {
+                const piece = shown.get(square)
+                const mine = piece !== undefined && colorOfPiece(piece) === myColor
+                // a1 dark: a square is dark where its file and rank index sum even.
+                const light = (square.charCodeAt(0) - 97 + Number(square[1])) % 2 === 0
+                const target = targets.includes(square)
+                const grab = mine && myTurn && connected && targetsFrom(view.legalMoves, square).length > 0
+                return (
+                  <button
+                    key={square}
+                    type="button"
+                    data-square={square}
+                    className={`${styles.square} ${light ? styles.light : styles.dark} ${target ? styles.target : ''}`}
+                    aria-label={piece === undefined ? square : `${square}, ${pieceName(piece)}`}
+                    aria-pressed={mine ? from === square : undefined}
+                    aria-disabled={!myTurn || !connected ? true : undefined}
+                    data-shade={light ? 'light' : 'dark'}
+                    aria-describedby={target ? targetNote : undefined}
+                    data-last={last.includes(square) ? 'true' : undefined}
+                    data-check={piece !== undefined && piece === checkedKing ? 'true' : undefined}
+                    data-grab={grab ? 'true' : undefined}
+                    data-dragging={ghost !== null && from === square ? 'true' : undefined}
+                    // Under the picker's scrim, out of reach of the keyboard as of the pointer.
+                    inert={pendingPromotion !== null}
+                    onPointerDown={event => onPointerDown(event, square)}
+                    onClick={() => tap(square)}
+                  >
+                    {index % 8 === 0 && (
+                      <span className={styles.rank} aria-hidden="true" data-testid="coordinate">
+                        {square[1]}
+                      </span>
+                    )}
+                    {index >= 56 && (
+                      <span className={styles.file} aria-hidden="true" data-testid="coordinate">
+                        {square[0]}
+                      </span>
+                    )}
+                    {piece !== undefined && (
+                      <span className={colorOfPiece(piece) === 'white' ? styles.whitePiece : styles.blackPiece} aria-hidden="true">
+                        {glyph(piece)}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+              {/* Lichess's picker: the pieces stacked down the file from the
+                  promotion square, which is always on the viewer's far rank,
+                  over a dimmed board a tap on which lets the pawn go back. */}
+              {pendingPromotion !== null && (
+                <div
+                  className={styles.promotion}
+                  role="group"
+                  aria-label="promote to"
+                  onKeyDown={event => {
+                    if (event.key === 'Escape') {
+                      event.preventDefault()
+                      cancelPromotion()
+                    }
+                  }}
                 >
-                  {index % 8 === 0 && (
-                    <span className={styles.rank} aria-hidden="true" data-testid="coordinate">
-                      {square[1]}
-                    </span>
-                  )}
-                  {index >= 56 && (
-                    <span className={styles.file} aria-hidden="true" data-testid="coordinate">
-                      {square[0]}
-                    </span>
-                  )}
-                  {piece !== undefined && (
-                    <span className={colorOfPiece(piece) === 'white' ? styles.whitePiece : styles.blackPiece} aria-hidden="true">
-                      {glyph(piece)}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-            {/* Lichess's picker: the pieces stacked down the file from the
-                promotion square, which is always on the viewer's far rank,
-                over a dimmed board a tap on which lets the pawn go back. */}
-            {pendingPromotion !== null && (
-              <div
-                className={styles.promotion}
-                role="group"
-                aria-label="promote to"
-                onKeyDown={event => {
-                  if (event.key === 'Escape') {
-                    event.preventDefault()
-                    cancelPromotion()
-                  }
-                }}
-              >
-                <ul className={styles.promotionFile} style={{ left: `${(squares.indexOf(pendingPromotion.to) % 8) * 12.5}%` }}>
-                  {PROMOTIONS.map(({ letter, name }, i) => {
-                    const uci = pendingPromotion.moves.find(move => move.endsWith(letter))
-                    if (uci === undefined) return null
-                    return (
-                      <li key={letter}>
-                        <button
-                          type="button"
-                          className={`${styles.promotionPiece} ${myColor === 'white' ? styles.whitePiece : styles.blackPiece}`}
-                          aria-label={name}
-                          autoFocus={i === 0}
-                          onClick={() => {
-                            refocus.current = { square: uci.slice(2, 4) }
-                            setPromoting(null)
-                            table.play(uci)
-                          }}
-                        >
-                          <span aria-hidden="true">{glyph(myColor === 'white' ? letter.toUpperCase() : letter)}</span>
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-                <button type="button" className={styles.promotionScrim} aria-label="Cancel" onClick={cancelPromotion} />
-              </div>
-            )}
+                  <ul className={styles.promotionFile} style={{ left: `${(squares.indexOf(pendingPromotion.to) % 8) * 12.5}%` }}>
+                    {PROMOTIONS.map(({ letter, name }, i) => {
+                      const uci = pendingPromotion.moves.find(move => move.endsWith(letter))
+                      if (uci === undefined) return null
+                      return (
+                        <li key={letter}>
+                          <button
+                            type="button"
+                            className={`${styles.promotionPiece} ${myColor === 'white' ? styles.whitePiece : styles.blackPiece}`}
+                            aria-label={name}
+                            autoFocus={i === 0}
+                            onClick={() => {
+                              refocus.current = { square: uci.slice(2, 4) }
+                              setPromoting(null)
+                              table.play(uci)
+                            }}
+                          >
+                            <span aria-hidden="true">{glyph(myColor === 'white' ? letter.toUpperCase() : letter)}</span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                  <button type="button" className={styles.promotionScrim} aria-label="Cancel" onClick={cancelPromotion} />
+                </div>
+              )}
+            </div>
           </div>
           {me?.color !== undefined && <ClockRow view={view} seatId={me.playerId} color={me.color} you />}
           {/* On the page, not the board: the board clips its overflow, and a
