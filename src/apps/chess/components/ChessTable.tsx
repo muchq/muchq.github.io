@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
+import { createPortal } from 'react-dom'
 import type { ChessTableActions } from '@/hooks/useChessTable'
 import felt from '@/apps/castle/components/CastleTable.module.css'
 import type { ChessColor, ChessView } from '../wire'
@@ -154,7 +155,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   // the piece picked up, for a tap to finish.
   const press = useRef<{ id: number; square: string; x: number; y: number; moving: boolean } | null>(null)
   const dragged = useRef(false)
-  const [ghost, setGhost] = useState<{ piece: string; x: number; y: number } | null>(null)
+  const [ghost, setGhost] = useState<{ piece: string; x: number; y: number; size: number } | null>(null)
   const squareAt = (x: number, y: number) =>
     document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-square]')?.dataset.square ?? null
 
@@ -172,9 +173,13 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
       held.moving = true
       setPromoting(null)
       setPicked({ view, square: held.square })
+      // Past the slop, not on the press: captured at once, a tap's click
+      // would land on the board rather than its square.
+      boardRef.current?.setPointerCapture?.(event.pointerId)
     }
-    const rect = boardRef.current?.getBoundingClientRect()
-    setGhost({ piece: board.get(held.square) ?? '', x: event.clientX - (rect?.left ?? 0), y: event.clientY - (rect?.top ?? 0) })
+    // A size up from the board's own pieces, which are 9% of its width.
+    const width = boardRef.current?.getBoundingClientRect().width ?? 0
+    setGhost({ piece: board.get(held.square) ?? '', x: event.clientX, y: event.clientY, size: width * 0.11 })
   }
   const onPointerUp = (event: ReactPointerEvent) => {
     const held = press.current
@@ -323,18 +328,22 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                 </button>
               )
             })}
-            {ghost !== null && (
+          </div>
+          {me?.color !== undefined && <ClockRow view={view} seatId={me.playerId} color={me.color} you />}
+          {/* On the page, not the board: the board clips its overflow, and a
+              captured drag may stray past its edge. */}
+          {ghost !== null &&
+            createPortal(
               <span
                 className={`${styles.ghost} ${colorOfPiece(ghost.piece) === 'white' ? styles.whitePiece : styles.blackPiece}`}
-                style={{ left: ghost.x, top: ghost.y }}
+                style={{ left: ghost.x, top: ghost.y, fontSize: ghost.size }}
                 aria-hidden="true"
                 data-testid="drag-ghost"
               >
                 {glyph(ghost.piece)}
-              </span>
+              </span>,
+              document.body
             )}
-          </div>
-          {me?.color !== undefined && <ClockRow view={view} seatId={me.playerId} color={me.color} you />}
 
           {pendingPromotion !== null && (
             <div

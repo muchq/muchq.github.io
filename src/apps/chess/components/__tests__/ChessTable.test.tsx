@@ -265,6 +265,35 @@ describe('ChessTable', () => {
       expect(screen.queryByTestId('drag-ghost')).toBeNull()
     })
 
+    // A mouse is not held by the square it pressed: past the slop the board
+    // takes the pointer, so a release anywhere — off the board, off the
+    // page — still ends the drag.
+    it('once a drag, the board holds the pointer, and a release off it ends the drag', () => {
+      mountWith(view())
+      const board = screen.getByRole('group', { name: 'board' })
+      const capture = vi.fn()
+      board.setPointerCapture = capture
+      fireEvent.pointerDown(square('g6'), { pointerId: 7, clientX: 10, clientY: 10, button: 0 })
+      expect(capture).not.toHaveBeenCalled() // a tap keeps its click
+      fireEvent.pointerMove(square('g6'), { pointerId: 7, clientX: 40, clientY: 40 })
+      expect(capture).toHaveBeenCalledWith(7)
+      // Captured, the release comes to the board wherever it happens.
+      under(null)
+      fireEvent.pointerUp(board, { pointerId: 7, clientX: 900, clientY: 900 })
+      expect(screen.queryByTestId('drag-ghost')).toBeNull()
+      expect(square('g6')).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    it('the dragged piece is drawn outside the board, so its edge cannot clip it', () => {
+      mountWith(view())
+      fireEvent.pointerDown(square('g6'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerMove(square('g6'), { pointerId: 1, clientX: 40, clientY: 40 })
+      const ghost = screen.getByTestId('drag-ghost')
+      expect(screen.getByRole('group', { name: 'board' }).contains(ghost)).toBe(false)
+      expect(ghost.style.left).toBe('40px')
+      expect(ghost.style.top).toBe('40px')
+    })
+
     // A finger never lands still: a press that barely moves is a tap.
     it('a press that wobbles a few pixels is still a tap', () => {
       const { t } = mountWith(view())
