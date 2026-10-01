@@ -140,3 +140,31 @@
     border-top-right-radius: 0.75rem;
   }
 }
+
+/* The new-table picker: the game and its button on one line, the button
+   taking what the select leaves. */
+.picker {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.picker select {
+  min-width: 0;
+  padding: 0.6rem 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.2);
+  color: white;
+  font-size: 1rem;
+}
+
+/* The open list is the platform's: dark text on its own light menu. */
+.picker option,
+.picker optgroup {
+  color: #111;
+}
+
+.picker button {
+  flex: 1;
+}
