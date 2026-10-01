@@ -23,6 +23,8 @@ export interface ChessPlayer {
   playerId: string
   // Absent while waiting.
   color?: ChessColor
+  // A bot's seat, its id naming engine and strength ("stockfish@1500").
+  bot?: boolean
 }
 
 // Each side's time left as of the moment the hub built the view; the
@@ -86,6 +88,8 @@ export interface ChessMovePayloads {
   leaveGame: undefined
   play: { uci: string }
   resign: undefined
+  // Stockfish in the empty second seat, at an Elo of 1320 to 3190.
+  addBot: { elo: number }
 }
 
 export type ChessMoveName = keyof ChessMovePayloads

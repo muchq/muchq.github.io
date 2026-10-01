@@ -16,6 +16,8 @@ export interface ChessTableActions {
   playAgain: () => void
   play: (uci: string) => void
   resign: () => void
+  // Stockfish in the second seat, at an Elo of 1320 to 3190.
+  addBot: (elo: number) => void
 }
 
 export interface UseChessTable extends ChessTableActions {
@@ -95,6 +97,7 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
   }, [clear, move, onLeft, view])
   const play = useCallback((uci: string) => move('play', { uci }), [move])
   const resign = useCallback(() => move('resign'), [move])
+  const addBot = useCallback((elo: number) => move('addBot', { elo }), [move])
 
-  return { view, opening, handleUpdate, handleRejected, clear, createTable, joinTable, startTable, leaveTable, playAgain, play, resign }
+  return { view, opening, handleUpdate, handleRejected, clear, createTable, joinTable, startTable, leaveTable, playAgain, play, resign, addBot }
 }

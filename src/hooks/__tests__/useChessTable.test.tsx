@@ -52,6 +52,12 @@ describe('useChessTable', () => {
     expect(move.mock.calls).toEqual([['startGame', { initialSeconds: 60, incrementSeconds: 1 }]])
   })
 
+  it('a bot is asked for at its strength', () => {
+    const { result, move } = mount()
+    act(() => result.current.addBot(1600))
+    expect(move.mock.calls).toEqual([['addBot', { elo: 1600 }]])
+  })
+
   it('a play and a resignation go out as the hub spells them', () => {
     const { result, receive, move } = mount()
     receive({ gameJoined: { view: view() } })

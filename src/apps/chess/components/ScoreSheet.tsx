@@ -1,3 +1,4 @@
+import { nameOf } from '../rules'
 import type { ChessView } from '../wire'
 import styles from './ChessTable.module.css'
 
@@ -29,8 +30,8 @@ const ScoreSheet = ({ view, playerId }: ScoreSheetProps) => {
           <tr>
             <th scope="col">#</th>
             {columns.map(id => (
-              <th key={id} scope="col" title={id}>
-                <span className={styles.notepadName}>{id === playerId ? 'you' : id}</span>
+              <th key={id} scope="col" title={nameOf(id)}>
+                <span className={styles.notepadName}>{id === playerId ? 'you' : nameOf(id)}</span>
               </th>
             ))}
           </tr>

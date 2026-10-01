@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import type { ChessTableActions } from '@/hooks/useChessTable'
 import felt from '@/apps/castle/components/CastleTable.module.css'
 import type { ChessColor, ChessView } from '../wire'
-import { describeMove, describeResult, formatClock, glyph, lastMoveSquares, movesTo, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
+import { describeMove, describeResult, formatClock, glyph, lastMoveSquares, movesTo, nameOf, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
 import styles from './ChessTable.module.css'
 import ScoreSheet from './ScoreSheet'
 
@@ -28,6 +28,15 @@ const CLOCKS: Record<string, { initialSeconds: number; incrementSeconds: number 
   '5+3': { initialSeconds: 300, incrementSeconds: 3 },
   '10+5': { initialSeconds: 600, incrementSeconds: 5 }
 }
+
+// A bot's strengths, as Elo on Stockfish's scale (1320 to 3190).
+const BOT_STRENGTHS: Array<{ elo: number; name: string }> = [
+  { elo: 1320, name: 'Beginner' },
+  { elo: 1600, name: 'Casual' },
+  { elo: 1900, name: 'Club' },
+  { elo: 2300, name: 'Strong' },
+  { elo: 3190, name: 'Full strength' }
+]
 
 const PROMOTIONS: Array<{ letter: string; name: string }> = [
   { letter: 'q', name: 'Queen' },
@@ -64,9 +73,9 @@ const ClockRow = ({ view, seatId, color, you }: { view: ChessView; seatId: strin
   return (
     <div className={`${styles.clockRow} ${running ? styles.running : ''}`}>
       <span className={styles.clockName}>
-        {you ? `${seatId} (you)` : seatId} · {color}
+        {you ? `${nameOf(seatId)} (you)` : nameOf(seatId)} · {color}
       </span>
-      <span role="timer" aria-label={`${seatId}’s clock`} className={`${styles.clock} ${ms < 10_000 ? styles.low : ''}`}>
+      <span role="timer" aria-label={`${nameOf(seatId)}’s clock`} className={`${styles.clock} ${ms < 10_000 ? styles.low : ''}`}>
         {formatClock(ms)}
       </span>
     </div>
@@ -107,6 +116,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const [promoting, setPromoting] = useState<{ view: ChessView; from: string; to: string; moves: string[] } | null>(null)
   const [confirmResign, setConfirmResign] = useState<ChessView | null>(null)
   const [clockChoice, setClockChoice] = useState('3+2')
+  const [botElo, setBotElo] = useState(BOT_STRENGTHS[1].elo)
 
   const me = view.players.find(player => player.playerId === playerId)
   const myColor: ChessColor = me?.color ?? 'white'
@@ -215,15 +225,15 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
       // A leave mid-game is that game's result; between games, the news.
       if (view.result?.ending === 'abandoned') return describeResult(view.result, playerId)
       const left = view.players.find(player => player.playerId !== playerId)
-      return `${left?.playerId ?? 'Your opponent'} left the table.`
+      return `${left === undefined ? 'Your opponent' : nameOf(left.playerId)} left the table.`
     }
     if (pendingPromotion !== null) return 'Choose a piece to promote to.'
-    if (!myTurn) return `${view.currentPlayerId ?? ''} to move.`
+    if (!myTurn) return `${nameOf(view.currentPlayerId ?? '')} to move.`
     // The move just made is the opponent's: say it, since the board only
     // shows it.
     const lastMove = view.moves[view.moves.length - 1]
     const lastMover = view.sideToMove === undefined ? undefined : view.players.find(player => player.color === other(view.sideToMove!))
-    const played = lastMove !== undefined && lastMover !== undefined ? `${lastMover.playerId} played ${describeMove(lastMove)}. ` : ''
+    const played = lastMove !== undefined && lastMover !== undefined ? `${nameOf(lastMover.playerId)} played ${describeMove(lastMove)}. ` : ''
     return `${played}${view.inCheck ? 'Check. ' : ''}Your move.`
   })()
 
@@ -255,9 +265,24 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
         <div className={styles.waiting}>
           <ul className={styles.seats}>
             {view.players.map(player => (
-              <li key={player.playerId}>{player.playerId === playerId ? `${player.playerId} (you)` : player.playerId}</li>
+              <li key={player.playerId}>{player.playerId === playerId ? `${player.playerId} (you)` : nameOf(player.playerId)}</li>
             ))}
           </ul>
+          {/* Alone at the table, a bot can take the other chair. */}
+          {view.players.length === 1 && (
+            <div className={styles.clockPick}>
+              <select aria-label="Bot strength" value={botElo} onChange={event => setBotElo(Number(event.target.value))}>
+                {BOT_STRENGTHS.map(({ elo, name }) => (
+                  <option key={elo} value={elo}>
+                    {name} ({elo})
+                  </option>
+                ))}
+              </select>
+              <button type="button" className={felt.secondary} onClick={() => table.addBot(botElo)} disabled={!connected}>
+                Add a bot
+              </button>
+            </div>
+          )}
           <label className={styles.clockPick}>
             Clock
             <select value={clockChoice} onChange={event => setClockChoice(event.target.value)}>
