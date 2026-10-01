@@ -5,7 +5,9 @@
 
 export type ChessColor = 'white' | 'black'
 
-export type ChessPhase = 'waiting' | 'playing' | 'ended'
+// ended: a game is over and the table waits on the next; closed: a seat
+// left the table.
+export type ChessPhase = 'waiting' | 'playing' | 'ended' | 'closed'
 
 export type ChessEnding =
   | 'checkmate'
@@ -39,6 +41,12 @@ export interface ChessResult {
   ending: ChessEnding
 }
 
+// One finished game: the winning player, absent for a draw.
+export interface ChessScoreLine {
+  winner?: string
+  ending: ChessEnding
+}
+
 export interface ChessView {
   gameId: string
   phase: ChessPhase
@@ -55,6 +63,8 @@ export interface ChessView {
   legalMoves: string[]
   clock?: ChessClock
   result?: ChessResult
+  // Every game the table finished, in order. Absent from a hub before tables played on.
+  scoreSheet?: ChessScoreLine[]
 }
 
 // The chess update union's JSON encoding: exactly one member present.
