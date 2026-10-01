@@ -104,7 +104,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   // resignation half made — each keyed to the view it was made against,
   // so a new position drops it rather than acting on one that is gone.
   const [picked, setPicked] = useState<{ view: ChessView; square: string } | null>(null)
-  const [promoting, setPromoting] = useState<{ view: ChessView; from: string; moves: string[] } | null>(null)
+  const [promoting, setPromoting] = useState<{ view: ChessView; from: string; to: string; moves: string[] } | null>(null)
   const [confirmResign, setConfirmResign] = useState<ChessView | null>(null)
   const [clockChoice, setClockChoice] = useState('3+2')
 
@@ -116,6 +116,13 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const pendingPromotion = promoting?.view === view ? promoting : null
   const targets = from === null ? [] : targetsFrom(view.legalMoves, from)
   const board = readBoard(view.fen)
+  // A promotion asking shows its pawn already on the last rank, under the
+  // picker, as the board would once it is played.
+  const shown = new Map(board)
+  if (pendingPromotion !== null) {
+    shown.set(pendingPromotion.to, board.get(pendingPromotion.from) ?? '')
+    shown.delete(pendingPromotion.from)
+  }
   const last = lastMoveSquares(view.moves)
   // The king of the side to move — or, once mated, of the side that was.
   const checkedKing = view.inCheck ? (view.fen?.split(' ')[1] === 'b' ? 'k' : 'K') : null
@@ -125,7 +132,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     const moves = movesTo(view.legalMoves, start, square)
     setPicked(null)
     if (moves.length === 1) table.play(moves[0])
-    else setPromoting({ view, from: start, moves })
+    else setPromoting({ view, from: start, to: square, moves })
   }
 
   const tap = (square: string) => {
@@ -286,7 +293,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
             onPointerCancel={onPointerCancel}
           >
             {squares.map((square, index) => {
-              const piece = board.get(square)
+              const piece = shown.get(square)
               const mine = piece !== undefined && colorOfPiece(piece) === myColor
               // a1 dark: a square is dark where its file and rank index sum even.
               const light = (square.charCodeAt(0) - 97 + Number(square[1])) % 2 === 0
@@ -307,6 +314,8 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                   data-check={piece !== undefined && piece === checkedKing ? 'true' : undefined}
                   data-grab={grab ? 'true' : undefined}
                   data-dragging={ghost !== null && from === square ? 'true' : undefined}
+                  // Under the picker's scrim, out of reach of the keyboard as of the pointer.
+                  inert={pendingPromotion !== null}
                   onPointerDown={event => onPointerDown(event, square)}
                   onClick={() => tap(square)}
                 >
@@ -328,6 +337,47 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                 </button>
               )
             })}
+            {/* Lichess's picker: the pieces stacked down the file from the
+                promotion square, which is always on the viewer's far rank,
+                over a dimmed board a tap on which lets the pawn go back. */}
+            {pendingPromotion !== null && (
+              <div
+                className={styles.promotion}
+                role="group"
+                aria-label="promote to"
+                onKeyDown={event => {
+                  if (event.key === 'Escape') {
+                    event.preventDefault()
+                    cancelPromotion()
+                  }
+                }}
+              >
+                <ul className={styles.promotionFile} style={{ left: `${(squares.indexOf(pendingPromotion.to) % 8) * 12.5}%` }}>
+                  {PROMOTIONS.map(({ letter, name }, i) => {
+                    const uci = pendingPromotion.moves.find(move => move.endsWith(letter))
+                    if (uci === undefined) return null
+                    return (
+                      <li key={letter}>
+                        <button
+                          type="button"
+                          className={`${styles.promotionPiece} ${myColor === 'white' ? styles.whitePiece : styles.blackPiece}`}
+                          aria-label={name}
+                          autoFocus={i === 0}
+                          onClick={() => {
+                            refocus.current = { square: uci.slice(2, 4) }
+                            setPromoting(null)
+                            table.play(uci)
+                          }}
+                        >
+                          <span aria-hidden="true">{glyph(myColor === 'white' ? letter.toUpperCase() : letter)}</span>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+                <button type="button" className={styles.promotionScrim} aria-label="Cancel" onClick={cancelPromotion} />
+              </div>
+            )}
           </div>
           {me?.color !== undefined && <ClockRow view={view} seatId={me.playerId} color={me.color} you />}
           {/* On the page, not the board: the board clips its overflow, and a
@@ -344,44 +394,6 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
               </span>,
               document.body
             )}
-
-          {pendingPromotion !== null && (
-            <div
-              className={styles.promotion}
-              role="group"
-              aria-label="promote to"
-              onKeyDown={event => {
-                if (event.key === 'Escape') {
-                  event.preventDefault()
-                  cancelPromotion()
-                }
-              }}
-            >
-              {PROMOTIONS.map(({ letter, name }, i) => {
-                const uci = pendingPromotion.moves.find(move => move.endsWith(letter))
-                if (uci === undefined) return null
-                return (
-                  <button
-                    key={letter}
-                    type="button"
-                    className={felt.secondary}
-                    aria-label={name}
-                    autoFocus={i === 0}
-                    onClick={() => {
-                      refocus.current = { square: uci.slice(2, 4) }
-                      setPromoting(null)
-                      table.play(uci)
-                    }}
-                  >
-                    <span aria-hidden="true">{glyph(myColor === 'white' ? letter.toUpperCase() : letter)}</span> {name}
-                  </button>
-                )
-              })}
-              <button type="button" className={felt.link} onClick={cancelPromotion}>
-                Cancel
-              </button>
-            </div>
-          )}
 
           {view.phase === 'playing' && me !== undefined && (
             <div className={styles.actions}>

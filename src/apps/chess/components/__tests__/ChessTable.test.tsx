@@ -203,6 +203,53 @@ describe('ChessTable', () => {
       expect(t.play).not.toHaveBeenCalled()
     })
 
+    it('a promotion asking shows the pawn on the last rank, the picker over it, and puts it back on cancel', () => {
+      mountWith(view())
+      fireEvent.click(square('e7'))
+      fireEvent.click(square('e8'))
+      expect(square('e7')).toHaveAccessibleName('e7')
+      expect(square('e8')).toHaveAccessibleName('e8, white pawn')
+      const picker = screen.getByRole('group', { name: 'promote to' })
+      // on the board, down the e-file: the fifth column from the left
+      expect(screen.getByRole('group', { name: 'board' })).toContainElement(picker)
+      expect(within(picker).getByRole('list')).toHaveStyle({ left: '50%' })
+      expect(within(picker).getAllByRole('button').map(b => b.getAttribute('aria-label'))).toEqual(['Queen', 'Rook', 'Bishop', 'Knight', 'Cancel'])
+      fireEvent.click(within(picker).getByRole('button', { name: 'Cancel' }))
+      expect(square('e7')).toHaveAccessibleName('e7, white pawn')
+      expect(square('e8')).toHaveAccessibleName('e8')
+    })
+
+    it('a promotion asking takes the squares out of reach, and gives them back once answered', () => {
+      mountWith(view())
+      const cells = () => within(screen.getByRole('group', { name: 'board' })).getAllByRole('button', { name: /^[a-h][1-8]\b/ })
+      fireEvent.click(square('e7'))
+      expect(cells().filter(cell => cell.hasAttribute('inert'))).toHaveLength(0)
+      fireEvent.click(square('e8'))
+      expect(cells().filter(cell => cell.hasAttribute('inert'))).toHaveLength(64)
+      expect(within(screen.getByRole('group', { name: 'promote to' })).getByRole('button', { name: 'Queen' })).not.toHaveAttribute('inert')
+      fireEvent.keyDown(screen.getByRole('group', { name: 'promote to' }), { key: 'Escape' })
+      expect(cells().filter(cell => cell.hasAttribute('inert'))).toHaveLength(0)
+      expect(square('e7')).toHaveFocus()
+    })
+
+    it('for Black, the picker stands on the promotion file as Black sees it', () => {
+      // Black Pe2 against Kh1, bob on turn: e is the fourth column from Black's left.
+      mountWith(
+        view({
+          fen: '7k/8/8/8/8/8/4p3/7K b - - 0 1',
+          sideToMove: 'black',
+          currentPlayerId: 'bob',
+          legalMoves: ['e2e1b', 'e2e1n', 'e2e1q', 'e2e1r', 'h8g8']
+        }),
+        {},
+        'bob'
+      )
+      fireEvent.click(square('e2'))
+      fireEvent.click(square('e1'))
+      expect(square('e1')).toHaveAccessibleName('e1, black pawn')
+      expect(within(screen.getByRole('group', { name: 'promote to' })).getByRole('list')).toHaveStyle({ left: '37.5%' })
+    })
+
     // A move made on the board instead abandons the promotion: the picker
     // must not linger to send a second move for the same turn.
     it('another move on the board drops a pending promotion', () => {

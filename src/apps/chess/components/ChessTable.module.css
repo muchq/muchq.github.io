@@ -65,6 +65,7 @@
    the squares past a tap. The pieces are sized from the board, not the
    screen, so they always fit their squares. */
 .board {
+  position: relative;
   container-type: inline-size;
   display: grid;
   grid-template-columns: repeat(8, 1fr);
@@ -207,7 +208,6 @@
   color: #ff6b5e;
 }
 
-.promotion,
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -308,4 +308,60 @@
   transform: translate(-50%, -50%);
   pointer-events: none;
   cursor: grabbing;
+}
+
+/* The promotion picker, over the board: a scrim that dims it and takes the
+   tap that cancels, and the column of pieces down the promotion file, a
+   square each, from the far rank. */
+.promotion {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.promotionScrim {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: rgba(0, 0, 0, 0.45);
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.promotionFile {
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  width: 12.5%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+}
+
+.promotionPiece {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 20%, #b0b0b0 100%);
+  font-size: 9cqi;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: border-radius 0.1s, background 0.1s;
+}
+
+.promotionPiece:hover,
+.promotionPiece:focus-visible {
+  border-radius: 0;
+  background: radial-gradient(circle, #f0c96a 20%, #c27a1a 100%);
+  outline: none;
 }
