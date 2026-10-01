@@ -52,7 +52,10 @@ export const FAMILIES: readonly GameFamily[] = [...new Set(CATALOG.map(entry => 
 
 // A summary from before the game was named is golf's.
 export function catalogEntry(game: HubGameName | undefined): CatalogEntry {
-  return CATALOG.find(entry => entry.game === (game ?? 'golf')) ?? CATALOG[1]
+  const named = game ?? 'golf'
+  const entry = CATALOG.find(candidate => candidate.game === named)
+  if (entry === undefined) throw new Error(`not in the catalog: ${named}`)
+  return entry
 }
 
 export function seatsOf(game: HubGameName | undefined): number {
