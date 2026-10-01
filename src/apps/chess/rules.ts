@@ -117,9 +117,18 @@ const DRAWN_BY: Record<ChessEnding, string> = {
   abandoned: 'Draw'
 }
 
+// A seat as people read it: a player's id is their name; a bot's
+// ("stockfish@1500") its engine and strength. The id's shape is the hub's
+// bot-naming contract (games_hub chess_bots.h); a new engine extends it here.
+export function nameOf(playerId: string): string {
+  const bot = /^stockfish@(\d+)$/.exec(playerId)
+  return bot === null ? playerId : `Stockfish ${bot[1]}`
+}
+
 export function describeResult(result: ChessResult, playerId: string): string {
   if (result.winner === undefined) return DRAWN_BY[result.ending]
   const mine = result.winner === playerId
-  if (result.ending === 'abandoned') return mine ? 'You won: your opponent left' : `${result.winner} won: their opponent left`
-  return `${mine ? 'You' : result.winner} won ${WON_BY[result.ending]}`
+  const winner = nameOf(result.winner)
+  if (result.ending === 'abandoned') return mine ? 'You won: your opponent left' : `${winner} won: their opponent left`
+  return `${mine ? 'You' : winner} won ${WON_BY[result.ending]}`
 }

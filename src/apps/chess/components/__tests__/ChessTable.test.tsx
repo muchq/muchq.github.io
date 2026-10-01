@@ -51,11 +51,13 @@ const waiting = (over: Partial<ChessView> = {}): ChessView =>
 
 const table = (over: Partial<ChessTableProps['table']> = {}): ChessTableProps['table'] => ({
   opening: false,
+  seating: false,
   startTable: vi.fn(),
   leaveTable: vi.fn(),
   playAgain: vi.fn(),
   play: vi.fn(),
   resign: vi.fn(),
+  addBot: vi.fn(),
   ...over
 })
 
@@ -497,6 +499,49 @@ describe('ChessTable', () => {
       unmount()
       mountWith(waiting(), {}, 'alice', false)
       expect(screen.getByRole('button', { name: 'Start' })).toBeDisabled()
+    })
+  })
+
+  describe('a bot', () => {
+    it('is offered to a player alone at the table, at the strength they pick', () => {
+      const { t } = mountWith(waiting({ players: [{ playerId: 'alice' }] }))
+      const strength = screen.getByRole('combobox', { name: 'Bot strength' })
+      fireEvent.change(strength, { target: { value: '1900' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Add a bot' }))
+      expect(t.addBot).toHaveBeenCalledWith(1900)
+    })
+
+    it('is held while one is being seated, so a double tap asks once', () => {
+      mountWith(waiting({ players: [{ playerId: 'alice' }] }), { seating: true })
+      expect(screen.getByRole('button', { name: 'Add a bot' })).toBeDisabled()
+    })
+
+    it('is not offered once the second seat is taken, or off the hub', () => {
+      const { unmount } = mountWith(waiting())
+      expect(screen.queryByRole('button', { name: 'Add a bot' })).toBeNull()
+      unmount()
+      mountWith(waiting({ players: [{ playerId: 'alice' }] }), {}, 'alice', false)
+      expect(screen.getByRole('button', { name: 'Add a bot' })).toBeDisabled()
+    })
+
+    it('is named for its engine and strength wherever a player is', () => {
+      const { unmount } = mountWith(waiting({ players: [{ playerId: 'alice' }, { playerId: 'stockfish@1500', bot: true }] }))
+      expect(screen.getByText('Stockfish 1500')).toBeInTheDocument()
+      unmount()
+      mountWith(
+        view({
+          players: [
+            { playerId: 'alice', color: 'white' },
+            { playerId: 'stockfish@1500', color: 'black', bot: true }
+          ],
+          sideToMove: 'black',
+          currentPlayerId: 'stockfish@1500',
+          scoreSheet: [{ winner: 'stockfish@1500', ending: 'checkmate' }]
+        })
+      )
+      expect(status()).toHaveTextContent('Stockfish 1500 to move.')
+      expect(screen.getByText(/Stockfish 1500 · black/)).toBeInTheDocument()
+      expect(within(screen.getByRole('table', { name: 'Score sheet' })).getByText('Stockfish 1500')).toBeInTheDocument()
     })
   })
 

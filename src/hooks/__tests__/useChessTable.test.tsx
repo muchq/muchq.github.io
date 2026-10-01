@@ -52,6 +52,12 @@ describe('useChessTable', () => {
     expect(move.mock.calls).toEqual([['startGame', { initialSeconds: 60, incrementSeconds: 1 }]])
   })
 
+  it('a bot is asked for at its strength', () => {
+    const { result, move } = mount()
+    act(() => result.current.addBot(1600))
+    expect(move.mock.calls).toEqual([['addBot', { elo: 1600 }]])
+  })
+
   it('a play and a resignation go out as the hub spells them', () => {
     const { result, receive, move } = mount()
     receive({ gameJoined: { view: view() } })
@@ -105,6 +111,18 @@ describe('useChessTable', () => {
     expect(move.mock.calls).toEqual([['createGame']])
     act(() => result.current.handleRejected())
     expect(result.current.opening).toBe(false)
+  })
+
+  it('holds a bot asked for until its seat arrives, or the hub refuses it', () => {
+    const { result, receive } = mount()
+    receive({ gameState: { view: view({ phase: 'waiting' }) } })
+    act(() => result.current.addBot(1600))
+    expect(result.current.seating).toBe(true)
+    receive({ gameState: { view: view({ phase: 'waiting' }) } })
+    expect(result.current.seating).toBe(false)
+    act(() => result.current.addBot(1600))
+    act(() => result.current.handleRejected())
+    expect(result.current.seating).toBe(false)
   })
 
   it('announces another seat’s table, never its own', () => {

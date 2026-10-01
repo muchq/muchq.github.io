@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  nameOf,
   glyph,
   describeResult,
   formatClock,
@@ -124,5 +125,20 @@ describe('describeResult', () => {
     expect(describeResult({ ending: 'repetition' }, 'alice')).toBe('Draw by repetition')
     // A flag against a bare king draws.
     expect(describeResult({ ending: 'timeout' }, 'alice')).toBe('Draw: time ran out, and a bare king cannot win')
+  })
+})
+
+// A bot's seat is named for its engine and strength; a player's id is
+// already their name.
+describe('nameOf', () => {
+  it('reads a bot’s seat as its engine and strength', () => {
+    expect(nameOf('stockfish@1500')).toBe('Stockfish 1500')
+    expect(nameOf('bouncy-coral-quokka-x9k2')).toBe('bouncy-coral-quokka-x9k2')
+  })
+
+  it('names a bot that won', () => {
+    expect(describeResult({ winner: 'stockfish@1500', winnerColor: 'white', ending: 'checkmate' }, 'alice')).toBe(
+      'Stockfish 1500 won by checkmate'
+    )
   })
 })
