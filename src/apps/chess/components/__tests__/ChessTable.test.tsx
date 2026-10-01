@@ -51,6 +51,7 @@ const waiting = (over: Partial<ChessView> = {}): ChessView =>
 
 const table = (over: Partial<ChessTableProps['table']> = {}): ChessTableProps['table'] => ({
   opening: false,
+  seating: false,
   startTable: vi.fn(),
   leaveTable: vi.fn(),
   playAgain: vi.fn(),
@@ -510,17 +511,9 @@ describe('ChessTable', () => {
       expect(t.addBot).toHaveBeenCalledWith(1900)
     })
 
-    it('is asked for once per table state: a double tap sends one', () => {
-      const alone = waiting({ players: [{ playerId: 'alice' }] })
-      const { t, rerender } = mountWith(alone)
-      const add = screen.getByRole('button', { name: 'Add a bot' })
-      fireEvent.click(add)
-      fireEvent.click(add)
-      expect(t.addBot).toHaveBeenCalledTimes(1)
-      expect(add).toBeDisabled()
-      // A new view, as on a rejoin, offers it again.
-      rerender(waiting({ players: [{ playerId: 'alice' }] }))
-      expect(screen.getByRole('button', { name: 'Add a bot' })).toBeEnabled()
+    it('is held while one is being seated, so a double tap asks once', () => {
+      mountWith(waiting({ players: [{ playerId: 'alice' }] }), { seating: true })
+      expect(screen.getByRole('button', { name: 'Add a bot' })).toBeDisabled()
     })
 
     it('is not offered once the second seat is taken, or off the hub', () => {

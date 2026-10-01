@@ -113,6 +113,18 @@ describe('useChessTable', () => {
     expect(result.current.opening).toBe(false)
   })
 
+  it('holds a bot asked for until its seat arrives, or the hub refuses it', () => {
+    const { result, receive } = mount()
+    receive({ gameState: { view: view({ phase: 'waiting' }) } })
+    act(() => result.current.addBot(1600))
+    expect(result.current.seating).toBe(true)
+    receive({ gameState: { view: view({ phase: 'waiting' }) } })
+    expect(result.current.seating).toBe(false)
+    act(() => result.current.addBot(1600))
+    act(() => result.current.handleRejected())
+    expect(result.current.seating).toBe(false)
+  })
+
   it('announces another seat’s table, never its own', () => {
     const { receive, showNotice } = mount()
     receive({ gameCreated: { gameId: 'GAME01', createdBy: 'alice' } })

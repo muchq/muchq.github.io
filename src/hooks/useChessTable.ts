@@ -26,6 +26,8 @@ export interface UseChessTable extends ChessTableActions {
   view: ChessView | null
   // Another game has been asked for and not yet arrived.
   opening: boolean
+  // A bot has been asked for and its seat not yet arrived.
+  seating: boolean
   handleUpdate: (update: ChessUpdate) => void
   handleRejected: () => void
   clear: () => void
@@ -41,23 +43,28 @@ export interface UseChessTableProps {
 export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTableProps): UseChessTable => {
   const [view, setView] = useState<ChessView | null>(null)
   const [opening, setOpening] = useState(false)
+  const [seating, setSeating] = useState(false)
 
+  // Held until the hub answers with a view, or refuses.
+  const settle = useCallback(() => {
+    setOpening(false)
+    setSeating(false)
+  }, [])
   const clear = useCallback(() => {
     setView(null)
-    setOpening(false)
-  }, [])
-  const handleRejected = useCallback(() => setOpening(false), [])
+    settle()
+  }, [settle])
 
   const handleUpdate = useCallback(
     (update: ChessUpdate) => {
       if (update.gameJoined) {
         setView(update.gameJoined.view)
-        setOpening(false)
+        settle()
         return
       }
       if (update.gameState) {
         setView(update.gameState.view)
-        setOpening(false)
+        settle()
         return
       }
       if (update.gameCreated) {
@@ -70,7 +77,7 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
       }
       // gameStarted, turnChanged and gameEnded: the view says it all.
     },
-    [clear, onLeft, playerId, showNotice]
+    [clear, onLeft, playerId, settle, showNotice]
   )
 
   const createTable = useCallback(() => move('createGame'), [move])
@@ -97,7 +104,13 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
   }, [clear, move, onLeft, view])
   const play = useCallback((uci: string) => move('play', { uci }), [move])
   const resign = useCallback(() => move('resign'), [move])
-  const addBot = useCallback((elo: number) => move('addBot', { elo }), [move])
+  const addBot = useCallback(
+    (elo: number) => {
+      setSeating(true)
+      move('addBot', { elo })
+    },
+    [move]
+  )
 
-  return { view, opening, handleUpdate, handleRejected, clear, createTable, joinTable, startTable, leaveTable, playAgain, play, resign, addBot }
+  return { view, opening, seating, handleUpdate, handleRejected: settle, clear, createTable, joinTable, startTable, leaveTable, playAgain, play, resign, addBot }
 }
