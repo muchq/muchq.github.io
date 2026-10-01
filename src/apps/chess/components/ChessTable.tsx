@@ -314,6 +314,8 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                   data-check={piece !== undefined && piece === checkedKing ? 'true' : undefined}
                   data-grab={grab ? 'true' : undefined}
                   data-dragging={ghost !== null && from === square ? 'true' : undefined}
+                  // Under the picker's scrim, out of reach of the keyboard as of the pointer.
+                  inert={pendingPromotion !== null}
                   onPointerDown={event => onPointerDown(event, square)}
                   onClick={() => tap(square)}
                 >

@@ -219,6 +219,19 @@ describe('ChessTable', () => {
       expect(square('e8')).toHaveAccessibleName('e8')
     })
 
+    it('a promotion asking takes the squares out of reach, and gives them back once answered', () => {
+      mountWith(view())
+      const cells = () => within(screen.getByRole('group', { name: 'board' })).getAllByRole('button', { name: /^[a-h][1-8]\b/ })
+      fireEvent.click(square('e7'))
+      expect(cells().filter(cell => cell.hasAttribute('inert'))).toHaveLength(0)
+      fireEvent.click(square('e8'))
+      expect(cells().filter(cell => cell.hasAttribute('inert'))).toHaveLength(64)
+      expect(within(screen.getByRole('group', { name: 'promote to' })).getByRole('button', { name: 'Queen' })).not.toHaveAttribute('inert')
+      fireEvent.keyDown(screen.getByRole('group', { name: 'promote to' }), { key: 'Escape' })
+      expect(cells().filter(cell => cell.hasAttribute('inert'))).toHaveLength(0)
+      expect(square('e7')).toHaveFocus()
+    })
+
     it('for Black, the picker stands on the promotion file as Black sees it', () => {
       // Black Pe2 against Kh1, bob on turn: e is the fourth column from Black's left.
       mountWith(
