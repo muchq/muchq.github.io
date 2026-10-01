@@ -118,7 +118,8 @@ const DRAWN_BY: Record<ChessEnding, string> = {
 }
 
 // A seat as people read it: a player's id is their name; a bot's
-// ("stockfish@1500") its engine and strength.
+// ("stockfish@1500") its engine and strength. The id's shape is the hub's
+// bot-naming contract (games_hub chess_bots.h); a new engine extends it here.
 export function nameOf(playerId: string): string {
   const bot = /^stockfish@(\d+)$/.exec(playerId)
   return bot === null ? playerId : `Stockfish ${bot[1]}`

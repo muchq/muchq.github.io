@@ -117,6 +117,8 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const [confirmResign, setConfirmResign] = useState<ChessView | null>(null)
   const [clockChoice, setClockChoice] = useState('3+2')
   const [botElo, setBotElo] = useState(BOT_STRENGTHS[1].elo)
+  // Asked for against this view: the bot's seat or a new view releases it.
+  const [botAsked, setBotAsked] = useState<ChessView | null>(null)
 
   const me = view.players.find(player => player.playerId === playerId)
   const myColor: ChessColor = me?.color ?? 'white'
@@ -278,7 +280,15 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                   </option>
                 ))}
               </select>
-              <button type="button" className={felt.secondary} onClick={() => table.addBot(botElo)} disabled={!connected}>
+              <button
+                type="button"
+                className={felt.secondary}
+                onClick={() => {
+                  setBotAsked(view)
+                  table.addBot(botElo)
+                }}
+                disabled={!connected || botAsked === view}
+              >
                 Add a bot
               </button>
             </div>

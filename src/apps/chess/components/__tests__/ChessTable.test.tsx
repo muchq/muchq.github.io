@@ -510,6 +510,19 @@ describe('ChessTable', () => {
       expect(t.addBot).toHaveBeenCalledWith(1900)
     })
 
+    it('is asked for once per table state: a double tap sends one', () => {
+      const alone = waiting({ players: [{ playerId: 'alice' }] })
+      const { t, rerender } = mountWith(alone)
+      const add = screen.getByRole('button', { name: 'Add a bot' })
+      fireEvent.click(add)
+      fireEvent.click(add)
+      expect(t.addBot).toHaveBeenCalledTimes(1)
+      expect(add).toBeDisabled()
+      // A new view, as on a rejoin, offers it again.
+      rerender(waiting({ players: [{ playerId: 'alice' }] }))
+      expect(screen.getByRole('button', { name: 'Add a bot' })).toBeEnabled()
+    })
+
     it('is not offered once the second seat is taken, or off the hub', () => {
       const { unmount } = mountWith(waiting())
       expect(screen.queryByRole('button', { name: 'Add a bot' })).toBeNull()
