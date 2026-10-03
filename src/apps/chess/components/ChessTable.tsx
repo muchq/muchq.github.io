@@ -247,7 +247,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
             Chess {view.gameId}
             {view.variant === 'kpk' && <span className={styles.variant}> · king and pawn</span>}
           </h1>
-          <p className={felt.hint} role="status" data-testid="chess-status">
+          <p className={`${felt.hint} ${styles.statusSlot}`} role="status" data-testid="chess-status">
             {status}
           </p>
           {/* Leaving a game in play forfeits it: Resign is that, and it asks
