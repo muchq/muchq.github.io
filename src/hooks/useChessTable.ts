@@ -8,12 +8,12 @@ import type { ChessMoveName, ChessMovePayloads, ChessUpdate, ChessView } from '@
 // component's: it lives and dies with one view.
 
 export interface ChessTableActions {
-  // Seconds; absent is the hub's default.
+  // Setup and seconds; absent fields use the hub's defaults.
   startTable: (clock?: ChessMovePayloads['startGame']) => void
   leaveTable: () => void
   // Another game: the table's next, on its clock, while it is open; a new
   // table once it has closed.
-  playAgain: () => void
+  playAgain: (setupId?: string) => void
   play: (uci: string) => void
   resign: () => void
   // Stockfish in the second seat, at an Elo of 1320 to 3190.
@@ -83,10 +83,14 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
   const createTable = useCallback(() => move('createGame'), [move])
   // Either way held until the hub answers: the next game's view, or the
   // new table's.
-  const playAgain = useCallback(() => {
+  const playAgain = useCallback((setupId?: string) => {
     setOpening(true)
     if (view?.phase === 'ended' && view.clock !== undefined) {
-      move('startGame', { initialSeconds: view.clock.initialMs / 1000, incrementSeconds: view.clock.incrementMs / 1000 })
+      move('startGame', {
+        ...(setupId === undefined ? {} : { setupId }),
+        initialSeconds: view.clock.initialMs / 1000,
+        incrementSeconds: view.clock.incrementMs / 1000
+      })
       return
     }
     move('createGame')

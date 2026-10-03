@@ -11,8 +11,14 @@ import type { ChessView } from '../../wire'
 // White Kg6 Pe7 against Kh8, alice White and on turn.
 const view = (over: Partial<ChessView> = {}): ChessView => ({
   gameId: 'G1',
+  availableSetups: [
+    { setupId: 'random-kpk', name: 'Random K+P vs K' },
+    { setupId: 'lucena', name: 'R+P vs R — Lucena' }
+  ],
   phase: 'playing',
   variant: 'kpk',
+  setupId: 'random-kpk',
+  setupName: 'Random K+P vs K',
   players: [
     { playerId: 'alice', color: 'white' },
     { playerId: 'bob', color: 'black' }
@@ -40,6 +46,9 @@ const ended = (over: Partial<ChessView> = {}): ChessView =>
 const waiting = (over: Partial<ChessView> = {}): ChessView =>
   view({
     phase: 'waiting',
+    variant: undefined,
+    setupId: undefined,
+    setupName: undefined,
     players: [{ playerId: 'alice' }, { playerId: 'bob' }],
     fen: undefined,
     legalMoves: [],
@@ -496,12 +505,25 @@ describe('ChessTable', () => {
   })
 
   describe('waiting', () => {
-    it('starts with the clock chosen', () => {
+    it('defaults to the catalog’s random setup and submits it', () => {
+      const { t } = mountWith(waiting())
+      expect(screen.getByRole('combobox', { name: 'Practice setup' })).toHaveValue('random-kpk')
+      fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+      expect(t.startTable).toHaveBeenCalledWith({ setupId: 'random-kpk', initialSeconds: 180, incrementSeconds: 2 })
+    })
+
+    it('starts with the server setup and clock chosen', () => {
       const { t } = mountWith(waiting())
       expect(screen.queryByRole('group', { name: 'board' })).toBeNull()
+      const setup = screen.getByRole('combobox', { name: 'Practice setup' })
+      expect(within(setup).getAllByRole('option').map(option => [option.getAttribute('value'), option.textContent])).toEqual([
+        ['random-kpk', 'Random K+P vs K'],
+        ['lucena', 'R+P vs R — Lucena']
+      ])
+      fireEvent.change(setup, { target: { value: 'lucena' } })
       fireEvent.change(screen.getByRole('combobox', { name: 'Clock' }), { target: { value: '5+3' } })
       fireEvent.click(screen.getByRole('button', { name: 'Start' }))
-      expect(t.startTable).toHaveBeenCalledWith({ initialSeconds: 300, incrementSeconds: 3 })
+      expect(t.startTable).toHaveBeenCalledWith({ setupId: 'lucena', initialSeconds: 300, incrementSeconds: 3 })
     })
 
     it('cannot start with one seat, or off the hub', () => {
@@ -582,10 +604,16 @@ describe('ChessTable', () => {
       expect(screen.getByText('You won by checkmate', { selector: 'p:not([data-testid])' })).toHaveAttribute('aria-hidden', 'true')
       expect(screen.queryByRole('button', { name: 'Resign' })).toBeNull()
       expect(screen.getByRole('button', { name: 'Next game' })).toHaveFocus()
+      fireEvent.change(screen.getByRole('combobox', { name: 'Next practice setup' }), { target: { value: 'lucena' } })
       fireEvent.click(screen.getByRole('button', { name: 'Next game' }))
-      expect(t.playAgain).toHaveBeenCalledTimes(1)
+      expect(t.playAgain).toHaveBeenCalledWith('lucena')
       fireEvent.click(screen.getByRole('button', { name: 'Leave table' }))
       expect(t.leaveTable).toHaveBeenCalledTimes(1)
+    })
+
+    it('names the active server setup', () => {
+      mountWith(ended({ setupId: 'lucena', setupName: 'R+P vs R — Lucena', variant: 'lucena' }))
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Chess G1 · R+P vs R — Lucena')
     })
 
     it('once the opponent leaves between games, says so and offers another table', () => {

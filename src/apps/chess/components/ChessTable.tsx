@@ -116,11 +116,15 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const [promoting, setPromoting] = useState<{ view: ChessView; from: string; to: string; moves: string[] } | null>(null)
   const [confirmResign, setConfirmResign] = useState<ChessView | null>(null)
   const [clockChoice, setClockChoice] = useState('3+2')
+  const [setupChoice, setSetupChoice] = useState('')
   const [botElo, setBotElo] = useState(BOT_STRENGTHS[1].elo)
 
   const me = view.players.find(player => player.playerId === playerId)
   const myColor: ChessColor = me?.color ?? 'white'
   const opponent = view.players.find(player => player.playerId !== playerId)
+  const selectedSetup = view.availableSetups.some(setup => setup.setupId === setupChoice)
+    ? setupChoice
+    : (view.setupId ?? view.availableSetups[0]?.setupId ?? '')
   const myTurn = view.phase === 'playing' && view.currentPlayerId === playerId
   const from = picked?.view === view ? picked.square : null
   const pendingPromotion = promoting?.view === view ? promoting : null
@@ -219,7 +223,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   }
 
   const status = (() => {
-    if (view.phase === 'waiting') return view.players.length < 2 ? 'Waiting for a second seat.' : 'Pick a clock and start.'
+    if (view.phase === 'waiting') return view.players.length < 2 ? 'Waiting for a second seat.' : 'Pick a setup and clock, then start.'
     if (view.phase === 'ended') return view.result === undefined ? '' : describeResult(view.result, playerId)
     if (view.phase === 'closed') {
       // A leave mid-game is that game's result; between games, the news.
@@ -245,7 +249,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
         <div className={felt.tableHeader}>
           <h1 ref={headingRef} tabIndex={-1} className={`${felt.title} ${styles.heading}`}>
             Chess {view.gameId}
-            {view.variant === 'kpk' && <span className={styles.variant}> · king and pawn</span>}
+            {view.setupName !== undefined && <span className={styles.variant}> · {view.setupName}</span>}
           </h1>
           <p className={`${felt.hint} ${styles.statusSlot}`} role="status" data-testid="chess-status">
             {status}
@@ -284,6 +288,16 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
             </div>
           )}
           <label className={styles.clockPick}>
+            Practice setup
+            <select value={selectedSetup} onChange={event => setSetupChoice(event.target.value)}>
+              {view.availableSetups.map(setup => (
+                <option key={setup.setupId} value={setup.setupId}>
+                  {setup.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={styles.clockPick}>
             Clock
             <select value={clockChoice} onChange={event => setClockChoice(event.target.value)}>
               {Object.keys(CLOCKS).map(name => (
@@ -296,7 +310,12 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
           <button
             type="button"
             className={felt.primary}
-            onClick={() => table.startTable(CLOCKS[clockChoice])}
+            onClick={() =>
+              table.startTable({
+                ...(selectedSetup === '' ? {} : { setupId: selectedSetup }),
+                ...CLOCKS[clockChoice]
+              })
+            }
             disabled={view.players.length < 2 || !connected}
           >
             Start
@@ -469,7 +488,27 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                 {/* Between games the table is still both seats': the next game
                     is played here. Once a seat has left, another table. */}
                 <div className={styles.actions}>
-                  <button ref={playAgainRef} type="button" className={felt.primary} onClick={table.playAgain} disabled={!connected || opening}>
+                  {view.phase === 'ended' && (
+                    <select
+                      className={styles.setupPick}
+                      aria-label="Next practice setup"
+                      value={selectedSetup}
+                      onChange={event => setSetupChoice(event.target.value)}
+                    >
+                      {view.availableSetups.map(setup => (
+                        <option key={setup.setupId} value={setup.setupId}>
+                          {setup.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  <button
+                    ref={playAgainRef}
+                    type="button"
+                    className={felt.primary}
+                    onClick={() => table.playAgain(selectedSetup === '' ? undefined : selectedSetup)}
+                    disabled={!connected || opening}
+                  >
                     {opening ? 'Opening…' : view.phase === 'ended' ? 'Next game' : 'Play again'}
                   </button>
                   <button type="button" className={felt.secondary} onClick={table.leaveTable}>
