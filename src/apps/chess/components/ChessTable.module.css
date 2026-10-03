@@ -254,20 +254,48 @@
   min-height: 2.75rem;
 }
 
+/* Result line + gap + actions row. Held open during play so Resign
+   swapping for the ending does not resize the board. The status slot
+   already carries the full result; this line is for the eye and clamps
+   so a long draw does not grow the foot. Actions stay on one row so a
+   narrow phone cannot wrap them past the reservation. */
+.foot {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(1.4rem + 0.5rem + 2.75rem);
+}
+
+.foot .actions {
+  flex-wrap: nowrap;
+}
+
 .ending {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+  width: 100%;
 }
 
 .result {
   margin: 0;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-height: 1.4rem;
+  max-height: 1.4rem;
   font-size: 1.15rem;
+  line-height: 1.4rem;
   color: #f0c96a;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* The header, and the score sheet beside it once there is one. */
+/* The header, and a width slot for the score sheet once there is one. */
 .top {
   display: flex;
   gap: 0.75rem;
@@ -275,10 +303,32 @@
   justify-content: space-between;
 }
 
-/* The score sheet: rummy's notepad, ruled like paper and written in a
-   hand, set at the side of the table rather than pinned over a felt. */
-.notepad {
+/* Header shrinks beside the notepad rather than wrapping the title and
+   growing the row (which would steal from the board). */
+.top > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.heading {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Width in the row, height out of the board's flex budget: the sheet
+   hangs down the side over the clocks instead of pushing them. */
+.notepadSlot {
   flex: none;
+  width: max-content;
+  height: 0;
+  overflow: visible;
+  z-index: 2;
+}
+
+/* The score sheet: rummy's notepad, ruled like paper and written in a
+   hand, at the side of the table. */
+.notepad {
   width: max-content;
   padding: 0.4rem 0.6rem 0.5rem 1.3rem;
   border-radius: 2px;

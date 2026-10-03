@@ -243,7 +243,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     <div className={styles.table} data-phase={view.phase}>
       <div className={styles.top}>
         <div className={felt.tableHeader}>
-          <h1 ref={headingRef} tabIndex={-1} className={felt.title}>
+          <h1 ref={headingRef} tabIndex={-1} className={`${felt.title} ${styles.heading}`}>
             Chess {view.gameId}
             {view.variant === 'kpk' && <span className={styles.variant}> · king and pawn</span>}
           </h1>
@@ -422,58 +422,63 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
               document.body
             )}
 
-          {view.phase === 'playing' && me !== undefined && (
-            <div className={styles.actions}>
-              {confirmResign === view ? (
-                <>
-                  <button ref={confirmRef} type="button" className={styles.danger} onClick={table.resign} disabled={!connected}>
-                    Confirm resign
-                  </button>
-                  <button
-                    type="button"
-                    className={felt.link}
-                    onClick={() => {
-                      refocus.current = 'resign'
-                      setConfirmResign(null)
-                    }}
-                  >
-                    Keep playing
-                  </button>
-                </>
-              ) : (
-                <button
-                  ref={resignRef}
-                  type="button"
-                  className={felt.secondary}
-                  onClick={() => {
-                    refocus.current = 'confirm'
-                    setConfirmResign(view)
-                  }}
-                  disabled={!connected}
-                >
-                  Resign
-                </button>
-              )}
-            </div>
-          )}
-
-          {(view.phase === 'ended' || view.phase === 'closed') && (
-            <div className={styles.ending}>
-              <p className={styles.result} aria-hidden="true">
-                {status}
-              </p>
-              {/* Between games the table is still both seats': the next game
-                  is played here. Once a seat has left, another table. */}
+          {/* One ending-block tall whether Resign alone or the result plus
+              next-game buttons sit here, so that swap does not resize the
+              board. */}
+          <div className={styles.foot} data-testid="chess-foot">
+            {view.phase === 'playing' && me !== undefined && (
               <div className={styles.actions}>
-                <button ref={playAgainRef} type="button" className={felt.primary} onClick={table.playAgain} disabled={!connected || opening}>
-                  {opening ? 'Opening…' : view.phase === 'ended' ? 'Next game' : 'Play again'}
-                </button>
-                <button type="button" className={felt.secondary} onClick={table.leaveTable}>
-                  {view.phase === 'ended' ? 'Leave table' : 'Back to the room'}
-                </button>
+                {confirmResign === view ? (
+                  <>
+                    <button ref={confirmRef} type="button" className={styles.danger} onClick={table.resign} disabled={!connected}>
+                      Confirm resign
+                    </button>
+                    <button
+                      type="button"
+                      className={felt.link}
+                      onClick={() => {
+                        refocus.current = 'resign'
+                        setConfirmResign(null)
+                      }}
+                    >
+                      Keep playing
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    ref={resignRef}
+                    type="button"
+                    className={felt.secondary}
+                    onClick={() => {
+                      refocus.current = 'confirm'
+                      setConfirmResign(view)
+                    }}
+                    disabled={!connected}
+                  >
+                    Resign
+                  </button>
+                )}
               </div>
-            </div>
-          )}
+            )}
+
+            {(view.phase === 'ended' || view.phase === 'closed') && (
+              <div className={styles.ending}>
+                <p className={styles.result} aria-hidden="true">
+                  {status}
+                </p>
+                {/* Between games the table is still both seats': the next game
+                    is played here. Once a seat has left, another table. */}
+                <div className={styles.actions}>
+                  <button ref={playAgainRef} type="button" className={felt.primary} onClick={table.playAgain} disabled={!connected || opening}>
+                    {opening ? 'Opening…' : view.phase === 'ended' ? 'Next game' : 'Play again'}
+                  </button>
+                  <button type="button" className={felt.secondary} onClick={table.leaveTable}>
+                    {view.phase === 'ended' ? 'Leave table' : 'Back to the room'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
