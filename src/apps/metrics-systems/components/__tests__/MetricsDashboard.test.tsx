@@ -62,6 +62,7 @@ const hostResponse = {
       free_bytes: 4294967296,
       cached_bytes: 2147483648,
       utilization_percent: 50.0,
+      oom_kills_last_hour: 11,
     },
     disk: [],
     network: [],
@@ -188,6 +189,8 @@ describe('MetricsDashboard (host view)', () => {
 
     expect(screen.getByText('Host Metrics')).toBeTruthy()
     expect(screen.getByText('42.5%')).toBeTruthy()
+    expect(screen.getByText('OOM (1h)')).toBeTruthy()
+    expect(screen.getByText('11')).toBeTruthy()
     expect(screen.getAllByText('caddy').length).toBeGreaterThan(0)
     expect(onConnectionStateChange).toHaveBeenCalledWith('connected')
   })

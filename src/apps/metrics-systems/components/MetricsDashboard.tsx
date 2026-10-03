@@ -31,6 +31,9 @@ interface SystemMetrics {
     free_bytes: number
     cached_bytes: number
     utilization_percent: number
+    // Host kernel OOM kills in the last hour. Catches global_oom of children
+    // inside a container still under its cgroup limit.
+    oom_kills_last_hour?: number
   }
   disk: Array<{
     device: string
@@ -328,7 +331,7 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
               wholesale when data lands and shoving the charts down. */}
           {!systemMetrics && loading && (
             <div className={styles.overviewCards}>
-              {['CPU', 'Memory', 'Disk', 'Network'].map((label) => (
+              {['CPU', 'Memory', 'OOM (1h)', 'Disk', 'Network'].map((label) => (
                 <div key={label} className={styles.miniCard}>
                   <div className={styles.miniLabel}>{label}</div>
                   <div className={styles.miniValue}>
@@ -347,6 +350,12 @@ const MetricsDashboard = ({ onConnectionStateChange }: MetricsDashboardProps) =>
               <div className={styles.miniCard}>
                 <div className={styles.miniLabel}>Memory</div>
                 <div className={styles.miniValue}>{(systemMetrics.memory?.utilization_percent || 0).toFixed(1)}%</div>
+              </div>
+              <div className={styles.miniCard}>
+                <div className={styles.miniLabel}>OOM (1h)</div>
+                <div className={styles.miniValue}>
+                  {Math.round(systemMetrics.memory?.oom_kills_last_hour || 0)}
+                </div>
               </div>
               <div className={styles.miniCard}>
                 <div className={styles.miniLabel}>Disk</div>
