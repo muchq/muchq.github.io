@@ -4,8 +4,10 @@ import styles from './ChessTable.module.css'
 
 // The table's running score as a notepad, rummy's: a column a player, a
 // line a game with a 1 in its winner's column, and the wins totalled under
-// a rule. The page holds the last few games, so a long match's sheet never
-// pushes the board off the screen; the totals count them all.
+// a rule. Width stays in the header row; height is dropped from the board's
+// flex budget (zero-height slot), so a new line or the first sheet does not
+// resize the squares. The page holds the last few games; the totals count
+// them all.
 
 const PAGE = 5
 
@@ -23,42 +25,47 @@ const ScoreSheet = ({ view, playerId }: ScoreSheetProps) => {
   }
   const first = Math.max(0, lines.length - PAGE)
   const wins = (id: string) => lines.filter(line => line.winner === id).length
+  // Slot keeps the notepad's width in the header row and drops its height
+  // from the flex budget, so the sheet can grow down the side without
+  // resizing the board.
   return (
-    <div className={styles.notepad}>
-      <table className={styles.notepadSheet} aria-label="Score sheet">
-        <thead>
-          <tr>
-            <th scope="col">#</th>
-            {columns.map(id => (
-              <th key={id} scope="col" title={nameOf(id)}>
-                <span className={styles.notepadName}>{id === playerId ? 'you' : nameOf(id)}</span>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {lines.slice(first).map((line, i) => (
-            <tr key={first + i}>
-              <th scope="row">{first + i + 1}</th>
-              {line.winner === undefined ? (
-                <td colSpan={columns.length} className={styles.notepadDraw}>
-                  draw
-                </td>
-              ) : (
-                columns.map(id => <td key={id}>{id === line.winner ? 1 : <span aria-hidden="true">—</span>}</td>)
-              )}
+    <div className={styles.notepadSlot}>
+      <div className={styles.notepad}>
+        <table className={styles.notepadSheet} aria-label="Score sheet">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              {columns.map(id => (
+                <th key={id} scope="col" title={nameOf(id)}>
+                  <span className={styles.notepadName}>{id === playerId ? 'you' : nameOf(id)}</span>
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr>
-            <th scope="row">Total</th>
-            {columns.map(id => (
-              <td key={id}>{wins(id)}</td>
+          </thead>
+          <tbody>
+            {lines.slice(first).map((line, i) => (
+              <tr key={first + i}>
+                <th scope="row">{first + i + 1}</th>
+                {line.winner === undefined ? (
+                  <td colSpan={columns.length} className={styles.notepadDraw}>
+                    draw
+                  </td>
+                ) : (
+                  columns.map(id => <td key={id}>{id === line.winner ? 1 : <span aria-hidden="true">—</span>}</td>)
+                )}
+              </tr>
             ))}
-          </tr>
-        </tfoot>
-      </table>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row">Total</th>
+              {columns.map(id => (
+                <td key={id}>{wins(id)}</td>
+              ))}
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
   )
 }

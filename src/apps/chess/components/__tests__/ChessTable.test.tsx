@@ -557,6 +557,23 @@ describe('ChessTable', () => {
   })
 
   describe('the ending', () => {
+    // The board sizes from what the chrome leaves. Resign swaps for a
+    // result line plus next-game buttons; the foot class holds that
+    // height open so the squares do not, and the result class clamps
+    // the decorative line so a long draw cannot grow past it. jsdom
+    // does no layout — the classes are the contract.
+    it('keeps play and ended chrome in a height-reserved foot', () => {
+      const { rerender } = mountWith(view())
+      const playFoot = screen.getByRole('button', { name: 'Resign' }).closest('[data-testid="chess-foot"]')
+      expect(playFoot?.className).toContain('foot')
+      rerender(ended())
+      const endFoot = screen.getByRole('button', { name: 'Next game' }).closest('[data-testid="chess-foot"]')
+      expect(endFoot?.className).toContain('foot')
+      const panel = screen.getByText('You won by checkmate', { selector: 'p:not([data-testid])' })
+      expect(panel.className).toContain('result')
+      expect(endFoot).toContainElement(panel)
+    })
+
     it('is said, and focus goes to the next game at this table', () => {
       const { t, rerender } = mountWith(view())
       rerender(ended())
@@ -596,6 +613,16 @@ describe('ChessTable', () => {
     it('is not there before a game has finished', () => {
       mountWith(view())
       expect(screen.queryByRole('table', { name: 'Score sheet' })).toBeNull()
+    })
+
+    // Width in the header row, height dropped from the board's flex
+    // budget: the notepadSlot class is the contract. jsdom does no layout.
+    it('slots the notepad out of the board’s height budget', () => {
+      mountWith(ended({ scoreSheet: [{ winner: 'alice', ending: 'checkmate' }] }))
+      const sheet = screen.getByRole('table', { name: 'Score sheet' })
+      const slot = sheet.parentElement?.parentElement
+      expect(slot?.className.split(/\s+/).some(name => /(?:^|_)notepadSlot(?:_|$)/.test(name))).toBe(true)
+      expect(sheet.parentElement?.className.split(/\s+/).some(name => /(?:^|_)notepad(?:_|$)/.test(name))).toBe(true)
     })
 
     it('marks each game’s winner, a draw for neither, and totals the wins', () => {
