@@ -410,6 +410,17 @@ describe('ChessTable', () => {
       mountWith(view({ moves: ['a1a2', 'b2b1q'] }))
       expect(status()).toHaveTextContent('bob played b2 to b1, promoting to a queen. Your move.')
     })
+
+    // The board sizes from what the chrome leaves. Status length changes
+    // every turn; the slot class is what holds that height open so the
+    // squares do not. jsdom does no layout — the class is the contract.
+    it('keeps the status in a height-reserved slot on and off turn', () => {
+      const { rerender } = mountWith(view({ moves: ['a1a2', 'h7h8'] }))
+      expect(status().className).toContain('statusSlot')
+      rerender(view({ moves: ['a1a2', 'h7h8', 'g6f7'], sideToMove: 'black', currentPlayerId: 'bob', legalMoves: [] }))
+      expect(status().className).toContain('statusSlot')
+      expect(status()).toHaveTextContent('bob to move.')
+    })
   })
 
   describe('the clock', () => {

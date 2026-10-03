@@ -21,6 +21,21 @@
   font-size: 1rem;
 }
 
+/* Own row under the title, held open at two lines (castle's 2.9rem).
+   min and max match so a one-line "Your move." and a wrapped
+   "Stockfish played … Your move." leave the board the same size. */
+.statusSlot {
+  flex: 1 1 100%;
+  box-sizing: border-box;
+  min-height: 2.9rem;
+  max-height: 2.9rem;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
 .danger {
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
@@ -192,10 +207,15 @@
   color: #eeeed2;
 }
 
+/* Fixed height whether the clock is running or not: only the fill
+   changes. The board below is sized from what these rows leave, so a
+   taller "active" row would shrink the squares on every turn. */
 .clockRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-sizing: border-box;
+  min-height: 2.5rem;
   padding: 0.35rem 0.75rem;
   border-radius: 0.5rem;
   background: rgba(0, 0, 0, 0.3);
@@ -206,6 +226,8 @@
 }
 
 .clockName {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -221,12 +243,15 @@
   color: #ff6b5e;
 }
 
+/* One button-row tall whether Resign alone or Confirm + Keep playing
+   share the line, so that swap does not resize the board. */
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
   justify-content: center;
+  min-height: 2.75rem;
 }
 
 .ending {
