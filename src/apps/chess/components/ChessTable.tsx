@@ -83,7 +83,7 @@ const ClockRow = ({ view, seatId, color, you }: { view: ChessView; seatId: strin
 }
 
 const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
-  const { opening } = table
+  const { opening, play } = table
   const headingRef = useRef<HTMLHeadingElement>(null)
   const boardRef = useRef<HTMLDivElement>(null)
   const resignRef = useRef<HTMLButtonElement>(null)
@@ -114,10 +114,15 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   // so a new position drops it rather than acting on one that is gone.
   const [picked, setPicked] = useState<{ view: ChessView; square: string } | null>(null)
   const [promoting, setPromoting] = useState<{ view: ChessView; from: string; to: string; moves: string[] } | null>(null)
+  const [premove, setPremove] = useState<{ gameId: string; from: string; to: string } | null>(null)
+  const [premoveDispatch, setPremoveDispatch] = useState<{ to: string; move?: string } | null>(null)
   const [confirmResign, setConfirmResign] = useState<ChessView | null>(null)
   const [clockChoice, setClockChoice] = useState('3+2')
   const [setupChoice, setSetupChoice] = useState('')
   const [botElo, setBotElo] = useState(BOT_STRENGTHS[1].elo)
+  const press = useRef<{ id: number; square: string; x: number; y: number; moving: boolean } | null>(null)
+  const dragged = useRef(false)
+  const [ghost, setGhost] = useState<{ piece: string; x: number; y: number; size: number } | null>(null)
 
   const me = view.players.find(player => player.playerId === playerId)
   const myColor: ChessColor = me?.color ?? 'white'
@@ -127,8 +132,9 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     : (view.setupId ?? view.availableSetups[0]?.setupId ?? '')
   const myTurn = view.phase === 'playing' && view.currentPlayerId === playerId
   const from = picked?.view === view ? picked.square : null
+  const queuedPremove = premove?.gameId === view.gameId ? premove : null
   const pendingPromotion = promoting?.view === view ? promoting : null
-  const targets = from === null ? [] : targetsFrom(view.legalMoves, from)
+  const targets = !myTurn || from === null ? [] : targetsFrom(view.legalMoves, from)
   const board = readBoard(view.fen)
   // A promotion asking shows its pawn already on the last rank, under the
   // picker, as the board would once it is played.
@@ -141,10 +147,34 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   // The king of the side to move — or, once mated, of the side that was.
   const checkedKing = view.inCheck ? (view.fen?.split(' ')[1] === 'b' ? 'k' : 'K') : null
 
+  // A premove is only a from/to intention. On the first on-turn view,
+  // adjust the queued state during render and let the effect below send
+  // the hub's exact UCI spelling. A promotion defaults to a queen.
+  if (premove !== null && (premove.gameId !== view.gameId || view.phase !== 'playing')) {
+    setPremove(null)
+  } else if (premove !== null && myTurn && connected) {
+    const moves = movesTo(view.legalMoves, premove.from, premove.to)
+    const move = moves.length === 1 ? moves[0] : moves.find(candidate => candidate.endsWith('q'))
+    setPicked(null)
+    setGhost(null)
+    setPremove(null)
+    setPremoveDispatch({ to: premove.to, ...(move === undefined ? {} : { move }) })
+  }
+  useEffect(() => {
+    if (premoveDispatch === null) return
+    press.current = null
+    boardRef.current?.querySelector<HTMLElement>(`[data-square="${premoveDispatch.to}"]`)?.focus()
+    if (premoveDispatch.move !== undefined) play(premoveDispatch.move)
+  }, [play, premoveDispatch])
+
   // The move from `start` to `square`: played, or the promotion asked.
   const land = (start: string, square: string) => {
-    const moves = movesTo(view.legalMoves, start, square)
     setPicked(null)
+    if (!myTurn) {
+      setPremove({ gameId: view.gameId, from: start, to: square })
+      return
+    }
+    const moves = movesTo(view.legalMoves, start, square)
     if (moves.length === 1) table.play(moves[0])
     else setPromoting({ view, from: start, to: square, moves })
   }
@@ -155,17 +185,25 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
       dragged.current = false
       return
     }
-    if (!myTurn || !connected) return
+    if (!connected || view.phase !== 'playing') return
     // A tap on the board is a new gesture: a promotion still asking is
     // abandoned, never left up to send a second move for this turn.
     setPromoting(null)
-    if (from !== null && targets.includes(square)) {
+    const piece = board.get(square)
+    const movable =
+      piece !== undefined && colorOfPiece(piece) === myColor && (!myTurn || targetsFrom(view.legalMoves, square).length > 0)
+    // Off turn, another own piece changes the intended mover instead of
+    // queueing a self-capture that the hub could never accept.
+    if (from !== null && !myTurn && movable) {
+      setPicked(square === from ? null : { view, square })
+      return
+    }
+    if (from !== null && square !== from && (!myTurn || targets.includes(square))) {
       land(from, square)
       return
     }
     // Another of the viewer's pieces with a move picks it up; anything
     // else lets go.
-    const movable = targetsFrom(view.legalMoves, square).length > 0
     setPicked(movable && square !== from ? { view, square } : null)
   }
 
@@ -174,16 +212,15 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   // the square under the pointer — not the event's target, which for a
   // touch stays the square the press began on. A drop anywhere else leaves
   // the piece picked up, for a tap to finish.
-  const press = useRef<{ id: number; square: string; x: number; y: number; moving: boolean } | null>(null)
-  const dragged = useRef(false)
-  const [ghost, setGhost] = useState<{ piece: string; x: number; y: number; size: number } | null>(null)
   const squareAt = (x: number, y: number) =>
     document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-square]')?.dataset.square ?? null
 
   const onPointerDown = (event: ReactPointerEvent, square: string) => {
     dragged.current = false
-    if (!myTurn || !connected || event.button !== 0) return
-    if (targetsFrom(view.legalMoves, square).length === 0) return
+    if (!connected || view.phase !== 'playing' || event.button !== 0) return
+    const piece = board.get(square)
+    if (piece === undefined || colorOfPiece(piece) !== myColor) return
+    if (myTurn && targetsFrom(view.legalMoves, square).length === 0) return
     press.current = { id: event.pointerId, square, x: event.clientX, y: event.clientY, moving: false }
   }
   const onPointerMove = (event: ReactPointerEvent) => {
@@ -210,7 +247,14 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     if (!held.moving) return
     dragged.current = true
     const square = squareAt(event.clientX, event.clientY)
-    if (square !== null && targetsFrom(view.legalMoves, held.square).includes(square)) land(held.square, square)
+    const piece = square === null ? undefined : board.get(square)
+    if (!myTurn && square !== null && piece !== undefined && colorOfPiece(piece) === myColor) {
+      setPicked({ view, square })
+      return
+    }
+    if (square !== null && square !== held.square && (!myTurn || targetsFrom(view.legalMoves, held.square).includes(square))) {
+      land(held.square, square)
+    }
   }
   const onPointerCancel = () => {
     press.current = null
@@ -232,6 +276,8 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
       return `${left === undefined ? 'Your opponent' : nameOf(left.playerId)} left the table.`
     }
     if (pendingPromotion !== null) return 'Choose a piece to promote to.'
+    if (!myTurn && from !== null) return 'Choose a premove destination.'
+    if (queuedPremove !== null) return `Premove queued: ${describeMove(`${queuedPremove.from}${queuedPremove.to}`)}.`
     if (!myTurn) return `${nameOf(view.currentPlayerId ?? '')} to move.`
     // The move just made is the opponent's: say it, since the board only
     // shows it.
@@ -343,7 +389,9 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                 // a1 dark: a square is dark where its file and rank index sum even.
                 const light = (square.charCodeAt(0) - 97 + Number(square[1])) % 2 === 0
                 const target = targets.includes(square)
-                const grab = mine && myTurn && connected && targetsFrom(view.legalMoves, square).length > 0
+                const grab = mine && connected && view.phase === 'playing' && (!myTurn || targetsFrom(view.legalMoves, square).length > 0)
+                const interactive = connected && view.phase === 'playing' && (myTurn || mine || from !== null)
+                const premoveMark = queuedPremove?.from === square ? 'from' : queuedPremove?.to === square ? 'to' : undefined
                 return (
                   <button
                     key={square}
@@ -352,12 +400,13 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                     className={`${styles.square} ${light ? styles.light : styles.dark} ${target ? styles.target : ''}`}
                     aria-label={piece === undefined ? square : `${square}, ${pieceName(piece)}`}
                     aria-pressed={mine ? from === square : undefined}
-                    aria-disabled={!myTurn || !connected ? true : undefined}
+                    aria-disabled={!interactive ? true : undefined}
                     data-shade={light ? 'light' : 'dark'}
                     aria-describedby={target ? targetNote : undefined}
                     data-last={last.includes(square) ? 'true' : undefined}
                     data-check={piece !== undefined && piece === checkedKing ? 'true' : undefined}
                     data-grab={grab ? 'true' : undefined}
+                    data-premove={premoveMark}
                     data-dragging={ghost !== null && from === square ? 'true' : undefined}
                     // Under the picker's scrim, out of reach of the keyboard as of the pointer.
                     inert={pendingPromotion !== null}
@@ -447,6 +496,18 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
           <div className={styles.foot} data-testid="chess-foot">
             {view.phase === 'playing' && me !== undefined && (
               <div className={styles.actions}>
+                {queuedPremove !== null && (
+                  <button
+                    type="button"
+                    className={felt.secondary}
+                    onClick={() => {
+                      refocus.current = { square: queuedPremove.from }
+                      setPremove(null)
+                    }}
+                  >
+                    Cancel premove
+                  </button>
+                )}
                 {confirmResign === view ? (
                   <>
                     <button ref={confirmRef} type="button" className={styles.danger} onClick={table.resign} disabled={!connected}>

@@ -285,6 +285,123 @@ describe('ChessTable', () => {
     })
   })
 
+  describe('premoving', () => {
+    const offTurn = () => view({ sideToMove: 'black', currentPlayerId: 'bob', legalMoves: ['h8g7', 'h8g8'] })
+
+    it('queues one move off turn and sends it when the hub says it is legal', () => {
+      const { t, rerender } = mountWith(offTurn())
+      fireEvent.click(square('g6'))
+      fireEvent.click(square('f7'))
+
+      expect(t.play).not.toHaveBeenCalled()
+      expect(status()).toHaveTextContent('Premove queued: g6 to f7.')
+      expect(square('g6')).toHaveAttribute('data-premove', 'from')
+      expect(square('f7')).toHaveAttribute('data-premove', 'to')
+
+      screen.getByRole('button', { name: 'Cancel premove' }).focus()
+      rerender(view({ legalMoves: ['g6f7'] }))
+      expect(t.play).toHaveBeenCalledWith('g6f7')
+      expect(screen.queryByRole('button', { name: 'Cancel premove' })).toBeNull()
+      expect(square('f7')).toHaveFocus()
+    })
+
+    it('drops a premove that is not legal when the turn arrives', () => {
+      const { t, rerender } = mountWith(offTurn())
+      fireEvent.click(square('g6'))
+      fireEvent.click(square('f7'))
+      expect(screen.getByRole('button', { name: 'Cancel premove' })).toBeInTheDocument()
+
+      rerender(view({ legalMoves: ['g6f5'] }))
+      expect(t.play).not.toHaveBeenCalled()
+      expect(screen.queryByRole('button', { name: 'Cancel premove' })).toBeNull()
+      expect(status()).toHaveTextContent('Your move.')
+    })
+
+    it('lets the player cancel the queued premove', () => {
+      const { t } = mountWith(offTurn())
+      fireEvent.click(square('g6'))
+      fireEvent.click(square('f7'))
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel premove' }))
+
+      expect(t.play).not.toHaveBeenCalled()
+      expect(square('g6')).not.toHaveAttribute('data-premove')
+      expect(square('f7')).not.toHaveAttribute('data-premove')
+      expect(square('g6')).toHaveFocus()
+      expect(status()).toHaveTextContent('bob to move.')
+    })
+
+    it('replaces the single queued premove with another gesture', () => {
+      const { t, rerender } = mountWith(offTurn())
+      fireEvent.click(square('g6'))
+      fireEvent.click(square('f7'))
+      fireEvent.click(square('e7'))
+      expect(square('e7')).toHaveAttribute('aria-pressed', 'true')
+      expect(status()).toHaveTextContent('Choose a premove destination.')
+      fireEvent.click(square('e8'))
+
+      expect(square('g6')).not.toHaveAttribute('data-premove')
+      expect(square('e7')).toHaveAttribute('data-premove', 'from')
+      expect(square('e8')).toHaveAttribute('data-premove', 'to')
+      rerender(view({ legalMoves: ['g6f7', 'e7e8q', 'e7e8r'] }))
+      expect(t.play).toHaveBeenCalledTimes(1)
+      expect(t.play).toHaveBeenCalledWith('e7e8q')
+    })
+
+    it('reselects another own piece instead of queueing a self-capture', () => {
+      const { t } = mountWith(offTurn())
+      fireEvent.click(square('g6'))
+      fireEvent.click(square('e7'))
+
+      expect(square('g6')).toHaveAttribute('aria-pressed', 'false')
+      expect(square('e7')).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.queryByRole('button', { name: 'Cancel premove' })).toBeNull()
+      expect(t.play).not.toHaveBeenCalled()
+    })
+
+    it('cannot queue a premove after the game has ended', () => {
+      const { t } = mountWith(ended())
+      fireEvent.click(square('g6'))
+      fireEvent.click(square('f7'))
+      expect(square('g6')).toHaveAttribute('aria-disabled', 'true')
+      expect(screen.queryByRole('button', { name: 'Cancel premove' })).toBeNull()
+      expect(t.play).not.toHaveBeenCalled()
+    })
+
+    it('does not land a replacement drag after the turn sent the queued premove', () => {
+      const { t, rerender } = mountWith(offTurn())
+      fireEvent.click(square('g6'))
+      fireEvent.click(square('f7'))
+      fireEvent.pointerDown(square('e7'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerMove(square('e7'), { pointerId: 1, clientX: 40, clientY: 40 })
+
+      rerender(view({ legalMoves: ['g6f7', 'e7e8q'] }))
+      document.elementFromPoint = () => square('e8')
+      fireEvent.pointerUp(square('e7'), { pointerId: 1, clientX: 40, clientY: 40 })
+      fireEvent.click(square('e7'))
+
+      expect(t.play).toHaveBeenCalledTimes(1)
+      expect(t.play).toHaveBeenCalledWith('g6f7')
+    })
+
+    it('queues a premove by drag, but not while disconnected', () => {
+      const { t, unmount } = mountWith(offTurn())
+      document.elementFromPoint = () => square('f7')
+      fireEvent.pointerDown(square('g6'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerMove(square('g6'), { pointerId: 1, clientX: 40, clientY: 40 })
+      fireEvent.pointerUp(square('g6'), { pointerId: 1, clientX: 40, clientY: 40 })
+      expect(status()).toHaveTextContent('Premove queued: g6 to f7.')
+      expect(t.play).not.toHaveBeenCalled()
+
+      unmount()
+      mountWith(offTurn(), {}, 'alice', false)
+      document.elementFromPoint = () => square('f7')
+      fireEvent.pointerDown(square('g6'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerMove(square('g6'), { pointerId: 1, clientX: 40, clientY: 40 })
+      fireEvent.pointerUp(square('g6'), { pointerId: 1, clientX: 40, clientY: 40 })
+      expect(screen.queryByRole('button', { name: 'Cancel premove' })).toBeNull()
+    })
+  })
+
   // A drag is a press that moves: the piece follows the pointer, the
   // squares it reaches show, and letting go on one plays it. Mouse and touch
   // alike are pointer events; where it lands is the square under the
