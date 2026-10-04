@@ -102,6 +102,11 @@ export interface ChessMovePayloads {
   resign: undefined
   // Stockfish in the empty second seat, at an Elo of 1320 to 3190.
   addBot: { elo: number }
+  // Any chess table in the room, from no seat: answered with a gameState,
+  // then every gameState and gameEnded the seats get. leaveGame, sitting
+  // down or leaving the room stops it; a table gone before it started
+  // sends gameLeft.
+  watch: { gameId: string }
 }
 
 export type ChessMoveName = keyof ChessMovePayloads

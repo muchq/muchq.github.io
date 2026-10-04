@@ -60,6 +60,13 @@
   gap: 0.4rem;
 }
 
+/* A table's buttons, side by side at the row's end. */
+.offers {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
 .row {
   display: flex;
   justify-content: space-between;

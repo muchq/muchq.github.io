@@ -138,4 +138,26 @@ describe('useChessTable', () => {
     receive({ gameCreated: { gameId: 'GAME02', createdBy: 'bob' } })
     expect(showNotice.mock.calls).toEqual([['bob opened chess table GAME02']])
   })
+
+  // A watcher (MoonBase#1633) holds no seat: its view is the seats' own,
+  // with no chair of its own in it.
+  it('watches a table by asking for it, and knows it holds no seat there', () => {
+    const { result, receive, move } = mount()
+    act(() => result.current.watchTable('GAME01'))
+    expect(move.mock.calls).toEqual([['watch', { gameId: 'GAME01' }]])
+    receive({ gameState: { view: view({ players: [{ playerId: 'bob', color: 'white' }, { playerId: 'carol', color: 'black' }] }) } })
+    expect(result.current.watching).toBe(true)
+    receive({ gameJoined: { view: view() } })
+    expect(result.current.watching).toBe(false)
+  })
+
+  it('stops watching through the hub, which answers as it does a seat', () => {
+    const { result, receive, move, onLeft } = mount()
+    receive({ gameState: { view: view({ players: [{ playerId: 'bob', color: 'white' }] }) } })
+    act(() => result.current.leaveTable())
+    expect(move.mock.calls).toEqual([['leaveGame']])
+    receive({ gameLeft: { gameId: 'GAME01' } })
+    expect(result.current.view).toBeNull()
+    expect(onLeft).toHaveBeenCalledTimes(1)
+  })
 })

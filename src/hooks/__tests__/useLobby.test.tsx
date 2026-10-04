@@ -265,6 +265,22 @@ describe('useLobby', () => {
     expect(ws.lastSent()).toEqual({ event: 'chess', payload: { move: { joinGame: { gameId: 'K1' } } } })
   })
 
+  // A watched table that goes before it starts (MoonBase#1633) sends its
+  // watchers gameLeft, as a seat's leave does.
+  it('watches a chess table in chess’s envelope, and puts it away on gameLeft', async () => {
+    const { result, ws, pathname } = await open()
+    const listed = [{ gameId: 'K1', game: 'chess' as const, status: 'playing', playerCount: 2 }]
+    act(() => ws.receive('roomState', roomState('R1', listed)))
+    act(() => result.current.chess.watchTable('K1'))
+    expect(ws.lastSent()).toEqual({ event: 'chess', payload: { move: { watch: { gameId: 'K1' } } } })
+    const watched = { gameId: 'K1', phase: 'waiting', players: [{ playerId: 'bob' }], moves: [], inCheck: false, legalMoves: [] }
+    act(() => ws.receive('chess', { update: { gameState: { view: watched } } }))
+    expect(result.current.chess.watching).toBe(true)
+    act(() => ws.receive('chess', { update: { gameLeft: { gameId: 'K1' } } }))
+    expect(result.current.chess.view).toBeNull()
+    expect(pathname()).toBe('/games/room/R1')
+  })
+
   it('joining a listed golf table sends its join, and the table answers', async () => {
     const { result, ws } = await open()
     act(() => ws.receive('roomState', roomState('R1', [{ gameId: 'G7', game: 'golf', status: 'waiting', playerCount: 1 }])))
