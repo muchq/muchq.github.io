@@ -49,10 +49,20 @@ export interface ChessScoreLine {
   ending: ChessEnding
 }
 
+export interface ChessSetupOption {
+  setupId: string
+  name: string
+}
+
 export interface ChessView {
   gameId: string
+  // The server owns this catalog; clients send an ID back when starting.
+  availableSetups: ChessSetupOption[]
   phase: ChessPhase
   variant?: string
+  // Absent while waiting.
+  setupId?: string
+  setupName?: string
   players: ChessPlayer[]
   // Absent while waiting.
   fen?: string
@@ -83,8 +93,8 @@ export interface ChessUpdate {
 export interface ChessMovePayloads {
   createGame: undefined
   joinGame: { gameId: string }
-  // Seconds; absent is the hub's default, three minutes and two.
-  startGame: { initialSeconds?: number; incrementSeconds?: number }
+  // Absent fields use the hub's defaults: random K+P vs K, three minutes and two.
+  startGame: { setupId?: string; initialSeconds?: number; incrementSeconds?: number }
   leaveGame: undefined
   play: { uci: string }
   resign: undefined

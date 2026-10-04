@@ -5,8 +5,14 @@ import type { ChessView } from '@/apps/chess/wire'
 
 const view = (over: Partial<ChessView> = {}): ChessView => ({
   gameId: 'GAME01',
+  availableSetups: [
+    { setupId: 'random-kpk', name: 'Random K+P vs K' },
+    { setupId: 'lucena', name: 'R+P vs R — Lucena' }
+  ],
   phase: 'playing',
   variant: 'kpk',
+  setupId: 'random-kpk',
+  setupName: 'Random K+P vs K',
   players: [
     { playerId: 'alice', color: 'white' },
     { playerId: 'bob', color: 'black' }
@@ -46,10 +52,10 @@ describe('useChessTable', () => {
     expect(result.current.view).toBe(over)
   })
 
-  it('a start names the clock in seconds', () => {
+  it('a start names the setup and clock', () => {
     const { result, move } = mount()
-    act(() => result.current.startTable({ initialSeconds: 60, incrementSeconds: 1 }))
-    expect(move.mock.calls).toEqual([['startGame', { initialSeconds: 60, incrementSeconds: 1 }]])
+    act(() => result.current.startTable({ setupId: 'lucena', initialSeconds: 60, incrementSeconds: 1 }))
+    expect(move.mock.calls).toEqual([['startGame', { setupId: 'lucena', initialSeconds: 60, incrementSeconds: 1 }]])
   })
 
   it('a bot is asked for at its strength', () => {
@@ -92,11 +98,11 @@ describe('useChessTable', () => {
     expect(onLeft).toHaveBeenCalledTimes(1)
   })
 
-  it('play again at an open table is its next game, on the same clock', () => {
+  it('play again at an open table is its selected next setup, on the same clock', () => {
     const { result, receive, move } = mount()
     receive({ gameState: { view: view({ phase: 'ended' }) } })
-    act(() => result.current.playAgain())
-    expect(move.mock.calls).toEqual([['startGame', { initialSeconds: 180, incrementSeconds: 2 }]])
+    act(() => result.current.playAgain('lucena'))
+    expect(move.mock.calls).toEqual([['startGame', { setupId: 'lucena', initialSeconds: 180, incrementSeconds: 2 }]])
     // Held until the next game's view arrives, so a second tap cannot ask twice.
     expect(result.current.opening).toBe(true)
     receive({ gameState: { view: view() } })

@@ -71,6 +71,11 @@
   align-items: center;
 }
 
+.setupPick {
+  min-width: 0;
+  max-width: 10rem;
+}
+
 .play {
   flex: 1 1 auto;
   min-height: 0;
@@ -452,6 +457,24 @@
   border-radius: 0;
   background: radial-gradient(circle, #f0c96a 20%, #c27a1a 100%);
   outline: none;
+}
+
+/* On a narrow phone the setup name gets its own row. Reserve that row
+   during play too, so ending a game still does not resize the board. */
+@media (max-width: 420px) {
+  .foot {
+    min-height: calc(1.4rem + 0.5rem + 2.75rem + 0.5rem + 2.75rem);
+  }
+
+  .foot .actions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .setupPick {
+    flex-basis: 100%;
+    max-width: 100%;
+  }
 }
 
 /* A phone on its side: too short for the board between its clocks, so the
