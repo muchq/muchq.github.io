@@ -44,7 +44,7 @@ export const CATALOG: readonly CatalogEntry[] = [
     label: 'Chess',
     family: 'Board',
     seats: { min: 2, max: 2 },
-    blurb: 'King and pawn against king, from a random position, on the clock. Promote and mate, or hold the draw.'
+    blurb: 'Standard chess and endgame practice positions, on the clock. Checkmate, promote, or hold the draw.'
   }
 ]
 

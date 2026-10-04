@@ -129,7 +129,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const opponent = view.players.find(player => player.playerId !== playerId)
   const selectedSetup = view.availableSetups.some(setup => setup.setupId === setupChoice)
     ? setupChoice
-    : (view.setupId ?? view.availableSetups[0]?.setupId ?? '')
+    : (view.setupId ?? view.defaultSetupId ?? view.availableSetups[0]?.setupId ?? '')
   const myTurn = view.phase === 'playing' && view.currentPlayerId === playerId
   const from = picked?.view === view ? picked.square : null
   const queuedPremove = premove?.gameId === view.gameId ? premove : null
@@ -267,7 +267,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   }
 
   const status = (() => {
-    if (view.phase === 'waiting') return view.players.length < 2 ? 'Waiting for a second seat.' : 'Pick a setup and clock, then start.'
+    if (view.phase === 'waiting') return view.players.length < 2 ? 'Waiting for a second seat.' : 'Pick a starting position and clock, then start.'
     if (view.phase === 'ended') return view.result === undefined ? '' : describeResult(view.result, playerId)
     if (view.phase === 'closed') {
       // A leave mid-game is that game's result; between games, the news.
@@ -291,12 +291,19 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
 
   return (
     <div className={styles.table} data-phase={view.phase}>
+      {/* The title spans the table instead of sharing the score sheet's
+          row, so a long server-owned position name can wrap in full. */}
+      <h1 ref={headingRef} tabIndex={-1} className={`${felt.title} ${styles.heading}`}>
+        Chess {view.gameId}
+        {view.setupName !== undefined && (
+          <span className={styles.setupName} title={view.setupName}>
+            {' '}
+            · {view.setupName}
+          </span>
+        )}
+      </h1>
       <div className={styles.top}>
         <div className={felt.tableHeader}>
-          <h1 ref={headingRef} tabIndex={-1} className={`${felt.title} ${styles.heading}`}>
-            Chess {view.gameId}
-            {view.setupName !== undefined && <span className={styles.variant}> · {view.setupName}</span>}
-          </h1>
           <p className={`${felt.hint} ${styles.statusSlot}`} role="status" data-testid="chess-status">
             {status}
           </p>
@@ -334,7 +341,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
             </div>
           )}
           <label className={styles.clockPick}>
-            Practice setup
+            Starting position
             <select value={selectedSetup} onChange={event => setSetupChoice(event.target.value)}>
               {view.availableSetups.map(setup => (
                 <option key={setup.setupId} value={setup.setupId}>
@@ -552,7 +559,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                   {view.phase === 'ended' && (
                     <select
                       className={styles.setupPick}
-                      aria-label="Next practice setup"
+                      aria-label="Next starting position"
                       value={selectedSetup}
                       onChange={event => setSetupChoice(event.target.value)}
                     >

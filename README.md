@@ -69,7 +69,7 @@ are the tables, `useGolfTable`, `useCastleTable` and `useRummyTable` their state
 room stream's game envelopes. Castle and rummy share the felt and the card faces
 (`castle/components/Cards.tsx`, `CastleTable.module.css`). `ChessTable` and `useChessTable`
 are chess's: two seats, the board from the viewer's side (tap a piece then its square, or drag it), one cancellable premove that is sent only if
-the hub lists it when the turn arrives (the client holds no rules), a server-owned practice-setup picker before each game, the clocks counted down from each view, and a
+the hub lists it when the turn arrives (the client holds no rules), a server-owned starting-position picker before each game, the clocks counted down from each view, and a
 score notepad as the table plays on: Next game starts another there, sides swapped. Share links are
 `/games/room/:roomId` and `/games/room/:roomId/table/:gameId`; the old `/golf` and `/castle`
 links redirect to them, and `/thoughts` to `/games`. Hiding the panel is how the bare world

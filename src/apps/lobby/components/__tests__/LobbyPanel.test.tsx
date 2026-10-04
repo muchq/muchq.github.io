@@ -125,7 +125,7 @@ describe('LobbyPanel', () => {
     for (const [game, blurb] of [
       ['golf', /Lowest hand wins/],
       ['rummy', /First to empty their hand wins/],
-      ['chess', /King and pawn against king/]
+      ['chess', /Standard chess and endgame practice positions/]
     ] as const) {
       fireEvent.change(picker, { target: { value: game } })
       expect(screen.getByText(blurb)).toBeTruthy()

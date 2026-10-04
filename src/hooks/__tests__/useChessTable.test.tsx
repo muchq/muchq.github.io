@@ -9,6 +9,7 @@ const view = (over: Partial<ChessView> = {}): ChessView => ({
     { setupId: 'random-kpk', name: 'Random K+P vs K' },
     { setupId: 'lucena', name: 'R+P vs R — Lucena' }
   ],
+  defaultSetupId: 'random-kpk',
   phase: 'playing',
   variant: 'kpk',
   setupId: 'random-kpk',
