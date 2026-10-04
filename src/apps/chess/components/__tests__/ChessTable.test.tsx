@@ -13,8 +13,10 @@ const view = (over: Partial<ChessView> = {}): ChessView => ({
   gameId: 'G1',
   availableSetups: [
     { setupId: 'random-kpk', name: 'Random K+P vs K' },
+    { setupId: 'standard', name: 'Standard starting position' },
     { setupId: 'lucena', name: 'R+P vs R — Lucena' }
   ],
+  defaultSetupId: 'standard',
   phase: 'playing',
   variant: 'kpk',
   setupId: 'random-kpk',
@@ -622,19 +624,20 @@ describe('ChessTable', () => {
   })
 
   describe('waiting', () => {
-    it('defaults to the catalog’s random setup and submits it', () => {
+    it('uses and submits the server default even when it is not the first catalog option', () => {
       const { t } = mountWith(waiting())
-      expect(screen.getByRole('combobox', { name: 'Practice setup' })).toHaveValue('random-kpk')
+      expect(screen.getByRole('combobox', { name: 'Starting position' })).toHaveValue('standard')
       fireEvent.click(screen.getByRole('button', { name: 'Start' }))
-      expect(t.startTable).toHaveBeenCalledWith({ setupId: 'random-kpk', initialSeconds: 180, incrementSeconds: 2 })
+      expect(t.startTable).toHaveBeenCalledWith({ setupId: 'standard', initialSeconds: 180, incrementSeconds: 2 })
     })
 
     it('starts with the server setup and clock chosen', () => {
       const { t } = mountWith(waiting())
       expect(screen.queryByRole('group', { name: 'board' })).toBeNull()
-      const setup = screen.getByRole('combobox', { name: 'Practice setup' })
+      const setup = screen.getByRole('combobox', { name: 'Starting position' })
       expect(within(setup).getAllByRole('option').map(option => [option.getAttribute('value'), option.textContent])).toEqual([
         ['random-kpk', 'Random K+P vs K'],
+        ['standard', 'Standard starting position'],
         ['lucena', 'R+P vs R — Lucena']
       ])
       fireEvent.change(setup, { target: { value: 'lucena' } })
@@ -721,16 +724,23 @@ describe('ChessTable', () => {
       expect(screen.getByText('You won by checkmate', { selector: 'p:not([data-testid])' })).toHaveAttribute('aria-hidden', 'true')
       expect(screen.queryByRole('button', { name: 'Resign' })).toBeNull()
       expect(screen.getByRole('button', { name: 'Next game' })).toHaveFocus()
-      fireEvent.change(screen.getByRole('combobox', { name: 'Next practice setup' }), { target: { value: 'lucena' } })
+      const nextPosition = screen.getByRole('combobox', { name: 'Next starting position' })
+      expect(nextPosition).toHaveValue('random-kpk')
+      fireEvent.change(nextPosition, { target: { value: 'lucena' } })
       fireEvent.click(screen.getByRole('button', { name: 'Next game' }))
       expect(t.playAgain).toHaveBeenCalledWith('lucena')
       fireEvent.click(screen.getByRole('button', { name: 'Leave table' }))
       expect(t.leaveTable).toHaveBeenCalledTimes(1)
     })
 
-    it('names the active server setup', () => {
-      mountWith(ended({ setupId: 'lucena', setupName: 'R+P vs R — Lucena', variant: 'lucena' }))
-      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Chess G1 · R+P vs R — Lucena')
+    it('shows the full active starting-position name without the title’s truncating style', () => {
+      const setupName = 'Rook and pawn versus rook — Lucena position with the defending king cut off'
+      mountWith(ended({ setupId: 'lucena', setupName, variant: 'lucena' }))
+      const heading = screen.getByRole('heading', { level: 1 })
+      expect(heading).toHaveTextContent(`Chess G1 · ${setupName}`)
+      expect(heading.parentElement).toHaveAttribute('data-phase', 'ended')
+      const name = within(heading).getByTitle(setupName)
+      expect(name.className).toContain('setupName')
     })
 
     it('once the opponent leaves between games, says so and offers another table', () => {

@@ -58,6 +58,8 @@ export interface ChessView {
   gameId: string
   // The server owns this catalog; clients send an ID back when starting.
   availableSetups: ChessSetupOption[]
+  // The setup selected when startGame.setupId is absent.
+  defaultSetupId: string
   phase: ChessPhase
   variant?: string
   // Absent while waiting.
@@ -93,7 +95,7 @@ export interface ChessUpdate {
 export interface ChessMovePayloads {
   createGame: undefined
   joinGame: { gameId: string }
-  // Absent fields use the hub's defaults: random K+P vs K, three minutes and two.
+  // Absent fields use the hub's advertised setup default, three minutes and two.
   startGame: { setupId?: string; initialSeconds?: number; incrementSeconds?: number }
   leaveGame: undefined
   play: { uci: string }
