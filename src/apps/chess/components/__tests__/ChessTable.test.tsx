@@ -676,6 +676,27 @@ describe('ChessTable', () => {
       expect(t.postChallenge).toHaveBeenCalledWith({ setupId: 'lucena', initialSeconds: 300, incrementSeconds: 3 })
     })
 
+    it('keeps a posted clock the pickers do not offer, in seconds where it is not whole minutes', () => {
+      const { t } = mountWith(
+        waiting({ players: [{ playerId: 'alice' }], terms: { setupId: 'lucena', setupName: 'R+P vs R — Lucena', initialSeconds: 90, incrementSeconds: 0 } })
+      )
+      expect(screen.getByTestId('chess-status')).toHaveTextContent('Challenge posted: R+P vs R — Lucena, 90s+0.')
+      expect(screen.getByRole('combobox', { name: 'Clock' })).toHaveValue('90s+0')
+      fireEvent.click(screen.getByRole('button', { name: 'Update challenge' }))
+      expect(t.postChallenge).toHaveBeenCalledWith({ setupId: 'lucena', initialSeconds: 90, incrementSeconds: 0 })
+    })
+
+    // A start that failed leaves two seats at a table still showing terms:
+    // Start, on them.
+    it('with two seats, starts on the posted terms and no longer waits for a joiner', () => {
+      const { t } = mountWith(
+        waiting({ terms: { setupId: 'lucena', setupName: 'R+P vs R — Lucena', initialSeconds: 300, incrementSeconds: 3 } })
+      )
+      expect(screen.getByTestId('chess-status')).not.toHaveTextContent('Whoever joins')
+      fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+      expect(t.startTable).toHaveBeenCalledWith({ setupId: 'lucena', initialSeconds: 300, incrementSeconds: 3 })
+    })
+
     it('a watcher reads the terms and posts nothing', () => {
       mountWith(
         waiting({ players: [{ playerId: 'alice' }], terms: { setupId: 'lucena', setupName: 'R+P vs R — Lucena', initialSeconds: 300, incrementSeconds: 3 } }),

@@ -56,10 +56,6 @@ const DRAG_SLOP_PX = 6
 const clockLabel = (terms: ChessTerms): string =>
   `${terms.initialSeconds % 60 === 0 ? terms.initialSeconds / 60 : `${terms.initialSeconds}s`}+${terms.incrementSeconds}`
 
-// The offered clock a challenge's terms name, if they name one.
-const clockNamed = (terms: ChessTerms): string | undefined =>
-  Object.keys(CLOCKS).find(name => CLOCKS[name].initialSeconds === terms.initialSeconds && CLOCKS[name].incrementSeconds === terms.incrementSeconds)
-
 const colorOfPiece = (piece: string): ChessColor => (piece === piece.toUpperCase() ? 'white' : 'black')
 const other = (color: ChessColor): ChessColor => (color === 'white' ? 'black' : 'white')
 
@@ -142,9 +138,13 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const selectedSetup = view.availableSetups.some(setup => setup.setupId === setupChoice)
     ? setupChoice
     : (view.terms?.setupId ?? view.setupId ?? view.defaultSetupId ?? view.availableSetups[0]?.setupId ?? '')
-  // The clock picked here, else a posted challenge's when it is one of the
-  // offered clocks, else 3+2.
-  const selectedClock = clockChoice ?? (view.terms === undefined ? undefined : clockNamed(view.terms)) ?? '3+2'
+  // The offered clocks, and a posted challenge's among them even when it
+  // is none of those, so updating the challenge never quietly changes it.
+  const clocks =
+    view.terms === undefined
+      ? CLOCKS
+      : { ...CLOCKS, [clockLabel(view.terms)]: { initialSeconds: view.terms.initialSeconds, incrementSeconds: view.terms.incrementSeconds } }
+  const selectedClock = clockChoice ?? (view.terms === undefined ? '3+2' : clockLabel(view.terms))
   const alone = view.players.length < 2
   const myTurn = view.phase === 'playing' && view.currentPlayerId === playerId
   const from = picked?.view === view ? picked.square : null
@@ -286,7 +286,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     if (view.phase === 'waiting') {
       if (view.terms !== undefined) {
         const posted = `Challenge posted: ${view.terms.setupName}, ${clockLabel(view.terms)}.`
-        return watching ? posted : `${posted} Whoever joins starts the game.`
+        return watching || !alone ? posted : `${posted} Whoever joins starts the game.`
       }
       return alone ? 'Waiting for a second seat.' : 'Pick a starting position and clock, then start.'
     }
@@ -384,7 +384,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
               <label className={styles.clockPick}>
                 Clock
                 <select value={selectedClock} onChange={event => setClockChoice(event.target.value)}>
-                  {Object.keys(CLOCKS).map(name => (
+                  {Object.keys(clocks).map(name => (
                     <option key={name} value={name}>
                       {name}
                     </option>
@@ -393,35 +393,19 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
               </label>
               {/* Alone, the choice is posted as a challenge that whoever
                   joins starts on; with two seats, it starts the game. */}
-              {alone ? (
-                <button
-                  type="button"
-                  className={felt.primary}
-                  onClick={() =>
-                    table.postChallenge({
-                      ...(selectedSetup === '' ? {} : { setupId: selectedSetup }),
-                      ...CLOCKS[selectedClock]
-                    })
-                  }
-                  disabled={!connected}
-                >
-                  {view.terms === undefined ? 'Post challenge' : 'Update challenge'}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className={felt.primary}
-                  onClick={() =>
-                    table.startTable({
-                      ...(selectedSetup === '' ? {} : { setupId: selectedSetup }),
-                      ...CLOCKS[selectedClock]
-                    })
-                  }
-                  disabled={!connected}
-                >
-                  Start
-                </button>
-              )}
+              <button
+                type="button"
+                className={felt.primary}
+                onClick={() =>
+                  (alone ? table.postChallenge : table.startTable)({
+                    ...(selectedSetup === '' ? {} : { setupId: selectedSetup }),
+                    ...clocks[selectedClock]
+                  })
+                }
+                disabled={!connected}
+              >
+                {!alone ? 'Start' : view.terms === undefined ? 'Post challenge' : 'Update challenge'}
+              </button>
             </>
           )}
         </div>
