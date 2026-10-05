@@ -5,7 +5,8 @@ import type { ChessMoveName, ChessMovePayloads, ChessUpdate, ChessView } from '@
 // The owner feeds handleUpdate every chess update and clears the table on
 // a resume. The view is the whole truth: an ended one carries the result,
 // and arrives before gameEnded. The board's own selection is the
-// component's: it lives and dies with one view.
+// component's: it lives and dies with one view. A watcher's view is the
+// seats' own, with no chair of its own in it.
 
 export interface ChessTableActions {
   // Setup and seconds; absent fields use the hub's defaults.
@@ -23,7 +24,10 @@ export interface ChessTableActions {
 export interface UseChessTable extends ChessTableActions {
   createTable: () => void
   joinTable: (gameId: string) => void
+  watchTable: (gameId: string) => void
   view: ChessView | null
+  // At the table in no seat: watching it.
+  watching: boolean
   // Another game has been asked for and not yet arrived.
   opening: boolean
   // A bot has been asked for and its seat not yet arrived.
@@ -96,6 +100,8 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
     move('createGame')
   }, [move, view])
   const joinTable = useCallback((gameId: string) => move('joinGame', { gameId }), [move])
+  const watchTable = useCallback((gameId: string) => move('watch', { gameId }), [move])
+  const watching = view !== null && !view.players.some(player => player.playerId === playerId)
   const startTable = useCallback((clock: ChessMovePayloads['startGame'] = {}) => move('startGame', clock), [move])
   const leaveTable = useCallback(() => {
     if (view !== null && view.phase !== 'closed') {
@@ -116,5 +122,22 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
     [move]
   )
 
-  return { view, opening, seating, handleUpdate, handleRejected: settle, clear, createTable, joinTable, startTable, leaveTable, playAgain, play, resign, addBot }
+  return {
+    view,
+    watching,
+    opening,
+    seating,
+    handleUpdate,
+    handleRejected: settle,
+    clear,
+    createTable,
+    joinTable,
+    watchTable,
+    startTable,
+    leaveTable,
+    playAgain,
+    play,
+    resign,
+    addBot
+  }
 }

@@ -45,7 +45,7 @@ const lobby = (over: Partial<UseLobby> = {}): UseLobby =>
     castle: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['castle'],
     golf: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['golf'],
     rummy: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['rummy'],
-    chess: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['chess'],
+    chess: { createTable: vi.fn(), joinTable: vi.fn(), watchTable: vi.fn() } as unknown as UseLobby['chess'],
     ...over
   }) as UseLobby
 
@@ -105,6 +105,36 @@ describe('LobbyPanel', () => {
     expect(screen.getByRole('button', { name: 'Full chess K2' })).toHaveProperty('disabled', true)
     fireEvent.click(screen.getByRole('button', { name: 'Join chess K1' }))
     expect(hook.chess.joinTable).toHaveBeenCalledWith('K1')
+  })
+
+  // Any chess table can be watched by a member at none (MoonBase#1633);
+  // no other game's can.
+  it('offers to watch every chess table, and only chess tables', () => {
+    const hook = lobby({
+      room: room({
+        games: [
+          { gameId: 'K1', game: 'chess', status: 'playing', playerCount: 2 },
+          { gameId: 'K2', game: 'chess', status: 'waiting', playerCount: 1 },
+          { gameId: 'G2', game: 'golf', status: 'playing', playerCount: 2 }
+        ]
+      })
+    })
+    render(<LobbyPanel lobby={hook} />)
+    expect(screen.getAllByRole('button', { name: /^Watch / }).map(button => button.getAttribute('aria-label'))).toEqual([
+      'Watch chess K1',
+      'Watch chess K2'
+    ])
+    fireEvent.click(screen.getByRole('button', { name: 'Watch chess K1' }))
+    expect(hook.chess.watchTable).toHaveBeenCalledWith('K1')
+  })
+
+  it('a member at a table cannot watch another', () => {
+    const hook = lobby({
+      playerId: 'bob',
+      room: room({ games: [...room().games, { gameId: 'K1', game: 'chess', status: 'playing', playerCount: 2 }] })
+    })
+    render(<LobbyPanel lobby={hook} />)
+    expect(screen.getByRole('button', { name: 'Watch chess K1' })).toHaveProperty('disabled', true)
   })
 
   // One picker and one button however many games there are: the games

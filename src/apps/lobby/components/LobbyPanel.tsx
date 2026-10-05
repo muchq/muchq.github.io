@@ -179,15 +179,29 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
                   <span>
                     {game} {table.gameId} · {table.playerCount}/{seatsOf(game)} · {table.status === 'choosing' ? 'between deals' : table.status}
                   </span>
-                  <button
-                    type="button"
-                    className={styles.secondary}
-                    onClick={() => tableFor(lobby, game).joinTable(table.gameId)}
-                    disabled={!offer.open || !connected || busy}
-                    aria-label={`${offer.label} ${game} ${table.gameId}`}
-                  >
-                    {offer.label}
-                  </button>
+                  <span className={styles.offers}>
+                    {/* Chess hides nothing, so any of its tables can be watched. */}
+                    {game === 'chess' && (
+                      <button
+                        type="button"
+                        className={styles.secondary}
+                        onClick={() => lobby.chess.watchTable(table.gameId)}
+                        disabled={!connected || busy}
+                        aria-label={`Watch ${game} ${table.gameId}`}
+                      >
+                        Watch
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className={styles.secondary}
+                      onClick={() => tableFor(lobby, game).joinTable(table.gameId)}
+                      disabled={!offer.open || !connected || busy}
+                      aria-label={`${offer.label} ${game} ${table.gameId}`}
+                    >
+                      {offer.label}
+                    </button>
+                  </span>
                 </li>
               )
             })}

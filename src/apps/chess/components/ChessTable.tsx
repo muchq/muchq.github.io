@@ -11,8 +11,9 @@ import ScoreSheet from './ScoreSheet'
 // The board from the viewer's chair: their side at the bottom, the
 // opponent's clock above it and their own below. A tap on a piece offers
 // the moves the hub listed for it, and a tap on one of those plays it;
-// the hub refuses anything else in band. The table's chrome is castle's,
-// as rummy's is.
+// the hub refuses anything else in band. A watcher, in no chair, sees it
+// from White's and touches nothing. The table's chrome is castle's, as
+// rummy's is.
 
 export interface ChessTableProps {
   playerId: string
@@ -125,8 +126,11 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const [ghost, setGhost] = useState<{ piece: string; x: number; y: number; size: number } | null>(null)
 
   const me = view.players.find(player => player.playerId === playerId)
+  const watching = me === undefined
   const myColor: ChessColor = me?.color ?? 'white'
-  const opponent = view.players.find(player => player.playerId !== playerId)
+  // The clock above the board and the one below it.
+  const above = watching ? view.players.find(player => player.color === 'black') : view.players.find(player => player.playerId !== playerId)
+  const below = watching ? view.players.find(player => player.color === 'white') : me
   const selectedSetup = view.availableSetups.some(setup => setup.setupId === setupChoice)
     ? setupChoice
     : (view.setupId ?? view.defaultSetupId ?? view.availableSetups[0]?.setupId ?? '')
@@ -185,7 +189,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
       dragged.current = false
       return
     }
-    if (!connected || view.phase !== 'playing') return
+    if (watching || !connected || view.phase !== 'playing') return
     // A tap on the board is a new gesture: a promotion still asking is
     // abandoned, never left up to send a second move for this turn.
     setPromoting(null)
@@ -217,7 +221,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
 
   const onPointerDown = (event: ReactPointerEvent, square: string) => {
     dragged.current = false
-    if (!connected || view.phase !== 'playing' || event.button !== 0) return
+    if (watching || !connected || view.phase !== 'playing' || event.button !== 0) return
     const piece = board.get(square)
     if (piece === undefined || colorOfPiece(piece) !== myColor) return
     if (myTurn && targetsFrom(view.legalMoves, square).length === 0) return
@@ -272,6 +276,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     if (view.phase === 'closed') {
       // A leave mid-game is that game's result; between games, the news.
       if (view.result?.ending === 'abandoned') return describeResult(view.result, playerId)
+      if (watching) return 'The table closed.'
       const left = view.players.find(player => player.playerId !== playerId)
       return `${left === undefined ? 'Your opponent' : nameOf(left.playerId)} left the table.`
     }
@@ -294,7 +299,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
       {/* The title spans the table instead of sharing the score sheet's
           row, so a long server-owned position name can wrap in full. */}
       <h1 ref={headingRef} tabIndex={-1} className={`${felt.title} ${styles.heading}`}>
-        Chess {view.gameId}
+        {watching ? 'Watching chess' : 'Chess'} {view.gameId}
         {view.setupName !== undefined && (
           <span className={styles.setupName} title={view.setupName}>
             {' '}
@@ -309,10 +314,16 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
           </p>
           {/* Leaving a game in play forfeits it: Resign is that, and it asks
               first. Before the start, leaving costs nothing. */}
-          {view.phase === 'waiting' && (
-            <button type="button" className={felt.link} onClick={table.leaveTable} disabled={!connected}>
-              Leave table
+          {watching ? (
+            <button type="button" className={felt.link} onClick={table.leaveTable}>
+              Stop watching
             </button>
+          ) : (
+            view.phase === 'waiting' && (
+              <button type="button" className={felt.link} onClick={table.leaveTable} disabled={!connected}>
+                Leave table
+              </button>
+            )
           )}
         </div>
         <ScoreSheet view={view} playerId={playerId} />
@@ -326,7 +337,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
             ))}
           </ul>
           {/* Alone at the table, a bot can take the other chair. */}
-          {view.players.length === 1 && (
+          {!watching && view.players.length === 1 && (
             <div className={styles.clockPick}>
               <select aria-label="Bot strength" value={botElo} onChange={event => setBotElo(Number(event.target.value))}>
                 {BOT_STRENGTHS.map(({ elo, name }) => (
@@ -340,43 +351,47 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
               </button>
             </div>
           )}
-          <label className={styles.clockPick}>
-            Starting position
-            <select value={selectedSetup} onChange={event => setSetupChoice(event.target.value)}>
-              {view.availableSetups.map(setup => (
-                <option key={setup.setupId} value={setup.setupId}>
-                  {setup.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={styles.clockPick}>
-            Clock
-            <select value={clockChoice} onChange={event => setClockChoice(event.target.value)}>
-              {Object.keys(CLOCKS).map(name => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            className={felt.primary}
-            onClick={() =>
-              table.startTable({
-                ...(selectedSetup === '' ? {} : { setupId: selectedSetup }),
-                ...CLOCKS[clockChoice]
-              })
-            }
-            disabled={view.players.length < 2 || !connected}
-          >
-            Start
-          </button>
+          {!watching && (
+            <>
+              <label className={styles.clockPick}>
+                Starting position
+                <select value={selectedSetup} onChange={event => setSetupChoice(event.target.value)}>
+                  {view.availableSetups.map(setup => (
+                    <option key={setup.setupId} value={setup.setupId}>
+                      {setup.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={styles.clockPick}>
+                Clock
+                <select value={clockChoice} onChange={event => setClockChoice(event.target.value)}>
+                  {Object.keys(CLOCKS).map(name => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className={felt.primary}
+                onClick={() =>
+                  table.startTable({
+                    ...(selectedSetup === '' ? {} : { setupId: selectedSetup }),
+                    ...CLOCKS[clockChoice]
+                  })
+                }
+                disabled={view.players.length < 2 || !connected}
+              >
+                Start
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <div className={styles.play}>
-          {opponent?.color !== undefined && <ClockRow view={view} seatId={opponent.playerId} color={opponent.color} you={false} />}
+          {above?.color !== undefined && <ClockRow view={view} seatId={above.playerId} color={above.color} you={false} />}
           <span id={targetNote} className={felt.srOnly}>
             a move
           </span>
@@ -392,12 +407,12 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
             >
               {squares.map((square, index) => {
                 const piece = shown.get(square)
-                const mine = piece !== undefined && colorOfPiece(piece) === myColor
+                const mine = !watching && piece !== undefined && colorOfPiece(piece) === myColor
                 // a1 dark: a square is dark where its file and rank index sum even.
                 const light = (square.charCodeAt(0) - 97 + Number(square[1])) % 2 === 0
                 const target = targets.includes(square)
                 const grab = mine && connected && view.phase === 'playing' && (!myTurn || targetsFrom(view.legalMoves, square).length > 0)
-                const interactive = connected && view.phase === 'playing' && (myTurn || mine || from !== null)
+                const interactive = !watching && connected && view.phase === 'playing' && (myTurn || mine || from !== null)
                 const premoveMark = queuedPremove?.from === square ? 'from' : queuedPremove?.to === square ? 'to' : undefined
                 return (
                   <button
@@ -481,7 +496,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
               )}
             </div>
           </div>
-          {me?.color !== undefined && <ClockRow view={view} seatId={me.playerId} color={me.color} you />}
+          {below?.color !== undefined && <ClockRow view={view} seatId={below.playerId} color={below.color} you={!watching} />}
           {/* On the page, not the board: the board clips its overflow, and a
               captured drag may stray past its edge. */}
           {ghost !== null &&
@@ -554,35 +569,38 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                   {status}
                 </p>
                 {/* Between games the table is still both seats': the next game
-                    is played here. Once a seat has left, another table. */}
-                <div className={styles.actions}>
-                  {view.phase === 'ended' && (
-                    <select
-                      className={styles.setupPick}
-                      aria-label="Next starting position"
-                      value={selectedSetup}
-                      onChange={event => setSetupChoice(event.target.value)}
+                    is played here. Once a seat has left, another table. A
+                    watcher has neither. */}
+                {!watching && (
+                  <div className={styles.actions}>
+                    {view.phase === 'ended' && (
+                      <select
+                        className={styles.setupPick}
+                        aria-label="Next starting position"
+                        value={selectedSetup}
+                        onChange={event => setSetupChoice(event.target.value)}
+                      >
+                        {view.availableSetups.map(setup => (
+                          <option key={setup.setupId} value={setup.setupId}>
+                            {setup.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <button
+                      ref={playAgainRef}
+                      type="button"
+                      className={felt.primary}
+                      onClick={() => table.playAgain(selectedSetup === '' ? undefined : selectedSetup)}
+                      disabled={!connected || opening}
                     >
-                      {view.availableSetups.map(setup => (
-                        <option key={setup.setupId} value={setup.setupId}>
-                          {setup.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  <button
-                    ref={playAgainRef}
-                    type="button"
-                    className={felt.primary}
-                    onClick={() => table.playAgain(selectedSetup === '' ? undefined : selectedSetup)}
-                    disabled={!connected || opening}
-                  >
-                    {opening ? 'Opening…' : view.phase === 'ended' ? 'Next game' : 'Play again'}
-                  </button>
-                  <button type="button" className={felt.secondary} onClick={table.leaveTable}>
-                    {view.phase === 'ended' ? 'Leave table' : 'Back to the room'}
-                  </button>
-                </div>
+                      {opening ? 'Opening…' : view.phase === 'ended' ? 'Next game' : 'Play again'}
+                    </button>
+                    <button type="button" className={felt.secondary} onClick={table.leaveTable}>
+                      {view.phase === 'ended' ? 'Leave table' : 'Back to the room'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

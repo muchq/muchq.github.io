@@ -805,4 +805,73 @@ describe('ChessTable', () => {
       expect(rows).toEqual(['#youbob', '3—1', '41—', '5—1', '6—1', '71—', 'Total43'])
     })
   })
+
+  // A member at no seat watching the table (MoonBase#1633): White at the
+  // bottom, both clocks, the moves as they come, and nothing to touch.
+  describe('watching', () => {
+    it('shows White at the bottom with both clocks, and says it is watching', () => {
+      mountWith(view(), {}, 'carol')
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Watching chess G1')
+      const cells = within(screen.getByRole('group', { name: 'board' })).getAllByRole('button')
+      expect(cells[0]).toHaveAccessibleName('a8')
+      const clocks = screen.getAllByRole('timer').map(clock => clock.getAttribute('aria-label'))
+      expect(clocks).toEqual(['bob’s clock', 'alice’s clock'])
+      expect(screen.getByTestId('chess-status')).toHaveTextContent('alice to move.')
+    })
+
+    it('keeps White at the bottom whichever seat is listed first', () => {
+      mountWith(
+        view({
+          players: [
+            { playerId: 'bob', color: 'black' },
+            { playerId: 'alice', color: 'white' }
+          ]
+        }),
+        {},
+        'carol'
+      )
+      expect(within(screen.getByRole('group', { name: 'board' })).getAllByRole('button')[0]).toHaveAccessibleName('a8')
+      expect(screen.getAllByRole('timer').map(clock => clock.getAttribute('aria-label'))).toEqual(['bob’s clock', 'alice’s clock'])
+    })
+
+    it('moves nothing: no piece picks up and nothing is played', () => {
+      const { t } = mountWith(view(), {}, 'carol')
+      expect(square('g6')).toHaveAttribute('aria-disabled', 'true')
+      expect(square('g6')).not.toHaveAttribute('aria-pressed')
+      expect(square('g6').dataset.grab).toBeUndefined()
+      fireEvent.click(square('e7'))
+      fireEvent.click(square('e8'))
+      expect(t.play).not.toHaveBeenCalled()
+      expect(screen.queryByRole('group', { name: 'promote to' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Resign' })).toBeNull()
+    })
+
+    it('stops watching at a tap, in any phase', () => {
+      for (const phase of [waiting(), view(), ended(), ended({ phase: 'closed' })]) {
+        const { t, unmount } = mountWith(phase, {}, 'carol')
+        fireEvent.click(screen.getByRole('button', { name: 'Stop watching' }))
+        expect(t.leaveTable).toHaveBeenCalledTimes(1)
+        unmount()
+      }
+    })
+
+    it('offers none of a seat’s choices before the start', () => {
+      mountWith(waiting({ players: [{ playerId: 'alice' }] }), {}, 'carol')
+      for (const name of ['Start', 'Add a bot', 'Leave table']) expect(screen.queryByRole('button', { name })).toBeNull()
+      expect(screen.queryByRole('combobox')).toBeNull()
+      expect(screen.getByTestId('chess-status')).toHaveTextContent('Waiting for a second seat.')
+    })
+
+    it('reads the result, with no next game to start', () => {
+      mountWith(ended(), {}, 'carol')
+      expect(screen.getByTestId('chess-status')).toHaveTextContent('alice won by checkmate')
+      for (const name of ['Next game', 'Play again', 'Leave table']) expect(screen.queryByRole('button', { name })).toBeNull()
+      expect(screen.queryByRole('combobox', { name: 'Next starting position' })).toBeNull()
+    })
+
+    it('says the table closed when a seat left between games', () => {
+      mountWith(ended({ phase: 'closed', players: [{ playerId: 'bob', color: 'black' }] }), {}, 'carol')
+      expect(screen.getByTestId('chess-status')).toHaveTextContent('The table closed.')
+    })
+  })
 })
