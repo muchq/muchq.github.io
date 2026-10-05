@@ -388,6 +388,17 @@
   opacity: 0.7;
 }
 
+.notepadToggle {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
 /* A drag: the viewer's movable pieces take the touch, so the page does not
    scroll under it; the piece rides the pointer over the page, a size up,
    and its square holds a faint copy until it lands. */
