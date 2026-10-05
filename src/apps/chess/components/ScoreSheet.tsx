@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { nameOf } from '../rules'
 import type { ChessView } from '../wire'
 import styles from './ChessTable.module.css'
@@ -6,8 +7,9 @@ import styles from './ChessTable.module.css'
 // line a game with a 1 in its winner's column, and the wins totalled under
 // a rule. Width stays in the header row; height is dropped from the board's
 // flex budget (zero-height slot), so a new line or the first sheet does not
-// resize the squares. The page holds the last few games; the totals count
-// them all.
+// resize the squares. Closed, the sheet is the totals alone, so a long match
+// never hangs over the board; the game count opens the last few games. The
+// totals count them all.
 
 const PAGE = 5
 
@@ -17,6 +19,7 @@ export interface ScoreSheetProps {
 }
 
 const ScoreSheet = ({ view, playerId }: ScoreSheetProps) => {
+  const [open, setOpen] = useState(false)
   const lines = view.scoreSheet ?? []
   if (lines.length === 0) return null
   const columns = view.players.map(player => player.playerId)
@@ -42,7 +45,7 @@ const ScoreSheet = ({ view, playerId }: ScoreSheetProps) => {
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody hidden={!open}>
             {lines.slice(first).map((line, i) => (
               <tr key={first + i}>
                 <th scope="row">{first + i + 1}</th>
@@ -65,6 +68,9 @@ const ScoreSheet = ({ view, playerId }: ScoreSheetProps) => {
             </tr>
           </tfoot>
         </table>
+        <button type="button" className={styles.notepadToggle} aria-expanded={open} onClick={() => setOpen(!open)}>
+          {lines.length} {lines.length === 1 ? 'game' : 'games'}
+        </button>
       </div>
     </div>
   )

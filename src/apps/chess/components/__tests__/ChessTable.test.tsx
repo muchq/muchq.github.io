@@ -780,6 +780,27 @@ describe('ChessTable', () => {
       expect(sheet.parentElement?.className.split(/\s+/).some(name => /(?:^|_)notepad(?:_|$)/.test(name))).toBe(true)
     })
 
+    // Collapsed, the sheet is its totals alone, so a long match never grows
+    // over the board; the game count opens the history.
+    it('shows only the totals until its history is opened, and closes again', () => {
+      mountWith(view({ scoreSheet: [{ winner: 'alice', ending: 'checkmate' }, { ending: 'stalemate' }] }))
+      const sheet = screen.getByRole('table', { name: 'Score sheet' })
+      const rows = () => within(sheet).getAllByRole('row').map(row => row.textContent)
+      const toggle = screen.getByRole('button', { name: '2 games' })
+      expect(toggle).toHaveAttribute('aria-expanded', 'false')
+      expect(rows()).toEqual(['#youbob', 'Total10'])
+      fireEvent.click(toggle)
+      expect(toggle).toHaveAttribute('aria-expanded', 'true')
+      expect(rows()).toEqual(['#youbob', '11—', '2draw', 'Total10'])
+      fireEvent.click(toggle)
+      expect(rows()).toEqual(['#youbob', 'Total10'])
+    })
+
+    it('counts a single game as one', () => {
+      mountWith(view({ scoreSheet: [{ winner: 'alice', ending: 'checkmate' }] }))
+      expect(screen.getByRole('button', { name: '1 game' })).toBeInTheDocument()
+    })
+
     it('marks each game’s winner, a draw for neither, and totals the wins', () => {
       mountWith(
         view({
@@ -791,6 +812,7 @@ describe('ChessTable', () => {
           ]
         })
       )
+      fireEvent.click(screen.getByRole('button', { name: '4 games' }))
       const sheet = screen.getByRole('table', { name: 'Score sheet' })
       const rows = within(sheet).getAllByRole('row').map(row => row.textContent)
       expect(rows).toEqual(['#youbob', '11—', '2draw', '3—1', '41—', 'Total21'])
@@ -799,6 +821,7 @@ describe('ChessTable', () => {
     it('pages the last five games and totals them all', () => {
       const won = (winner: string) => ({ winner, ending: 'checkmate' as const })
       mountWith(view({ scoreSheet: [won('alice'), won('alice'), won('bob'), won('alice'), won('bob'), won('bob'), won('alice')] }))
+      fireEvent.click(screen.getByRole('button', { name: '7 games' }))
       const rows = within(screen.getByRole('table', { name: 'Score sheet' }))
         .getAllByRole('row')
         .map(row => row.textContent)
