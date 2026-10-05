@@ -8,8 +8,8 @@ import styles from './ChessTable.module.css'
 // a rule. Width stays in the header row; height is dropped from the board's
 // flex budget (zero-height slot), so a new line or the first sheet does not
 // resize the squares. Closed, the sheet is the totals alone, so a long match
-// never hangs over the board; the game count opens the last few games. The
-// totals count them all.
+// never hangs over the board; the game count heading the number column opens
+// the last few games. The totals count them all.
 
 const PAGE = 5
 
@@ -37,7 +37,18 @@ const ScoreSheet = ({ view, playerId }: ScoreSheetProps) => {
         <table className={styles.notepadSheet} aria-label="Score sheet">
           <thead>
             <tr>
-              <th scope="col">#</th>
+              <th scope="col">
+                <button
+                  type="button"
+                  className={styles.notepadToggle}
+                  aria-label={`${lines.length} ${lines.length === 1 ? 'game' : 'games'}`}
+                  aria-expanded={open}
+                  onClick={() => setOpen(!open)}
+                >
+                  {lines.length}
+                  <span aria-hidden="true">{open ? '▾' : '▸'}</span>
+                </button>
+              </th>
               {columns.map(id => (
                 <th key={id} scope="col" title={nameOf(id)}>
                   <span className={styles.notepadName}>{id === playerId ? 'you' : nameOf(id)}</span>
@@ -68,9 +79,6 @@ const ScoreSheet = ({ view, playerId }: ScoreSheetProps) => {
             </tr>
           </tfoot>
         </table>
-        <button type="button" className={styles.notepadToggle} aria-expanded={open} onClick={() => setOpen(!open)}>
-          {lines.length} {lines.length === 1 ? 'game' : 'games'}
-        </button>
       </div>
     </div>
   )

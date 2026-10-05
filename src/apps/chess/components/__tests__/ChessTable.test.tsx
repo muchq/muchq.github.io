@@ -781,19 +781,19 @@ describe('ChessTable', () => {
     })
 
     // Collapsed, the sheet is its totals alone, so a long match never grows
-    // over the board; the game count opens the history.
+    // over the board; the game count heading the numbers opens the history.
     it('shows only the totals until its history is opened, and closes again', () => {
       mountWith(view({ scoreSheet: [{ winner: 'alice', ending: 'checkmate' }, { ending: 'stalemate' }] }))
       const sheet = screen.getByRole('table', { name: 'Score sheet' })
       const rows = () => within(sheet).getAllByRole('row').map(row => row.textContent)
       const toggle = screen.getByRole('button', { name: '2 games' })
       expect(toggle).toHaveAttribute('aria-expanded', 'false')
-      expect(rows()).toEqual(['#youbob', 'Total10'])
+      expect(rows()).toEqual(['2▸youbob', 'Total10'])
       fireEvent.click(toggle)
       expect(toggle).toHaveAttribute('aria-expanded', 'true')
-      expect(rows()).toEqual(['#youbob', '11—', '2draw', 'Total10'])
+      expect(rows()).toEqual(['2▾youbob', '11—', '2draw', 'Total10'])
       fireEvent.click(toggle)
-      expect(rows()).toEqual(['#youbob', 'Total10'])
+      expect(rows()).toEqual(['2▸youbob', 'Total10'])
     })
 
     it('counts a single game as one', () => {
@@ -815,7 +815,7 @@ describe('ChessTable', () => {
       fireEvent.click(screen.getByRole('button', { name: '4 games' }))
       const sheet = screen.getByRole('table', { name: 'Score sheet' })
       const rows = within(sheet).getAllByRole('row').map(row => row.textContent)
-      expect(rows).toEqual(['#youbob', '11—', '2draw', '3—1', '41—', 'Total21'])
+      expect(rows).toEqual(['4▾youbob', '11—', '2draw', '3—1', '41—', 'Total21'])
     })
 
     it('pages the last five games and totals them all', () => {
@@ -825,7 +825,7 @@ describe('ChessTable', () => {
       const rows = within(screen.getByRole('table', { name: 'Score sheet' }))
         .getAllByRole('row')
         .map(row => row.textContent)
-      expect(rows).toEqual(['#youbob', '3—1', '41—', '5—1', '6—1', '71—', 'Total43'])
+      expect(rows).toEqual(['7▾youbob', '3—1', '41—', '5—1', '6—1', '71—', 'Total43'])
     })
   })
 

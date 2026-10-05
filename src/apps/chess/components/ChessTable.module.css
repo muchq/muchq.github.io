@@ -389,23 +389,14 @@
 }
 
 .notepadToggle {
-  display: block;
-  margin: 0.15rem 0 0 auto;
-  padding: 0 0.35rem;
+  padding: 0;
   border: none;
   background: none;
   color: inherit;
   font: inherit;
-  text-decoration: underline dotted;
+  font-weight: 700;
+  white-space: nowrap;
   cursor: pointer;
-}
-
-.notepadToggle::after {
-  content: ' ▸';
-}
-
-.notepadToggle[aria-expanded='true']::after {
-  content: ' ▾';
 }
 
 /* A drag: the viewer's movable pieces take the touch, so the page does not
