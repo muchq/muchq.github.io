@@ -54,6 +54,15 @@ export interface ChessSetupOption {
   name: string
 }
 
+// A challenge's terms (MoonBase#1633): what a waiting table starts on once
+// its second seat fills.
+export interface ChessTerms {
+  setupId: string
+  setupName: string
+  initialSeconds: number
+  incrementSeconds: number
+}
+
 export interface ChessView {
   gameId: string
   // The server owns this catalog; clients send an ID back when starting.
@@ -61,6 +70,8 @@ export interface ChessView {
   // The setup selected when startGame.setupId is absent.
   defaultSetupId: string
   phase: ChessPhase
+  // The posted challenge's terms; only while waiting on one.
+  terms?: ChessTerms
   variant?: string
   // Absent while waiting.
   setupId?: string
@@ -102,6 +113,9 @@ export interface ChessMovePayloads {
   resign: undefined
   // Stockfish in the empty second seat, at an Elo of 1320 to 3190.
   addBot: { elo: number }
+  // The lone seat's terms for a waiting table; absent fields use the hub's
+  // defaults, and whoever fills the table starts the game on them.
+  challenge: { setupId?: string; initialSeconds?: number; incrementSeconds?: number }
   // Any chess table in the room, from no seat: answered with a gameState,
   // then every gameState and gameEnded the seats get. leaveGame, sitting
   // down or leaving the room stops it; a table gone before it started

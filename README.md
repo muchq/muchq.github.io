@@ -72,7 +72,9 @@ are chess's: two seats, the board from the viewer's side (tap a piece then its s
 the hub lists it when the turn arrives (the client holds no rules), a server-owned starting-position picker before each game, the clocks counted down from each view, and a
 score notepad as the table plays on: Next game starts another there, sides swapped. Any chess table can be
 watched from the lobby by a member at none: the same board from White's side, read-only, until Stop watching,
-a seat taken, a reconnect, or the hub's `gameLeft` for a table gone before it started (MoonBase#1633). Share links are
+a seat taken, a reconnect, or the hub's `gameLeft` for a table gone before it started (MoonBase#1633). Alone at a
+waiting table, the seat posts a challenge (position and clock) where two seats would press Start; the lobby lists its
+terms and **Accept** joins and starts on them. Share links are
 `/games/room/:roomId` and `/games/room/:roomId/table/:gameId`; the old `/golf` and `/castle`
 links redirect to them, and `/thoughts` to `/games`. Hiding the panel is how the bare world
 is asked for, so that choice is remembered across visits.

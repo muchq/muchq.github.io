@@ -3,7 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import type { ChessTableActions } from '@/hooks/useChessTable'
 import felt from '@/apps/castle/components/CastleTable.module.css'
-import type { ChessColor, ChessView } from '../wire'
+import type { ChessColor, ChessTerms, ChessView } from '../wire'
 import { describeMove, describeResult, formatClock, glyph, lastMoveSquares, movesTo, nameOf, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
 import styles from './ChessTable.module.css'
 import ScoreSheet from './ScoreSheet'
@@ -51,6 +51,14 @@ const TICK_MS = 100
 
 // How far a press travels before it is a drag rather than a tap.
 const DRAG_SLOP_PX = 6
+
+// "5+3": minutes and increment seconds; a clock of odd seconds in seconds.
+const clockLabel = (terms: ChessTerms): string =>
+  `${terms.initialSeconds % 60 === 0 ? terms.initialSeconds / 60 : `${terms.initialSeconds}s`}+${terms.incrementSeconds}`
+
+// The offered clock a challenge's terms name, if they name one.
+const clockNamed = (terms: ChessTerms): string | undefined =>
+  Object.keys(CLOCKS).find(name => CLOCKS[name].initialSeconds === terms.initialSeconds && CLOCKS[name].incrementSeconds === terms.incrementSeconds)
 
 const colorOfPiece = (piece: string): ChessColor => (piece === piece.toUpperCase() ? 'white' : 'black')
 const other = (color: ChessColor): ChessColor => (color === 'white' ? 'black' : 'white')
@@ -118,7 +126,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const [premove, setPremove] = useState<{ gameId: string; from: string; to: string } | null>(null)
   const [premoveDispatch, setPremoveDispatch] = useState<{ to: string; move?: string } | null>(null)
   const [confirmResign, setConfirmResign] = useState<ChessView | null>(null)
-  const [clockChoice, setClockChoice] = useState('3+2')
+  const [clockChoice, setClockChoice] = useState<string | null>(null)
   const [setupChoice, setSetupChoice] = useState('')
   const [botElo, setBotElo] = useState(BOT_STRENGTHS[1].elo)
   const press = useRef<{ id: number; square: string; x: number; y: number; moving: boolean } | null>(null)
@@ -133,7 +141,11 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const below = watching ? view.players.find(player => player.color === 'white') : me
   const selectedSetup = view.availableSetups.some(setup => setup.setupId === setupChoice)
     ? setupChoice
-    : (view.setupId ?? view.defaultSetupId ?? view.availableSetups[0]?.setupId ?? '')
+    : (view.terms?.setupId ?? view.setupId ?? view.defaultSetupId ?? view.availableSetups[0]?.setupId ?? '')
+  // The clock picked here, else a posted challenge's when it is one of the
+  // offered clocks, else 3+2.
+  const selectedClock = clockChoice ?? (view.terms === undefined ? undefined : clockNamed(view.terms)) ?? '3+2'
+  const alone = view.players.length < 2
   const myTurn = view.phase === 'playing' && view.currentPlayerId === playerId
   const from = picked?.view === view ? picked.square : null
   const queuedPremove = premove?.gameId === view.gameId ? premove : null
@@ -271,7 +283,13 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   }
 
   const status = (() => {
-    if (view.phase === 'waiting') return view.players.length < 2 ? 'Waiting for a second seat.' : 'Pick a starting position and clock, then start.'
+    if (view.phase === 'waiting') {
+      if (view.terms !== undefined) {
+        const posted = `Challenge posted: ${view.terms.setupName}, ${clockLabel(view.terms)}.`
+        return watching ? posted : `${posted} Whoever joins starts the game.`
+      }
+      return alone ? 'Waiting for a second seat.' : 'Pick a starting position and clock, then start.'
+    }
     if (view.phase === 'ended') return view.result === undefined ? '' : describeResult(view.result, playerId)
     if (view.phase === 'closed') {
       // A leave mid-game is that game's result; between games, the news.
@@ -365,7 +383,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
               </label>
               <label className={styles.clockPick}>
                 Clock
-                <select value={clockChoice} onChange={event => setClockChoice(event.target.value)}>
+                <select value={selectedClock} onChange={event => setClockChoice(event.target.value)}>
                   {Object.keys(CLOCKS).map(name => (
                     <option key={name} value={name}>
                       {name}
@@ -373,19 +391,37 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                   ))}
                 </select>
               </label>
-              <button
-                type="button"
-                className={felt.primary}
-                onClick={() =>
-                  table.startTable({
-                    ...(selectedSetup === '' ? {} : { setupId: selectedSetup }),
-                    ...CLOCKS[clockChoice]
-                  })
-                }
-                disabled={view.players.length < 2 || !connected}
-              >
-                Start
-              </button>
+              {/* Alone, the choice is posted as a challenge that whoever
+                  joins starts on; with two seats, it starts the game. */}
+              {alone ? (
+                <button
+                  type="button"
+                  className={felt.primary}
+                  onClick={() =>
+                    table.postChallenge({
+                      ...(selectedSetup === '' ? {} : { setupId: selectedSetup }),
+                      ...CLOCKS[selectedClock]
+                    })
+                  }
+                  disabled={!connected}
+                >
+                  {view.terms === undefined ? 'Post challenge' : 'Update challenge'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={felt.primary}
+                  onClick={() =>
+                    table.startTable({
+                      ...(selectedSetup === '' ? {} : { setupId: selectedSetup }),
+                      ...CLOCKS[selectedClock]
+                    })
+                  }
+                  disabled={!connected}
+                >
+                  Start
+                </button>
+              )}
             </>
           )}
         </div>

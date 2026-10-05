@@ -79,6 +79,8 @@ export interface HubGameSummary {
   game?: HubGameName
   status: string
   playerCount: number
+  // A waiting table's posted terms, as one line (MoonBase#1633).
+  terms?: string
 }
 
 export interface HubRoom {

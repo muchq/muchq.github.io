@@ -59,6 +59,12 @@ describe('useChessTable', () => {
     expect(move.mock.calls).toEqual([['startGame', { setupId: 'lucena', initialSeconds: 60, incrementSeconds: 1 }]])
   })
 
+  it('a challenge posts its terms as the hub spells them', () => {
+    const { result, move } = mount()
+    act(() => result.current.postChallenge({ setupId: 'lucena', initialSeconds: 60, incrementSeconds: 1 }))
+    expect(move.mock.calls).toEqual([['challenge', { setupId: 'lucena', initialSeconds: 60, incrementSeconds: 1 }]])
+  })
+
   it('a bot is asked for at its strength', () => {
     const { result, move } = mount()
     act(() => result.current.addBot(1600))
