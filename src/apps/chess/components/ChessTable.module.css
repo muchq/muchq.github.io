@@ -119,8 +119,6 @@
   padding: 0;
   border: none;
   cursor: pointer;
-  font-size: 9cqi;
-  line-height: 1;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
@@ -165,7 +163,7 @@
   pointer-events: none;
 }
 
-.target:has(.whitePiece, .blackPiece)::after {
+.target:has(.piece)::after {
   width: 88%;
   height: 88%;
   background: none;
@@ -178,15 +176,15 @@
   outline-offset: -3px;
 }
 
-.whitePiece {
-  color: #fff;
-  -webkit-text-stroke: 0.04em #000;
-  paint-order: stroke fill;
-}
-
-.blackPiece {
-  color: #111;
-  text-shadow: 0 0 1px rgba(255, 255, 255, 0.6);
+/* A whole square, as lichess draws them: the art keeps its own margin.
+   The square under it takes the taps and drags. */
+.piece {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 /* The files along the bottom edge and the ranks down the left, from the
@@ -414,7 +412,6 @@
 .ghost {
   position: fixed;
   z-index: 1000;
-  line-height: 1;
   transform: translate(-50%, -50%);
   pointer-events: none;
   cursor: grabbing;
@@ -462,8 +459,6 @@
   border: none;
   border-radius: 50%;
   background: radial-gradient(circle, #fff 20%, #b0b0b0 100%);
-  font-size: 9cqi;
-  line-height: 1;
   cursor: pointer;
   touch-action: manipulation;
   transition: border-radius 0.1s, background 0.1s;

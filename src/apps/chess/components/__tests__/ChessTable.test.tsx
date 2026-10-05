@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ChessTable from '../ChessTable'
 import type { ChessTableProps } from '../ChessTable'
 import type { ChessView } from '../../wire'
+import { pieceImage } from '../../rules'
 
 // The board from one chair, over a fake hook: what a tap on a square
 // offers and sends, what the table says and where focus goes, the clock
@@ -141,6 +142,15 @@ describe('ChessTable', () => {
       expect(square('g6')).toHaveAttribute('aria-pressed', 'false')
       expect(square('h8')).not.toHaveAttribute('aria-pressed')
       expect(square('a1')).not.toHaveAttribute('aria-pressed')
+    })
+
+    it('draws each piece as its own image, filling its square', () => {
+      mountWith(view())
+      const pawn = square('e7').querySelector('img')
+      expect(pawn).toHaveAttribute('src', pieceImage('P'))
+      expect(pawn).toHaveAttribute('alt', '')
+      expect(square('h8').querySelector('img')).toHaveAttribute('src', pieceImage('k'))
+      expect(square('a1').querySelector('img')).toBeNull()
     })
 
     it('marks the last move and a king in check', () => {

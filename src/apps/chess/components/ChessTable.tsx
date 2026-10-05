@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import type { ChessTableActions } from '@/hooks/useChessTable'
 import felt from '@/apps/castle/components/CastleTable.module.css'
 import type { ChessColor, ChessView } from '../wire'
-import { describeMove, describeResult, formatClock, glyph, lastMoveSquares, movesTo, nameOf, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
+import { describeMove, describeResult, formatClock, lastMoveSquares, movesTo, nameOf, pieceImage, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
 import styles from './ChessTable.module.css'
 import ScoreSheet from './ScoreSheet'
 
@@ -239,9 +239,10 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
       // would land on the board rather than its square.
       boardRef.current?.setPointerCapture?.(event.pointerId)
     }
-    // A size up from the board's own pieces, which are 9% of its width.
+    // A size up from the board's own pieces, which fill a square: an eighth
+    // of its width.
     const width = boardRef.current?.getBoundingClientRect().width ?? 0
-    setGhost({ piece: board.get(held.square) ?? '', x: event.clientX, y: event.clientY, size: width * 0.11 })
+    setGhost({ piece: board.get(held.square) ?? '', x: event.clientX, y: event.clientY, size: width * 0.15 })
   }
   const onPointerUp = (event: ReactPointerEvent) => {
     const held = press.current
@@ -446,9 +447,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                       </span>
                     )}
                     {piece !== undefined && (
-                      <span className={colorOfPiece(piece) === 'white' ? styles.whitePiece : styles.blackPiece} aria-hidden="true">
-                        {glyph(piece)}
-                      </span>
+                      <img className={styles.piece} src={pieceImage(piece)} alt="" draggable={false} />
                     )}
                   </button>
                 )
@@ -476,7 +475,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                         <li key={letter}>
                           <button
                             type="button"
-                            className={`${styles.promotionPiece} ${myColor === 'white' ? styles.whitePiece : styles.blackPiece}`}
+                            className={styles.promotionPiece}
                             aria-label={name}
                             autoFocus={i === 0}
                             onClick={() => {
@@ -485,7 +484,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                               table.play(uci)
                             }}
                           >
-                            <span aria-hidden="true">{glyph(myColor === 'white' ? letter.toUpperCase() : letter)}</span>
+                            <img className={styles.piece} src={pieceImage(myColor === 'white' ? letter.toUpperCase() : letter)} alt="" draggable={false} />
                           </button>
                         </li>
                       )
@@ -501,14 +500,13 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
               captured drag may stray past its edge. */}
           {ghost !== null &&
             createPortal(
-              <span
-                className={`${styles.ghost} ${colorOfPiece(ghost.piece) === 'white' ? styles.whitePiece : styles.blackPiece}`}
-                style={{ left: ghost.x, top: ghost.y, fontSize: ghost.size }}
-                aria-hidden="true"
+              <img
+                className={styles.ghost}
+                src={pieceImage(ghost.piece)}
+                style={{ left: ghost.x, top: ghost.y, width: ghost.size, height: ghost.size }}
+                alt=""
                 data-testid="drag-ghost"
-              >
-                {glyph(ghost.piece)}
-              </span>,
+              />,
               document.body
             )}
 
