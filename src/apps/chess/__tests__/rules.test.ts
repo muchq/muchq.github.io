@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   nameOf,
-  glyph,
+  pieceImage,
   describeResult,
   formatClock,
   lastMoveSquares,
@@ -90,16 +90,18 @@ describe('formatClock', () => {
   })
 })
 
-describe('glyph', () => {
-  // U+265F is an emoji: without the text selector, phones draw the pawn
-  // as a black emoji whatever its side's color.
-  it('asks for text presentation, so CSS colors every piece', () => {
-    for (const piece of 'KQRBNPkqrbnp') expect(glyph(piece).endsWith('\uFE0E')).toBe(true)
+describe('pieceImage', () => {
+  // Drawn, not typeset: a system font's ♝ and ♟ are near twins at board
+  // size, and every platform draws them differently.
+  it('draws each of the twelve pieces with its own image', () => {
+    const images = [...'KQRBNPkqrbnp'].map(pieceImage)
+    for (const image of images) expect(image).toBeTruthy()
+    expect(new Set(images).size).toBe(12)
   })
 
-  it('draws both sides with the filled glyph', () => {
-    expect(glyph('P')).toBe(glyph('p'))
-    expect(glyph('K')).toBe('♚\uFE0E')
+  it('draws nothing for a letter that is not a piece', () => {
+    expect(pieceImage('x')).toBeUndefined()
+    expect(pieceImage('')).toBeUndefined()
   })
 })
 

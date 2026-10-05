@@ -1,4 +1,16 @@
 import type { ChessColor, ChessEnding, ChessResult } from './wire'
+import wK from './pieces/wK.svg'
+import wQ from './pieces/wQ.svg'
+import wR from './pieces/wR.svg'
+import wB from './pieces/wB.svg'
+import wN from './pieces/wN.svg'
+import wP from './pieces/wP.svg'
+import bK from './pieces/bK.svg'
+import bQ from './pieces/bQ.svg'
+import bR from './pieces/bR.svg'
+import bB from './pieces/bB.svg'
+import bN from './pieces/bN.svg'
+import bP from './pieces/bP.svg'
 
 // Reading a chess view: the board out of its FEN, which squares a move
 // from here reaches, the clock as a player reads it, and a result as a
@@ -85,14 +97,16 @@ export function pieceName(piece: string): string {
   return `${color} ${PIECE_NAMES[piece.toLowerCase()] ?? 'piece'}`
 }
 
-// Filled glyphs for both sides, told apart by color, so neither side's
-// pieces read as outlines. U+FE0E asks for text presentation: ♟ is also
-// an emoji, which phones draw black whatever the CSS color says.
-const GLYPHS: Record<string, string> = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
+const PIECE_IMAGES: Record<string, string> = {
+  K: wK, Q: wQ, R: wR, B: wB, N: wN, P: wP,
+  k: bK, q: bQ, r: bR, b: bB, n: bN, p: bP
+}
 
-export function glyph(piece: string): string {
-  const shape = GLYPHS[piece.toLowerCase()]
-  return shape === undefined ? '' : `${shape}\uFE0E`
+// Colin M.L. Burnett's set, the one Wikipedia and lichess draw: drawn
+// rather than typeset, so a bishop never reads as a pawn whatever fonts
+// the device has.
+export function pieceImage(piece: string): string | undefined {
+  return PIECE_IMAGES[piece]
 }
 
 const WON_BY: Record<ChessEnding, string> = {
