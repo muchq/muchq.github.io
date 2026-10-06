@@ -489,13 +489,16 @@
   }
 }
 
-/* A phone on its side: too short for the board between its clocks, so the
-   board takes the left and everything else stacks to its right. */
-@media (orientation: landscape) and (max-height: 500px) {
-  .table {
+/* A screen wider than tall: stacked, the clocks and controls take the
+   board's height, so the board takes the left at full height and
+   everything else stacks to its right. Only with a board to place: the
+   waiting room keeps the stack. */
+@media (min-aspect-ratio: 4/3) {
+  .table:has(> .play) {
     max-width: none;
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 24rem);
+    justify-content: center;
     grid-auto-rows: min-content;
     align-content: start;
     column-gap: 1rem;
@@ -511,5 +514,10 @@
     width: calc(100dvh - 60px - 4.5rem);
     height: calc(100dvh - 60px - 4.5rem);
     min-height: 0;
+  }
+
+  /* Beside the board, the ending's buttons wrap without resizing it. */
+  .table:has(> .play) .foot .actions {
+    flex-wrap: wrap;
   }
 }
