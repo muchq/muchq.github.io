@@ -405,7 +405,7 @@
   cursor: grab;
 }
 
-.square[data-dragging='true'] > span:last-child {
+.piece[data-lifted='true'] {
   opacity: 0.3;
 }
 

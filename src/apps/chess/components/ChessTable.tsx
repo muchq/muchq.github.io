@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import type { ChessTableActions } from '@/hooks/useChessTable'
 import felt from '@/apps/castle/components/CastleTable.module.css'
 import type { ChessColor, ChessView } from '../wire'
-import { describeMove, describeResult, formatClock, lastMoveSquares, movesTo, nameOf, pieceImage, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
+import { applyMove, describeMove, describeResult, formatClock, lastMoveSquares, movesTo, nameOf, pieceImage, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
 import styles from './ChessTable.module.css'
 import ScoreSheet from './ScoreSheet'
 
@@ -84,7 +84,7 @@ const ClockRow = ({ view, seatId, color, you }: { view: ChessView; seatId: strin
 }
 
 const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
-  const { opening, play } = table
+  const { opening, play, sent } = table
   const headingRef = useRef<HTMLHeadingElement>(null)
   const boardRef = useRef<HTMLDivElement>(null)
   const resignRef = useRef<HTMLButtonElement>(null)
@@ -135,18 +135,23 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     ? setupChoice
     : (view.setupId ?? view.defaultSetupId ?? view.availableSetups[0]?.setupId ?? '')
   const myTurn = view.phase === 'playing' && view.currentPlayerId === playerId
+  // No board input from a watcher, offline, outside play, or while a move
+  // sent waits on the hub.
+  const inert = watching || !connected || view.phase !== 'playing' || sent !== null
   const from = picked?.view === view ? picked.square : null
   const queuedPremove = premove?.gameId === view.gameId ? premove : null
   const pendingPromotion = promoting?.view === view ? promoting : null
   const targets = !myTurn || from === null ? [] : targetsFrom(view.legalMoves, from)
   const board = readBoard(view.fen)
-  // A promotion asking shows its pawn already on the last rank, under the
-  // picker, as the board would once it is played.
-  const shown = new Map(board)
-  if (pendingPromotion !== null) {
-    shown.set(pendingPromotion.to, board.get(pendingPromotion.from) ?? '')
-    shown.delete(pendingPromotion.from)
-  }
+  // A move sent shows where it landed until the hub's answer replaces the
+  // board; a promotion asking shows its pawn already on the last rank,
+  // under the picker.
+  const shown =
+    sent !== null
+      ? applyMove(board, sent)
+      : pendingPromotion !== null
+        ? applyMove(board, `${pendingPromotion.from}${pendingPromotion.to}`)
+        : board
   const last = lastMoveSquares(view.moves)
   // The king of the side to move — or, once mated, of the side that was.
   const checkedKing = view.inCheck ? (view.fen?.split(' ')[1] === 'b' ? 'k' : 'K') : null
@@ -189,7 +194,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
       dragged.current = false
       return
     }
-    if (watching || !connected || view.phase !== 'playing') return
+    if (inert) return
     // A tap on the board is a new gesture: a promotion still asking is
     // abandoned, never left up to send a second move for this turn.
     setPromoting(null)
@@ -221,7 +226,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
 
   const onPointerDown = (event: ReactPointerEvent, square: string) => {
     dragged.current = false
-    if (watching || !connected || view.phase !== 'playing' || event.button !== 0) return
+    if (inert || event.button !== 0) return
     const piece = board.get(square)
     if (piece === undefined || colorOfPiece(piece) !== myColor) return
     if (myTurn && targetsFrom(view.legalMoves, square).length === 0) return
@@ -413,7 +418,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                 const light = (square.charCodeAt(0) - 97 + Number(square[1])) % 2 === 0
                 const target = targets.includes(square)
                 const grab = mine && connected && view.phase === 'playing' && (!myTurn || targetsFrom(view.legalMoves, square).length > 0)
-                const interactive = !watching && connected && view.phase === 'playing' && (myTurn || mine || from !== null)
+                const interactive = !inert && (myTurn || mine || from !== null)
                 const premoveMark = queuedPremove?.from === square ? 'from' : queuedPremove?.to === square ? 'to' : undefined
                 return (
                   <button
@@ -430,7 +435,6 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                     data-check={piece !== undefined && piece === checkedKing ? 'true' : undefined}
                     data-grab={grab ? 'true' : undefined}
                     data-premove={premoveMark}
-                    data-dragging={ghost !== null && from === square ? 'true' : undefined}
                     // Under the picker's scrim, out of reach of the keyboard as of the pointer.
                     inert={pendingPromotion !== null}
                     onPointerDown={event => onPointerDown(event, square)}
@@ -447,7 +451,13 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                       </span>
                     )}
                     {piece !== undefined && (
-                      <img className={styles.piece} src={pieceImage(piece)} alt="" draggable={false} />
+                      <img
+                        className={styles.piece}
+                        src={pieceImage(piece)}
+                        alt=""
+                        draggable={false}
+                        data-lifted={ghost !== null && from === square ? 'true' : undefined}
+                      />
                     )}
                   </button>
                 )

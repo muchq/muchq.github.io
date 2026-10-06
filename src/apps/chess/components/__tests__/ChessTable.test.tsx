@@ -67,6 +67,7 @@ const table = (over: Partial<ChessTableProps['table']> = {}): ChessTableProps['t
   startTable: vi.fn(),
   leaveTable: vi.fn(),
   playAgain: vi.fn(),
+  sent: null,
   play: vi.fn(),
   resign: vi.fn(),
   addBot: vi.fn(),
@@ -151,6 +152,20 @@ describe('ChessTable', () => {
       expect(pawn).toHaveAttribute('alt', '')
       expect(square('h8').querySelector('img')).toHaveAttribute('src', pieceImage('k'))
       expect(square('a1').querySelector('img')).toBeNull()
+    })
+
+    // No snap back to where it stood while the hub answers.
+    it('shows a move sent where it landed, and takes no other until the hub answers', () => {
+      const { t } = mountWith(view(), { sent: 'g6f7' })
+      expect(square('f7')).toHaveAccessibleName('f7, white king')
+      expect(square('g6')).toHaveAccessibleName('g6')
+      expect(square('e7')).toHaveAttribute('aria-disabled', 'true')
+      fireEvent.click(square('e7'))
+      fireEvent.click(square('e8'))
+      expect(t.play).not.toHaveBeenCalled()
+      fireEvent.pointerDown(square('e7'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerMove(square('e7'), { pointerId: 1, clientX: 40, clientY: 40 })
+      expect(screen.queryByTestId('drag-ghost')).toBeNull()
     })
 
     it('marks the last move and a king in check', () => {
@@ -439,6 +454,17 @@ describe('ChessTable', () => {
       drag('g6', 'f7')
       expect(t.play).toHaveBeenCalledTimes(1)
       expect(t.play).toHaveBeenCalledWith('g6f7')
+    })
+
+    // The piece in hand is the ghost; the one left behind is only its trace.
+    it('while it moves, the piece left on its square is faded', () => {
+      mountWith(view())
+      fireEvent.pointerDown(square('g6'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerMove(square('g6'), { pointerId: 1, clientX: 40, clientY: 40 })
+      expect(square('g6').querySelector('img')).toHaveAttribute('data-lifted', 'true')
+      expect(square('e7').querySelector('img')).not.toHaveAttribute('data-lifted')
+      fireEvent.pointerCancel(square('g6'), { pointerId: 1 })
+      expect(square('g6').querySelector('img')).not.toHaveAttribute('data-lifted')
     })
 
     it('while it moves, the piece follows the pointer and its squares show', () => {

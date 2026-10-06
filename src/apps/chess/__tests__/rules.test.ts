@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  applyMove,
   nameOf,
   pieceImage,
   describeResult,
@@ -87,6 +88,39 @@ describe('formatClock', () => {
     expect(formatClock(50)).toBe('0.1')
     expect(formatClock(0)).toBe('0.0')
     expect(formatClock(-50)).toBe('0.0')
+  })
+})
+
+// The board as it will be once a move the hub has not yet answered lands.
+describe('applyMove', () => {
+  const after = (fen: string, uci: string) => Object.fromEntries(applyMove(readBoard(fen), uci))
+
+  it('moves the piece, taking whatever stood on its square', () => {
+    expect(after('7k/4P3/6K1/8/8/8/8/8 w - - 0 1', 'g6f7')).toEqual({ h8: 'k', e7: 'P', f7: 'K' })
+    expect(after('7k/6P1/6K1/8/8/8/8/8 b - - 0 1', 'h8g7')).toEqual({ g7: 'k', g6: 'K' })
+  })
+
+  it('promotes to the piece named, in the mover’s color', () => {
+    expect(after('7k/4P3/6K1/8/8/8/8/8 w - - 0 1', 'e7e8n')).toEqual({ h8: 'k', e8: 'N', g6: 'K' })
+    expect(after('8/8/8/8/8/6k1/4p3/7K b - - 0 1', 'e2e1q')).toEqual({ g3: 'k', e1: 'q', h1: 'K' })
+  })
+
+  it('castles the rook with the king', () => {
+    expect(after('r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1', 'e1g1')).toEqual({ a8: 'r', e8: 'k', h8: 'r', a1: 'R', f1: 'R', g1: 'K' })
+    expect(after('r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1', 'e8c8')).toEqual({ c8: 'k', d8: 'r', h8: 'r', a1: 'R', e1: 'K', h1: 'R' })
+  })
+
+  it('takes en passant the pawn beside, not the empty square landed on', () => {
+    expect(after('7k/8/8/3pP3/8/8/8/7K w - d6 0 1', 'e5d6')).toEqual({ h8: 'k', d6: 'P', h1: 'K' })
+  })
+
+  // Only a king two files over castles, and only a pawn's diagonal onto
+  // an empty square is en passant.
+  it('leaves everything else where it stands', () => {
+    expect(after('7k/8/8/8/8/8/8/R3K2R w K - 0 1', 'e1f1')).toEqual({ h8: 'k', a1: 'R', f1: 'K', h1: 'R' })
+    expect(after('7k/8/8/3pP3/8/8/8/7K w - - 0 1', 'e5e6')).toEqual({ h8: 'k', d5: 'p', e6: 'P', h1: 'K' })
+    expect(after('7k/8/3n4/3pP3/8/8/8/7K w - - 0 1', 'e5d6')).toEqual({ h8: 'k', d6: 'P', d5: 'p', h1: 'K' })
+    expect(after('7k/8/8/8/8/8/8/7K w - - 0 1', 'a1a2')).toEqual({ h8: 'k', h1: 'K' })
   })
 })
 
