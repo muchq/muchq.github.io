@@ -60,6 +60,33 @@ export function movesTo(legal: string[], from: string, to: string): string[] {
   return legal.filter(uci => uci.slice(0, 2) === from && uci.slice(2, 4) === to)
 }
 
+// The board once `uci` lands, for drawing a move the hub has not yet
+// answered: its rook too when a king castles, the pawn beside when one
+// takes en passant. The hub's next view is the truth; this only bridges.
+export function applyMove(board: Map<string, string>, uci: string): Map<string, string> {
+  const next = new Map(board)
+  const from = uci.slice(0, 2)
+  const to = uci.slice(2, 4)
+  const piece = next.get(from)
+  if (piece === undefined) return next
+  const white = piece === piece.toUpperCase()
+  const kind = piece.toLowerCase()
+  const fileStep = FILES.indexOf(to[0]) - FILES.indexOf(from[0])
+  if (kind === 'k' && Math.abs(fileStep) === 2) {
+    const [rookFrom, rookTo] = fileStep > 0 ? [`h${from[1]}`, `f${from[1]}`] : [`a${from[1]}`, `d${from[1]}`]
+    const rook = next.get(rookFrom)
+    if (rook !== undefined) {
+      next.delete(rookFrom)
+      next.set(rookTo, rook)
+    }
+  }
+  if (kind === 'p' && fileStep !== 0 && !next.has(to)) next.delete(`${to[0]}${from[1]}`)
+  const promoted = uci[4]
+  next.delete(from)
+  next.set(to, promoted === undefined ? piece : white ? promoted.toUpperCase() : promoted)
+  return next
+}
+
 const PROMOTED: Record<string, string> = { q: 'queen', r: 'rook', b: 'bishop', n: 'knight' }
 
 // A move as a sentence's tail: "h7 to h8", "b2 to b1, promoting to a queen".
