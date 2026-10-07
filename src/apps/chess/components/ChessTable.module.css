@@ -494,7 +494,7 @@
    everything else stacks to its right. Only with a board to place: the
    waiting room keeps the stack. */
 @media (min-aspect-ratio: 4/3) {
-  .table:has(> .play) {
+  .table:not([data-phase='waiting']) {
     max-width: none;
     display: grid;
     grid-template-columns: auto minmax(0, 24rem);
@@ -511,13 +511,15 @@
   .boardSlot {
     grid-column: 1;
     grid-row: 1 / span 6;
-    width: calc(100dvh - 60px - 4.5rem);
-    height: calc(100dvh - 60px - 4.5rem);
+    /* At most 50rem, so board and column stay within the 1200px content
+       column the docked room chat leaves clear (RoomChat.module.css). */
+    width: min(100dvh - 60px - 4.5rem, 50rem);
+    height: min(100dvh - 60px - 4.5rem, 50rem);
     min-height: 0;
   }
 
   /* Beside the board, the ending's buttons wrap without resizing it. */
-  .table:has(> .play) .foot .actions {
+  .table:not([data-phase='waiting']) .foot .actions {
     flex-wrap: wrap;
   }
 }
