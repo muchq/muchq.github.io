@@ -604,6 +604,26 @@ describe('ChessTable', () => {
       expect(row('alice')).not.toHaveTextContent('+')
     })
 
+    // Keyed to the side's color, not to the row above or below.
+    it('shows the lead beside the side ahead for a Black viewer and a watcher', () => {
+      const black = 'r5k1/8/6K1/8/8/8/8/8 w - - 0 1'
+      const { unmount } = mountWith(view({ fen: black }), {}, 'bob')
+      expect(row('bob')).toHaveTextContent('+5')
+      expect(row('alice')).not.toHaveTextContent('+')
+      unmount()
+      mountWith(view({ fen: black }), {}, 'carol')
+      expect(row('bob')).toHaveTextContent('+5')
+      expect(row('alice')).not.toHaveTextContent('+')
+    })
+
+    // The name truncates on a narrow phone; the lead must not go with it.
+    it('says the lead in words, outside the name that truncates', () => {
+      mountWith(view())
+      const lead = within(row('alice')).getByText('up 1 in material', { exact: false }).parentElement!
+      expect(lead).toHaveTextContent('+1')
+      expect(lead.parentElement).toBe(row('alice'))
+    })
+
     it('shows nothing when even', () => {
       mountWith(view({ fen: '7k/8/6K1/8/8/8/8/8 w - - 0 1' }))
       expect(row('alice')).not.toHaveTextContent('+')

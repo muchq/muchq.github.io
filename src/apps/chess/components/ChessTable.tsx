@@ -75,8 +75,14 @@ const ClockRow = ({ view, seatId, color, you, lead }: { view: ChessView; seatId:
     <div className={`${styles.clockRow} ${running ? styles.running : ''}`}>
       <span className={styles.clockName}>
         {you ? `${nameOf(seatId)} (you)` : nameOf(seatId)} · {color}
-        {lead > 0 && <span className={styles.lead}> +{lead}</span>}
       </span>
+      {/* Beside the name, not in it: a long name truncates, the lead stays. */}
+      {lead > 0 && (
+        <span className={styles.lead}>
+          <span aria-hidden="true">+{lead}</span>
+          <span className={felt.srOnly}>, up {lead} in material</span>
+        </span>
+      )}
       <span role="timer" aria-label={`${nameOf(seatId)}’s clock`} className={`${styles.clock} ${ms < 10_000 ? styles.low : ''}`}>
         {formatClock(ms)}
       </span>
