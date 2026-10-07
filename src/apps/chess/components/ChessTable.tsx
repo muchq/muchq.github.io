@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import type { ChessTableActions } from '@/hooks/useChessTable'
 import felt from '@/apps/castle/components/CastleTable.module.css'
 import type { ChessColor, ChessView } from '../wire'
-import { applyMove, describeMove, describeResult, formatClock, lastMoveSquares, materialBalance, movesTo, nameOf, pieceImage, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
+import { applyMove, describeMove, describeResult, describeExtras, formatClock, imbalance, lastMoveSquares, materialBalance, movesTo, nameOf, pieceImage, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
 import styles from './ChessTable.module.css'
 import ScoreSheet from './ScoreSheet'
 
@@ -59,7 +59,21 @@ const other = (color: ChessColor): ChessColor => (color === 'white' ? 'black' : 
 // built it, so the running side counts down from the moment its view
 // arrived. Its own component, so the tick repaints the clock and not the
 // board.
-const ClockRow = ({ view, seatId, color, you, lead }: { view: ChessView; seatId: string; color: ChessColor; you: boolean; lead: number }) => {
+const ClockRow = ({
+  view,
+  seatId,
+  color,
+  you,
+  lead,
+  extras
+}: {
+  view: ChessView
+  seatId: string
+  color: ChessColor
+  you: boolean
+  lead: number
+  extras: string[]
+}) => {
   const [arrived, setArrived] = useState(() => ({ view, at: Date.now() }))
   const [now, setNow] = useState(() => Date.now())
   if (arrived.view !== view) setArrived({ view, at: Date.now() })
@@ -77,10 +91,23 @@ const ClockRow = ({ view, seatId, color, you, lead }: { view: ChessView; seatId:
         {you ? `${nameOf(seatId)} (you)` : nameOf(seatId)} · {color}
       </span>
       {/* Beside the name, not in it: a long name truncates, the lead stays. */}
-      {lead > 0 && (
+      {(extras.length > 0 || lead > 0) && (
         <span className={styles.lead}>
-          <span aria-hidden="true">+{lead}</span>
-          <span className={felt.srOnly}>, up {lead} in material</span>
+          {/* Drawn as the other side's pieces, as if taken. */}
+          {extras.map((kind, i) => (
+            <img
+              key={i}
+              className={styles.extra}
+              src={pieceImage(color === 'white' ? kind : kind.toUpperCase())}
+              alt=""
+              draggable={false}
+            />
+          ))}
+          {lead > 0 && <span aria-hidden="true">+{lead}</span>}
+          <span className={felt.srOnly}>
+            {extras.length > 0 && `, extra ${describeExtras(extras)}`}
+            {lead > 0 && `, up ${lead} in material`}
+          </span>
         </span>
       )}
       <span role="timer" aria-label={`${nameOf(seatId)}’s clock`} className={`${styles.clock} ${ms < 10_000 ? styles.low : ''}`}>
@@ -162,6 +189,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   // The material lead of each side, as drawn: positive only for the side ahead.
   const balance = materialBalance(shown)
   const leadOf = (color: ChessColor) => (color === 'white' ? balance : -balance)
+  const extras = imbalance(shown)
   const last = lastMoveSquares(view.moves)
   // The king of the side to move — or, once mated, of the side that was.
   const checkedKing = view.inCheck ? (view.fen?.split(' ')[1] === 'b' ? 'k' : 'K') : null
@@ -407,7 +435,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
         </div>
       ) : (
         <div className={styles.play}>
-          {above?.color !== undefined && <ClockRow view={view} seatId={above.playerId} color={above.color} you={false} lead={leadOf(above.color)} />}
+          {above?.color !== undefined && <ClockRow view={view} seatId={above.playerId} color={above.color} you={false} lead={leadOf(above.color)} extras={extras[above.color]} />}
           <span id={targetNote} className={felt.srOnly}>
             a move
           </span>
@@ -515,7 +543,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
               )}
             </div>
           </div>
-          {below?.color !== undefined && <ClockRow view={view} seatId={below.playerId} color={below.color} you={!watching} lead={leadOf(below.color)} />}
+          {below?.color !== undefined && <ClockRow view={view} seatId={below.playerId} color={below.color} you={!watching} lead={leadOf(below.color)} extras={extras[below.color]} />}
           {/* On the page, not the board: the board clips its overflow, and a
               captured drag may stray past its edge. */}
           {ghost !== null &&

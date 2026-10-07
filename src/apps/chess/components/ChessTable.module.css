@@ -245,11 +245,28 @@
 }
 
 .lead {
+  display: flex;
+  align-items: center;
   flex: none;
   margin: 0 auto 0 0.35rem;
   padding-right: 0.75rem;
   color: rgba(255, 255, 255, 0.7);
   font-variant-numeric: tabular-nums;
+}
+
+/* The pieces a side is up, overlapped like a hand of cards. */
+.extra {
+  width: 1.3em;
+  height: 1.3em;
+  pointer-events: none;
+}
+
+.extra + .extra {
+  margin-left: -0.55em;
+}
+
+.extra + span[aria-hidden] {
+  margin-left: 0.2em;
 }
 
 .clock {

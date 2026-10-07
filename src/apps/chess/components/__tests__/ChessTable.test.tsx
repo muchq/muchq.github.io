@@ -624,10 +624,28 @@ describe('ChessTable', () => {
       expect(lead.parentElement).toBe(row('alice'))
     })
 
+    // The extras are drawn as the opponent's pieces, as if taken.
+    it('draws each side’s extra pieces beside it, in the other side’s color', () => {
+      const icons = (name: string) => [...row(name).querySelectorAll('img')].map(img => img.getAttribute('src'))
+      const { unmount } = mountWith(view())
+      expect(icons('alice')).toEqual([pieceImage('p')])
+      expect(icons('bob')).toEqual([])
+      unmount()
+      // Queen against rook and two pawns: both sides have extras, White leads.
+      mountWith(view({ fen: '3rk3/8/8/8/8/8/1pp5/3QK3 w - - 0 1' }))
+      expect(icons('alice')).toEqual([pieceImage('q')])
+      expect(icons('bob')).toEqual([pieceImage('R'), pieceImage('P'), pieceImage('P')])
+      expect(row('alice')).toHaveTextContent('+2')
+      expect(row('bob')).not.toHaveTextContent('+')
+      expect(row('bob')).toHaveTextContent('extra rook, 2 pawns')
+    })
+
     it('shows nothing when even', () => {
       mountWith(view({ fen: '7k/8/6K1/8/8/8/8/8 w - - 0 1' }))
       expect(row('alice')).not.toHaveTextContent('+')
       expect(row('bob')).not.toHaveTextContent('+')
+      expect(row('alice').querySelector('img')).toBeNull()
+      expect(row('bob').querySelector('img')).toBeNull()
     })
   })
 

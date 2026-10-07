@@ -99,6 +99,20 @@ export function materialBalance(board: Map<string, string>): number {
   return balance
 }
 
+// Each side's pieces beyond the other's, heaviest first, as lower-case
+// letters: equal trades cancel, as lichess shows it.
+export function imbalance(board: Map<string, string>): { white: string[]; black: string[] } {
+  const count = new Map<string, number>()
+  for (const piece of board.values()) count.set(piece, (count.get(piece) ?? 0) + 1)
+  const white: string[] = []
+  const black: string[] = []
+  for (const kind of 'qrbnp') {
+    const diff = (count.get(kind.toUpperCase()) ?? 0) - (count.get(kind) ?? 0)
+    for (let i = 0; i < Math.abs(diff); i++) (diff > 0 ? white : black).push(kind)
+  }
+  return { white, black }
+}
+
 const PROMOTED: Record<string, string> = { q: 'queen', r: 'rook', b: 'bishop', n: 'knight' }
 
 // A move as a sentence's tail: "h7 to h8", "b2 to b1, promoting to a queen".
@@ -134,6 +148,16 @@ const PIECE_NAMES: Record<string, string> = {
 export function pieceName(piece: string): string {
   const color = piece === piece.toUpperCase() ? 'white' : 'black'
   return `${color} ${PIECE_NAMES[piece.toLowerCase()] ?? 'piece'}`
+}
+
+// "rook, 2 pawns" from imbalance's ['r', 'p', 'p'].
+export function describeExtras(extras: string[]): string {
+  return [...new Set(extras)]
+    .map(kind => {
+      const n = extras.filter(extra => extra === kind).length
+      return n === 1 ? PIECE_NAMES[kind] : `${n} ${PIECE_NAMES[kind]}s`
+    })
+    .join(', ')
 }
 
 const PIECE_IMAGES: Record<string, string> = {
