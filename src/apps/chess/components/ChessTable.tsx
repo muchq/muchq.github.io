@@ -117,6 +117,31 @@ const ClockRow = ({
   )
 }
 
+// The queued premove as an arrow over the board, in squares as the viewer
+// sees them: from the piece's centre to just short of the target's, so the
+// head sits on the square it points at.
+const PremoveArrow = ({ from, to, squares }: { from: string; to: string; squares: string[] }) => {
+  const centre = (square: string) => {
+    const index = squares.indexOf(square)
+    return [(index % 8) + 0.5, Math.floor(index / 8) + 0.5]
+  }
+  const [x1, y1] = centre(from)
+  const [tx, ty] = centre(to)
+  const length = Math.hypot(tx - x1, ty - y1)
+  const x2 = tx - ((tx - x1) / length) * 0.3
+  const y2 = ty - ((ty - y1) / length) * 0.3
+  return (
+    <svg className={styles.arrows} viewBox="0 0 8 8" aria-hidden="true">
+      <defs>
+        <marker id="premove-head" viewBox="0 0 4 4" refX="2" refY="2" markerWidth="3" markerHeight="3" orient="auto">
+          <path d="M0,0 L4,2 L0,4 z" className={styles.arrowHead} />
+        </marker>
+      </defs>
+      <line data-testid="premove-arrow" x1={x1} y1={y1} x2={x2} y2={y2} className={styles.arrow} markerEnd="url(#premove-head)" />
+    </svg>
+  )
+}
+
 const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const { opening, play, sent } = table
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -500,6 +525,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                   </button>
                 )
               })}
+              {queuedPremove !== null && <PremoveArrow from={queuedPremove.from} to={queuedPremove.to} squares={squares} />}
               {/* Lichess's picker: the pieces stacked down the file from the
                   promotion square, which is always on the viewer's far rank,
                   over a dimmed board a tap on which lets the pawn go back. */}
