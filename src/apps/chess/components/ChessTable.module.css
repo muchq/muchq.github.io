@@ -244,6 +244,11 @@
   white-space: nowrap;
 }
 
+.lead {
+  color: rgba(255, 255, 255, 0.7);
+  font-variant-numeric: tabular-nums;
+}
+
 .clock {
   font-variant-numeric: tabular-nums;
   font-size: 1.4rem;

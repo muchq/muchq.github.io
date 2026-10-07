@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import type { ChessTableActions } from '@/hooks/useChessTable'
 import felt from '@/apps/castle/components/CastleTable.module.css'
 import type { ChessColor, ChessView } from '../wire'
-import { applyMove, describeMove, describeResult, formatClock, lastMoveSquares, movesTo, nameOf, pieceImage, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
+import { applyMove, describeMove, describeResult, formatClock, lastMoveSquares, materialBalance, movesTo, nameOf, pieceImage, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
 import styles from './ChessTable.module.css'
 import ScoreSheet from './ScoreSheet'
 
@@ -59,7 +59,7 @@ const other = (color: ChessColor): ChessColor => (color === 'white' ? 'black' : 
 // built it, so the running side counts down from the moment its view
 // arrived. Its own component, so the tick repaints the clock and not the
 // board.
-const ClockRow = ({ view, seatId, color, you }: { view: ChessView; seatId: string; color: ChessColor; you: boolean }) => {
+const ClockRow = ({ view, seatId, color, you, lead }: { view: ChessView; seatId: string; color: ChessColor; you: boolean; lead: number }) => {
   const [arrived, setArrived] = useState(() => ({ view, at: Date.now() }))
   const [now, setNow] = useState(() => Date.now())
   if (arrived.view !== view) setArrived({ view, at: Date.now() })
@@ -75,6 +75,7 @@ const ClockRow = ({ view, seatId, color, you }: { view: ChessView; seatId: strin
     <div className={`${styles.clockRow} ${running ? styles.running : ''}`}>
       <span className={styles.clockName}>
         {you ? `${nameOf(seatId)} (you)` : nameOf(seatId)} · {color}
+        {lead > 0 && <span className={styles.lead}> +{lead}</span>}
       </span>
       <span role="timer" aria-label={`${nameOf(seatId)}’s clock`} className={`${styles.clock} ${ms < 10_000 ? styles.low : ''}`}>
         {formatClock(ms)}
@@ -152,6 +153,9 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
       : pendingPromotion !== null
         ? applyMove(board, `${pendingPromotion.from}${pendingPromotion.to}`)
         : board
+  // The material lead of each side, as drawn: positive only for the side ahead.
+  const balance = materialBalance(shown)
+  const leadOf = (color: ChessColor) => (color === 'white' ? balance : -balance)
   const last = lastMoveSquares(view.moves)
   // The king of the side to move — or, once mated, of the side that was.
   const checkedKing = view.inCheck ? (view.fen?.split(' ')[1] === 'b' ? 'k' : 'K') : null
@@ -397,7 +401,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
         </div>
       ) : (
         <div className={styles.play}>
-          {above?.color !== undefined && <ClockRow view={view} seatId={above.playerId} color={above.color} you={false} />}
+          {above?.color !== undefined && <ClockRow view={view} seatId={above.playerId} color={above.color} you={false} lead={leadOf(above.color)} />}
           <span id={targetNote} className={felt.srOnly}>
             a move
           </span>
@@ -505,7 +509,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
               )}
             </div>
           </div>
-          {below?.color !== undefined && <ClockRow view={view} seatId={below.playerId} color={below.color} you={!watching} />}
+          {below?.color !== undefined && <ClockRow view={view} seatId={below.playerId} color={below.color} you={!watching} lead={leadOf(below.color)} />}
           {/* On the page, not the board: the board clips its overflow, and a
               captured drag may stray past its edge. */}
           {ghost !== null &&

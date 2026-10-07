@@ -587,6 +587,30 @@ describe('ChessTable', () => {
     })
   })
 
+  // Lichess's count: the side ahead in material shows its lead beside its
+  // name; the side behind and an even position show nothing.
+  describe('the material count', () => {
+    const row = (name: string) => screen.getByRole('timer', { name: `${name}’s clock` }).parentElement!
+
+    it('shows the lead beside the side ahead', () => {
+      mountWith(view())
+      expect(row('alice')).toHaveTextContent('+1')
+      expect(row('bob')).not.toHaveTextContent('+')
+    })
+
+    it('shows Black’s lead beside Black, for White too', () => {
+      mountWith(view({ fen: 'r5k1/8/6K1/8/8/8/8/8 w - - 0 1' }))
+      expect(row('bob')).toHaveTextContent('+5')
+      expect(row('alice')).not.toHaveTextContent('+')
+    })
+
+    it('shows nothing when even', () => {
+      mountWith(view({ fen: '7k/8/6K1/8/8/8/8/8 w - - 0 1' }))
+      expect(row('alice')).not.toHaveTextContent('+')
+      expect(row('bob')).not.toHaveTextContent('+')
+    })
+  })
+
   describe('the clock', () => {
     it('runs the side to move’s down from the view, and only that one', () => {
       mountWith(view())

@@ -87,6 +87,18 @@ export function applyMove(board: Map<string, string>, uci: string): Map<string, 
   return next
 }
 
+const MATERIAL: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9 }
+
+// White's material less Black's, in pawns: positive when White is ahead.
+export function materialBalance(board: Map<string, string>): number {
+  let balance = 0
+  for (const piece of board.values()) {
+    const worth = MATERIAL[piece.toLowerCase()] ?? 0
+    balance += piece === piece.toUpperCase() ? worth : -worth
+  }
+  return balance
+}
+
 const PROMOTED: Record<string, string> = { q: 'queen', r: 'rook', b: 'bishop', n: 'knight' }
 
 // A move as a sentence's tail: "h7 to h8", "b2 to b1, promoting to a queen".
