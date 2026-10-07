@@ -143,6 +143,26 @@
   box-shadow: inset 0 0 0 100vmax rgba(215, 72, 72, 0.42);
 }
 
+/* The premove's arrow, over the pieces and under the promotion picker. */
+.arrows {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.arrow {
+  stroke: rgba(215, 72, 72, 0.85);
+  stroke-width: 0.16;
+  stroke-linecap: round;
+}
+
+.arrowHead {
+  fill: rgba(215, 72, 72, 0.85);
+}
+
 .square[aria-pressed='true'] {
   box-shadow: inset 0 0 0 100vmax rgba(246, 246, 105, 0.8);
 }

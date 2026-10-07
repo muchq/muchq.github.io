@@ -332,6 +332,33 @@ describe('ChessTable', () => {
       expect(square('f7')).toHaveFocus()
     })
 
+    // An arrow from the piece to where it will go, over the board as the
+    // viewer sees it: in squares, a8 at the top left for White.
+    it('draws the queued premove as an arrow, from the viewer’s side', () => {
+      const arrow = () => screen.queryByTestId('premove-arrow')
+      const { unmount } = mountWith(offTurn())
+      expect(arrow()).toBeNull()
+      fireEvent.click(square('g6'))
+      fireEvent.click(square('f7'))
+      expect(arrow()).toHaveAttribute('x1', '6.5')
+      expect(arrow()).toHaveAttribute('y1', '2.5')
+      // Toward f7's centre, stopping short of it so the head sits on the square.
+      const [x2, y2] = [Number(arrow()!.getAttribute('x2')), Number(arrow()!.getAttribute('y2'))]
+      expect(x2).toBeGreaterThan(5.5)
+      expect(x2).toBeLessThan(6.5)
+      expect(y2).toBeCloseTo(x2 - 4)
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel premove' }))
+      expect(arrow()).toBeNull()
+      unmount()
+
+      // Black sees the board turned: g6 is second from the left, third up.
+      mountWith(view({ fen: '7k/8/6K1/8/8/8/8/8 w - - 0 1', legalMoves: ['g6f7'] }), {}, 'bob')
+      fireEvent.click(square('h8'))
+      fireEvent.click(square('h7'))
+      expect(arrow()).toHaveAttribute('x1', '0.5')
+      expect(arrow()).toHaveAttribute('y1', '7.5')
+    })
+
     it('drops a premove that is not legal when the turn arrives', () => {
       const { t, rerender } = mountWith(offTurn())
       fireEvent.click(square('g6'))
