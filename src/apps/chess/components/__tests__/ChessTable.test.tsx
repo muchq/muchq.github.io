@@ -587,6 +587,68 @@ describe('ChessTable', () => {
     })
   })
 
+  // Lichess's count: the side ahead in material shows its lead beside its
+  // name; the side behind and an even position show nothing.
+  describe('the material count', () => {
+    const row = (name: string) => screen.getByRole('timer', { name: `${name}’s clock` }).parentElement!
+
+    it('shows the lead beside the side ahead', () => {
+      mountWith(view())
+      expect(row('alice')).toHaveTextContent('+1')
+      expect(row('bob')).not.toHaveTextContent('+')
+    })
+
+    it('shows Black’s lead beside Black, for White too', () => {
+      mountWith(view({ fen: 'r5k1/8/6K1/8/8/8/8/8 w - - 0 1' }))
+      expect(row('bob')).toHaveTextContent('+5')
+      expect(row('alice')).not.toHaveTextContent('+')
+    })
+
+    // Keyed to the side's color, not to the row above or below.
+    it('shows the lead beside the side ahead for a Black viewer and a watcher', () => {
+      const black = 'r5k1/8/6K1/8/8/8/8/8 w - - 0 1'
+      const { unmount } = mountWith(view({ fen: black }), {}, 'bob')
+      expect(row('bob')).toHaveTextContent('+5')
+      expect(row('alice')).not.toHaveTextContent('+')
+      unmount()
+      mountWith(view({ fen: black }), {}, 'carol')
+      expect(row('bob')).toHaveTextContent('+5')
+      expect(row('alice')).not.toHaveTextContent('+')
+    })
+
+    // The name truncates on a narrow phone; the lead must not go with it.
+    it('says the lead in words, outside the name that truncates', () => {
+      mountWith(view())
+      const lead = within(row('alice')).getByText('up 1 in material', { exact: false }).parentElement!
+      expect(lead).toHaveTextContent('+1')
+      expect(lead.parentElement).toBe(row('alice'))
+    })
+
+    // The extras are drawn as the opponent's pieces, as if taken.
+    it('draws each side’s extra pieces beside it, in the other side’s color', () => {
+      const icons = (name: string) => [...row(name).querySelectorAll('img')].map(img => img.getAttribute('src'))
+      const { unmount } = mountWith(view())
+      expect(icons('alice')).toEqual([pieceImage('p')])
+      expect(icons('bob')).toEqual([])
+      unmount()
+      // Queen against rook and two pawns: both sides have extras, White leads.
+      mountWith(view({ fen: '3rk3/8/8/8/8/8/1pp5/3QK3 w - - 0 1' }))
+      expect(icons('alice')).toEqual([pieceImage('q')])
+      expect(icons('bob')).toEqual([pieceImage('R'), pieceImage('P'), pieceImage('P')])
+      expect(row('alice')).toHaveTextContent('+2')
+      expect(row('bob')).not.toHaveTextContent('+')
+      expect(row('bob')).toHaveTextContent('extra rook, 2 pawns')
+    })
+
+    it('shows nothing when even', () => {
+      mountWith(view({ fen: '7k/8/6K1/8/8/8/8/8 w - - 0 1' }))
+      expect(row('alice')).not.toHaveTextContent('+')
+      expect(row('bob')).not.toHaveTextContent('+')
+      expect(row('alice').querySelector('img')).toBeNull()
+      expect(row('bob').querySelector('img')).toBeNull()
+    })
+  })
+
   describe('the clock', () => {
     it('runs the side to move’s down from the view, and only that one', () => {
       mountWith(view())

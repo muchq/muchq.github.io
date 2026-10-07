@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  imbalance,
+  materialBalance,
   applyMove,
   nameOf,
   pieceImage,
@@ -121,6 +123,40 @@ describe('applyMove', () => {
     expect(after('7k/8/8/3pP3/8/8/8/7K w - - 0 1', 'e5e6')).toEqual({ h8: 'k', d5: 'p', e6: 'P', h1: 'K' })
     expect(after('7k/8/3n4/3pP3/8/8/8/7K w - - 0 1', 'e5d6')).toEqual({ h8: 'k', d6: 'P', d5: 'p', h1: 'K' })
     expect(after('7k/8/8/8/8/8/8/7K w - - 0 1', 'a1a2')).toEqual({ h8: 'k', h1: 'K' })
+  })
+})
+
+// Pawn 1, knight and bishop 3, rook 5, queen 9; kings uncounted.
+describe('materialBalance', () => {
+  const balance = (fen: string) => materialBalance(readBoard(fen))
+
+  it('is even in the starting position', () => {
+    expect(balance('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')).toBe(0)
+  })
+
+  it('counts White’s lead up and Black’s down', () => {
+    expect(balance('7k/4P3/6K1/8/8/8/8/8 w - - 0 1')).toBe(1)
+    expect(balance('r3k3/8/8/8/8/8/8/1N2K3 w - - 0 1')).toBe(-2)
+    expect(balance('3qk3/8/8/8/8/8/8/1B1RK3 w - - 0 1')).toBe(-1)
+  })
+})
+
+// What each side has over the other, piece by piece: equal trades cancel,
+// a promotion is just another queen.
+describe('imbalance', () => {
+  const of = (fen: string) => imbalance(readBoard(fen))
+
+  it('is nothing in the starting position', () => {
+    expect(of('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')).toEqual({ white: [], black: [] })
+  })
+
+  it('lists each side’s extras, heaviest first', () => {
+    expect(of('7k/4P3/6K1/8/8/8/8/8 w - - 0 1')).toEqual({ white: ['p'], black: [] })
+    expect(of('3rk3/8/8/8/8/8/1pp5/3QK3 w - - 0 1')).toEqual({ white: ['q'], black: ['r', 'p', 'p'] })
+  })
+
+  it('counts a promoted queen as a queen', () => {
+    expect(of('3qk3/8/8/8/8/8/8/Q2QK3 w - - 0 1')).toEqual({ white: ['q'], black: [] })
   })
 })
 
