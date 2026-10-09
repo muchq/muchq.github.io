@@ -203,7 +203,9 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     view.terms === undefined
       ? CLOCKS
       : { ...CLOCKS, [clockLabel(view.terms)]: { initialSeconds: view.terms.initialSeconds, incrementSeconds: view.terms.incrementSeconds } }
-  const selectedClock = clockChoice ?? (view.terms === undefined ? '3+2' : clockLabel(view.terms))
+  // A choice no longer offered (its terms gone) falls back, as the setup does.
+  const selectedClock =
+    clockChoice !== null && clockChoice in clocks ? clockChoice : view.terms === undefined ? '3+2' : clockLabel(view.terms)
   const alone = view.players.length < 2
   const myTurn = view.phase === 'playing' && view.currentPlayerId === playerId
   // No board input from a watcher, offline, outside play, or while a move

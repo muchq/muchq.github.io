@@ -788,6 +788,7 @@ describe('ChessTable', () => {
       fireEvent.change(screen.getByRole('combobox', { name: 'Clock' }), { target: { value: '1+0' } })
       fireEvent.click(screen.getByRole('button', { name: 'Post challenge' }))
       expect(t.postChallenge).toHaveBeenCalledWith({ setupId: 'lucena', initialSeconds: 60, incrementSeconds: 0 })
+      expect(t.startTable).not.toHaveBeenCalled()
     })
 
     it('says what is posted, and offers to change it', () => {
@@ -809,6 +810,19 @@ describe('ChessTable', () => {
       expect(screen.getByRole('combobox', { name: 'Clock' })).toHaveValue('90s+0')
       fireEvent.click(screen.getByRole('button', { name: 'Update challenge' }))
       expect(t.postChallenge).toHaveBeenCalledWith({ setupId: 'lucena', initialSeconds: 90, incrementSeconds: 0 })
+      expect(t.startTable).not.toHaveBeenCalled()
+    })
+
+    // An unoffered clock is in the picker only while the terms name it:
+    // once they go, a choice of it falls back rather than sending no clock.
+    it('falls back from an unoffered clock once the terms that offered it are gone', () => {
+      const custom = { setupId: 'lucena', setupName: 'R+P vs R — Lucena', initialSeconds: 90, incrementSeconds: 0 }
+      const { t, rerender } = mountWith(waiting({ players: [{ playerId: 'alice' }], terms: custom }))
+      fireEvent.change(screen.getByRole('combobox', { name: 'Clock' }), { target: { value: '90s+0' } })
+      rerender(waiting({ players: [{ playerId: 'alice' }] }))
+      expect(screen.getByRole('combobox', { name: 'Clock' })).toHaveValue('3+2')
+      fireEvent.click(screen.getByRole('button', { name: 'Post challenge' }))
+      expect(t.postChallenge).toHaveBeenCalledWith({ setupId: 'standard', initialSeconds: 180, incrementSeconds: 2 })
     })
 
     // A start that failed leaves two seats at a table still showing terms:
@@ -817,9 +831,10 @@ describe('ChessTable', () => {
       const { t } = mountWith(
         waiting({ terms: { setupId: 'lucena', setupName: 'R+P vs R — Lucena', initialSeconds: 300, incrementSeconds: 3 } })
       )
-      expect(screen.getByTestId('chess-status')).not.toHaveTextContent('Whoever joins')
+      expect(screen.getByTestId('chess-status')).toHaveTextContent(/^Challenge posted: R\+P vs R — Lucena, 5\+3\.$/)
       fireEvent.click(screen.getByRole('button', { name: 'Start' }))
       expect(t.startTable).toHaveBeenCalledWith({ setupId: 'lucena', initialSeconds: 300, incrementSeconds: 3 })
+      expect(t.postChallenge).not.toHaveBeenCalled()
     })
 
     it('a watcher reads the terms and posts nothing', () => {
@@ -828,7 +843,7 @@ describe('ChessTable', () => {
         {},
         'carol'
       )
-      expect(screen.getByTestId('chess-status')).toHaveTextContent('Challenge posted: R+P vs R — Lucena, 5+3.')
+      expect(screen.getByTestId('chess-status')).toHaveTextContent(/^Challenge posted: R\+P vs R — Lucena, 5\+3\.$/)
       expect(screen.queryByRole('button', { name: /challenge/ })).toBeNull()
     })
 
