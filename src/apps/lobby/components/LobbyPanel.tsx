@@ -178,6 +178,7 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
                 <li key={table.gameId} className={styles.row}>
                   <span>
                     {game} {table.gameId} · {table.playerCount}/{seatsOf(game)} · {table.status === 'choosing' ? 'between deals' : table.status}
+                    {table.terms === undefined ? '' : ` · ${table.terms}`}
                   </span>
                   <span className={styles.offers}>
                     {/* Chess hides nothing, so any of its tables can be watched. */}

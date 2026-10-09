@@ -101,6 +101,17 @@ describe('lobbyCommands', () => {
     expect(offered.find(c => c.label === 'Join chess table K1')!.detail).toBe('1/2 seated')
   })
 
+  it('a challenge is offered with its terms', () => {
+    const lobby = lobbyWith({
+      room: room({ games: [{ gameId: 'K9', game: 'chess', status: 'waiting', playerCount: 1, terms: 'Standard starting position · 3+2' }] })
+    })
+    const offered = lobbyCommands(lobby, ui)
+    const accept = offered.find(c => c.label === 'Accept chess challenge K9')!
+    expect(accept.detail).toBe('Standard starting position · 3+2')
+    accept.run()
+    expect(lobby.chess.joinTable).toHaveBeenCalledWith('K9')
+  })
+
   it('a table in play or full is not offered, and one in the list is joined as its game', () => {
     const lobby = lobbyWith({ room: room() })
     expect(labels(lobby).filter(l => /C2|C3/.test(l))).toEqual([])

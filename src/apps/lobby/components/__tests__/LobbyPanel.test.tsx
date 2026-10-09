@@ -107,6 +107,17 @@ describe('LobbyPanel', () => {
     expect(hook.chess.joinTable).toHaveBeenCalledWith('K1')
   })
 
+  // A challenge (MoonBase#1633) lists its terms, and joining accepts them.
+  it('lists a challenge’s terms, and offers to accept it', () => {
+    const hook = lobby({
+      room: room({ games: [{ gameId: 'K1', game: 'chess', status: 'waiting', playerCount: 1, terms: 'Standard starting position · 3+2' }] })
+    })
+    render(<LobbyPanel lobby={hook} />)
+    expect(screen.getByText('chess K1 · 1/2 · waiting · Standard starting position · 3+2')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Accept chess K1' }))
+    expect(hook.chess.joinTable).toHaveBeenCalledWith('K1')
+  })
+
   // Any chess table can be watched by a member at none (MoonBase#1633);
   // no other game's can.
   it('offers to watch every chess table, and only chess tables', () => {

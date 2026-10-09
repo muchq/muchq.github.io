@@ -66,8 +66,8 @@ export function lobbyCommands(lobby: UseLobby, ui: LobbyUi): Command[] {
           const join = tableFor(lobby, game).joinTable
           commands.push({
             id: `join-${game}-${table.gameId}`,
-            label: `Join ${game} table ${table.gameId}`,
-            detail: `${table.playerCount}/${seatsOf(table.game)} seated`,
+            label: table.terms === undefined ? `Join ${game} table ${table.gameId}` : `Accept ${game} challenge ${table.gameId}`,
+            detail: table.terms ?? `${table.playerCount}/${seatsOf(table.game)} seated`,
             run: () => join(table.gameId),
           })
         }

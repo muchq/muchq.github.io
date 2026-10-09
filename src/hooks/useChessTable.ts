@@ -22,6 +22,8 @@ export interface ChessTableActions {
   resign: () => void
   // Stockfish in the second seat, at an Elo of 1320 to 3190.
   addBot: (elo: number) => void
+  // Alone at a waiting table: the terms whoever joins starts on.
+  postChallenge: (terms: ChessMovePayloads['challenge']) => void
 }
 
 export interface UseChessTable extends ChessTableActions {
@@ -124,6 +126,7 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
     },
     [move]
   )
+  const postChallenge = useCallback((terms: ChessMovePayloads['challenge']) => move('challenge', terms), [move])
   const resign = useCallback(() => move('resign'), [move])
   const addBot = useCallback(
     (elo: number) => {
@@ -150,6 +153,7 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
     playAgain,
     play,
     resign,
-    addBot
+    addBot,
+    postChallenge
   }
 }

@@ -11,7 +11,8 @@ export { seatsOf }
 export function tableOffer(table: HubGameSummary): { label: string; open: boolean } {
   if (table.status !== 'waiting') return { label: 'In play', open: false }
   if (table.playerCount >= seatsOf(table.game)) return { label: 'Full', open: false }
-  return { label: 'Join', open: true }
+  // A challenge's terms are set: joining takes them and starts the game.
+  return { label: table.terms === undefined ? 'Join' : 'Accept', open: true }
 }
 
 // Seated at a table already, so no other can be opened or joined.

@@ -3,7 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import type { ChessTableActions } from '@/hooks/useChessTable'
 import felt from '@/apps/castle/components/CastleTable.module.css'
-import type { ChessColor, ChessView } from '../wire'
+import type { ChessColor, ChessTerms, ChessView } from '../wire'
 import { applyMove, describeMove, describeResult, describeExtras, formatClock, imbalance, lastMoveSquares, materialBalance, movesTo, nameOf, pieceImage, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
 import styles from './ChessTable.module.css'
 import ScoreSheet from './ScoreSheet'
@@ -51,6 +51,10 @@ const TICK_MS = 100
 
 // How far a press travels before it is a drag rather than a tap.
 const DRAG_SLOP_PX = 6
+
+// "5+3": minutes and increment seconds; a clock of odd seconds in seconds.
+const clockLabel = (terms: ChessTerms): string =>
+  `${terms.initialSeconds % 60 === 0 ? terms.initialSeconds / 60 : `${terms.initialSeconds}s`}+${terms.incrementSeconds}`
 
 const colorOfPiece = (piece: string): ChessColor => (piece === piece.toUpperCase() ? 'white' : 'black')
 const other = (color: ChessColor): ChessColor => (color === 'white' ? 'black' : 'white')
@@ -177,7 +181,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const [premove, setPremove] = useState<{ gameId: string; from: string; to: string } | null>(null)
   const [premoveDispatch, setPremoveDispatch] = useState<{ to: string; move?: string } | null>(null)
   const [confirmResign, setConfirmResign] = useState<ChessView | null>(null)
-  const [clockChoice, setClockChoice] = useState('3+2')
+  const [clockChoice, setClockChoice] = useState<string | null>(null)
   const [setupChoice, setSetupChoice] = useState('')
   const [botElo, setBotElo] = useState(BOT_STRENGTHS[1].elo)
   const press = useRef<{ id: number; square: string; x: number; y: number; moving: boolean } | null>(null)
@@ -192,7 +196,17 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const below = watching ? view.players.find(player => player.color === 'white') : me
   const selectedSetup = view.availableSetups.some(setup => setup.setupId === setupChoice)
     ? setupChoice
-    : (view.setupId ?? view.defaultSetupId ?? view.availableSetups[0]?.setupId ?? '')
+    : (view.terms?.setupId ?? view.setupId ?? view.defaultSetupId ?? view.availableSetups[0]?.setupId ?? '')
+  // The offered clocks, and a posted challenge's among them even when it
+  // is none of those, so updating the challenge never quietly changes it.
+  const clocks =
+    view.terms === undefined
+      ? CLOCKS
+      : { ...CLOCKS, [clockLabel(view.terms)]: { initialSeconds: view.terms.initialSeconds, incrementSeconds: view.terms.incrementSeconds } }
+  // A choice no longer offered (its terms gone) falls back, as the setup does.
+  const selectedClock =
+    clockChoice !== null && clockChoice in clocks ? clockChoice : view.terms === undefined ? '3+2' : clockLabel(view.terms)
+  const alone = view.players.length < 2
   const myTurn = view.phase === 'playing' && view.currentPlayerId === playerId
   // No board input from a watcher, offline, outside play, or while a move
   // sent waits on the hub.
@@ -340,7 +354,13 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   }
 
   const status = (() => {
-    if (view.phase === 'waiting') return view.players.length < 2 ? 'Waiting for a second seat.' : 'Pick a starting position and clock, then start.'
+    if (view.phase === 'waiting') {
+      if (view.terms !== undefined) {
+        const posted = `Challenge posted: ${view.terms.setupName}, ${clockLabel(view.terms)}.`
+        return watching || !alone ? posted : `${posted} Whoever joins starts the game.`
+      }
+      return alone ? 'Waiting for a second seat.' : 'Pick a starting position and clock, then start.'
+    }
     if (view.phase === 'ended') return view.result === undefined ? '' : describeResult(view.result, playerId)
     if (view.phase === 'closed') {
       // A leave mid-game is that game's result; between games, the news.
@@ -434,26 +454,28 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
               </label>
               <label className={styles.clockPick}>
                 Clock
-                <select value={clockChoice} onChange={event => setClockChoice(event.target.value)}>
-                  {Object.keys(CLOCKS).map(name => (
+                <select value={selectedClock} onChange={event => setClockChoice(event.target.value)}>
+                  {Object.keys(clocks).map(name => (
                     <option key={name} value={name}>
                       {name}
                     </option>
                   ))}
                 </select>
               </label>
+              {/* Alone, the choice is posted as a challenge that whoever
+                  joins starts on; with two seats, it starts the game. */}
               <button
                 type="button"
                 className={felt.primary}
                 onClick={() =>
-                  table.startTable({
+                  (alone ? table.postChallenge : table.startTable)({
                     ...(selectedSetup === '' ? {} : { setupId: selectedSetup }),
-                    ...CLOCKS[clockChoice]
+                    ...clocks[selectedClock]
                   })
                 }
-                disabled={view.players.length < 2 || !connected}
+                disabled={!connected}
               >
-                Start
+                {!alone ? 'Start' : view.terms === undefined ? 'Post challenge' : 'Update challenge'}
               </button>
             </>
           )}
