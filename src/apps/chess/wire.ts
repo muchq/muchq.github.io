@@ -93,13 +93,14 @@ export interface ChessView {
 }
 
 // One finished game in the room's history (MoonBase#1637), without its
-// moves. ordinal is its line on its table's score sheet, from 1.
+// moves. ordinal is its line on its table's score sheet, from 1; it and
+// gameId are absent on a game's public page, which names no table.
 export interface ChessGameSummary {
   // The game's identity: what a review names it by, and its place in the
   // public feed if it is there.
   archiveId: number
-  gameId: string
-  ordinal: number
+  gameId?: string
+  ordinal?: number
   white: string
   black: string
   result: ChessResult

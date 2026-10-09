@@ -39,6 +39,15 @@ export function hubChessFeedUrl(playUrl: string): string {
   return `${hubHttpBase(playUrl)}/games/v2/chess.pgn`
 }
 
+// One game of the public feed, by the archive id its [Site] names: the
+// review, or null when no published game has that id.
+export async function fetchPublishedChessGame<Review>(playUrl: string, archiveId: number): Promise<Review | null> {
+  const response = await fetch(`${hubHttpBase(playUrl)}/games/v2/chess/${archiveId}`)
+  if (response.status === 404) return null
+  if (!response.ok) throw new Error(`chess game ${archiveId}: ${response.status}`)
+  return (await response.json()) as Review
+}
+
 // Mints a session; a resume token asks for the same identity back. A hung
 // server counts as a failed attempt rather than stalling the caller's
 // reconnect loop forever.
