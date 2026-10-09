@@ -31,9 +31,9 @@ const review = (): ChessReview => ({
   pgn: '[Event "muchq.com room R1"]\n\n1. e4 e5 0-1\n'
 })
 
-const mount = (playerId = 'alice') => {
+const mount = (playerId = 'alice', standalone = false) => {
   const onClose = vi.fn()
-  render(<GameReview review={review()} playerId={playerId} onClose={onClose} />)
+  render(<GameReview review={review()} playerId={playerId} onClose={onClose} standalone={standalone} />)
   return { onClose }
 }
 
@@ -116,6 +116,20 @@ describe('GameReview', () => {
     screen.getByRole('dialog', { name: /alice vs bob/ }).dispatchEvent(event)
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(event.defaultPrevented).toBe(true)
+  })
+
+  // On a page of its own there is nothing for a dialog to sit over: it is
+  // the page's region, Escape is the browser's, and leaving is going back.
+  it('as a page of its own, is no dialog and leaves by going back to the games', () => {
+    const { onClose } = mount('alice', true)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    const page = screen.getByRole('region', { name: /alice vs bob/ })
+    fireEvent.keyDown(page, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+    fireEvent.keyDown(page, { key: 'ArrowLeft' })
+    expect(position()).toBe('After 1. e4')
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the games' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 
   it('closes', () => {

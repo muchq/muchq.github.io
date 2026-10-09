@@ -4,6 +4,7 @@ import GroupsPage from './apps/math-learning/pages/GroupsPage'
 import SetsPage from './apps/math-learning/pages/SetsPage'
 import LobbyPage from './apps/lobby/pages/LobbyPage'
 import LobbyRedirect from './apps/lobby/pages/LobbyRedirect'
+import ChessGamePage from './apps/chess/pages/ChessGamePage'
 import PartyPage from './apps/party/pages/PartyPage'
 import QuestPage from './apps/quest/pages/QuestPage'
 import LearningPage from './apps/math-learning/pages/LearningPage'
@@ -29,6 +30,7 @@ function App() {
       <Route path="/games" element={<LobbyPage />} />
       <Route path="/games/room/:roomId" element={<LobbyPage />} />
       <Route path="/games/room/:roomId/table/:gameId" element={<LobbyPage />} />
+      <Route path="/games/chess/:archiveId" element={<ChessGamePage />} />
       <Route path="/golf" element={<LobbyRedirect />} />
       <Route path="/golf/room/:roomId" element={<LobbyRedirect />} />
       <Route path="/golf/room/:roomId/game/:gameId" element={<LobbyRedirect />} />
