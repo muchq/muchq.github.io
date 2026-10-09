@@ -5,7 +5,7 @@ import type { UseLobby } from '@/hooks/useLobby'
 import { fakeVoiceMesh } from '@/test/fakeVoice'
 import type { CastleView } from '@/apps/castle/wire'
 import type { RummyView } from '@/apps/rummy/wire'
-import type { ChessView } from '@/apps/chess/wire'
+import type { ChessReview, ChessView } from '@/apps/chess/wire'
 import type { GameState } from '@/types/golf'
 import type { CommandRegistry } from '@/utils/commandRegistry'
 import { COMMAND_HOTKEY } from '@/utils/hotkeys'
@@ -32,7 +32,7 @@ const state = {
   castle: { view: null as CastleView | null, ended: null, selected: [] },
   golf: { view: null as GameState | null, ended: null, peekCountdown: null },
   rummy: { view: null as RummyView | null, ended: null, selected: [] },
-  chess: { view: null as ChessView | null, opening: false }
+  chess: { view: null as ChessView | null, opening: false, history: null, review: null as ChessReview | null, closeReview: vi.fn() }
 } as unknown as UseLobby
 
 vi.mock('@/hooks/useLobby', async importOriginal => ({
@@ -59,6 +59,13 @@ vi.mock('@/apps/thoughts/components/ThoughtsGame', () => ({
 }))
 vi.mock('@/apps/castle/components/CastleTable', () => ({ default: () => <div>table</div> }))
 vi.mock('@/apps/chess/components/ChessTable', () => ({ default: () => <div>chess table</div> }))
+vi.mock('@/apps/chess/components/GameReview', () => ({
+  default: ({ review, onClose }: { review: ChessReview; onClose: () => void }) => (
+    <button type="button" onClick={onClose}>
+      review of {review.summary.gameId}
+    </button>
+  )
+}))
 vi.mock('@/apps/rummy/components/RummyTable', () => ({
   default: ({ away }: { away?: string[] }) => <div>rummy table{away !== undefined && away.length > 0 ? `, away: ${away.join(' ')}` : ''}</div>
 }))
@@ -171,6 +178,49 @@ describe('LobbyGame', () => {
   })
 
   // Who the room shows gone is what lets a seat deal for an away dealer.
+  // A review comes up over everything, the table it came from included,
+  // and closing it goes back to what was under it (MoonBase#1637).
+  it('puts a chess review over the table, and closes it', () => {
+    state.chess.view = { gameId: 'K1' } as ChessView
+    state.chess.review = { summary: { gameId: 'K1' } } as ChessReview
+    try {
+      render(<LobbyGame />)
+      expect(screen.getByText('chess table')).toBeTruthy()
+      const review = screen.getByRole('button', { name: 'review of K1' })
+      expect(screen.getByText('chess table').compareDocumentPosition(review) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      fireEvent.click(review)
+      expect(state.chess.closeReview).toHaveBeenCalledTimes(1)
+    } finally {
+      state.chess.view = null
+      state.chess.review = null
+    }
+  })
+
+  // A review takes the screen as a table does (MoonBase#1637): opened
+  // from the panel's own list, it folds the panel it came from, and the
+  // panel stays folded while the review is up, table or no table.
+  it('a review folds the panel, and keeps it folded when the table under it goes', () => {
+    const panel = () => screen.queryByRole('complementary', { name: 'lobby' })
+    const { rerender } = render(<LobbyGame />)
+    expect(panel()).toBeTruthy()
+    state.chess.view = { gameId: 'K1' } as ChessView
+    state.chess.review = { summary: { gameId: 'K1' } } as ChessReview
+    try {
+      rerender(<LobbyGame />)
+      expect(panel()).toBeNull()
+      state.chess.view = null
+      rerender(<LobbyGame />)
+      expect(panel()).toBeNull()
+      expect(screen.getByRole('button', { name: 'review of K1' })).toBeTruthy()
+      state.chess.review = null
+      rerender(<LobbyGame />)
+      expect(panel()).toBeTruthy()
+    } finally {
+      state.chess.view = null
+      state.chess.review = null
+    }
+  })
+
   it('hands the rummy table the seats the room shows away', () => {
     state.room = {
       roomId: 'R1',

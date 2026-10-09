@@ -209,3 +209,44 @@ export function describeResult(result: ChessResult, playerId: string): string {
   if (result.ending === 'abandoned') return mine ? 'You won: your opponent left' : `${winner} won: their opponent left`
   return `${mine ? 'You' : winner} won ${WON_BY[result.ending]}`
 }
+
+// A game's moves as a score sheet's rows: one a full move, White's half
+// then Black's, numbered from the start position's own counter, so a
+// game Black opens starts on a row with no White half. ply is how many
+// moves in the position after that half stands.
+export interface MoveHalf {
+  san: string
+  ply: number
+}
+
+export interface MoveRow {
+  number: number
+  white?: MoveHalf
+  black?: MoveHalf
+}
+
+export function moveRows(startFen: string, san: string[]): MoveRow[] {
+  const fields = startFen.split(' ')
+  let white = fields[1] !== 'b'
+  let number = Number(fields[5]) || 1
+  const rows: MoveRow[] = []
+  san.forEach((move, index) => {
+    const half = { san: move, ply: index + 1 }
+    if (white) {
+      rows.push({ number, white: half })
+    } else {
+      const last = rows[rows.length - 1]
+      if (last !== undefined && last.number === number && last.black === undefined) last.black = half
+      else rows.push({ number, black: half })
+      number += 1
+    }
+    white = !white
+  })
+  return rows
+}
+
+// The position on lichess's analysis board, which takes a FEN in its path
+// with underscores for spaces.
+export function analysisUrl(fen: string): string {
+  return `https://lichess.org/analysis/standard/${fen.replace(/ /g, '_')}`
+}

@@ -23,10 +23,20 @@ export interface HubSession {
   resumeToken: string
 }
 
-export function hubSessionUrl(playUrl: string): string {
+function hubHttpBase(playUrl: string): string {
   const play = new URL(playUrl)
   const protocol = play.protocol === 'wss:' ? 'https:' : 'http:'
-  return `${protocol}//${play.host}/games/v2/session`
+  return `${protocol}//${play.host}`
+}
+
+export function hubSessionUrl(playUrl: string): string {
+  return `${hubHttpBase(playUrl)}/games/v2/session`
+}
+
+// The public chess feed (MoonBase#1637): every game that ended in a
+// published room in the last 30 days, as PGN; plain GET, no ticket.
+export function hubChessFeedUrl(playUrl: string): string {
+  return `${hubHttpBase(playUrl)}/games/v2/chess.pgn`
 }
 
 // Mints a session; a resume token asks for the same identity back. A hung

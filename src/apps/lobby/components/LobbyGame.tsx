@@ -4,6 +4,7 @@ import CastleTable from '@/apps/castle/components/CastleTable'
 import GolfTable from '@/apps/golf/components/GolfTable'
 import RummyTable from '@/apps/rummy/components/RummyTable'
 import ChessTable from '@/apps/chess/components/ChessTable'
+import GameReview from '@/apps/chess/components/GameReview'
 import RoomChat, { type RoomChatHandle } from './RoomChat'
 import CommandMenu, { type CommandMenuHandle } from './CommandMenu'
 import { lobbyCommands } from '../lobbyCommands'
@@ -31,7 +32,9 @@ const panelWanted = (): boolean => safeLocalStorage.get(PANEL_KEY) !== 'hidden' 
 const LobbyGame = (props: UseLobbyProps) => {
   const lobby = useLobby(props)
   const { castle, golf, rummy, chess, chat, connected, playerId, notice, room } = lobby
-  const atTable = castle.view !== null || golf.view !== null || rummy.view !== null || chess.view !== null
+  // A chess review (MoonBase#1637) takes the screen as a table does.
+  const atTable =
+    castle.view !== null || golf.view !== null || rummy.view !== null || chess.view !== null || chess.review !== null
   // A rummy dealer among these lets any seat deal (MoonBase#1609).
   const away = (room?.players ?? []).filter(player => !player.connected).map(player => player.playerId)
   // A table takes the screen, so the panel folds away when one comes up
@@ -123,6 +126,13 @@ const LobbyGame = (props: UseLobbyProps) => {
             table={golf}
             shareUrl={room === null ? null : `${window.location.origin}${lobbyTablePath(room.roomId, golf.view.id)}`}
           />
+        </div>
+      )}
+      {/* A finished game under review, over any table: closing it goes
+          back to whatever was under it. */}
+      {chess.review !== null && (
+        <div className={`${styles.tableOverlay} ${styles.reviewOverlay}`}>
+          <GameReview review={chess.review} playerId={playerId} onClose={chess.closeReview} />
         </div>
       )}
       <button

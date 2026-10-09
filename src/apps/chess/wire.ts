@@ -92,6 +92,42 @@ export interface ChessView {
   scoreSheet?: ChessScoreLine[]
 }
 
+// One finished game in the room's history (MoonBase#1637), without its
+// moves. ordinal is its line on its table's score sheet, from 1.
+export interface ChessGameSummary {
+  // The game's identity: what a review names it by, and its place in the
+  // public feed if it is there.
+  archiveId: number
+  gameId: string
+  ordinal: number
+  white: string
+  black: string
+  result: ChessResult
+  setupId: string
+  setupName: string
+  plies: number
+  endedAtMs: number
+  // It ended while the room was published.
+  published: boolean
+}
+
+// The room's finished games, newest first, at most 100, and whether the
+// room publishes them now.
+export interface ChessHistory {
+  published: boolean
+  games: ChessGameSummary[]
+}
+
+// One finished game move by move: fens has one more entry than moves,
+// the start first.
+export interface ChessReview {
+  summary: ChessGameSummary
+  moves: string[]
+  san: string[]
+  fens: string[]
+  pgn: string
+}
+
 // The chess update union's JSON encoding: exactly one member present.
 export interface ChessUpdate {
   gameJoined?: { view: ChessView }
@@ -101,6 +137,10 @@ export interface ChessUpdate {
   turnChanged?: { playerId: string }
   gameEnded?: { result: ChessResult }
   gameLeft?: { gameId: string }
+  history?: ChessHistory
+  review?: ChessReview
+  // `by` is absent when another hub instance relays it.
+  published?: { published: boolean; by?: string }
 }
 
 export interface ChessMovePayloads {
@@ -121,6 +161,16 @@ export interface ChessMovePayloads {
   // down or leaving the room stops it; a table gone before it started
   // sends gameLeft.
   watch: { gameId: string }
+  // The room's finished games, answered with history; any member.
+  history: undefined
+  // One of them move by move, answered with review: by archive id, or by
+  // table and line on its score sheet (that table's newest such game).
+  review: { archiveId: number } | { gameId: string; ordinal: number }
+  // Publishes the room's games, or withdraws them. A game that ends while
+  // published joins the public feed, /games/v2/chess.pgn, for 30 days;
+  // withdrawing keeps the next games private, not the ones already out.
+  // Every member hears published.
+  publish: { published: boolean }
 }
 
 export type ChessMoveName = keyof ChessMovePayloads
