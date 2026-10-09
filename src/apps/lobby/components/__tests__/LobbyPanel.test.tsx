@@ -47,7 +47,7 @@ const lobby = (over: Partial<UseLobby> = {}): UseLobby =>
     castle: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['castle'],
     golf: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['golf'],
     rummy: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['rummy'],
-    chess: { createTable: vi.fn(), joinTable: vi.fn(), watchTable: vi.fn(), history: null } as unknown as UseLobby['chess'],
+    chess: { createTable: vi.fn(), joinTable: vi.fn(), watchTable: vi.fn(), history: null, loadHistory: vi.fn() } as unknown as UseLobby['chess'],
     ...over
   }) as UseLobby
 
@@ -275,14 +275,30 @@ describe('LobbyPanel', () => {
     render(<LobbyPanel lobby={lobby({ room: room() })} />)
     expect(screen.getByText('Press Esc, or triple-tap the world, for commands')).toBeTruthy()
   })
-  // The room's finished chess games (MoonBase#1637): asked for, listed
-  // newest first with a review each, and the room's publishing.
+  // The room's finished chess games (MoonBase#1637): asked for on
+  // arriving, listed newest first with a review each, and the room's
+  // publishing, whose state only that answer carries.
   describe('chess games', () => {
-    it('asks the hub for them on request', () => {
+    it('asks the hub for them on arriving in a room, once', () => {
       const hook = lobby({ room: room(), chess: chess(null) })
-      render(<LobbyPanel lobby={hook} />)
-      fireEvent.click(screen.getByRole('button', { name: 'Show finished games' }))
+      const { rerender } = render(<LobbyPanel lobby={hook} />)
+      rerender(<LobbyPanel lobby={hook} />)
       expect(hook.chess.loadHistory).toHaveBeenCalledTimes(1)
+      expect(screen.getByText('Loading finished games…')).toBeTruthy()
+      expect(screen.queryByRole('checkbox')).toBeNull()
+    })
+
+    // A published game has a page of its own; a private one does not.
+    it('links each published game to its public page', () => {
+      const hook = lobby({
+        room: room(),
+        chess: chess({ published: true, games: [game({ published: true }), game({ archiveId: 8, ordinal: 1 })] })
+      })
+      render(<LobbyPanel lobby={hook} />)
+      const links = within(screen.getByRole('region', { name: 'Chess games' })).getAllByRole('link', { name: /public page/ })
+      expect(links).toHaveLength(1)
+      expect(links[0]).toHaveAttribute('href', '/games/chess/9')
+      expect(links[0]).toHaveAttribute('target', '_blank')
     })
 
     it('lists each game with its sides and result, and reviews one', () => {
@@ -305,22 +321,26 @@ describe('LobbyPanel', () => {
       expect(screen.getByText('No finished games yet')).toBeTruthy()
     })
 
-    // What publishing means is said before the click that does it.
-    it('says where published games go and that they stay, before and after publishing', () => {
+    // What publishing means is said before the click that does it: from
+    // now on, what goes public, where, and for how long.
+    it('says what publishing makes public and for how long, before and after publishing', () => {
       const hook = lobby({ room: room(), chess: chess({ published: false, games: [] }) })
       const { rerender } = render(<LobbyPanel lobby={hook} />)
-      const toggle = screen.getByRole('checkbox', { name: 'Publish this room’s chess games' })
+      const toggle = screen.getByRole('checkbox', { name: 'Publish chess games played here from now on' })
       expect(toggle).not.toBeChecked()
+      expect(screen.getByText(/public page with both players’ ids and every move/)).toBeTruthy()
+      expect(screen.getByText(/indexed on 1d4/)).toBeTruthy()
+      expect(screen.getByText(/stays public for 30 days, even if this is turned off/)).toBeTruthy()
+      expect(screen.getByText(/Games that already ended stay private/)).toBeTruthy()
       expect(screen.getByRole('link', { name: 'public chess feed' })).toHaveAttribute('href', hubChessFeedUrl(hubPlayUrl()))
-      expect(screen.getByText(/stay there for 30 days, even after this is turned off/)).toBeTruthy()
       fireEvent.click(toggle)
       expect(hook.chess.publish).toHaveBeenCalledWith(true)
 
       const published = lobby({ room: room(), chess: chess({ published: true, games: [] }) })
       rerender(<LobbyPanel lobby={published} />)
-      expect(screen.getByRole('checkbox', { name: 'Publish this room’s chess games' })).toBeChecked()
-      expect(screen.getByText(/stay there for 30 days, even after this is turned off/)).toBeTruthy()
-      fireEvent.click(screen.getByRole('checkbox', { name: 'Publish this room’s chess games' }))
+      const on = screen.getByRole('checkbox', { name: 'Publish chess games played here from now on' })
+      expect(on).toBeChecked()
+      fireEvent.click(on)
       expect(published.chess.publish).toHaveBeenCalledWith(false)
     })
   })

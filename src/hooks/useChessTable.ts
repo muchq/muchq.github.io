@@ -118,7 +118,14 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
       if (update.published) {
         const { published, by } = update.published
         setHistory(held => (held === null ? held : { ...held, published }))
-        if (by === playerId) return
+        if (by === playerId) {
+          showNotice(
+            published
+              ? 'You published this room’s chess games: games that end from now on are public'
+              : 'You stopped publishing this room’s chess games: games already public stay up for 30 days'
+          )
+          return
+        }
         if (by === undefined) showNotice(`this room’s chess games are ${published ? 'now published' : 'no longer published'}`)
         else showNotice(`${by} ${published ? 'published' : 'stopped publishing'} this room’s chess games`)
       }

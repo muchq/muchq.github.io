@@ -237,14 +237,17 @@ describe('useChessTable', () => {
     expect(result.current.review).toBeNull()
   })
 
-  it('publishes through the hub, and says so when someone else does', () => {
+  // Said once the hub has it, for whoever changed it — the checkbox alone
+  // does not say the room heard.
+  it('publishes through the hub, and says so whoever does', () => {
     const { result, receive, move, showNotice } = mount()
     receive({ history: { published: false, games: [] } })
     act(() => result.current.publish(true))
     expect(move.mock.calls).toEqual([['publish', { published: true }]])
+    expect(showNotice).not.toHaveBeenCalled()
     receive({ published: { published: true, by: 'alice' } })
     expect(result.current.history?.published).toBe(true)
-    expect(showNotice).not.toHaveBeenCalled()
+    expect(showNotice).toHaveBeenLastCalledWith('You published this room’s chess games: games that end from now on are public')
     receive({ published: { published: false, by: 'bob' } })
     expect(result.current.history?.published).toBe(false)
     expect(showNotice).toHaveBeenLastCalledWith('bob stopped publishing this room’s chess games')
