@@ -42,7 +42,9 @@ export function hubChessFeedUrl(playUrl: string): string {
 // One game of the public feed, by the archive id its [Site] names: the
 // review, or null when no published game has that id.
 export async function fetchPublishedChessGame<Review>(playUrl: string, archiveId: number): Promise<Review | null> {
-  const response = await fetch(`${hubHttpBase(playUrl)}/games/v2/chess/${archiveId}`)
+  const response = await fetch(`${hubHttpBase(playUrl)}/games/v2/chess/${archiveId}`, {
+    signal: AbortSignal.timeout(MINT_TIMEOUT_MS)
+  })
   if (response.status === 404) return null
   if (!response.ok) throw new Error(`chess game ${archiveId}: ${response.status}`)
   return (await response.json()) as Review

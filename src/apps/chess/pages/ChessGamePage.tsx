@@ -45,7 +45,7 @@ const ChessGamePage = () => {
   return (
     <main className={styles.page}>
       {loaded.kind === 'found' ? (
-        <GameReview review={loaded.review} playerId="" onClose={() => navigate('/games')} />
+        <GameReview review={loaded.review} playerId="" standalone onClose={() => navigate('/games', { replace: true })} />
       ) : (
         <div className={styles.notice}>
           {loaded.kind === 'loading' && <p className={felt.hint}>Loading game…</p>}

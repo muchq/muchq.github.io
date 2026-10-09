@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter, Route, Routes, useNavigationType } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import ChessGamePage from '../pages/ChessGamePage'
 import type { ChessReview } from '../wire'
@@ -31,12 +31,15 @@ const review: ChessReview = {
 const answer = (status: number, body: unknown = {}) =>
   vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }))
 
+// The lobby, saying how it was reached.
+const Lobby = () => <p>lobby by {useNavigationType()}</p>
+
 const visit = (path: string) =>
   render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/games/chess/:archiveId" element={<ChessGamePage />} />
-        <Route path="/games" element={<p>lobby</p>} />
+        <Route path="/games" element={<Lobby />} />
       </Routes>
     </MemoryRouter>
   )
@@ -52,6 +55,18 @@ describe('ChessGamePage', () => {
     expect(await screen.findByRole('heading', { name: /alice vs bob/ })).toBeInTheDocument()
     expect(screen.getByText('alice won by resignation')).toBeInTheDocument()
     expect(fetch.mock.calls[0][0]).toBe('https://api.muchq.com/games/v2/chess/42')
+    expect(fetch.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  // Arrived at from a PGN's [Site] or from 1d4, so leaving replaces the
+  // permalink: Back then goes where the visitor came from, not here again.
+  it('leaves for the games in place of itself', async () => {
+    vi.stubGlobal('fetch', answer(200, review))
+    visit('/games/chess/42')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to the games' }))
+
+    expect(screen.getByText('lobby by REPLACE')).toBeInTheDocument()
   })
 
   it('says so when the game is not public, or has left the feed', async () => {

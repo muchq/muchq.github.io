@@ -16,9 +16,12 @@ export interface GameReviewProps {
   review: ChessReview
   playerId: string
   onClose: () => void
+  /** A page of its own rather than a dialog over the table: no modal,
+   * Escape left to the browser, and leaving is going back to the games. */
+  standalone?: boolean
 }
 
-const GameReview = ({ review, playerId, onClose }: GameReviewProps) => {
+const GameReview = ({ review, playerId, onClose, standalone = false }: GameReviewProps) => {
   const { summary, fens, san, moves, pgn } = review
   const last = fens.length - 1
   const [shown, setShown] = useState({ review, ply: last })
@@ -39,7 +42,7 @@ const GameReview = ({ review, playerId, onClose }: GameReviewProps) => {
 
   const onKeyDown = (event: KeyboardEvent) => {
     // Handled, so the command menu's Escape never opens over the review.
-    if (event.key === 'Escape') {
+    if (event.key === 'Escape' && !standalone) {
       event.preventDefault()
       onClose()
       return
@@ -62,8 +65,8 @@ const GameReview = ({ review, playerId, onClose }: GameReviewProps) => {
   return (
     <section
       ref={regionRef}
-      role="dialog"
-      aria-modal="true"
+      role={standalone ? 'region' : 'dialog'}
+      aria-modal={standalone ? undefined : 'true'}
       className={styles.review}
       aria-labelledby="review-title"
       tabIndex={-1}
@@ -73,9 +76,15 @@ const GameReview = ({ review, playerId, onClose }: GameReviewProps) => {
         <h1 id="review-title" className={`${felt.title} ${styles.title}`}>
           {title} <span className={styles.muted}>· {summary.setupName}</span>
         </h1>
-        <button type="button" className={felt.link} onClick={onClose} aria-label="Close review">
-          Close
-        </button>
+        {standalone ? (
+          <button type="button" className={felt.link} onClick={onClose}>
+            Back to the games
+          </button>
+        ) : (
+          <button type="button" className={felt.link} onClick={onClose} aria-label="Close review">
+            Close
+          </button>
+        )}
       </div>
       <p className={felt.hint}>{describeResult(summary.result, playerId)}</p>
       <div className={styles.layout}>
