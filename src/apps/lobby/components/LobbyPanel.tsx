@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore, type Ref } from 'react'
+import { useEffect, useState, useSyncExternalStore, type Ref } from 'react'
 import PermalinkDisplay from './PermalinkDisplay'
 import type { UseLobby } from '@/hooks/useLobby'
 import { lobbyRoomPath } from '@/hooks/useLobby'
@@ -30,19 +30,22 @@ const gameLine = (game: ChessGameSummary): string => {
   return `${nameOf(game.white)} vs ${nameOf(game.black)} · ${score} ${game.result.ending} · ${Math.ceil(game.plies / 2)} moves`
 }
 
-// The room's finished chess games (MoonBase#1637), fetched when asked
-// for rather than on every visit, each one reviewable; and whether the
-// room publishes them, which any member may change and every member
-// hears about.
+// The room's finished chess games (MoonBase#1637), each one reviewable,
+// a published one linked to its page; and whether the room publishes
+// them, which any member may change and every member hears about. Asked
+// for on arriving, since that answer is the only one that says whether
+// the room publishes.
 const ChessGames = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean }) => {
-  const { history } = lobby.chess
+  const { history, loadHistory } = lobby.chess
+  const unknown = history === null
+  useEffect(() => {
+    if (unknown && !disabled) loadHistory()
+  }, [unknown, disabled, loadHistory])
   return (
     <section className={styles.section} aria-labelledby="lobby-chess-games">
       <h2 id="lobby-chess-games">Chess games</h2>
       {history === null ? (
-        <button type="button" className={styles.secondary} onClick={lobby.chess.loadHistory} disabled={disabled}>
-          Show finished games
-        </button>
+        <p className={styles.muted}>Loading finished games…</p>
       ) : (
         <>
           {history.games.length === 0 ? (
@@ -51,7 +54,17 @@ const ChessGames = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean })
             <ul className={styles.list}>
               {history.games.map(game => (
                 <li key={game.archiveId} className={styles.row}>
-                  <span>{gameLine(game)}</span>
+                  <span>
+                    {gameLine(game)}
+                    {game.published && (
+                      <>
+                        {' · '}
+                        <a href={`/games/chess/${game.archiveId}`} target="_blank" rel="noopener noreferrer">
+                          public page
+                        </a>
+                      </>
+                    )}
+                  </span>
                   <button
                     type="button"
                     className={styles.secondary}
@@ -70,14 +83,14 @@ const ChessGames = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean })
           </button>
           <label className={styles.muted}>
             <input type="checkbox" checked={history.published} onChange={event => lobby.chess.publish(event.target.checked)} disabled={disabled} />{' '}
-            Publish this room’s chess games
+            Publish chess games played here from now on
           </label>
           <p className={styles.muted}>
-            Games that end while this is on join the{' '}
+            Each game that ends while this is on gets a public page with both players’ ids and every move, joins the{' '}
             <a href={hubChessFeedUrl(hubPlayUrl())} target="_blank" rel="noopener noreferrer">
               public chess feed
-            </a>{' '}
-            and stay there for 30 days, even after this is turned off.
+            </a>
+            , and can be indexed on 1d4. It stays public for 30 days, even if this is turned off. Games that already ended stay private.
           </p>
         </>
       )}
