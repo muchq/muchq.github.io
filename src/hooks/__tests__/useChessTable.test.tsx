@@ -79,6 +79,29 @@ describe('useChessTable', () => {
     expect(move.mock.calls).toEqual([['play', { uci: 'e7e8q' }], ['resign']])
   })
 
+  // The board draws a move sent at once; the hub's answer replaces it.
+  it('holds a move sent until the next view', () => {
+    const { result, receive } = mount()
+    receive({ gameJoined: { view: view() } })
+    const play = result.current.play
+    expect(result.current.sent).toBeNull()
+    act(() => result.current.play('g6f7'))
+    expect(result.current.sent).toBe('g6f7')
+    receive({ gameState: { view: view({ fen: '7k/4PK2/8/8/8/8/8/8 b - - 1 1' }) } })
+    expect(result.current.sent).toBeNull()
+    // A premove sends through play from an effect keyed on it: a new
+    // identity per view would send it again.
+    expect(result.current.play).toBe(play)
+  })
+
+  it('lets go of a move the hub refuses', () => {
+    const { result, receive } = mount()
+    receive({ gameJoined: { view: view() } })
+    act(() => result.current.play('g6f7'))
+    act(() => result.current.handleRejected())
+    expect(result.current.sent).toBeNull()
+  })
+
   // A table outlives its games: leaving one in play or between games asks
   // the hub; only a closed table is gone already.
   it('leaving a table asks the hub; leaving a closed one only clears', () => {

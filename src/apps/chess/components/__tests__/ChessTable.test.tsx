@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ChessTable from '../ChessTable'
 import type { ChessTableProps } from '../ChessTable'
 import type { ChessView } from '../../wire'
+import { pieceImage } from '../../rules'
 
 // The board from one chair, over a fake hook: what a tap on a square
 // offers and sends, what the table says and where focus goes, the clock
@@ -66,6 +67,7 @@ const table = (over: Partial<ChessTableProps['table']> = {}): ChessTableProps['t
   startTable: vi.fn(),
   leaveTable: vi.fn(),
   playAgain: vi.fn(),
+  sent: null,
   play: vi.fn(),
   resign: vi.fn(),
   addBot: vi.fn(),
@@ -142,6 +144,29 @@ describe('ChessTable', () => {
       expect(square('g6')).toHaveAttribute('aria-pressed', 'false')
       expect(square('h8')).not.toHaveAttribute('aria-pressed')
       expect(square('a1')).not.toHaveAttribute('aria-pressed')
+    })
+
+    it('draws each piece as its own image, filling its square', () => {
+      mountWith(view())
+      const pawn = square('e7').querySelector('img')
+      expect(pawn).toHaveAttribute('src', pieceImage('P'))
+      expect(pawn).toHaveAttribute('alt', '')
+      expect(square('h8').querySelector('img')).toHaveAttribute('src', pieceImage('k'))
+      expect(square('a1').querySelector('img')).toBeNull()
+    })
+
+    // No snap back to where it stood while the hub answers.
+    it('shows a move sent where it landed, and takes no other until the hub answers', () => {
+      const { t } = mountWith(view(), { sent: 'g6f7' })
+      expect(square('f7')).toHaveAccessibleName('f7, white king')
+      expect(square('g6')).toHaveAccessibleName('g6')
+      expect(square('e7')).toHaveAttribute('aria-disabled', 'true')
+      fireEvent.click(square('e7'))
+      fireEvent.click(square('e8'))
+      expect(t.play).not.toHaveBeenCalled()
+      fireEvent.pointerDown(square('e7'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerMove(square('e7'), { pointerId: 1, clientX: 40, clientY: 40 })
+      expect(screen.queryByTestId('drag-ghost')).toBeNull()
     })
 
     it('marks the last move and a king in check', () => {
@@ -308,6 +333,33 @@ describe('ChessTable', () => {
       expect(square('f7')).toHaveFocus()
     })
 
+    // An arrow from the piece to where it will go, over the board as the
+    // viewer sees it: in squares, a8 at the top left for White.
+    it('draws the queued premove as an arrow, from the viewer’s side', () => {
+      const arrow = () => screen.queryByTestId('premove-arrow')
+      const { unmount } = mountWith(offTurn())
+      expect(arrow()).toBeNull()
+      fireEvent.click(square('g6'))
+      fireEvent.click(square('f7'))
+      expect(arrow()).toHaveAttribute('x1', '6.5')
+      expect(arrow()).toHaveAttribute('y1', '2.5')
+      // Toward f7's centre, stopping short of it so the head sits on the square.
+      const [x2, y2] = [Number(arrow()!.getAttribute('x2')), Number(arrow()!.getAttribute('y2'))]
+      expect(x2).toBeGreaterThan(5.5)
+      expect(x2).toBeLessThan(6.5)
+      expect(y2).toBeCloseTo(x2 - 4)
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel premove' }))
+      expect(arrow()).toBeNull()
+      unmount()
+
+      // Black sees the board turned: g6 is second from the left, third up.
+      mountWith(view({ fen: '7k/8/6K1/8/8/8/8/8 w - - 0 1', legalMoves: ['g6f7'] }), {}, 'bob')
+      fireEvent.click(square('h8'))
+      fireEvent.click(square('h7'))
+      expect(arrow()).toHaveAttribute('x1', '0.5')
+      expect(arrow()).toHaveAttribute('y1', '7.5')
+    })
+
     it('drops a premove that is not legal when the turn arrives', () => {
       const { t, rerender } = mountWith(offTurn())
       fireEvent.click(square('g6'))
@@ -432,6 +484,17 @@ describe('ChessTable', () => {
       expect(t.play).toHaveBeenCalledWith('g6f7')
     })
 
+    // The piece in hand is the ghost; the one left behind is only its trace.
+    it('while it moves, the piece left on its square is faded', () => {
+      mountWith(view())
+      fireEvent.pointerDown(square('g6'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerMove(square('g6'), { pointerId: 1, clientX: 40, clientY: 40 })
+      expect(square('g6').querySelector('img')).toHaveAttribute('data-lifted', 'true')
+      expect(square('e7').querySelector('img')).not.toHaveAttribute('data-lifted')
+      fireEvent.pointerCancel(square('g6'), { pointerId: 1 })
+      expect(square('g6').querySelector('img')).not.toHaveAttribute('data-lifted')
+    })
+
     it('while it moves, the piece follows the pointer and its squares show', () => {
       mountWith(view())
       fireEvent.pointerDown(square('g6'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
@@ -549,6 +612,68 @@ describe('ChessTable', () => {
       rerender(view({ moves: ['a1a2', 'h7h8', 'g6f7'], sideToMove: 'black', currentPlayerId: 'bob', legalMoves: [] }))
       expect(status().className).toContain('statusSlot')
       expect(status()).toHaveTextContent('bob to move.')
+    })
+  })
+
+  // Lichess's count: the side ahead in material shows its lead beside its
+  // name; the side behind and an even position show nothing.
+  describe('the material count', () => {
+    const row = (name: string) => screen.getByRole('timer', { name: `${name}’s clock` }).parentElement!
+
+    it('shows the lead beside the side ahead', () => {
+      mountWith(view())
+      expect(row('alice')).toHaveTextContent('+1')
+      expect(row('bob')).not.toHaveTextContent('+')
+    })
+
+    it('shows Black’s lead beside Black, for White too', () => {
+      mountWith(view({ fen: 'r5k1/8/6K1/8/8/8/8/8 w - - 0 1' }))
+      expect(row('bob')).toHaveTextContent('+5')
+      expect(row('alice')).not.toHaveTextContent('+')
+    })
+
+    // Keyed to the side's color, not to the row above or below.
+    it('shows the lead beside the side ahead for a Black viewer and a watcher', () => {
+      const black = 'r5k1/8/6K1/8/8/8/8/8 w - - 0 1'
+      const { unmount } = mountWith(view({ fen: black }), {}, 'bob')
+      expect(row('bob')).toHaveTextContent('+5')
+      expect(row('alice')).not.toHaveTextContent('+')
+      unmount()
+      mountWith(view({ fen: black }), {}, 'carol')
+      expect(row('bob')).toHaveTextContent('+5')
+      expect(row('alice')).not.toHaveTextContent('+')
+    })
+
+    // The name truncates on a narrow phone; the lead must not go with it.
+    it('says the lead in words, outside the name that truncates', () => {
+      mountWith(view())
+      const lead = within(row('alice')).getByText('up 1 in material', { exact: false }).parentElement!
+      expect(lead).toHaveTextContent('+1')
+      expect(lead.parentElement).toBe(row('alice'))
+    })
+
+    // The extras are drawn as the opponent's pieces, as if taken.
+    it('draws each side’s extra pieces beside it, in the other side’s color', () => {
+      const icons = (name: string) => [...row(name).querySelectorAll('img')].map(img => img.getAttribute('src'))
+      const { unmount } = mountWith(view())
+      expect(icons('alice')).toEqual([pieceImage('p')])
+      expect(icons('bob')).toEqual([])
+      unmount()
+      // Queen against rook and two pawns: both sides have extras, White leads.
+      mountWith(view({ fen: '3rk3/8/8/8/8/8/1pp5/3QK3 w - - 0 1' }))
+      expect(icons('alice')).toEqual([pieceImage('q')])
+      expect(icons('bob')).toEqual([pieceImage('R'), pieceImage('P'), pieceImage('P')])
+      expect(row('alice')).toHaveTextContent('+2')
+      expect(row('bob')).not.toHaveTextContent('+')
+      expect(row('bob')).toHaveTextContent('extra rook, 2 pawns')
+    })
+
+    it('shows nothing when even', () => {
+      mountWith(view({ fen: '7k/8/6K1/8/8/8/8/8 w - - 0 1' }))
+      expect(row('alice')).not.toHaveTextContent('+')
+      expect(row('bob')).not.toHaveTextContent('+')
+      expect(row('alice').querySelector('img')).toBeNull()
+      expect(row('bob').querySelector('img')).toBeNull()
     })
   })
 
@@ -838,6 +963,27 @@ describe('ChessTable', () => {
       expect(sheet.parentElement?.className.split(/\s+/).some(name => /(?:^|_)notepad(?:_|$)/.test(name))).toBe(true)
     })
 
+    // Collapsed, the sheet is its totals alone, so a long match never grows
+    // over the board; the game count heading the numbers opens the history.
+    it('shows only the totals until its history is opened, and closes again', () => {
+      mountWith(view({ scoreSheet: [{ winner: 'alice', ending: 'checkmate' }, { ending: 'stalemate' }] }))
+      const sheet = screen.getByRole('table', { name: 'Score sheet' })
+      const rows = () => within(sheet).getAllByRole('row').map(row => row.textContent)
+      const toggle = screen.getByRole('button', { name: '2 games' })
+      expect(toggle).toHaveAttribute('aria-expanded', 'false')
+      expect(rows()).toEqual(['2▸youbob', 'Total10'])
+      fireEvent.click(toggle)
+      expect(toggle).toHaveAttribute('aria-expanded', 'true')
+      expect(rows()).toEqual(['2▾youbob', '11—', '2draw', 'Total10'])
+      fireEvent.click(toggle)
+      expect(rows()).toEqual(['2▸youbob', 'Total10'])
+    })
+
+    it('counts a single game as one', () => {
+      mountWith(view({ scoreSheet: [{ winner: 'alice', ending: 'checkmate' }] }))
+      expect(screen.getByRole('button', { name: '1 game' })).toBeInTheDocument()
+    })
+
     it('marks each game’s winner, a draw for neither, and totals the wins', () => {
       mountWith(
         view({
@@ -849,18 +995,20 @@ describe('ChessTable', () => {
           ]
         })
       )
+      fireEvent.click(screen.getByRole('button', { name: '4 games' }))
       const sheet = screen.getByRole('table', { name: 'Score sheet' })
       const rows = within(sheet).getAllByRole('row').map(row => row.textContent)
-      expect(rows).toEqual(['#youbob', '11—', '2draw', '3—1', '41—', 'Total21'])
+      expect(rows).toEqual(['4▾youbob', '11—', '2draw', '3—1', '41—', 'Total21'])
     })
 
     it('pages the last five games and totals them all', () => {
       const won = (winner: string) => ({ winner, ending: 'checkmate' as const })
       mountWith(view({ scoreSheet: [won('alice'), won('alice'), won('bob'), won('alice'), won('bob'), won('bob'), won('alice')] }))
+      fireEvent.click(screen.getByRole('button', { name: '7 games' }))
       const rows = within(screen.getByRole('table', { name: 'Score sheet' }))
         .getAllByRole('row')
         .map(row => row.textContent)
-      expect(rows).toEqual(['#youbob', '3—1', '41—', '5—1', '6—1', '71—', 'Total43'])
+      expect(rows).toEqual(['7▾youbob', '3—1', '41—', '5—1', '6—1', '71—', 'Total43'])
     })
   })
 

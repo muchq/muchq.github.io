@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  imbalance,
+  materialBalance,
+  applyMove,
   nameOf,
-  glyph,
+  pieceImage,
   describeResult,
   formatClock,
   lastMoveSquares,
@@ -90,16 +93,85 @@ describe('formatClock', () => {
   })
 })
 
-describe('glyph', () => {
-  // U+265F is an emoji: without the text selector, phones draw the pawn
-  // as a black emoji whatever its side's color.
-  it('asks for text presentation, so CSS colors every piece', () => {
-    for (const piece of 'KQRBNPkqrbnp') expect(glyph(piece).endsWith('\uFE0E')).toBe(true)
+// The board as it will be once a move the hub has not yet answered lands.
+describe('applyMove', () => {
+  const after = (fen: string, uci: string) => Object.fromEntries(applyMove(readBoard(fen), uci))
+
+  it('moves the piece, taking whatever stood on its square', () => {
+    expect(after('7k/4P3/6K1/8/8/8/8/8 w - - 0 1', 'g6f7')).toEqual({ h8: 'k', e7: 'P', f7: 'K' })
+    expect(after('7k/6P1/6K1/8/8/8/8/8 b - - 0 1', 'h8g7')).toEqual({ g7: 'k', g6: 'K' })
   })
 
-  it('draws both sides with the filled glyph', () => {
-    expect(glyph('P')).toBe(glyph('p'))
-    expect(glyph('K')).toBe('♚\uFE0E')
+  it('promotes to the piece named, in the mover’s color', () => {
+    expect(after('7k/4P3/6K1/8/8/8/8/8 w - - 0 1', 'e7e8n')).toEqual({ h8: 'k', e8: 'N', g6: 'K' })
+    expect(after('8/8/8/8/8/6k1/4p3/7K b - - 0 1', 'e2e1q')).toEqual({ g3: 'k', e1: 'q', h1: 'K' })
+  })
+
+  it('castles the rook with the king', () => {
+    expect(after('r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1', 'e1g1')).toEqual({ a8: 'r', e8: 'k', h8: 'r', a1: 'R', f1: 'R', g1: 'K' })
+    expect(after('r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1', 'e8c8')).toEqual({ c8: 'k', d8: 'r', h8: 'r', a1: 'R', e1: 'K', h1: 'R' })
+  })
+
+  it('takes en passant the pawn beside, not the empty square landed on', () => {
+    expect(after('7k/8/8/3pP3/8/8/8/7K w - d6 0 1', 'e5d6')).toEqual({ h8: 'k', d6: 'P', h1: 'K' })
+  })
+
+  // Only a king two files over castles, and only a pawn's diagonal onto
+  // an empty square is en passant.
+  it('leaves everything else where it stands', () => {
+    expect(after('7k/8/8/8/8/8/8/R3K2R w K - 0 1', 'e1f1')).toEqual({ h8: 'k', a1: 'R', f1: 'K', h1: 'R' })
+    expect(after('7k/8/8/3pP3/8/8/8/7K w - - 0 1', 'e5e6')).toEqual({ h8: 'k', d5: 'p', e6: 'P', h1: 'K' })
+    expect(after('7k/8/3n4/3pP3/8/8/8/7K w - - 0 1', 'e5d6')).toEqual({ h8: 'k', d6: 'P', d5: 'p', h1: 'K' })
+    expect(after('7k/8/8/8/8/8/8/7K w - - 0 1', 'a1a2')).toEqual({ h8: 'k', h1: 'K' })
+  })
+})
+
+// Pawn 1, knight and bishop 3, rook 5, queen 9; kings uncounted.
+describe('materialBalance', () => {
+  const balance = (fen: string) => materialBalance(readBoard(fen))
+
+  it('is even in the starting position', () => {
+    expect(balance('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')).toBe(0)
+  })
+
+  it('counts White’s lead up and Black’s down', () => {
+    expect(balance('7k/4P3/6K1/8/8/8/8/8 w - - 0 1')).toBe(1)
+    expect(balance('r3k3/8/8/8/8/8/8/1N2K3 w - - 0 1')).toBe(-2)
+    expect(balance('3qk3/8/8/8/8/8/8/1B1RK3 w - - 0 1')).toBe(-1)
+  })
+})
+
+// What each side has over the other, piece by piece: equal trades cancel,
+// a promotion is just another queen.
+describe('imbalance', () => {
+  const of = (fen: string) => imbalance(readBoard(fen))
+
+  it('is nothing in the starting position', () => {
+    expect(of('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1')).toEqual({ white: [], black: [] })
+  })
+
+  it('lists each side’s extras, heaviest first', () => {
+    expect(of('7k/4P3/6K1/8/8/8/8/8 w - - 0 1')).toEqual({ white: ['p'], black: [] })
+    expect(of('3rk3/8/8/8/8/8/1pp5/3QK3 w - - 0 1')).toEqual({ white: ['q'], black: ['r', 'p', 'p'] })
+  })
+
+  it('counts a promoted queen as a queen', () => {
+    expect(of('3qk3/8/8/8/8/8/8/Q2QK3 w - - 0 1')).toEqual({ white: ['q'], black: [] })
+  })
+})
+
+describe('pieceImage', () => {
+  // Drawn, not typeset: a system font's ♝ and ♟ are near twins at board
+  // size, and every platform draws them differently.
+  it('draws each of the twelve pieces with its own image', () => {
+    const images = [...'KQRBNPkqrbnp'].map(pieceImage)
+    for (const image of images) expect(image).toBeTruthy()
+    expect(new Set(images).size).toBe(12)
+  })
+
+  it('draws nothing for a letter that is not a piece', () => {
+    expect(pieceImage('x')).toBeUndefined()
+    expect(pieceImage('')).toBeUndefined()
   })
 })
 

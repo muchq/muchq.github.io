@@ -119,8 +119,6 @@
   padding: 0;
   border: none;
   cursor: pointer;
-  font-size: 9cqi;
-  line-height: 1;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
@@ -145,6 +143,26 @@
   box-shadow: inset 0 0 0 100vmax rgba(215, 72, 72, 0.42);
 }
 
+/* The premove's arrow, over the pieces and under the promotion picker. */
+.arrows {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.arrow {
+  stroke: rgba(215, 72, 72, 0.85);
+  stroke-width: 0.16;
+  stroke-linecap: round;
+}
+
+.arrowHead {
+  fill: rgba(215, 72, 72, 0.85);
+}
+
 .square[aria-pressed='true'] {
   box-shadow: inset 0 0 0 100vmax rgba(246, 246, 105, 0.8);
 }
@@ -165,7 +183,7 @@
   pointer-events: none;
 }
 
-.target:has(.whitePiece, .blackPiece)::after {
+.target:has(.piece)::after {
   width: 88%;
   height: 88%;
   background: none;
@@ -178,15 +196,15 @@
   outline-offset: -3px;
 }
 
-.whitePiece {
-  color: #fff;
-  -webkit-text-stroke: 0.04em #000;
-  paint-order: stroke fill;
-}
-
-.blackPiece {
-  color: #111;
-  text-shadow: 0 0 1px rgba(255, 255, 255, 0.6);
+/* A whole square, as lichess draws them: the art keeps its own margin.
+   The square under it takes the taps and drags. */
+.piece {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 /* The files along the bottom edge and the ranks down the left, from the
@@ -239,11 +257,36 @@
 }
 
 .clockName {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.lead {
+  display: flex;
+  align-items: center;
+  flex: none;
+  margin: 0 auto 0 0.35rem;
+  padding-right: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The pieces a side is up, overlapped like a hand of cards. */
+.extra {
+  width: 1.3em;
+  height: 1.3em;
+  pointer-events: none;
+}
+
+.extra + .extra {
+  margin-left: -0.55em;
+}
+
+.extra + span[aria-hidden] {
+  margin-left: 0.2em;
 }
 
 .clock {
@@ -388,6 +431,17 @@
   opacity: 0.7;
 }
 
+.notepadToggle {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
 /* A drag: the viewer's movable pieces take the touch, so the page does not
    scroll under it; the piece rides the pointer over the page, a size up,
    and its square holds a faint copy until it lands. */
@@ -396,14 +450,13 @@
   cursor: grab;
 }
 
-.square[data-dragging='true'] > span:last-child {
+.piece[data-lifted='true'] {
   opacity: 0.3;
 }
 
 .ghost {
   position: fixed;
   z-index: 1000;
-  line-height: 1;
   transform: translate(-50%, -50%);
   pointer-events: none;
   cursor: grabbing;
@@ -451,8 +504,6 @@
   border: none;
   border-radius: 50%;
   background: radial-gradient(circle, #fff 20%, #b0b0b0 100%);
-  font-size: 9cqi;
-  line-height: 1;
   cursor: pointer;
   touch-action: manipulation;
   transition: border-radius 0.1s, background 0.1s;
@@ -483,13 +534,16 @@
   }
 }
 
-/* A phone on its side: too short for the board between its clocks, so the
-   board takes the left and everything else stacks to its right. */
-@media (orientation: landscape) and (max-height: 500px) {
-  .table {
+/* A screen wider than tall: stacked, the clocks and controls take the
+   board's height, so the board takes the left at full height and
+   everything else stacks to its right. Only with a board to place: the
+   waiting room keeps the stack. */
+@media (min-aspect-ratio: 4/3) {
+  .table:not([data-phase='waiting']) {
     max-width: none;
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 24rem);
+    justify-content: center;
     grid-auto-rows: min-content;
     align-content: start;
     column-gap: 1rem;
@@ -502,8 +556,15 @@
   .boardSlot {
     grid-column: 1;
     grid-row: 1 / span 6;
-    width: calc(100dvh - 60px - 4.5rem);
-    height: calc(100dvh - 60px - 4.5rem);
+    /* At most 50rem, so board and column stay within the 1200px content
+       column the docked room chat leaves clear (RoomChat.module.css). */
+    width: min(100dvh - 60px - 4.5rem, 50rem);
+    height: min(100dvh - 60px - 4.5rem, 50rem);
     min-height: 0;
+  }
+
+  /* Beside the board, the ending's buttons wrap without resizing it. */
+  .table:not([data-phase='waiting']) .foot .actions {
+    flex-wrap: wrap;
   }
 }

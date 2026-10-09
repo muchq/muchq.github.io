@@ -16,6 +16,9 @@ export interface ChessTableActions {
   // table once it has closed.
   playAgain: (setupId?: string) => void
   play: (uci: string) => void
+  // The move played and not yet answered: the next view, or a refusal,
+  // lets it go.
+  sent: string | null
   resign: () => void
   // Stockfish in the second seat, at an Elo of 1320 to 3190.
   addBot: (elo: number) => void
@@ -50,11 +53,13 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
   const [view, setView] = useState<ChessView | null>(null)
   const [opening, setOpening] = useState(false)
   const [seating, setSeating] = useState(false)
+  const [sent, setSent] = useState<string | null>(null)
 
   // Held until the hub answers with a view, or refuses.
   const settle = useCallback(() => {
     setOpening(false)
     setSeating(false)
+    setSent(null)
   }, [])
   const clear = useCallback(() => {
     setView(null)
@@ -114,7 +119,13 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
     clear()
     onLeft?.()
   }, [clear, move, onLeft, view])
-  const play = useCallback((uci: string) => move('play', { uci }), [move])
+  const play = useCallback(
+    (uci: string) => {
+      setSent(uci)
+      move('play', { uci })
+    },
+    [move]
+  )
   const postChallenge = useCallback((terms: ChessMovePayloads['challenge']) => move('challenge', terms), [move])
   const resign = useCallback(() => move('resign'), [move])
   const addBot = useCallback(
@@ -130,6 +141,7 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
     watching,
     opening,
     seating,
+    sent,
     handleUpdate,
     handleRejected: settle,
     clear,

@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import type { ChessTableActions } from '@/hooks/useChessTable'
 import felt from '@/apps/castle/components/CastleTable.module.css'
 import type { ChessColor, ChessTerms, ChessView } from '../wire'
-import { describeMove, describeResult, formatClock, glyph, lastMoveSquares, movesTo, nameOf, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
+import { applyMove, describeMove, describeResult, describeExtras, formatClock, imbalance, lastMoveSquares, materialBalance, movesTo, nameOf, pieceImage, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
 import styles from './ChessTable.module.css'
 import ScoreSheet from './ScoreSheet'
 
@@ -63,7 +63,21 @@ const other = (color: ChessColor): ChessColor => (color === 'white' ? 'black' : 
 // built it, so the running side counts down from the moment its view
 // arrived. Its own component, so the tick repaints the clock and not the
 // board.
-const ClockRow = ({ view, seatId, color, you }: { view: ChessView; seatId: string; color: ChessColor; you: boolean }) => {
+const ClockRow = ({
+  view,
+  seatId,
+  color,
+  you,
+  lead,
+  extras
+}: {
+  view: ChessView
+  seatId: string
+  color: ChessColor
+  you: boolean
+  lead: number
+  extras: string[]
+}) => {
   const [arrived, setArrived] = useState(() => ({ view, at: Date.now() }))
   const [now, setNow] = useState(() => Date.now())
   if (arrived.view !== view) setArrived({ view, at: Date.now() })
@@ -80,6 +94,26 @@ const ClockRow = ({ view, seatId, color, you }: { view: ChessView; seatId: strin
       <span className={styles.clockName}>
         {you ? `${nameOf(seatId)} (you)` : nameOf(seatId)} · {color}
       </span>
+      {/* Beside the name, not in it: a long name truncates, the lead stays. */}
+      {(extras.length > 0 || lead > 0) && (
+        <span className={styles.lead}>
+          {/* Drawn as the other side's pieces, as if taken. */}
+          {extras.map((kind, i) => (
+            <img
+              key={i}
+              className={styles.extra}
+              src={pieceImage(color === 'white' ? kind : kind.toUpperCase())}
+              alt=""
+              draggable={false}
+            />
+          ))}
+          {lead > 0 && <span aria-hidden="true">+{lead}</span>}
+          <span className={felt.srOnly}>
+            {extras.length > 0 && `, extra ${describeExtras(extras)}`}
+            {lead > 0 && `, up ${lead} in material`}
+          </span>
+        </span>
+      )}
       <span role="timer" aria-label={`${nameOf(seatId)}’s clock`} className={`${styles.clock} ${ms < 10_000 ? styles.low : ''}`}>
         {formatClock(ms)}
       </span>
@@ -87,8 +121,33 @@ const ClockRow = ({ view, seatId, color, you }: { view: ChessView; seatId: strin
   )
 }
 
+// The queued premove as an arrow over the board, in squares as the viewer
+// sees them: from the piece's centre to just short of the target's, so the
+// head sits on the square it points at.
+const PremoveArrow = ({ from, to, squares }: { from: string; to: string; squares: string[] }) => {
+  const centre = (square: string) => {
+    const index = squares.indexOf(square)
+    return [(index % 8) + 0.5, Math.floor(index / 8) + 0.5]
+  }
+  const [x1, y1] = centre(from)
+  const [tx, ty] = centre(to)
+  const length = Math.hypot(tx - x1, ty - y1)
+  const x2 = tx - ((tx - x1) / length) * 0.3
+  const y2 = ty - ((ty - y1) / length) * 0.3
+  return (
+    <svg className={styles.arrows} viewBox="0 0 8 8" aria-hidden="true">
+      <defs>
+        <marker id="premove-head" viewBox="0 0 4 4" refX="2" refY="2" markerWidth="3" markerHeight="3" orient="auto">
+          <path d="M0,0 L4,2 L0,4 z" className={styles.arrowHead} />
+        </marker>
+      </defs>
+      <line data-testid="premove-arrow" x1={x1} y1={y1} x2={x2} y2={y2} className={styles.arrow} markerEnd="url(#premove-head)" />
+    </svg>
+  )
+}
+
 const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
-  const { opening, play } = table
+  const { opening, play, sent } = table
   const headingRef = useRef<HTMLHeadingElement>(null)
   const boardRef = useRef<HTMLDivElement>(null)
   const resignRef = useRef<HTMLButtonElement>(null)
@@ -147,18 +206,27 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const selectedClock = clockChoice ?? (view.terms === undefined ? '3+2' : clockLabel(view.terms))
   const alone = view.players.length < 2
   const myTurn = view.phase === 'playing' && view.currentPlayerId === playerId
+  // No board input from a watcher, offline, outside play, or while a move
+  // sent waits on the hub.
+  const inert = watching || !connected || view.phase !== 'playing' || sent !== null
   const from = picked?.view === view ? picked.square : null
   const queuedPremove = premove?.gameId === view.gameId ? premove : null
   const pendingPromotion = promoting?.view === view ? promoting : null
   const targets = !myTurn || from === null ? [] : targetsFrom(view.legalMoves, from)
   const board = readBoard(view.fen)
-  // A promotion asking shows its pawn already on the last rank, under the
-  // picker, as the board would once it is played.
-  const shown = new Map(board)
-  if (pendingPromotion !== null) {
-    shown.set(pendingPromotion.to, board.get(pendingPromotion.from) ?? '')
-    shown.delete(pendingPromotion.from)
-  }
+  // A move sent shows where it landed until the hub's answer replaces the
+  // board; a promotion asking shows its pawn already on the last rank,
+  // under the picker.
+  const shown =
+    sent !== null
+      ? applyMove(board, sent)
+      : pendingPromotion !== null
+        ? applyMove(board, `${pendingPromotion.from}${pendingPromotion.to}`)
+        : board
+  // The material lead of each side, as drawn: positive only for the side ahead.
+  const balance = materialBalance(shown)
+  const leadOf = (color: ChessColor) => (color === 'white' ? balance : -balance)
+  const extras = imbalance(shown)
   const last = lastMoveSquares(view.moves)
   // The king of the side to move — or, once mated, of the side that was.
   const checkedKing = view.inCheck ? (view.fen?.split(' ')[1] === 'b' ? 'k' : 'K') : null
@@ -201,7 +269,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
       dragged.current = false
       return
     }
-    if (watching || !connected || view.phase !== 'playing') return
+    if (inert) return
     // A tap on the board is a new gesture: a promotion still asking is
     // abandoned, never left up to send a second move for this turn.
     setPromoting(null)
@@ -233,7 +301,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
 
   const onPointerDown = (event: ReactPointerEvent, square: string) => {
     dragged.current = false
-    if (watching || !connected || view.phase !== 'playing' || event.button !== 0) return
+    if (inert || event.button !== 0) return
     const piece = board.get(square)
     if (piece === undefined || colorOfPiece(piece) !== myColor) return
     if (myTurn && targetsFrom(view.legalMoves, square).length === 0) return
@@ -251,9 +319,10 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
       // would land on the board rather than its square.
       boardRef.current?.setPointerCapture?.(event.pointerId)
     }
-    // A size up from the board's own pieces, which are 9% of its width.
+    // A size up from the board's own pieces, which fill a square: an eighth
+    // of its width.
     const width = boardRef.current?.getBoundingClientRect().width ?? 0
-    setGhost({ piece: board.get(held.square) ?? '', x: event.clientX, y: event.clientY, size: width * 0.11 })
+    setGhost({ piece: board.get(held.square) ?? '', x: event.clientX, y: event.clientY, size: width * 0.15 })
   }
   const onPointerUp = (event: ReactPointerEvent) => {
     const held = press.current
@@ -411,7 +480,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
         </div>
       ) : (
         <div className={styles.play}>
-          {above?.color !== undefined && <ClockRow view={view} seatId={above.playerId} color={above.color} you={false} />}
+          {above?.color !== undefined && <ClockRow view={view} seatId={above.playerId} color={above.color} you={false} lead={leadOf(above.color)} extras={extras[above.color]} />}
           <span id={targetNote} className={felt.srOnly}>
             a move
           </span>
@@ -432,7 +501,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                 const light = (square.charCodeAt(0) - 97 + Number(square[1])) % 2 === 0
                 const target = targets.includes(square)
                 const grab = mine && connected && view.phase === 'playing' && (!myTurn || targetsFrom(view.legalMoves, square).length > 0)
-                const interactive = !watching && connected && view.phase === 'playing' && (myTurn || mine || from !== null)
+                const interactive = !inert && (myTurn || mine || from !== null)
                 const premoveMark = queuedPremove?.from === square ? 'from' : queuedPremove?.to === square ? 'to' : undefined
                 return (
                   <button
@@ -449,7 +518,6 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                     data-check={piece !== undefined && piece === checkedKing ? 'true' : undefined}
                     data-grab={grab ? 'true' : undefined}
                     data-premove={premoveMark}
-                    data-dragging={ghost !== null && from === square ? 'true' : undefined}
                     // Under the picker's scrim, out of reach of the keyboard as of the pointer.
                     inert={pendingPromotion !== null}
                     onPointerDown={event => onPointerDown(event, square)}
@@ -466,13 +534,18 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                       </span>
                     )}
                     {piece !== undefined && (
-                      <span className={colorOfPiece(piece) === 'white' ? styles.whitePiece : styles.blackPiece} aria-hidden="true">
-                        {glyph(piece)}
-                      </span>
+                      <img
+                        className={styles.piece}
+                        src={pieceImage(piece)}
+                        alt=""
+                        draggable={false}
+                        data-lifted={ghost !== null && from === square ? 'true' : undefined}
+                      />
                     )}
                   </button>
                 )
               })}
+              {queuedPremove !== null && <PremoveArrow from={queuedPremove.from} to={queuedPremove.to} squares={squares} />}
               {/* Lichess's picker: the pieces stacked down the file from the
                   promotion square, which is always on the viewer's far rank,
                   over a dimmed board a tap on which lets the pawn go back. */}
@@ -496,7 +569,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                         <li key={letter}>
                           <button
                             type="button"
-                            className={`${styles.promotionPiece} ${myColor === 'white' ? styles.whitePiece : styles.blackPiece}`}
+                            className={styles.promotionPiece}
                             aria-label={name}
                             autoFocus={i === 0}
                             onClick={() => {
@@ -505,7 +578,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                               table.play(uci)
                             }}
                           >
-                            <span aria-hidden="true">{glyph(myColor === 'white' ? letter.toUpperCase() : letter)}</span>
+                            <img className={styles.piece} src={pieceImage(myColor === 'white' ? letter.toUpperCase() : letter)} alt="" draggable={false} />
                           </button>
                         </li>
                       )
@@ -516,19 +589,18 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
               )}
             </div>
           </div>
-          {below?.color !== undefined && <ClockRow view={view} seatId={below.playerId} color={below.color} you={!watching} />}
+          {below?.color !== undefined && <ClockRow view={view} seatId={below.playerId} color={below.color} you={!watching} lead={leadOf(below.color)} extras={extras[below.color]} />}
           {/* On the page, not the board: the board clips its overflow, and a
               captured drag may stray past its edge. */}
           {ghost !== null &&
             createPortal(
-              <span
-                className={`${styles.ghost} ${colorOfPiece(ghost.piece) === 'white' ? styles.whitePiece : styles.blackPiece}`}
-                style={{ left: ghost.x, top: ghost.y, fontSize: ghost.size }}
-                aria-hidden="true"
+              <img
+                className={styles.ghost}
+                src={pieceImage(ghost.piece)}
+                style={{ left: ghost.x, top: ghost.y, width: ghost.size, height: ghost.size }}
+                alt=""
                 data-testid="drag-ghost"
-              >
-                {glyph(ghost.piece)}
-              </span>,
+              />,
               document.body
             )}
 
