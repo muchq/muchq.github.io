@@ -305,19 +305,20 @@ describe('LobbyPanel', () => {
       expect(screen.getByText('No finished games yet')).toBeTruthy()
     })
 
-    it('publishes the room’s games, and says where they go and that they stay', () => {
+    // What publishing means is said before the click that does it.
+    it('says where published games go and that they stay, before and after publishing', () => {
       const hook = lobby({ room: room(), chess: chess({ published: false, games: [] }) })
       const { rerender } = render(<LobbyPanel lobby={hook} />)
       const toggle = screen.getByRole('checkbox', { name: 'Publish this room’s chess games' })
       expect(toggle).not.toBeChecked()
-      expect(screen.queryByRole('link', { name: 'public chess feed' })).toBeNull()
+      expect(screen.getByRole('link', { name: 'public chess feed' })).toHaveAttribute('href', hubChessFeedUrl(hubPlayUrl()))
+      expect(screen.getByText(/stay there for 30 days, even after this is turned off/)).toBeTruthy()
       fireEvent.click(toggle)
       expect(hook.chess.publish).toHaveBeenCalledWith(true)
 
       const published = lobby({ room: room(), chess: chess({ published: true, games: [] }) })
       rerender(<LobbyPanel lobby={published} />)
       expect(screen.getByRole('checkbox', { name: 'Publish this room’s chess games' })).toBeChecked()
-      expect(screen.getByRole('link', { name: 'public chess feed' })).toHaveAttribute('href', hubChessFeedUrl(hubPlayUrl()))
       expect(screen.getByText(/stay there for 30 days, even after this is turned off/)).toBeTruthy()
       fireEvent.click(screen.getByRole('checkbox', { name: 'Publish this room’s chess games' }))
       expect(published.chess.publish).toHaveBeenCalledWith(false)

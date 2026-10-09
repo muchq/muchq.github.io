@@ -196,6 +196,31 @@ describe('LobbyGame', () => {
     }
   })
 
+  // A review takes the screen as a table does (MoonBase#1637): opened
+  // from the panel's own list, it folds the panel it came from, and the
+  // panel stays folded while the review is up, table or no table.
+  it('a review folds the panel, and keeps it folded when the table under it goes', () => {
+    const panel = () => screen.queryByRole('complementary', { name: 'lobby' })
+    const { rerender } = render(<LobbyGame />)
+    expect(panel()).toBeTruthy()
+    state.chess.view = { gameId: 'K1' } as ChessView
+    state.chess.review = { summary: { gameId: 'K1' } } as ChessReview
+    try {
+      rerender(<LobbyGame />)
+      expect(panel()).toBeNull()
+      state.chess.view = null
+      rerender(<LobbyGame />)
+      expect(panel()).toBeNull()
+      expect(screen.getByRole('button', { name: 'review of K1' })).toBeTruthy()
+      state.chess.review = null
+      rerender(<LobbyGame />)
+      expect(panel()).toBeTruthy()
+    } finally {
+      state.chess.view = null
+      state.chess.review = null
+    }
+  })
+
   it('hands the rummy table the seats the room shows away', () => {
     state.room = {
       roomId: 'R1',

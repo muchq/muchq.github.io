@@ -31,8 +31,19 @@ const GameReview = ({ review, playerId, onClose }: GameReviewProps) => {
   useEffect(() => {
     regionRef.current?.focus()
   }, [])
+  // The move shown stays in sight in a long list.
+  const movesRef = useRef<HTMLOListElement>(null)
+  useEffect(() => {
+    movesRef.current?.querySelector<HTMLElement>('[aria-current="true"]')?.scrollIntoView?.({ block: 'nearest' })
+  }, [ply])
 
   const onKeyDown = (event: KeyboardEvent) => {
+    // Handled, so the command menu's Escape never opens over the review.
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      onClose()
+      return
+    }
     const to = { ArrowLeft: ply - 1, ArrowRight: ply + 1, Home: 0, End: last }[event.key]
     if (to === undefined) return
     event.preventDefault()
@@ -49,7 +60,15 @@ const GameReview = ({ review, playerId, onClose }: GameReviewProps) => {
   const title = `${nameOf(summary.white)} vs ${nameOf(summary.black)}`
 
   return (
-    <section ref={regionRef} className={styles.review} aria-labelledby="review-title" tabIndex={-1} onKeyDown={onKeyDown}>
+    <section
+      ref={regionRef}
+      role="dialog"
+      aria-modal="true"
+      className={styles.review}
+      aria-labelledby="review-title"
+      tabIndex={-1}
+      onKeyDown={onKeyDown}
+    >
       <div className={felt.tableHeader}>
         <h1 id="review-title" className={`${felt.title} ${styles.title}`}>
           {title} <span className={styles.muted}>· {summary.setupName}</span>
@@ -97,7 +116,7 @@ const GameReview = ({ review, playerId, onClose }: GameReviewProps) => {
               ⏭
             </button>
           </div>
-          <ol className={styles.moves} aria-label="Moves">
+          <ol ref={movesRef} className={styles.moves} aria-label="Moves">
             {rows.map(({ number, white, black }) => (
               <li key={number} className={styles.moveRow}>
                 <span className={styles.moveNumber}>{number}.</span>

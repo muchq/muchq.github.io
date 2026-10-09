@@ -67,7 +67,7 @@ describe('GameReview', () => {
 
   it('steps with the arrow keys, and Home and End', () => {
     mount()
-    const review = screen.getByRole('region', { name: /alice vs bob/ })
+    const review = screen.getByRole('dialog', { name: /alice vs bob/ })
     fireEvent.keyDown(review, { key: 'ArrowLeft' })
     expect(position()).toBe('After 1. e4')
     fireEvent.keyDown(review, { key: 'Home' })
@@ -106,6 +106,16 @@ describe('GameReview', () => {
   it('shows Black the board from Black’s side, and anyone else from White’s', () => {
     mount('bob')
     expect(screen.getAllByRole('img')[0]).toHaveAccessibleName(/^h1/)
+  })
+
+  // Escape closes the review and is marked handled, so the command
+  // menu's own Escape binding never opens over it.
+  it('closes on Escape, which goes no further', () => {
+    const { onClose } = mount()
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    screen.getByRole('dialog', { name: /alice vs bob/ }).dispatchEvent(event)
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(event.defaultPrevented).toBe(true)
   })
 
   it('closes', () => {

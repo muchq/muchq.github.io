@@ -72,15 +72,13 @@ const ChessGames = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean })
             <input type="checkbox" checked={history.published} onChange={event => lobby.chess.publish(event.target.checked)} disabled={disabled} />{' '}
             Publish this room’s chess games
           </label>
-          {history.published && (
-            <p className={styles.muted}>
-              Games that end while this is on join the{' '}
-              <a href={hubChessFeedUrl(hubPlayUrl())} target="_blank" rel="noopener noreferrer">
-                public chess feed
-              </a>{' '}
-              and stay there for 30 days, even after this is turned off.
-            </p>
-          )}
+          <p className={styles.muted}>
+            Games that end while this is on join the{' '}
+            <a href={hubChessFeedUrl(hubPlayUrl())} target="_blank" rel="noopener noreferrer">
+              public chess feed
+            </a>{' '}
+            and stay there for 30 days, even after this is turned off.
+          </p>
         </>
       )}
     </section>
