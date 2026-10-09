@@ -59,6 +59,31 @@ describe('Navigation', () => {
     }
   })
 
+  it('opens every Hmm link in a new tab without leaking the opener', () => {
+    renderWithRouter(<Navigation />)
+    const groupEl = testingScreen.getByText('Hmm').closest('li')
+    if (!groupEl) throw new Error('Hmm nav group not found')
+    const dropdown = groupEl.querySelector('div')
+    if (!dropdown) throw new Error('Hmm dropdown not found')
+    const links = within(dropdown).getAllByRole('link')
+    expect(links).toHaveLength(10)
+    for (const link of links) {
+      expect(link.getAttribute('target')).toBe('_blank')
+      const rel = (link.getAttribute('rel') ?? '').split(/\s+/)
+      expect(rel).toContain('noopener')
+      expect(rel).toContain('noreferrer')
+    }
+  })
+
+  it('keeps internal links in the same tab', () => {
+    renderWithRouter(<Navigation />)
+    for (const name of ['Lobby', 'Tracy', 'Stats']) {
+      const link = testingScreen.getByRole('link', { name })
+      expect(link.getAttribute('target')).toBeNull()
+      expect(link.getAttribute('rel')).toBeNull()
+    }
+  })
+
   it('lists the Yep apps in their order, as plain internal links without subtitles', () => {
     renderWithRouter(<Navigation />)
     const groupEl = testingScreen.getByText('Yep').closest('li')

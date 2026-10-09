@@ -151,7 +151,13 @@ const Navigation = ({ className, appName, context, floating }: NavigationProps) 
                     </>
                   )
                   return link.external ? (
-                    <a key={link.label} href={link.to} className={styles.dropdownItem}>
+                    <a
+                      key={link.label}
+                      href={link.to}
+                      className={styles.dropdownItem}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       {children}
                     </a>
                   ) : (
