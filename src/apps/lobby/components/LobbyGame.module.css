@@ -29,6 +29,11 @@
   z-index: 10;
 }
 
+/* Over a table, so nothing of the table shows through. */
+.reviewOverlay {
+  background: rgb(43, 29, 79);
+}
+
 .panelToggle {
   position: fixed;
   top: 68px;

@@ -1,0 +1,119 @@
+/* A finished game under review: the board beside its move list where
+   there is room, above it where there is not. The board's squares and
+   pieces are the table's (ChessTable.module.css); here they are only
+   looked at, so nothing is a pointer. */
+
+.review {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  color: white;
+  outline: none;
+}
+
+.title {
+  font-size: 1.4rem;
+}
+
+.muted {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 400;
+  font-size: 1rem;
+}
+
+.layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+/* A square slot sized by its width, not the table's measured height: the
+   review scrolls in the overlay rather than fitting it. */
+.boardSlot {
+  flex: 1 1 320px;
+  max-width: 520px;
+  aspect-ratio: 1;
+  container-type: size;
+}
+
+.boardSlot [role='img'] {
+  cursor: default;
+}
+
+.side {
+  flex: 1 1 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.position {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.steps,
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.steps button {
+  padding: 0.5rem 0.9rem;
+}
+
+.links a {
+  text-decoration: none;
+  display: inline-block;
+}
+
+.moves {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+  max-height: 16rem;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.moveRow {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr 1fr;
+  align-items: center;
+}
+
+.moveNumber {
+  padding-left: 0.5rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.move {
+  padding: 0.3rem 0.5rem;
+  background: none;
+  border: none;
+  color: white;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+span.move {
+  color: rgba(255, 255, 255, 0.4);
+  cursor: default;
+}
+
+.move[aria-current='true'] {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 0.25rem;
+}
+
+.move:focus-visible {
+  outline: 2px solid white;
+}

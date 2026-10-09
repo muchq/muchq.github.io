@@ -3,6 +3,8 @@ import {
   imbalance,
   materialBalance,
   applyMove,
+  analysisUrl,
+  moveRows,
   nameOf,
   pieceImage,
   describeResult,
@@ -212,5 +214,32 @@ describe('nameOf', () => {
     expect(describeResult({ winner: 'stockfish@1500', winnerColor: 'white', ending: 'checkmate' }, 'alice')).toBe(
       'Stockfish 1500 won by checkmate'
     )
+  })
+})
+
+describe('moveRows', () => {
+  it('numbers moves from the start position, a row a full move', () => {
+    const start = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+    expect(moveRows(start, ['e4', 'e5', 'Nf3'])).toEqual([
+      { number: 1, white: { san: 'e4', ply: 1 }, black: { san: 'e5', ply: 2 } },
+      { number: 2, white: { san: 'Nf3', ply: 3 } }
+    ])
+  })
+
+  it('starts on the black half when Black moves first, counting from the FEN', () => {
+    expect(moveRows('7k/8/6K1/8/8/8/4p3/8 b - - 0 12', ['Kg8', 'Kf6'])).toEqual([
+      { number: 12, black: { san: 'Kg8', ply: 1 } },
+      { number: 13, white: { san: 'Kf6', ply: 2 } }
+    ])
+  })
+
+  it('has no rows for no moves', () => {
+    expect(moveRows('7k/8/6K1/8/8/8/4p3/8 b - - 0 1', [])).toEqual([])
+  })
+})
+
+describe('analysisUrl', () => {
+  it('opens the position on lichess, its spaces as underscores', () => {
+    expect(analysisUrl('4Q2k/8/6K1/8/8/8/8/8 b - - 0 1')).toBe('https://lichess.org/analysis/standard/4Q2k/8/6K1/8/8/8/8/8_b_-_-_0_1')
   })
 })

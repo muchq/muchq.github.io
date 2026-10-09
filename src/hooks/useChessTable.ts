@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import type { ChessMoveName, ChessMovePayloads, ChessUpdate, ChessView } from '@/apps/chess/wire'
+import type { ChessHistory, ChessMoveName, ChessMovePayloads, ChessReview, ChessUpdate, ChessView } from '@/apps/chess/wire'
 
 // A chess table as the wire sends it, over the lobby's stream (useLobby).
 // The owner feeds handleUpdate every chess update and clears the table on
@@ -7,6 +7,10 @@ import type { ChessMoveName, ChessMovePayloads, ChessUpdate, ChessView } from '@
 // and arrives before gameEnded. The board's own selection is the
 // component's: it lives and dies with one view. A watcher's view is the
 // seats' own, with no chair of its own in it.
+//
+// The room's finished games (MoonBase#1637) ride beside the table: the
+// history as last asked for, the published flag as last heard, and the
+// game under review, which outlives the table it came from.
 
 export interface ChessTableActions {
   // Setup and seconds; absent fields use the hub's defaults.
@@ -22,6 +26,8 @@ export interface ChessTableActions {
   resign: () => void
   // Stockfish in the second seat, at an Elo of 1320 to 3190.
   addBot: (elo: number) => void
+  // A finished game from the room's history, by its table and line.
+  reviewGame: (gameId: string, ordinal: number) => void
   // Alone at a waiting table: the terms whoever joins starts on.
   postChallenge: (terms: ChessMovePayloads['challenge']) => void
 }
@@ -37,6 +43,13 @@ export interface UseChessTable extends ChessTableActions {
   opening: boolean
   // A bot has been asked for and its seat not yet arrived.
   seating: boolean
+  history: ChessHistory | null
+  review: ChessReview | null
+  loadHistory: () => void
+  // A game from the room's history, by its archive id.
+  reviewArchived: (archiveId: number) => void
+  closeReview: () => void
+  publish: (published: boolean) => void
   handleUpdate: (update: ChessUpdate) => void
   handleRejected: () => void
   clear: () => void
@@ -54,6 +67,8 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
   const [opening, setOpening] = useState(false)
   const [seating, setSeating] = useState(false)
   const [sent, setSent] = useState<string | null>(null)
+  const [history, setHistory] = useState<ChessHistory | null>(null)
+  const [review, setReview] = useState<ChessReview | null>(null)
 
   // Held until the hub answers with a view, or refuses.
   const settle = useCallback(() => {
@@ -61,10 +76,15 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
     setSeating(false)
     setSent(null)
   }, [])
-  const clear = useCallback(() => {
+  const clearTable = useCallback(() => {
     setView(null)
     settle()
   }, [settle])
+  const clear = useCallback(() => {
+    clearTable()
+    setHistory(null)
+    setReview(null)
+  }, [clearTable])
 
   const handleUpdate = useCallback(
     (update: ChessUpdate) => {
@@ -83,12 +103,28 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
         return
       }
       if (update.gameLeft) {
-        clear()
+        clearTable()
         onLeft?.()
+        return
+      }
+      if (update.history) {
+        setHistory(update.history)
+        return
+      }
+      if (update.review) {
+        setReview(update.review)
+        return
+      }
+      if (update.published) {
+        const { published, by } = update.published
+        setHistory(held => (held === null ? held : { ...held, published }))
+        if (by === playerId) return
+        if (by === undefined) showNotice(`this room’s chess games are ${published ? 'now published' : 'no longer published'}`)
+        else showNotice(`${by} ${published ? 'published' : 'stopped publishing'} this room’s chess games`)
       }
       // gameStarted, turnChanged and gameEnded: the view says it all.
     },
-    [clear, onLeft, playerId, settle, showNotice]
+    [clearTable, onLeft, playerId, settle, showNotice]
   )
 
   const createTable = useCallback(() => move('createGame'), [move])
@@ -116,9 +152,9 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
       return
     }
     // A closed table is already gone from the hub: only the view lingers.
-    clear()
+    clearTable()
     onLeft?.()
-  }, [clear, move, onLeft, view])
+  }, [clearTable, move, onLeft, view])
   const play = useCallback(
     (uci: string) => {
       setSent(uci)
@@ -136,8 +172,21 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
     [move]
   )
 
+  const loadHistory = useCallback(() => move('history'), [move])
+  const reviewGame = useCallback((gameId: string, ordinal: number) => move('review', { gameId, ordinal }), [move])
+  const reviewArchived = useCallback((archiveId: number) => move('review', { archiveId }), [move])
+  const closeReview = useCallback(() => setReview(null), [])
+  const publish = useCallback((published: boolean) => move('publish', { published }), [move])
+
   return {
     view,
+    history,
+    review,
+    loadHistory,
+    reviewGame,
+    reviewArchived,
+    closeReview,
+    publish,
     watching,
     opening,
     seating,

@@ -4,6 +4,7 @@ import CastleTable from '@/apps/castle/components/CastleTable'
 import GolfTable from '@/apps/golf/components/GolfTable'
 import RummyTable from '@/apps/rummy/components/RummyTable'
 import ChessTable from '@/apps/chess/components/ChessTable'
+import GameReview from '@/apps/chess/components/GameReview'
 import RoomChat, { type RoomChatHandle } from './RoomChat'
 import CommandMenu, { type CommandMenuHandle } from './CommandMenu'
 import { lobbyCommands } from '../lobbyCommands'
@@ -123,6 +124,13 @@ const LobbyGame = (props: UseLobbyProps) => {
             table={golf}
             shareUrl={room === null ? null : `${window.location.origin}${lobbyTablePath(room.roomId, golf.view.id)}`}
           />
+        </div>
+      )}
+      {/* A finished game under review, over any table: closing it goes
+          back to whatever was under it. */}
+      {chess.review !== null && (
+        <div className={`${styles.tableOverlay} ${styles.reviewOverlay}`}>
+          <GameReview review={chess.review} playerId={playerId} onClose={chess.closeReview} />
         </div>
       )}
       <button

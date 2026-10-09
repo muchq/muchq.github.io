@@ -71,6 +71,7 @@ const table = (over: Partial<ChessTableProps['table']> = {}): ChessTableProps['t
   play: vi.fn(),
   resign: vi.fn(),
   addBot: vi.fn(),
+  reviewGame: vi.fn(),
   postChallenge: vi.fn(),
   ...over
 })
@@ -941,6 +942,19 @@ describe('ChessTable', () => {
       expect(name.className).toContain('setupName')
     })
 
+    // The game just played is the score sheet's last line (MoonBase#1637).
+    it('offers a review of the game that just ended', () => {
+      const scoreSheet = [{ ending: 'resignation' as const, winner: 'bob' }, { ending: 'checkmate' as const, winner: 'alice' }]
+      const { t } = mountWith(ended({ scoreSheet }))
+      fireEvent.click(screen.getByRole('button', { name: 'Review game' }))
+      expect(t.reviewGame).toHaveBeenCalledWith('G1', 2)
+    })
+
+    it('offers no review before the hub has scored a game', () => {
+      mountWith(ended({ scoreSheet: undefined }))
+      expect(screen.queryByRole('button', { name: 'Review game' })).toBeNull()
+    })
+
     it('once the opponent leaves between games, says so and offers another table', () => {
       const { t } = mountWith(ended({ phase: 'closed' }))
       expect(status()).toHaveTextContent('bob left the table.')
@@ -1088,6 +1102,12 @@ describe('ChessTable', () => {
       expect(screen.getByTestId('chess-status')).toHaveTextContent('alice won by checkmate')
       for (const name of ['Next game', 'Play again', 'Leave table']) expect(screen.queryByRole('button', { name })).toBeNull()
       expect(screen.queryByRole('combobox', { name: 'Next starting position' })).toBeNull()
+    })
+
+    it('can review the game it watched end', () => {
+      const { t } = mountWith(ended({ scoreSheet: [{ ending: 'checkmate', winner: 'alice' }] }), {}, 'carol')
+      fireEvent.click(screen.getByRole('button', { name: 'Review game' }))
+      expect(t.reviewGame).toHaveBeenCalledWith('G1', 1)
     })
 
     it('says the table closed when a seat left between games', () => {

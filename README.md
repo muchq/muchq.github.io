@@ -74,7 +74,11 @@ score notepad as the table plays on: Next game starts another there, sides swapp
 watched from the lobby by a member at none: the same board from White's side, read-only, until Stop watching,
 a seat taken, a reconnect, or the hub's `gameLeft` for a table gone before it started (MoonBase#1633). Alone at a
 waiting table, the seat posts a challenge (position and clock) where two seats would press Start; the lobby lists its
-terms and **Accept** joins and starts on them. Share links are
+terms and **Accept** joins and starts on them. A room keeps its finished chess games (MoonBase#1637): the lobby's Chess
+games section lists them, and Review game at a table's end or Review in the list opens `GameReview` over everything, the
+hub's positions stepped through by button, arrow key or move list, with the hub's PGN to download and the position shown
+on lichess's analysis board. Any member may publish the room's games; those that end while published join the hub's
+public feed (`/games/v2/chess.pgn`) for 30 days. Share links are
 `/games/room/:roomId` and `/games/room/:roomId/table/:gameId`; the old `/golf` and `/castle`
 links redirect to them, and `/thoughts` to `/games`. Hiding the panel is how the bare world
 is asked for, so that choice is remembered across visits.

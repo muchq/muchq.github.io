@@ -662,6 +662,12 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                 <p className={styles.result} aria-hidden="true">
                   {status}
                 </p>
+                {/* The game just played is the score sheet's last line. */}
+                {(view.scoreSheet?.length ?? 0) > 0 && (
+                  <button type="button" className={felt.link} onClick={() => table.reviewGame(view.gameId, view.scoreSheet?.length ?? 0)} disabled={!connected}>
+                    Review game
+                  </button>
+                )}
                 {/* Between games the table is still both seats': the next game
                     is played here. Once a seat has left, another table. A
                     watcher has neither. */}

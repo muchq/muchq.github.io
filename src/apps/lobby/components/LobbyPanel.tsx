@@ -3,6 +3,9 @@ import PermalinkDisplay from './PermalinkDisplay'
 import type { UseLobby } from '@/hooks/useLobby'
 import { lobbyRoomPath } from '@/hooks/useLobby'
 import type { HubRoomPlayer } from '@/utils/hubStream'
+import { hubChessFeedUrl, hubPlayUrl } from '@/utils/hubSession'
+import type { ChessGameSummary } from '@/apps/chess/wire'
+import { nameOf } from '@/apps/chess/rules'
 import type { VoiceMesh, VoiceView } from '@/utils/voiceMesh'
 import { CATALOG, FAMILIES, catalogEntry, seatsLine } from '../catalog'
 import { atTable, seatsOf, tableFor, tableOffer } from '../offers'
@@ -19,6 +22,70 @@ const presence = (player: HubRoomPlayer): string => {
 
 // The room's running record, kept by the hub across its tables.
 const record = (player: HubRoomPlayer): string => `${player.gamesWon}/${player.gamesPlayed} won`
+
+// A finished chess game as one line: sides, score and ending, length.
+const RESULT_MARK = { white: '1-0', black: '0-1' } as const
+const gameLine = (game: ChessGameSummary): string => {
+  const score = game.result.winnerColor === undefined ? '½-½' : RESULT_MARK[game.result.winnerColor]
+  return `${nameOf(game.white)} vs ${nameOf(game.black)} · ${score} ${game.result.ending} · ${Math.ceil(game.plies / 2)} moves`
+}
+
+// The room's finished chess games (MoonBase#1637), fetched when asked
+// for rather than on every visit, each one reviewable; and whether the
+// room publishes them, which any member may change and every member
+// hears about.
+const ChessGames = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean }) => {
+  const { history } = lobby.chess
+  return (
+    <section className={styles.section} aria-labelledby="lobby-chess-games">
+      <h2 id="lobby-chess-games">Chess games</h2>
+      {history === null ? (
+        <button type="button" className={styles.secondary} onClick={lobby.chess.loadHistory} disabled={disabled}>
+          Show finished games
+        </button>
+      ) : (
+        <>
+          {history.games.length === 0 ? (
+            <p className={styles.muted}>No finished games yet</p>
+          ) : (
+            <ul className={styles.list}>
+              {history.games.map(game => (
+                <li key={game.archiveId} className={styles.row}>
+                  <span>{gameLine(game)}</span>
+                  <button
+                    type="button"
+                    className={styles.secondary}
+                    onClick={() => lobby.chess.reviewArchived(game.archiveId)}
+                    disabled={disabled}
+                    aria-label={`Review ${game.gameId} game ${game.ordinal}`}
+                  >
+                    Review
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button type="button" className={styles.link} onClick={lobby.chess.loadHistory} disabled={disabled} aria-label="Refresh finished games">
+            Refresh
+          </button>
+          <label className={styles.muted}>
+            <input type="checkbox" checked={history.published} onChange={event => lobby.chess.publish(event.target.checked)} disabled={disabled} />{' '}
+            Publish this room’s chess games
+          </label>
+          {history.published && (
+            <p className={styles.muted}>
+              Games that end while this is on join the{' '}
+              <a href={hubChessFeedUrl(hubPlayUrl())} target="_blank" rel="noopener noreferrer">
+                public chess feed
+              </a>{' '}
+              and stay there for 30 days, even after this is turned off.
+            </p>
+          )}
+        </>
+      )}
+    </section>
+  )
+}
 
 // A new table: one picker of every game, grouped by family, one button
 // that opens the picked one, and what that game is and who it seats. A
@@ -210,6 +277,7 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
         )}
         <NewTable lobby={lobby} disabled={!connected || busy} />
       </section>
+      <ChessGames lobby={lobby} disabled={!connected} />
       {COMMAND_HINT}
     </aside>
   )

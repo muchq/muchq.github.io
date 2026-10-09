@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { useChessTable } from '../useChessTable'
-import type { ChessView } from '@/apps/chess/wire'
+import type { ChessGameSummary, ChessReview, ChessView } from '@/apps/chess/wire'
 
 const view = (over: Partial<ChessView> = {}): ChessView => ({
   gameId: 'GAME01',
@@ -26,6 +26,29 @@ const view = (over: Partial<ChessView> = {}): ChessView => ({
   legalMoves: ['e7e8q', 'g6f7'],
   clock: { whiteMs: 180_000, blackMs: 180_000, initialMs: 180_000, incrementMs: 2_000 },
   ...over
+})
+
+const summary = (over: Partial<ChessGameSummary> = {}): ChessGameSummary => ({
+  archiveId: 7,
+  gameId: 'GAME01',
+  ordinal: 1,
+  white: 'alice',
+  black: 'bob',
+  result: { ending: 'checkmate', winner: 'alice', winnerColor: 'white' },
+  setupId: 'random-kpk',
+  setupName: 'Random K+P vs K',
+  plies: 1,
+  endedAtMs: 1_800_000_000_000,
+  published: false,
+  ...over
+})
+
+const review = (): ChessReview => ({
+  summary: summary(),
+  moves: ['e7e8q'],
+  san: ['e8=Q#'],
+  fens: ['7k/4P3/6K1/8/8/8/8/8 w - - 0 1', '4Q2k/8/6K1/8/8/8/8/8 b - - 0 1'],
+  pgn: '[Event "x"]\n\n1. e8=Q# 1-0\n'
 })
 
 describe('useChessTable', () => {
@@ -188,5 +211,59 @@ describe('useChessTable', () => {
     receive({ gameLeft: { gameId: 'GAME01' } })
     expect(result.current.view).toBeNull()
     expect(onLeft).toHaveBeenCalledTimes(1)
+  })
+  // The room's finished games (MoonBase#1637): asked for, held as the hub
+  // answers, and kept current by every published the room hears.
+  it('asks for the room history and holds the answer', () => {
+    const { result, receive, move } = mount()
+    act(() => result.current.loadHistory())
+    expect(move.mock.calls).toEqual([['history']])
+    receive({ history: { published: false, games: [summary()] } })
+    expect(result.current.history?.games).toEqual([summary()])
+    expect(result.current.history?.published).toBe(false)
+  })
+
+  it('reviews a game by its table and line, or by its archive id, and closes the review', () => {
+    const { result, receive, move } = mount()
+    act(() => result.current.reviewGame('GAME01', 1))
+    act(() => result.current.reviewArchived(7))
+    expect(move.mock.calls).toEqual([
+      ['review', { gameId: 'GAME01', ordinal: 1 }],
+      ['review', { archiveId: 7 }]
+    ])
+    receive({ review: review() })
+    expect(result.current.review).toEqual(review())
+    act(() => result.current.closeReview())
+    expect(result.current.review).toBeNull()
+  })
+
+  it('publishes through the hub, and says so when someone else does', () => {
+    const { result, receive, move, showNotice } = mount()
+    receive({ history: { published: false, games: [] } })
+    act(() => result.current.publish(true))
+    expect(move.mock.calls).toEqual([['publish', { published: true }]])
+    receive({ published: { published: true, by: 'alice' } })
+    expect(result.current.history?.published).toBe(true)
+    expect(showNotice).not.toHaveBeenCalled()
+    receive({ published: { published: false, by: 'bob' } })
+    expect(result.current.history?.published).toBe(false)
+    expect(showNotice).toHaveBeenLastCalledWith('bob stopped publishing this room’s chess games')
+    receive({ published: { published: true } })
+    expect(showNotice).toHaveBeenLastCalledWith('this room’s chess games are now published')
+  })
+
+  // A review outlives the table it came from; a new room or a resume
+  // forgets both.
+  it('keeps the review when the table goes, and clear forgets everything', () => {
+    const { result, receive } = mount()
+    receive({ gameState: { view: view({ phase: 'ended' }) } })
+    receive({ review: review() })
+    receive({ history: { published: true, games: [summary()] } })
+    receive({ gameLeft: { gameId: 'GAME01' } })
+    expect(result.current.view).toBeNull()
+    expect(result.current.review).not.toBeNull()
+    act(() => result.current.clear())
+    expect(result.current.review).toBeNull()
+    expect(result.current.history).toBeNull()
   })
 })
