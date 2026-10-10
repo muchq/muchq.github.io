@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { useChessTable } from '../useChessTable'
-import type { ChessGameSummary, ChessReview, ChessView } from '@/apps/chess/wire'
+import type { ChessGameSummary, ChessReview, ChessRoundRobin, ChessView } from '@/apps/chess/wire'
 
 const view = (over: Partial<ChessView> = {}): ChessView => ({
   gameId: 'GAME01',
@@ -49,6 +49,17 @@ const review = (): ChessReview => ({
   san: ['e8=Q#'],
   fens: ['7k/4P3/6K1/8/8/8/8/8 w - - 0 1', '4Q2k/8/6K1/8/8/8/8/8 b - - 0 1'],
   pgn: '[Event "x"]\n\n1. e8=Q# 1-0\n'
+})
+
+const roundRobin = (over: Partial<ChessRoundRobin> = {}): ChessRoundRobin => ({
+  roundRobinId: 'E1',
+  creator: 'alice',
+  entrants: ['alice', 'bob', 'carol'],
+  terms: { setupId: 'standard', setupName: 'Standard starting position', initialSeconds: 180, incrementSeconds: 2 },
+  pairings: [],
+  withdrawn: [],
+  standings: [],
+  ...over
 })
 
 describe('useChessTable', () => {
@@ -255,6 +266,37 @@ describe('useChessTable', () => {
     expect(showNotice).toHaveBeenLastCalledWith('this room’s chess games are now published')
   })
 
+  // The room's round robins (MoonBase#1647): asked for, then kept current
+  // by each one every member hears; one heard before the answer waits for it.
+  it('asks for the round robins and keeps each current', () => {
+    const { result, receive, move } = mount()
+    receive({ roundRobin: roundRobin() })
+    expect(result.current.roundRobins).toBeNull()
+    act(() => result.current.loadRoundRobins())
+    expect(move.mock.calls).toEqual([['roundRobins']])
+    receive({ roundRobins: { roundRobins: [roundRobin()] } })
+    receive({ roundRobin: roundRobin({ withdrawn: ['carol'] }) })
+    receive({ roundRobin: roundRobin({ roundRobinId: 'E2' }) })
+    expect(result.current.roundRobins?.map(held => [held.roundRobinId, held.withdrawn])).toEqual([
+      ['E1', ['carol']],
+      ['E2', []]
+    ])
+  })
+
+  it('creates, plays and moderates round robins as the hub spells them', () => {
+    const { result, move } = mount()
+    act(() => result.current.createRoundRobin(['alice', 'bob', 'carol'], { initialSeconds: 300, incrementSeconds: 3 }))
+    act(() => result.current.playRoundRobin('E1', 'bob'))
+    act(() => result.current.forfeit('E1', 'bob', 'carol'))
+    act(() => result.current.withdraw('E1', 'carol'))
+    expect(move.mock.calls).toEqual([
+      ['createRoundRobin', { entrants: ['alice', 'bob', 'carol'], terms: { initialSeconds: 300, incrementSeconds: 3 } }],
+      ['playRoundRobin', { roundRobinId: 'E1', opponent: 'bob' }],
+      ['forfeit', { roundRobinId: 'E1', winner: 'bob', loser: 'carol' }],
+      ['withdraw', { roundRobinId: 'E1', playerId: 'carol' }]
+    ])
+  })
+
   // A review outlives the table it came from; a new room or a resume
   // forgets both.
   it('keeps the review when the table goes, and clear forgets everything', () => {
@@ -268,5 +310,12 @@ describe('useChessTable', () => {
     act(() => result.current.clear())
     expect(result.current.review).toBeNull()
     expect(result.current.history).toBeNull()
+  })
+
+  it('clear forgets the round robins', () => {
+    const { result, receive } = mount()
+    receive({ roundRobins: { roundRobins: [roundRobin()] } })
+    act(() => result.current.clear())
+    expect(result.current.roundRobins).toBeNull()
   })
 })
