@@ -2,14 +2,14 @@ import { useEffect, useState, useSyncExternalStore, type Ref } from 'react'
 import PermalinkDisplay from './PermalinkDisplay'
 import type { UseLobby } from '@/hooks/useLobby'
 import { lobbyRoomPath } from '@/hooks/useLobby'
-import type { HubRoomPlayer } from '@/utils/hubStream'
+import type { HubGameName, HubRoomPlayer } from '@/utils/hubStream'
 import { hubChessFeedUrl, hubPlayUrl } from '@/utils/hubSession'
-import type { ChessGameSummary, ChessPairing } from '@/apps/chess/wire'
+import type { ChessGameSummary } from '@/apps/chess/wire'
 import { nameOf } from '@/apps/chess/rules'
 import RoundRobins from './RoundRobins'
 import type { VoiceMesh, VoiceView } from '@/utils/voiceMesh'
-import { CATALOG, FAMILIES, catalogEntry, seatsLine } from '../catalog'
-import { atTable, seatsOf, tableFor, tableOffer } from '../offers'
+import { CATALOG, FAMILIES, FAMILY_NOUNS, familyOf, type GameFamily } from '../catalog'
+import { atTable, offerFor, pairingAt, seatsOf, tableFor } from '../offers'
 import styles from './LobbyPanel.module.css'
 
 // The side panel beside the world: where you are (the plaza, or a room
@@ -31,6 +31,12 @@ const gameLine = (game: ChessGameSummary): string => {
   return `${nameOf(game.white)} vs ${nameOf(game.black)} · ${score} ${game.result.ending} · ${Math.ceil(game.plies / 2)} moves`
 }
 
+// What pushing to 1d4 does, said on hover before the click that does it.
+const publishHelp = (): string =>
+  'While on, each chess game that ends here gets a public page with both players’ ids and every move, ' +
+  `joins the public chess feed (${hubChessFeedUrl(hubPlayUrl())}) and can be indexed on 1d4. ` +
+  'It stays public for 30 days, even once this is off. Games that already ended stay private.'
+
 // The room's finished chess games (MoonBase#1637), each one reviewable,
 // a published one linked to its page; and whether the room publishes
 // them, which any member may change and every member hears about. Asked
@@ -39,6 +45,8 @@ const gameLine = (game: ChessGameSummary): string => {
 const ChessGames = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean }) => {
   const { history, loadHistory } = lobby.chess
   const unknown = history === null
+  // The hover text, on a tap: phones and keyboards have no hover.
+  const [explaining, setExplaining] = useState(false)
   useEffect(() => {
     if (unknown && !disabled) loadHistory()
   }, [unknown, disabled, loadHistory])
@@ -82,49 +90,89 @@ const ChessGames = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean })
           <button type="button" className={styles.link} onClick={lobby.chess.loadHistory} disabled={disabled} aria-label="Refresh finished games">
             Refresh
           </button>
-          <label className={styles.muted}>
-            <input type="checkbox" checked={history.published} onChange={event => lobby.chess.publish(event.target.checked)} disabled={disabled} />{' '}
-            Publish chess games played here from now on
-          </label>
-          <p className={styles.muted}>
-            Each game that ends while this is on gets a public page with both players’ ids and every move, joins the{' '}
-            <a href={hubChessFeedUrl(hubPlayUrl())} target="_blank" rel="noopener noreferrer">
-              public chess feed
-            </a>
-            , and can be indexed on 1d4. It stays public for 30 days, even if this is turned off. Games that already ended stay private.
-          </p>
+          <button
+            type="button"
+            className={`${styles.secondary} ${history.published ? styles.pressed : ''}`}
+            aria-pressed={history.published}
+            title={publishHelp()}
+            onClick={() => lobby.chess.publish(!history.published)}
+            disabled={disabled}
+          >
+            Push to 1d4
+          </button>
+          <button
+            type="button"
+            className={styles.link}
+            aria-expanded={explaining}
+            aria-label="What Push to 1d4 does"
+            onClick={() => setExplaining(open => !open)}
+          >
+            ?
+          </button>
+          {explaining && (
+            <p className={styles.muted}>
+              While on, each chess game that ends here gets a public page with both players’ ids and every move, joins the{' '}
+              <a href={hubChessFeedUrl(hubPlayUrl())} target="_blank" rel="noopener noreferrer">
+                public chess feed
+              </a>{' '}
+              and can be indexed on 1d4. It stays public for 30 days, even once this is off. Games that already ended stay private.
+            </p>
+          )}
         </>
       )}
     </section>
   )
 }
 
-// A new table: one picker of every game, grouped by family, one button
-// that opens the picked one, and what that game is and who it seats. A
-// game more is an entry in the catalog, never a button more here.
+// A new table: one picker of the families, a family of several games
+// (cards) picking its game beside it, and one button that opens the
+// picked game's table. What a game is, its table says.
+// A family of one game is offered as that game ("Chess"), a family of
+// several by its name ("Cards").
+const FAMILY_OPTIONS = FAMILIES.map(family => {
+  const members = CATALOG.filter(entry => entry.family === family)
+  return members.length === 1
+    ? { value: members[0].game as string, family, label: members[0].label }
+    : { value: family.toLowerCase(), family, label: family }
+})
+
 const NewTable = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean }) => {
-  const [game, setGame] = useState(CATALOG[0].game)
-  const entry = catalogEntry(game)
+  const [choice, setChoice] = useState(FAMILY_OPTIONS[0])
+  const family = choice.family
+  const games = CATALOG.filter(entry => entry.family === family)
+  const [picked, setPicked] = useState<Partial<Record<GameFamily, HubGameName>>>({})
+  const game = picked[family] ?? games[0].game
   return (
-    <div className={styles.stack}>
-      <div className={styles.picker}>
-        <select aria-label="Game" value={game} onChange={event => setGame(catalogEntry(event.target.value as typeof game).game)} disabled={disabled}>
-          {FAMILIES.map(family => (
-            <optgroup key={family} label={family}>
-              {CATALOG.filter(option => option.family === family).map(option => (
-                <option key={option.game} value={option.game}>
-                  {option.label}
-                </option>
-              ))}
-            </optgroup>
+    <div className={styles.picker}>
+      <select
+        aria-label="Game"
+        value={choice.value}
+        onChange={event => setChoice(FAMILY_OPTIONS.find(option => option.value === event.target.value) ?? FAMILY_OPTIONS[0])}
+        disabled={disabled}
+      >
+        {FAMILY_OPTIONS.map(option => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {games.length > 1 && (
+        <select
+          aria-label={`${FAMILY_NOUNS[family].singular} game`}
+          value={game}
+          onChange={event => setPicked(held => ({ ...held, [family]: event.target.value as HubGameName }))}
+          disabled={disabled}
+        >
+          {games.map(option => (
+            <option key={option.game} value={option.game}>
+              {option.label}
+            </option>
           ))}
         </select>
-        <button type="button" className={styles.primary} onClick={tableFor(lobby, game).createTable} disabled={disabled}>
-          Open a {game} table
-        </button>
-      </div>
-      <p className={styles.muted}>{entry.blurb}</p>
-      <p className={styles.muted}>{seatsLine(entry)}</p>
+      )}
+      <button type="button" className={styles.primary} onClick={tableFor(lobby, game).createTable} disabled={disabled} aria-label={`Open a table: ${game}`}>
+        Open a table
+      </button>
     </div>
   )
 }
@@ -142,31 +190,34 @@ const voiceStatus = (view: VoiceView): string => {
   return view.listenOnly ? `${who} · listening only: no microphone` : who
 }
 
-const VoiceSection = ({ voice, connected }: { voice: VoiceMesh; connected: boolean }) => {
+// The room's voice, beside sharing the room: one button joins and leaves,
+// so focus stays put across the change, and the status line under the
+// row says what happened.
+const VoiceControls = ({ voice, connected }: { voice: VoiceMesh; connected: boolean }) => {
   const view = useSyncExternalStore(voice.subscribe, voice.view)
   const off = view.status === 'off'
   return (
-    <section className={styles.section} aria-labelledby="lobby-voice">
-      <h2 id="lobby-voice">Voice</h2>
-      <p role="status" className={styles.muted}>
-        {voiceStatus(view)}
-      </p>
-      <div className={styles.row}>
-        <button
-          type="button"
-          className={styles.secondary}
-          onClick={() => (off ? void voice.join() : voice.leave())}
-          disabled={off && !connected}
-        >
-          {off ? 'Join voice' : 'Leave voice'}
+    <div role="group" aria-label="Voice" className={styles.voice}>
+      <button type="button" className={styles.secondary} onClick={() => (off ? void voice.join() : voice.leave())} disabled={off && !connected}>
+        {off ? 'Join voice' : 'Leave voice'}
+      </button>
+      {view.status === 'on' && !view.listenOnly && (
+        <button type="button" className={styles.secondary} onClick={() => voice.setMuted(!view.muted)}>
+          {view.muted ? 'Unmute' : 'Mute'}
         </button>
-        {view.status === 'on' && !view.listenOnly && (
-          <button type="button" className={styles.secondary} onClick={() => voice.setMuted(!view.muted)}>
-            {view.muted ? 'Unmute' : 'Mute'}
-          </button>
-        )}
-      </div>
-    </section>
+      )}
+    </div>
+  )
+}
+
+// Under the share-and-voice row, outside the buttons' group so joining
+// moves no button; always there, so its first words are heard.
+const VoiceStatus = ({ voice }: { voice: VoiceMesh }) => {
+  const view = useSyncExternalStore(voice.subscribe, voice.view)
+  return (
+    <p role="status" className={`${styles.muted} ${styles.voiceStatus}`}>
+      {voiceStatus(view)}
+    </p>
   )
 }
 
@@ -211,11 +262,6 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
   }
 
   const busy = atTable(room, playerId)
-  // A round robin pairing's table is for its pair alone.
-  const pairingAt = new Map<string, ChessPairing>()
-  for (const roundRobin of lobby.chess.roundRobins ?? []) {
-    for (const pairing of roundRobin.pairings) if (pairing.gameId !== undefined) pairingAt.set(pairing.gameId, pairing)
-  }
   return (
     <aside className={styles.panel} aria-label="lobby">
       <div className={styles.header}>
@@ -229,7 +275,11 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
           Leave room
         </button>
       </div>
-      <PermalinkDisplay label="Share room" url={`${window.location.origin}${lobbyRoomPath(room.roomId)}`} />
+      <div className={styles.toolbar}>
+        <PermalinkDisplay label="Share room" url={`${window.location.origin}${lobbyRoomPath(room.roomId)}`} />
+        <VoiceControls voice={lobby.voice} connected={connected} />
+        <VoiceStatus voice={lobby.voice} />
+      </div>
       <section className={styles.section} aria-labelledby="lobby-players">
         <h2 id="lobby-players">Players</h2>
         <ul className={styles.list}>
@@ -248,7 +298,6 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
           ))}
         </ul>
       </section>
-      <VoiceSection voice={lobby.voice} connected={connected} />
       <section className={styles.section} aria-labelledby="lobby-tables">
         <h2 id="lobby-tables">Tables</h2>
         {room.games.length === 0 ? (
@@ -256,13 +305,14 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
         ) : (
           <ul className={styles.list}>
             {room.games.map(table => {
-              const game = table.game
-              const pairing = game === 'chess' ? pairingAt.get(table.gameId) : undefined
-              const offered = tableOffer(table)
-              const offer = pairing === undefined || pairing.white === playerId || pairing.black === playerId ? offered : { ...offered, open: false }
+              // A summary from before tables named their game is golf's.
+              const game = table.game ?? 'golf'
+              const pairing = pairingAt(lobby, table)
+              const offer = offerFor(lobby, table)
               return (
                 <li key={table.gameId} className={styles.row}>
                   <span>
+                    {familyOf(game).games.length > 1 ? `${FAMILY_NOUNS[familyOf(game).family].plural} · ` : ''}
                     {game} {table.gameId} · {table.playerCount}/{seatsOf(game)} · {table.status === 'choosing' ? 'between deals' : table.status}
                     {table.terms === undefined ? '' : ` · ${table.terms}`}
                     {pairing === undefined ? '' : ` · round robin: ${pairing.white} – ${pairing.black}`}

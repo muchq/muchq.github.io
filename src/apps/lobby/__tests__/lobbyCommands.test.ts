@@ -137,6 +137,27 @@ describe('lobbyCommands', () => {
     expect(ui.askBot).toHaveBeenCalledTimes(1)
   })
 
+  // A round robin pairing's table (MoonBase#1647) is for its pair alone,
+  // here as in the panel; an ordinary challenge is anyone's.
+  it('offers a pairing’s table only to its pair', () => {
+    const challenged = room({ games: [{ gameId: 'K7', game: 'chess', status: 'waiting', playerCount: 1, terms: '5+3' }] })
+    const roundRobins = [
+      {
+        roundRobinId: 'E1',
+        creator: 'bob',
+        entrants: ['alice', 'bob', 'carol'],
+        terms: { setupId: 'standard', setupName: 'Standard starting position', initialSeconds: 300, incrementSeconds: 3 },
+        pairings: [{ round: 1, white: 'carol', black: 'bob', forfeit: false, voided: false, gameId: 'K7' }],
+        withdrawn: [],
+        standings: []
+      }
+    ]
+    const chess = (held: unknown) => ({ createTable: vi.fn(), joinTable: vi.fn(), roundRobins: held }) as unknown as UseLobby['chess']
+    expect(labels(lobbyWith({ room: challenged, chess: chess(roundRobins) }))).not.toContain('Accept chess challenge K7')
+    expect(labels(lobbyWith({ playerId: 'bob', room: challenged, chess: chess(roundRobins) }))).toContain('Accept chess challenge K7')
+    expect(labels(lobbyWith({ room: challenged, chess: chess(null) }))).toContain('Accept chess challenge K7')
+  })
+
   it('seated at a table, no other table is offered', () => {
     const seated = room({
       players: [{ playerId: 'alice', connected: true, gamesWon: 0, gamesPlayed: 0, totalScore: 0, table: { game: 'castle', gameId: 'C2' } }],

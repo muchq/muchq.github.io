@@ -63,9 +63,11 @@ repos, not here.
 ### The lobby, golf, castle, rummy, chess, and thoughts
 
 `/games` is the lobby (MoonBase#1490): the thoughts world with a panel for the room, its
-players and their tables, and the room's chat, all on one stream. A table of any game opens
-over the world (MoonBase#1502); `GolfTable`, `CastleTable` and `RummyTable` (MoonBase#245)
-are the tables, `useGolfTable`, `useCastleTable` and `useRummyTable` their state over the
+players and their tables, and the room's chat, all on one stream. Sharing the room and its
+voice sit in one row at the panel's top. A new table is picked as Cards (then castle, golf or
+rummy) or Chess (`catalog.ts`), and each game says what it is at its own table while that waits
+(`AboutGame`). A table of any game opens over the world (MoonBase#1502); `GolfTable`,
+`CastleTable` and `RummyTable` (MoonBase#245) are the tables, `useGolfTable`, `useCastleTable` and `useRummyTable` their state over the
 room stream's game envelopes. Castle and rummy share the felt and the card faces
 (`castle/components/Cards.tsx`, `CastleTable.module.css`). `ChessTable` and `useChessTable`
 are chess's: two seats, the board from the viewer's side (tap a piece then its square, or drag it), one cancellable premove that is sent only if
@@ -77,12 +79,15 @@ waiting table, the seat posts a challenge (position and clock) where two seats w
 terms and **Accept** joins and starts on them. A room keeps its finished chess games (MoonBase#1637): the lobby's Chess
 games section lists them, and Review game at a table's end or Review in the list opens `GameReview` over everything, the
 hub's positions stepped through by button, arrow key or move list, with the hub's PGN to download and the position shown
-on lichess's analysis board. Any member may publish the room's games; those that end while published join the hub's
+on lichess's analysis board. Any member may publish the room's games with **Push to 1d4**, whose hover text (and its **?**,
+for phones and keyboards) says what that makes public; those that end while published join the hub's
 public feed (`/games/v2/chess.pgn`) for 30 days. The Round robins section (MoonBase#1647) starts one among 3 to 8 of
-the room's members on a clock, and shows each one's standings and pairings: **Play** opens a table for one of the
-player's pairings, which only its opponent can fill, and **Join** fills one the opponent opened; the Tables list offers
-that table to no one else. Its creator, or while they are away any entrant on what isn't theirs, forfeits pairings
-still to play and withdraws entrants. Share links are
+the room's members on a clock (behind **New round robin**), and is absent from a room of fewer than 3 with none. Each
+one shows its progress and the player's **Play** (a table for one of their pairings, which only its opponent can fill)
+or **Join** (one the opponent opened); its standings, pairings and moderation fold under **Details**. The Tables list
+and the command menu offer a pairing's table to no one else (`offerFor`), and the table itself, named by
+`ChessView.roundRobinId`, offers no bot, challenge, starting position or next game. Its creator, or while they are
+away any entrant on what isn't theirs, forfeits pairings still to play and withdraws entrants. Share links are
 `/games/room/:roomId` and `/games/room/:roomId/table/:gameId`; the old `/golf` and `/castle`
 links redirect to them, and `/thoughts` to `/games`. Hiding the panel is how the bare world
 is asked for, so that choice is remembered across visits.

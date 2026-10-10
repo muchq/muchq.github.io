@@ -73,6 +73,15 @@ const mountWith = (v: CastleView, over: Partial<CastleTableProps['table']> = {},
 describe('CastleTable', () => {
   beforeEach(() => cleanup())
 
+  // What the game is, said where it is played, while the table waits.
+  it('says what castle is while it waits, and not once dealt', () => {
+    mountWith(view({ phase: 'waiting', players: [seat('alice')], currentPlayerId: undefined }))
+    expect(screen.getByText(/Shed every card first.*2–4 players/)).toBeDefined()
+    cleanup()
+    mountWith(view())
+    expect(screen.queryByText(/Shed every card first/)).toBeNull()
+  })
+
   it('deals only once a second seat is in', () => {
     const solo = mountWith(view({ phase: 'waiting', players: [seat('alice')], currentPlayerId: undefined }))
     expect(screen.getByText('Waiting for a second seat.')).toBeDefined()

@@ -3,6 +3,7 @@ import type { GolfTableActions, GolfTableEnded } from '@/hooks/useGolfTable'
 import type { Card, GameState, Player } from '@/types/golf'
 import PermalinkDisplay from '@/apps/lobby/components/PermalinkDisplay'
 import styles from './GolfTable.module.css'
+import AboutGame from '@/apps/lobby/components/AboutGame'
 
 // The table from the viewer's chair, over useGolfTable. The buttons offer
 // what the phase allows, and nothing while the socket is down (a move it
@@ -153,6 +154,7 @@ const GolfTable = ({ playerId, connected, view, table, shareUrl = null }: GolfTa
       {view.gamePhase === 'waiting' && (
         <div className={styles.waitingRoom}>
           <h3 className={styles.waitingPulse}>Waiting for players...</h3>
+          <AboutGame game="golf" />
           <p>{view.players.length}/4 players</p>
           {view.players.length >= 2 && (
             <button onClick={table.startTable} className={`${styles.primaryButton} ${styles.startGameButton}`} disabled={!connected}>

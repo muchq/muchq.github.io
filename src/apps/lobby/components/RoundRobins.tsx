@@ -21,6 +21,11 @@ interface Props {
 const Entry = ({ lobby, roundRobin, disabled, busy }: Props & { roundRobin: ChessRoundRobin }) => {
   const { playerId, room } = lobby
   const headingId = useId()
+  // Standings, pairings and moderation fold away: the entry's first job
+  // is the player's own next game.
+  const [open, setOpen] = useState(false)
+  const counted = roundRobin.pairings.filter(pairing => !pairing.voided)
+  const decided = counted.filter(pairing => pairing.result !== undefined).length
   const present = room?.players.map(player => player.playerId) ?? []
   const id = roundRobin.roundRobinId
   const mine = myOpenPairings(roundRobin, playerId)
@@ -33,7 +38,9 @@ const Entry = ({ lobby, roundRobin, disabled, busy }: Props & { roundRobin: Ches
       <h3 id={headingId}>
         Round robin {roundRobin.roundRobinId} by {roundRobin.creator}
       </h3>
-      <p className={styles.muted}>{termsLine(roundRobin.terms)}</p>
+      <p className={styles.muted}>
+        {termsLine(roundRobin.terms)} · {decided} of {counted.length} decided
+      </p>
       {mine.length > 0 && (
         <div className={styles.wrap}>
           {mine.map(({ pairing, opponent }) =>
@@ -49,51 +56,64 @@ const Entry = ({ lobby, roundRobin, disabled, busy }: Props & { roundRobin: Ches
           )}
         </div>
       )}
-      <ol className={styles.list} aria-label="Standings">
-        {roundRobin.standings.map(standing => (
-          <li key={standing.playerId}>
-            {standing.place}. {standing.playerId} · {standing.points} (<abbr title="Sonneborn-Berger">SB</abbr> {standing.sonnebornBerger})
-            {standing.withdrawn ? ' · withdrew' : ''}
-          </li>
-        ))}
-      </ol>
-      <ul className={styles.list} aria-label="Pairings">
-        {roundRobin.pairings.map(pairing => {
-          const pair = `${pairing.white} – ${pairing.black}`
-          // A forfeit is for a pairing still to play at no table.
-          const forfeitable =
-            stillToPlay(pairing) && pairing.gameId === undefined && mayModerate(roundRobin, playerId, present, [pairing.white, pairing.black])
-          return (
-            <li key={`${pairing.round}\n${pairing.white}\n${pairing.black}`} className={stillToPlay(pairing) ? undefined : styles.muted}>
-              Round {pairing.round}: {pairingLine(pairing)}
-              {forfeitable && (
-                <span className={styles.wrap}>
-                  {[pairing.white, pairing.black].map(winner => (
-                    <button
-                      key={winner}
-                      type="button"
-                      className={styles.link}
-                      onClick={() => lobby.chess.forfeit(id, winner, winner === pairing.white ? pairing.black : pairing.white)}
-                      disabled={disabled}
-                      aria-label={`${winner} wins ${pair} by forfeit`}
-                    >
-                      {winner} wins
-                    </button>
-                  ))}
-                </span>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-      {withdrawable.length > 0 && (
-        <div className={styles.wrap}>
-          {withdrawable.map(entrant => (
-            <button key={entrant} type="button" className={styles.secondary} onClick={() => lobby.chess.withdraw(id, entrant)} disabled={disabled}>
-              Withdraw {entrant}
-            </button>
-          ))}
-        </div>
+      <button
+        type="button"
+        className={styles.link}
+        aria-expanded={open}
+        aria-label={`Details of round robin ${roundRobin.roundRobinId}`}
+        onClick={() => setOpen(held => !held)}
+      >
+        Details
+      </button>
+      {open && (
+        <>
+          <ol className={styles.list} aria-label="Standings">
+            {roundRobin.standings.map(standing => (
+              <li key={standing.playerId}>
+                {standing.place}. {standing.playerId} · {standing.points} (<abbr title="Sonneborn-Berger">SB</abbr> {standing.sonnebornBerger})
+                {standing.withdrawn ? ' · withdrew' : ''}
+              </li>
+            ))}
+          </ol>
+          <ul className={styles.list} aria-label="Pairings">
+            {roundRobin.pairings.map(pairing => {
+              const pair = `${pairing.white} – ${pairing.black}`
+              // A forfeit is for a pairing still to play at no table.
+              const forfeitable =
+                stillToPlay(pairing) && pairing.gameId === undefined && mayModerate(roundRobin, playerId, present, [pairing.white, pairing.black])
+              return (
+                <li key={`${pairing.round}\n${pairing.white}\n${pairing.black}`} className={stillToPlay(pairing) ? undefined : styles.muted}>
+                  Round {pairing.round}: {pairingLine(pairing)}
+                  {forfeitable && (
+                    <span className={styles.wrap}>
+                      {[pairing.white, pairing.black].map(winner => (
+                        <button
+                          key={winner}
+                          type="button"
+                          className={styles.link}
+                          onClick={() => lobby.chess.forfeit(id, winner, winner === pairing.white ? pairing.black : pairing.white)}
+                          disabled={disabled}
+                          aria-label={`${winner} wins ${pair} by forfeit`}
+                        >
+                          {winner} wins
+                        </button>
+                      ))}
+                    </span>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+          {withdrawable.length > 0 && (
+            <div className={styles.wrap}>
+              {withdrawable.map(entrant => (
+                <button key={entrant} type="button" className={styles.secondary} onClick={() => lobby.chess.withdraw(id, entrant)} disabled={disabled}>
+                  Withdraw {entrant}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </li>
   )
@@ -102,7 +122,7 @@ const Entry = ({ lobby, roundRobin, disabled, busy }: Props & { roundRobin: Ches
 // 3 to 8 of the room's members, entered in the room's order, on a picked
 // clock. Those here start picked and those away not; a pick made holds
 // whoever comes or goes.
-const NewRoundRobin = ({ lobby, disabled }: Pick<Props, 'lobby' | 'disabled'>) => {
+const NewRoundRobin = ({ lobby, disabled, onStarted }: Pick<Props, 'lobby' | 'disabled'> & { onStarted: () => void }) => {
   const players = lobby.room?.players ?? []
   const [picks, setPicks] = useState<ReadonlyMap<string, boolean>>(new Map())
   const [clock, setClock] = useState('3+2')
@@ -112,7 +132,6 @@ const NewRoundRobin = ({ lobby, disabled }: Pick<Props, 'lobby' | 'disabled'>) =
   const toggle = (player: (typeof players)[number]) => setPicks(held => new Map(held).set(player.playerId, !picked(player)))
   return (
     <div className={styles.stack}>
-      <h3>New round robin</h3>
       <fieldset className={styles.fieldset}>
         <legend className={styles.muted}>Entrants</legend>
         <div className={styles.wrap}>
@@ -131,7 +150,10 @@ const NewRoundRobin = ({ lobby, disabled }: Pick<Props, 'lobby' | 'disabled'>) =
             </option>
           ))}
         </select>
-        <button type="button" className={styles.primary} onClick={() => lobby.chess.createRoundRobin(entrants, CLOCKS[clock])} disabled={disabled || !sized}>
+        <button type="button" className={styles.primary} onClick={() => {
+            lobby.chess.createRoundRobin(entrants, CLOCKS[clock])
+            onStarted()
+          }} disabled={disabled || !sized}>
           Start a round robin
         </button>
       </div>
@@ -141,30 +163,39 @@ const NewRoundRobin = ({ lobby, disabled }: Pick<Props, 'lobby' | 'disabled'>) =
 }
 
 // Asked for on arriving, then kept current by each one every member hears.
+// A room with none and too few for one shows nothing; the form waits
+// behind its button.
 const RoundRobins = ({ lobby, disabled, busy }: Props) => {
   const { roundRobins, loadRoundRobins } = lobby.chess
   const unknown = roundRobins === null
+  const [creating, setCreating] = useState(false)
   useEffect(() => {
     if (unknown && !disabled) loadRoundRobins()
   }, [unknown, disabled, loadRoundRobins])
+  const held = roundRobins ?? []
+  if (held.length === 0 && (lobby.room?.players.length ?? 0) < 3) return null
   return (
     <section className={styles.section} aria-labelledby="lobby-round-robins">
-      <h2 id="lobby-round-robins">Round robins</h2>
-      {roundRobins === null ? (
-        <p className={styles.muted}>Loading round robins…</p>
-      ) : roundRobins.length === 0 ? (
-        <p className={styles.muted}>No round robins yet</p>
-      ) : (
+      <div className={styles.sectionHead}>
+        <h2 id="lobby-round-robins">Round robins</h2>
+        <span className={styles.wrap}>
+          <button type="button" className={styles.link} onClick={loadRoundRobins} disabled={disabled} aria-label="Refresh round robins">
+            Refresh
+          </button>
+          <button type="button" className={styles.link} aria-expanded={creating} onClick={() => setCreating(open => !open)}>
+            New round robin
+          </button>
+        </span>
+      </div>
+      {creating && <NewRoundRobin lobby={lobby} disabled={disabled} onStarted={() => setCreating(false)} />}
+      {roundRobins === null && <p className={styles.muted}>Loading round robins…</p>}
+      {held.length > 0 && (
         <ul className={styles.list}>
-          {roundRobins.map(roundRobin => (
+          {held.map(roundRobin => (
             <Entry key={roundRobin.roundRobinId} lobby={lobby} roundRobin={roundRobin} disabled={disabled} busy={busy} />
           ))}
         </ul>
       )}
-      <button type="button" className={styles.link} onClick={loadRoundRobins} disabled={disabled} aria-label="Refresh round robins">
-        Refresh
-      </button>
-      <NewRoundRobin lobby={lobby} disabled={disabled} />
     </section>
   )
 }

@@ -50,6 +50,19 @@ export const CATALOG: readonly CatalogEntry[] = [
 
 export const FAMILIES: readonly GameFamily[] = [...new Set(CATALOG.map(entry => entry.family))]
 
+// How a family of several games is named where its game is picked
+// ("Card game") and in front of a table's game ("cards · castle").
+export const FAMILY_NOUNS: Record<GameFamily, { singular: string; plural: string }> = {
+  Cards: { singular: 'Card', plural: 'cards' },
+  Board: { singular: 'Board', plural: 'board' }
+}
+
+// A family of one game needs no name of its own: chess is chess.
+export function familyOf(game: HubGameName | undefined): { family: GameFamily; games: readonly CatalogEntry[] } {
+  const family = catalogEntry(game).family
+  return { family, games: CATALOG.filter(entry => entry.family === family) }
+}
+
 // A summary from before the game was named is golf's.
 export function catalogEntry(game: HubGameName | undefined): CatalogEntry {
   const named = game ?? 'golf'
