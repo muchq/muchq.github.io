@@ -4,8 +4,9 @@ import type { UseLobby } from '@/hooks/useLobby'
 import { lobbyRoomPath } from '@/hooks/useLobby'
 import type { HubRoomPlayer } from '@/utils/hubStream'
 import { hubChessFeedUrl, hubPlayUrl } from '@/utils/hubSession'
-import type { ChessGameSummary } from '@/apps/chess/wire'
+import type { ChessGameSummary, ChessPairing } from '@/apps/chess/wire'
 import { nameOf } from '@/apps/chess/rules'
+import RoundRobins from './RoundRobins'
 import type { VoiceMesh, VoiceView } from '@/utils/voiceMesh'
 import { CATALOG, FAMILIES, catalogEntry, seatsLine } from '../catalog'
 import { atTable, seatsOf, tableFor, tableOffer } from '../offers'
@@ -210,6 +211,11 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
   }
 
   const busy = atTable(room, playerId)
+  // A round robin pairing's table is for its pair alone.
+  const pairingAt = new Map<string, ChessPairing>()
+  for (const roundRobin of lobby.chess.roundRobins ?? []) {
+    for (const pairing of roundRobin.pairings) if (pairing.gameId !== undefined) pairingAt.set(pairing.gameId, pairing)
+  }
   return (
     <aside className={styles.panel} aria-label="lobby">
       <div className={styles.header}>
@@ -250,13 +256,16 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
         ) : (
           <ul className={styles.list}>
             {room.games.map(table => {
-              const offer = tableOffer(table)
               const game = table.game
+              const pairing = game === 'chess' ? pairingAt.get(table.gameId) : undefined
+              const offered = tableOffer(table)
+              const offer = pairing === undefined || pairing.white === playerId || pairing.black === playerId ? offered : { ...offered, open: false }
               return (
                 <li key={table.gameId} className={styles.row}>
                   <span>
                     {game} {table.gameId} · {table.playerCount}/{seatsOf(game)} · {table.status === 'choosing' ? 'between deals' : table.status}
                     {table.terms === undefined ? '' : ` · ${table.terms}`}
+                    {pairing === undefined ? '' : ` · round robin: ${pairing.white} – ${pairing.black}`}
                   </span>
                   <span className={styles.offers}>
                     {/* Chess hides nothing, so any of its tables can be watched. */}
@@ -288,6 +297,7 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
         )}
         <NewTable lobby={lobby} disabled={!connected || busy} />
       </section>
+      <RoundRobins lobby={lobby} disabled={!connected} busy={busy} />
       <ChessGames lobby={lobby} disabled={!connected} />
       {COMMAND_HINT}
     </aside>

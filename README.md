@@ -78,7 +78,11 @@ terms and **Accept** joins and starts on them. A room keeps its finished chess g
 games section lists them, and Review game at a table's end or Review in the list opens `GameReview` over everything, the
 hub's positions stepped through by button, arrow key or move list, with the hub's PGN to download and the position shown
 on lichess's analysis board. Any member may publish the room's games; those that end while published join the hub's
-public feed (`/games/v2/chess.pgn`) for 30 days. Share links are
+public feed (`/games/v2/chess.pgn`) for 30 days. The Round robins section (MoonBase#1647) starts one among 3 to 8 of
+the room's members on a clock, and shows each one's standings and pairings: **Play** opens a table for one of the
+player's pairings, which only its opponent can fill, and **Join** fills one the opponent opened; the Tables list offers
+that table to no one else. Its creator, or while they are away any entrant on what isn't theirs, forfeits pairings
+still to play and withdraws entrants. Share links are
 `/games/room/:roomId` and `/games/room/:roomId/table/:gameId`; the old `/golf` and `/castle`
 links redirect to them, and `/thoughts` to `/games`. Hiding the panel is how the bare world
 is asked for, so that choice is remembered across visits.
