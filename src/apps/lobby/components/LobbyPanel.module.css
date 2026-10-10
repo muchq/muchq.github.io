@@ -204,3 +204,49 @@
 .picker button {
   flex: 1;
 }
+
+/* The room's own controls in one row: sharing it, and its voice. */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.toolbar > div:first-child {
+  padding: 0;
+  margin: 0;
+}
+
+.voice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Under the row, and nothing at all while out of voice. */
+.voiceStatus {
+  flex-basis: 100%;
+  font-size: 0.85rem;
+}
+
+/* Empty, it takes no room but stays in the tree, a live region ready. */
+.voiceStatus:empty {
+  height: 0;
+  overflow: hidden;
+}
+
+/* A toggle that is on. */
+.pressed {
+  background: rgba(240, 201, 106, 0.2);
+  border-color: #f0c96a;
+}
+
+/* A section's heading with its own small controls beside it. */
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}

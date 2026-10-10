@@ -107,6 +107,12 @@ const myHandGroup = () => within(screen.getByRole('group', { name: 'Your hand' }
 describe('RummyTable', () => {
   beforeEach(() => cleanup())
 
+  // What the game is, said where it is played, while the table waits.
+  it('says what rummy is while it waits, variants and all', () => {
+    mountWith(view({ phase: 'waiting', dealNumber: 0, players: [seat('alice', [])], currentPlayerId: undefined, stage: undefined }))
+    expect(screen.getByText(/First to empty their hand wins.*7-card, 10-card or gin, chosen at the table/)).toBeDefined()
+  })
+
   it('starts only once a second seat is in', () => {
     const solo = mountWith(view({ phase: 'waiting', dealNumber: 0, players: [seat('alice', [])], currentPlayerId: undefined, stage: undefined }))
     expect(screen.getByText('Waiting for a second seat.')).toBeDefined()

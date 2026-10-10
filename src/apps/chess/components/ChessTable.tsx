@@ -7,6 +7,7 @@ import type { ChessColor, ChessView } from '../wire'
 import { CLOCKS, applyMove, clockLabel, describeMove, describeResult, describeExtras, formatClock, imbalance, lastMoveSquares, materialBalance, movesTo, nameOf, pieceImage, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
 import styles from './ChessTable.module.css'
 import ScoreSheet from './ScoreSheet'
+import AboutGame from '@/apps/lobby/components/AboutGame'
 
 // The board from the viewer's chair: their side at the bottom, the
 // opponent's clock above it and their own below. A tap on a piece offers
@@ -195,6 +196,9 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const selectedClock =
     clockChoice !== null && clockChoice in clocks ? clockChoice : view.terms === undefined ? '3+2' : clockLabel(view.terms)
   const alone = view.players.length < 2
+  // A round robin pairing's table plays its one game on the round robin's
+  // terms: nothing to pick before it, no next game after it.
+  const pairing = view.roundRobinId !== undefined
   const myTurn = view.phase === 'playing' && view.currentPlayerId === playerId
   // No board input from a watcher, offline, outside play, or while a move
   // sent waits on the hub.
@@ -343,6 +347,11 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
 
   const status = (() => {
     if (view.phase === 'waiting') {
+      if (pairing) {
+        const terms = view.terms === undefined ? 'Round robin pairing.' : `Round robin pairing: ${view.terms.setupName}, ${clockLabel(view.terms)}.`
+        if (watching) return alone ? `${terms} It starts when both players sit.` : terms
+        return alone ? `${terms} It starts when your opponent sits.` : `${terms} Start it on those terms.`
+      }
       if (view.terms !== undefined) {
         const posted = `Challenge posted: ${view.terms.setupName}, ${clockLabel(view.terms)}.`
         return watching || !alone ? posted : `${posted} Whoever joins starts the game.`
@@ -408,13 +417,14 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
 
       {view.phase === 'waiting' ? (
         <div className={styles.waiting}>
+          <AboutGame game="chess" className={felt.hint} />
           <ul className={styles.seats}>
             {view.players.map(player => (
               <li key={player.playerId}>{player.playerId === playerId ? `${player.playerId} (you)` : nameOf(player.playerId)}</li>
             ))}
           </ul>
           {/* Alone at the table, a bot can take the other chair. */}
-          {!watching && view.players.length === 1 && (
+          {!watching && !pairing && view.players.length === 1 && (
             <div className={styles.clockPick}>
               <select aria-label="Bot strength" value={botElo} onChange={event => setBotElo(Number(event.target.value))}>
                 {BOT_STRENGTHS.map(({ elo, name }) => (
@@ -428,7 +438,12 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
               </button>
             </div>
           )}
-          {!watching && (
+          {!watching && pairing && !alone && (
+            <button type="button" className={felt.primary} onClick={() => table.startTable()} disabled={!connected}>
+              Start
+            </button>
+          )}
+          {!watching && !pairing && (
             <>
               <label className={styles.clockPick}>
                 Starting position
@@ -661,7 +676,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                     watcher has neither. */}
                 {!watching && (
                   <div className={styles.actions}>
-                    {view.phase === 'ended' && (
+                    {view.phase === 'ended' && !pairing && (
                       <select
                         className={styles.setupPick}
                         aria-label="Next starting position"
@@ -675,16 +690,19 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                         ))}
                       </select>
                     )}
-                    <button
-                      ref={playAgainRef}
-                      type="button"
-                      className={felt.primary}
-                      onClick={() => table.playAgain(selectedSetup === '' ? undefined : selectedSetup)}
-                      disabled={!connected || opening}
-                    >
-                      {opening ? 'Opening…' : view.phase === 'ended' ? 'Next game' : 'Play again'}
-                    </button>
-                    <button type="button" className={felt.secondary} onClick={table.leaveTable}>
+                    {!pairing && (
+                      <button
+                        ref={playAgainRef}
+                        type="button"
+                        className={felt.primary}
+                        onClick={() => table.playAgain(selectedSetup === '' ? undefined : selectedSetup)}
+                        disabled={!connected || opening}
+                      >
+                        {opening ? 'Opening…' : view.phase === 'ended' ? 'Next game' : 'Play again'}
+                      </button>
+                    )}
+                    {/* A pairing's table has no next game: focus lands on leaving. */}
+                    <button type="button" ref={pairing ? playAgainRef : undefined} className={felt.secondary} onClick={table.leaveTable}>
                       {view.phase === 'ended' ? 'Leave table' : 'Back to the room'}
                     </button>
                   </div>

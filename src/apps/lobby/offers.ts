@@ -1,5 +1,6 @@
 import type { UseLobby } from '@/hooks/useLobby'
 import type { HubGameName, HubGameSummary, HubRoom } from '@/utils/hubStream'
+import type { ChessPairing } from '@/apps/chess/wire'
 import { seatsOf } from './catalog'
 
 export { seatsOf }
@@ -13,6 +14,26 @@ export function tableOffer(table: HubGameSummary): { label: string; open: boolea
   if (table.playerCount >= seatsOf(table.game)) return { label: 'Full', open: false }
   // A challenge's terms are set: joining takes them and starts the game.
   return { label: table.terms === undefined ? 'Join' : 'Accept', open: true }
+}
+
+// The round robin pairing a chess table plays, as far as the lobby knows
+// (MoonBase#1647). Unknown round robins are none: an ordinary challenge
+// stays anyone's, and the hub turns away all but a pairing table's pair.
+export function pairingAt(lobby: Pick<UseLobby, 'chess'>, table: HubGameSummary): ChessPairing | undefined {
+  if (table.game !== 'chess') return undefined
+  for (const roundRobin of lobby.chess.roundRobins ?? []) {
+    const pairing = roundRobin.pairings.find(candidate => candidate.gameId === table.gameId)
+    if (pairing !== undefined) return pairing
+  }
+  return undefined
+}
+
+// How a table reads for this player: a pairing's table is open to its pair alone.
+export function offerFor(lobby: Pick<UseLobby, 'chess' | 'playerId'>, table: HubGameSummary): { label: string; open: boolean } {
+  const offer = tableOffer(table)
+  const pairing = pairingAt(lobby, table)
+  if (pairing === undefined || pairing.white === lobby.playerId || pairing.black === lobby.playerId) return offer
+  return { ...offer, open: false }
 }
 
 // Seated at a table already, so no other can be opened or joined.

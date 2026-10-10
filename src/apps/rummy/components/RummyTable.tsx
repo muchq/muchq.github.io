@@ -25,6 +25,7 @@ import { clockOf, fromViewer } from '@/apps/castle/seating'
 import felt from '@/apps/castle/components/CastleTable.module.css'
 import styles from './RummyTable.module.css'
 import ScoreSheet from './ScoreSheet'
+import AboutGame from '@/apps/lobby/components/AboutGame'
 
 // The rummy table from the viewer's chair, seen from above, on castle's
 // felt: the viewer at 6 o'clock with their moves under their hand, the
@@ -305,9 +306,12 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
   const actions = (() => {
     if (view.phase === 'waiting') {
       return (
-        <button type="button" className={felt.primary} onClick={table.startTable} disabled={view.players.length < 2 || !connected}>
-          Start table
-        </button>
+        <>
+          <AboutGame game="rummy" className={felt.hint} />
+          <button type="button" className={felt.primary} onClick={table.startTable} disabled={view.players.length < 2 || !connected}>
+            Start table
+          </button>
+        </>
       )
     }
     if (between && mayDeal && !showDealEnd) return dealButtons()

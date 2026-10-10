@@ -751,6 +751,12 @@ describe('ChessTable', () => {
   })
 
   describe('waiting', () => {
+    // What the game is, said where it is played, while the table waits.
+    it('says what chess is here while it waits', () => {
+      mountWith(waiting())
+      expect(screen.getByText(/Standard chess and endgame practice positions.*2 players\./)).toBeTruthy()
+    })
+
     it('uses and submits the server default even when it is not the first catalog option', () => {
       const { t } = mountWith(waiting())
       expect(screen.getByRole('combobox', { name: 'Starting position' })).toHaveValue('standard')
@@ -973,6 +979,64 @@ describe('ChessTable', () => {
     it('holds Play again while another table is opening', () => {
       mountWith(ended({ phase: 'closed' }), { opening: true })
       expect(screen.getByRole('button', { name: 'Opening…' })).toBeDisabled()
+    })
+  })
+
+  // A round robin pairing's table (MoonBase#1647) plays its one game on
+  // the round robin's terms: nothing to pick before it, and nothing to
+  // play after it but leaving.
+  describe('a round robin pairing', () => {
+    const terms = { setupId: 'standard', setupName: 'Standard starting position', initialSeconds: 300, incrementSeconds: 3 }
+
+    it('waits on its terms for the opponent, with nothing to pick', () => {
+      const { t } = mountWith(waiting({ roundRobinId: 'E1', terms, players: [{ playerId: 'alice' }] }))
+      expect(status()).toHaveTextContent('Round robin pairing: Standard starting position, 5+3. It starts when your opponent sits.')
+      expect(screen.queryByRole('combobox')).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Add a bot' })).toBeNull()
+      expect(screen.queryByRole('button', { name: /challenge/ })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Start' })).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Leave table' }))
+      expect(t.leaveTable).toHaveBeenCalledTimes(1)
+    })
+
+    // A start that failed leaves both seats waiting: Start takes the
+    // round robin's terms, whatever it is sent.
+    it('starts on its terms when both seats wait', () => {
+      const { t } = mountWith(waiting({ roundRobinId: 'E1', terms }))
+      expect(screen.queryByRole('combobox')).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+      expect(t.startTable).toHaveBeenCalledWith()
+    })
+
+    // A watcher has no opponent and no Start: the table's state, said plainly.
+    it('tells a watcher what it waits on', () => {
+      mountWith(waiting({ roundRobinId: 'E1', terms, players: [{ playerId: 'bob' }] }))
+      expect(status()).toHaveTextContent('Round robin pairing: Standard starting position, 5+3. It starts when both players sit.')
+      mountWith(waiting({ roundRobinId: 'E1', terms, players: [{ playerId: 'bob' }, { playerId: 'carol' }] }))
+      expect(screen.getAllByTestId('chess-status')[1]).toHaveTextContent('Round robin pairing: Standard starting position, 5+3.')
+      expect(screen.getAllByTestId('chess-status')[1]).not.toHaveTextContent(/Start it/)
+    })
+
+    // Terms or none, a pairing's table says it is one: there is nothing
+    // to pick there.
+    it('says it is a pairing even without its terms', () => {
+      mountWith(waiting({ roundRobinId: 'E1', players: [{ playerId: 'alice' }] }))
+      expect(status()).toHaveTextContent('Round robin pairing. It starts when your opponent sits.')
+    })
+
+    it('ends with no next game, only leaving', () => {
+      const { t, rerender } = mountWith(view({ roundRobinId: 'E1' }))
+      rerender(ended({ roundRobinId: 'E1', scoreSheet: [{ winner: 'alice', ending: 'checkmate' }] }))
+      expect(screen.queryByRole('button', { name: 'Next game' })).toBeNull()
+      expect(screen.queryByRole('combobox', { name: 'Next starting position' })).toBeNull()
+      expect(screen.getByRole('button', { name: 'Review game' })).toBeTruthy()
+      const leave = screen.getByRole('button', { name: 'Leave table' })
+      expect(leave).toHaveFocus()
+      fireEvent.click(leave)
+      expect(t.leaveTable).toHaveBeenCalledTimes(1)
+      rerender(ended({ roundRobinId: 'E1', phase: 'closed' }))
+      expect(screen.queryByRole('button', { name: 'Play again' })).toBeNull()
+      expect(screen.getByRole('button', { name: 'Back to the room' })).toBeTruthy()
     })
   })
 

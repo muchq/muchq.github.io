@@ -8,6 +8,7 @@ import { cardsOf, describeEnding, describeLastPlay, describePile, enteredSince, 
 import { clockOf, fromViewer } from '../seating'
 import { CardBack, CardFace } from './Cards'
 import styles from './CastleTable.module.css'
+import AboutGame from '@/apps/lobby/components/AboutGame'
 
 // The table from the viewer's chair, seen from above: the viewer at 6
 // o'clock with their moves under their hand, the others around the ring
@@ -247,9 +248,12 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
   const actions = (() => {
     if (view.phase === 'waiting') {
       return (
-        <button type="button" className={styles.primary} onClick={table.startTable} disabled={view.players.length < 2 || !connected}>
-          Deal
-        </button>
+        <>
+          <AboutGame game="castle" className={styles.hint} />
+          <button type="button" className={styles.primary} onClick={table.startTable} disabled={view.players.length < 2 || !connected}>
+            Deal
+          </button>
+        </>
       )
     }
     if (arranging) {

@@ -90,6 +90,12 @@ describe('GolfTable', () => {
     expect(screen.getByText('Tap a card to swap, or discard')).toBeTruthy()
   })
 
+  // What the game is, said where it is played, while the table waits.
+  it('says what golf is while it waits', () => {
+    render(<GolfTable playerId="alice" connected view={view({ gamePhase: 'waiting', players: [player('alice')] })} table={table()} />)
+    expect(screen.getByText(/Lowest hand wins.*2–4 players\./)).toBeTruthy()
+  })
+
   it('a waiting table starts with two seated and leaves straight away', () => {
     const t = table()
     const { rerender } = render(<GolfTable playerId="alice" connected view={view({ gamePhase: 'waiting', players: [player('alice')] })} table={t} />)

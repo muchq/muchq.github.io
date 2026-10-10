@@ -2,7 +2,7 @@ import type { UseLobby } from '@/hooks/useLobby'
 import { lobbyRoomPath } from '@/hooks/useLobby'
 import type { Command } from '@/utils/commandRegistry'
 import { CATALOG } from './catalog'
-import { atTable, seatsOf, tableFor, tableOffer } from './offers'
+import { atTable, offerFor, seatsOf, tableFor } from './offers'
 
 // What the page around the lobby does for these entries: the panel and
 // the chat are LobbyGame's, not the hook's.
@@ -61,7 +61,7 @@ export function lobbyCommands(lobby: UseLobby, ui: LobbyUi): Command[] {
           commands.push({ id: `open-${game}`, label: `Open a ${game} table`, run: tableFor(lobby, game).createTable })
         }
         for (const table of room.games) {
-          if (!tableOffer(table).open) continue
+          if (!offerFor(lobby, table).open) continue
           const game = table.game ?? 'golf'
           const join = tableFor(lobby, game).joinTable
           commands.push({

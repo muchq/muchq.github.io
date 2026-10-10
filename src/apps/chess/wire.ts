@@ -72,6 +72,10 @@ export interface ChessView {
   phase: ChessPhase
   // The posted challenge's terms; only while waiting on one.
   terms?: ChessTerms
+  // The round robin whose pairing this table plays (MoonBase#1647): its
+  // one game, on the round robin's terms, with no next game, bot or
+  // challenge. Absent at any other table.
+  roundRobinId?: string
   variant?: string
   // Absent while waiting.
   setupId?: string
