@@ -1,4 +1,4 @@
-import type { ChessColor, ChessEnding, ChessResult } from './wire'
+import type { ChessColor, ChessEnding, ChessResult, ChessTerms } from './wire'
 import wK from './pieces/wK.svg'
 import wQ from './pieces/wQ.svg'
 import wR from './pieces/wR.svg'
@@ -250,3 +250,15 @@ export function moveRows(startFen: string, san: string[]): MoveRow[] {
 export function analysisUrl(fen: string): string {
   return `https://lichess.org/analysis/standard/${fen.replace(/ /g, '_')}`
 }
+
+// The clocks a starter can pick, as minutes + increment seconds.
+export const CLOCKS: Record<string, { initialSeconds: number; incrementSeconds: number }> = {
+  '1+0': { initialSeconds: 60, incrementSeconds: 0 },
+  '3+2': { initialSeconds: 180, incrementSeconds: 2 },
+  '5+3': { initialSeconds: 300, incrementSeconds: 3 },
+  '10+5': { initialSeconds: 600, incrementSeconds: 5 }
+}
+
+// "5+3": minutes and increment seconds; a clock of odd seconds in seconds.
+export const clockLabel = (terms: Pick<ChessTerms, 'initialSeconds' | 'incrementSeconds'>): string =>
+  `${terms.initialSeconds % 60 === 0 ? terms.initialSeconds / 60 : `${terms.initialSeconds}s`}+${terms.incrementSeconds}`

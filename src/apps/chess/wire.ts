@@ -129,6 +129,47 @@ export interface ChessReview {
   pgn: string
 }
 
+// A round robin (MoonBase#1647): everyone entered plays everyone once,
+// on its terms, each pairing at a table its pair opens. Every member
+// hears it whenever it changes.
+export interface ChessPairing {
+  // From 1; rounds only order the list, pairings are played whenever
+  // both players are free.
+  round: number
+  white: string
+  black: string
+  // Absent until decided.
+  result?: 'white' | 'black' | 'draw'
+  // Recorded by the moderator, not played.
+  forfeit: boolean
+  // Never to be played: an entrant in it withdrew first.
+  voided: boolean
+  // The table playing it now.
+  gameId?: string
+}
+
+export interface ChessStanding {
+  playerId: string
+  points: number
+  sonnebornBerger: number
+  // From 1; players level on everything share a place.
+  place: number
+  withdrawn: boolean
+}
+
+export interface ChessRoundRobin {
+  roundRobinId: string
+  // Moderates while in the room; while away, any other entrant does.
+  creator: string
+  entrants: string[]
+  terms: ChessTerms
+  // In round order.
+  pairings: ChessPairing[]
+  withdrawn: string[]
+  // Best first.
+  standings: ChessStanding[]
+}
+
 // The chess update union's JSON encoding: exactly one member present.
 export interface ChessUpdate {
   gameJoined?: { view: ChessView }
@@ -142,6 +183,8 @@ export interface ChessUpdate {
   review?: ChessReview
   // `by` is absent when another hub instance relays it.
   published?: { published: boolean; by?: string }
+  roundRobin?: ChessRoundRobin
+  roundRobins?: { roundRobins: ChessRoundRobin[] }
 }
 
 export interface ChessMovePayloads {
@@ -172,6 +215,19 @@ export interface ChessMovePayloads {
   // withdrawing keeps the next games private, not the ones already out.
   // Every member hears published.
   publish: { published: boolean }
+  // A round robin of 3 to 8 members, in pairing order, on terms whose
+  // absent fields take a challenge's defaults; at most 16 in a room.
+  createRoundRobin: { entrants: string[]; terms?: ChessMovePayloads['challenge'] }
+  // The moderator voids an entrant's pairings still to play; refused
+  // while they sit at a pairing's table.
+  withdraw: { roundRobinId: string; playerId: string }
+  // The moderator scores a pairing still to play, at no table, unplayed.
+  forfeit: { roundRobinId: string; winner: string; loser: string }
+  // The room's round robins, answered with roundRobins; any member.
+  roundRobins: undefined
+  // A table for the player's pairing with opponent, from no seat: only
+  // the opponent fills it, and its one game is the pairing's result.
+  playRoundRobin: { roundRobinId: string; opponent: string }
 }
 
 export type ChessMoveName = keyof ChessMovePayloads

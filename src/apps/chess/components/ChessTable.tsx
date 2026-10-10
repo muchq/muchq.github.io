@@ -3,8 +3,8 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import type { ChessTableActions } from '@/hooks/useChessTable'
 import felt from '@/apps/castle/components/CastleTable.module.css'
-import type { ChessColor, ChessTerms, ChessView } from '../wire'
-import { applyMove, describeMove, describeResult, describeExtras, formatClock, imbalance, lastMoveSquares, materialBalance, movesTo, nameOf, pieceImage, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
+import type { ChessColor, ChessView } from '../wire'
+import { CLOCKS, applyMove, clockLabel, describeMove, describeResult, describeExtras, formatClock, imbalance, lastMoveSquares, materialBalance, movesTo, nameOf, pieceImage, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
 import styles from './ChessTable.module.css'
 import ScoreSheet from './ScoreSheet'
 
@@ -20,14 +20,6 @@ export interface ChessTableProps {
   connected: boolean
   view: ChessView
   table: ChessTableActions & { opening: boolean; seating: boolean }
-}
-
-// The clocks a starter can pick, as minutes + increment seconds.
-const CLOCKS: Record<string, { initialSeconds: number; incrementSeconds: number }> = {
-  '1+0': { initialSeconds: 60, incrementSeconds: 0 },
-  '3+2': { initialSeconds: 180, incrementSeconds: 2 },
-  '5+3': { initialSeconds: 300, incrementSeconds: 3 },
-  '10+5': { initialSeconds: 600, incrementSeconds: 5 }
 }
 
 // A bot's strengths, as Elo on Stockfish's scale (1320 to 3190).
@@ -51,10 +43,6 @@ const TICK_MS = 100
 
 // How far a press travels before it is a drag rather than a tap.
 const DRAG_SLOP_PX = 6
-
-// "5+3": minutes and increment seconds; a clock of odd seconds in seconds.
-const clockLabel = (terms: ChessTerms): string =>
-  `${terms.initialSeconds % 60 === 0 ? terms.initialSeconds / 60 : `${terms.initialSeconds}s`}+${terms.incrementSeconds}`
 
 const colorOfPiece = (piece: string): ChessColor => (piece === piece.toUpperCase() ? 'white' : 'black')
 const other = (color: ChessColor): ChessColor => (color === 'white' ? 'black' : 'white')
