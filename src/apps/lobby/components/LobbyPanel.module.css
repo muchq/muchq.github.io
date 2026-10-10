@@ -51,6 +51,35 @@
   font-size: 1rem;
 }
 
+.section h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* Buttons or labels that take as many lines as the column needs. */
+.wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+}
+
+/* One round robin: a block of its own, set off as a row is. */
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem;
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 0.9rem;
+}
+
+.fieldset {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
 .list {
   list-style: none;
   margin: 0;
