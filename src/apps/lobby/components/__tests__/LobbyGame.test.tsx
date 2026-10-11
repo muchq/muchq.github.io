@@ -6,6 +6,7 @@ import { fakeVoiceMesh } from '@/test/fakeVoice'
 import type { CastleView } from '@/apps/castle/wire'
 import type { RummyView } from '@/apps/rummy/wire'
 import type { ChessReview, ChessView } from '@/apps/chess/wire'
+import type { PongView } from '@/apps/pong/wire'
 import type { GameState } from '@/types/golf'
 import type { CommandRegistry } from '@/utils/commandRegistry'
 import { COMMAND_HOTKEY } from '@/utils/hotkeys'
@@ -32,7 +33,8 @@ const state = {
   castle: { view: null as CastleView | null, ended: null, selected: [] },
   golf: { view: null as GameState | null, ended: null, peekCountdown: null },
   rummy: { view: null as RummyView | null, ended: null, selected: [] },
-  chess: { view: null as ChessView | null, opening: false, history: null, review: null as ChessReview | null, closeReview: vi.fn(), loadHistory: vi.fn(), roundRobins: [], loadRoundRobins: vi.fn() }
+  chess: { view: null as ChessView | null, opening: false, history: null, review: null as ChessReview | null, closeReview: vi.fn(), loadHistory: vi.fn(), roundRobins: [], loadRoundRobins: vi.fn() },
+  pong: { view: null as PongView | null, opening: false, roundRobins: [], loadRoundRobins: vi.fn(), latestFrame: () => null }
 } as unknown as UseLobby
 
 vi.mock('@/hooks/useLobby', async importOriginal => ({
@@ -59,6 +61,7 @@ vi.mock('@/apps/thoughts/components/ThoughtsGame', () => ({
 }))
 vi.mock('@/apps/castle/components/CastleTable', () => ({ default: () => <div>table</div> }))
 vi.mock('@/apps/chess/components/ChessTable', () => ({ default: () => <div>chess table</div> }))
+vi.mock('@/apps/pong/components/PongTable', () => ({ default: () => <div>pong table</div> }))
 vi.mock('@/apps/chess/components/GameReview', () => ({
   default: ({ review, onClose }: { review: ChessReview; onClose: () => void }) => (
     <button type="button" onClick={onClose}>
@@ -92,6 +95,7 @@ describe('LobbyGame', () => {
     state.castle.view = null
     state.golf.view = null
     state.chess.view = null
+    state.pong.view = null
     state.lost = null
     state.room = null
     localStorage.clear()
@@ -174,6 +178,18 @@ describe('LobbyGame', () => {
     state.chess.view = null
     rerender(<LobbyGame />)
     expect(screen.queryByText('chess table')).toBeNull()
+    expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
+  })
+
+  it('a pong table is a table too: over the world, the panel folded', () => {
+    const { rerender } = render(<LobbyGame />)
+    state.pong.view = { gameId: 'P1' } as PongView
+    rerender(<LobbyGame />)
+    expect(screen.getByText('pong table')).toBeTruthy()
+    expect(screen.queryByRole('complementary', { name: 'lobby' })).toBeNull()
+    state.pong.view = null
+    rerender(<LobbyGame />)
+    expect(screen.queryByText('pong table')).toBeNull()
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
   })
 

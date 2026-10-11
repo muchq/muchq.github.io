@@ -5,6 +5,7 @@ import GolfTable from '@/apps/golf/components/GolfTable'
 import RummyTable from '@/apps/rummy/components/RummyTable'
 import ChessTable from '@/apps/chess/components/ChessTable'
 import GameReview from '@/apps/chess/components/GameReview'
+import PongTable from '@/apps/pong/components/PongTable'
 import RoomChat, { type RoomChatHandle } from './RoomChat'
 import CommandMenu, { type CommandMenuHandle } from './CommandMenu'
 import { lobbyCommands } from '../lobbyCommands'
@@ -31,10 +32,10 @@ const panelWanted = (): boolean => safeLocalStorage.get(PANEL_KEY) !== 'hidden' 
 
 const LobbyGame = (props: UseLobbyProps) => {
   const lobby = useLobby(props)
-  const { castle, golf, rummy, chess, chat, connected, playerId, notice, room } = lobby
+  const { castle, golf, rummy, chess, pong, chat, connected, playerId, notice, room } = lobby
   // A chess review (MoonBase#1637) takes the screen as a table does.
   const atTable =
-    castle.view !== null || golf.view !== null || rummy.view !== null || chess.view !== null || chess.review !== null
+    castle.view !== null || golf.view !== null || rummy.view !== null || chess.view !== null || pong.view !== null || chess.review !== null
   // A rummy dealer among these lets any seat deal (MoonBase#1609).
   const away = (room?.players ?? []).filter(player => !player.connected).map(player => player.playerId)
   // A table takes the screen, so the panel folds away when one comes up
@@ -115,6 +116,11 @@ const LobbyGame = (props: UseLobbyProps) => {
       {chess.view !== null && (
         <div className={styles.tableOverlay}>
           <ChessTable playerId={playerId} connected={connected} view={chess.view} table={chess} />
+        </div>
+      )}
+      {pong.view !== null && (
+        <div className={styles.tableOverlay}>
+          <PongTable playerId={playerId} connected={connected} view={pong.view} table={pong} />
         </div>
       )}
       {golf.view !== null && (

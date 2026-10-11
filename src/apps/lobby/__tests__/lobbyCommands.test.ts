@@ -19,6 +19,7 @@ const lobbyWith = (over: Partial<UseLobby>): UseLobby =>
     golf: { createTable: vi.fn(), joinTable: vi.fn() },
     rummy: { createTable: vi.fn(), joinTable: vi.fn() },
     chess: { createTable: vi.fn(), joinTable: vi.fn() },
+    pong: { createTable: vi.fn(), joinTable: vi.fn() },
     voice: voiceIn(),
     ...over,
   }) as unknown as UseLobby
@@ -34,6 +35,7 @@ const room = (over: Partial<HubRoom> = {}): HubRoom => ({
     { gameId: 'M1', game: 'rummy', status: 'waiting', playerCount: 1 },
     { gameId: 'K1', game: 'chess', status: 'waiting', playerCount: 1 },
     { gameId: 'K2', game: 'chess', status: 'waiting', playerCount: 2 },
+    { gameId: 'P1', game: 'pong', status: 'waiting', playerCount: 1 },
   ],
   ...over,
 })
@@ -90,10 +92,12 @@ describe('lobbyCommands', () => {
       'Open a golf table',
       'Open a rummy table',
       'Open a chess table',
+      'Open a pong table',
       'Join castle table C1',
       'Join golf table G1',
       'Join rummy table M1',
       'Join chess table K1',
+      'Join pong table P1',
       'Hide lobby panel',
     ])
     expect(offered.find(c => c.label === 'Join golf table G1')!.detail).toBe('2/4 seated')
@@ -129,6 +133,10 @@ describe('lobbyCommands', () => {
     expect(lobby.chess.joinTable).toHaveBeenCalledWith('K1')
     run(lobby, 'Open a chess table')
     expect(lobby.chess.createTable).toHaveBeenCalledTimes(1)
+    run(lobby, 'Join pong table P1')
+    expect(lobby.pong.joinTable).toHaveBeenCalledWith('P1')
+    run(lobby, 'Open a pong table')
+    expect(lobby.pong.createTable).toHaveBeenCalledTimes(1)
     run(lobby, 'Leave the room')
     expect(lobby.leaveRoom).toHaveBeenCalledTimes(1)
     run(lobby, 'Open chat')
@@ -156,6 +164,24 @@ describe('lobbyCommands', () => {
     expect(labels(lobbyWith({ room: challenged, chess: chess(roundRobins) }))).not.toContain('Accept chess challenge K7')
     expect(labels(lobbyWith({ playerId: 'bob', room: challenged, chess: chess(roundRobins) }))).toContain('Accept chess challenge K7')
     expect(labels(lobbyWith({ room: challenged, chess: chess(null) }))).toContain('Accept chess challenge K7')
+  })
+
+  it('offers a pong pairing’s table only to its pair', () => {
+    const opened = room({ games: [{ gameId: 'P7', game: 'pong', status: 'waiting', playerCount: 1 }] })
+    const roundRobins = [
+      {
+        roundRobinId: 'E2',
+        creator: 'bob',
+        entrants: ['alice', 'bob', 'carol'],
+        variant: 'smallcat',
+        pairings: [{ round: 1, first: 'carol', second: 'bob', forfeit: false, voided: false, gameId: 'P7' }],
+        withdrawn: [],
+        standings: []
+      }
+    ]
+    const pong = { createTable: vi.fn(), joinTable: vi.fn(), roundRobins } as unknown as UseLobby['pong']
+    expect(labels(lobbyWith({ room: opened, pong }))).not.toContain('Join pong table P7')
+    expect(labels(lobbyWith({ playerId: 'bob', room: opened, pong }))).toContain('Join pong table P7')
   })
 
   it('seated at a table, no other table is offered', () => {
