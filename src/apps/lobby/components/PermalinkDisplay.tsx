@@ -5,9 +5,12 @@ export interface PermalinkDisplayProps {
   label: string
   url: string
   onCopy?: () => void
+  // The button's own class, for a row of buttons it should match; the
+  // padded box around it is dropped too.
+  className?: string
 }
 
-const PermalinkDisplay = ({ label, url, onCopy }: PermalinkDisplayProps) => {
+const PermalinkDisplay = ({ label, url, onCopy, className }: PermalinkDisplayProps) => {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copying' | 'success' | 'error'>('idle')
 
   const copyToClipboard = useCallback(async () => {
@@ -56,18 +59,18 @@ const PermalinkDisplay = ({ label, url, onCopy }: PermalinkDisplayProps) => {
     }
   }
 
-  return (
-    <div className={styles.permalinkDisplay}>
-      <button
-        onClick={copyToClipboard}
-        disabled={copyStatus === 'copying'}
-        className={getButtonClass()}
-        aria-label={`Copy ${label.toLowerCase()}`}
-      >
-        {getButtonText()}
-      </button>
-    </div>
+  const button = (
+    <button
+      type="button"
+      onClick={copyToClipboard}
+      disabled={copyStatus === 'copying'}
+      className={className ?? getButtonClass()}
+      aria-label={`Copy ${label.toLowerCase()}`}
+    >
+      {getButtonText()}
+    </button>
   )
+  return className === undefined ? <div className={styles.permalinkDisplay}>{button}</div> : button
 }
 
 export default PermalinkDisplay

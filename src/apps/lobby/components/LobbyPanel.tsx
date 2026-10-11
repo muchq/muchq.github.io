@@ -225,9 +225,11 @@ export interface LobbyPanelProps {
   lobby: UseLobby
   // The room code field, for the command menu's "Join a room by code".
   roomCodeRef?: Ref<HTMLInputElement>
+  // Opens the room's chat; the row offers no Chat button without it.
+  onOpenChat?: () => void
 }
 
-const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
+const LobbyPanel = ({ lobby, roomCodeRef, onOpenChat }: LobbyPanelProps) => {
   const { room, connected, playerId } = lobby
 
   if (room === null) {
@@ -276,7 +278,16 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
         </button>
       </div>
       <div className={styles.toolbar}>
-        <PermalinkDisplay label="Share room" url={`${window.location.origin}${lobbyRoomPath(room.roomId)}`} />
+        <PermalinkDisplay
+          label="Share room"
+          url={`${window.location.origin}${lobbyRoomPath(room.roomId)}`}
+          className={styles.secondary}
+        />
+        {onOpenChat && (
+          <button type="button" className={styles.secondary} onClick={onOpenChat}>
+            Chat
+          </button>
+        )}
         <VoiceControls voice={lobby.voice} connected={connected} />
         <VoiceStatus voice={lobby.voice} />
       </div>

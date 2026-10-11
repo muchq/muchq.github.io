@@ -332,10 +332,32 @@ describe('LobbyPanel', () => {
     render(<LobbyPanel lobby={lobby({ room: room() })} />)
     const share = screen.getByRole('button', { name: 'Copy share room' })
     const join = screen.getByRole('button', { name: 'Join voice' })
-    expect(share.parentElement?.parentElement).toBe(join.closest('[role="group"]')?.parentElement)
+    expect(share.parentElement).toBe(join.closest('[role="group"]')?.parentElement)
     const players = screen.getByRole('region', { name: 'Players' })
     expect(join.compareDocumentPosition(players) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.queryByRole('heading', { name: 'Voice' })).toBeNull()
+  })
+
+  // One row, one size: sharing the room is a button like voice's.
+  it('shares the room by a button styled as voice is', () => {
+    render(<LobbyPanel lobby={lobby({ room: room() })} />)
+    const share = screen.getByRole('button', { name: 'Copy share room' })
+    const join = screen.getByRole('button', { name: 'Join voice' })
+    expect(join.className).not.toBe('')
+    expect(share.className).toBe(join.className)
+  })
+
+  // Chat has a button in the row too, beside the floating one with its
+  // unread count, which stays as it is.
+  it('opens chat from the row, a button styled as voice is', () => {
+    const openChat = vi.fn()
+    render(<LobbyPanel lobby={lobby({ room: room() })} onOpenChat={openChat} />)
+    const chat = screen.getByRole('button', { name: 'Chat' })
+    const join = screen.getByRole('button', { name: 'Join voice' })
+    expect(chat.parentElement).toBe(join.closest('[role="group"]')?.parentElement)
+    expect(chat.className).toBe(join.className)
+    fireEvent.click(chat)
+    expect(openChat).toHaveBeenCalledTimes(1)
   })
 
   // The voice line sits under the row, outside the buttons' group, so
