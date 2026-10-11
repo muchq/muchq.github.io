@@ -20,7 +20,7 @@ describe('the game catalog', () => {
   it('says how many play, and what is chosen at the table', () => {
     expect(seatsLine(catalogEntry('chess'))).toBe('2 players')
     expect(seatsLine(catalogEntry('castle'))).toBe('2–4 players')
-    expect(seatsLine(catalogEntry('pong'))).toBe('2 players · smallcat 2D or 3D, chosen at the table')
+    expect(seatsLine(catalogEntry('pong'))).toBe('2 players · 2D or 3D, chosen at the table')
     expect(seatsLine(catalogEntry('rummy'))).toBe('2–4 players · 7-card, 10-card or gin, chosen at the table')
   })
 })

@@ -105,5 +105,5 @@ export const extrapolate = (frame: PongFrame, court: PongCourt, elapsedMs: numbe
 export const pongName = (playerId: string): string => {
   const bot = /^smallcat@(\d)$/.exec(playerId)
   const level = bot === null ? undefined : BOT_LEVELS.find(entry => entry.level === Number(bot[1]))
-  return level === undefined ? playerId : `smallcat (${level.label})`
+  return level === undefined ? playerId : `smallcat bot (${level.label})`
 }
