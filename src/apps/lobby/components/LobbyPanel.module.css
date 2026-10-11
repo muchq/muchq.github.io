@@ -213,11 +213,6 @@
   gap: 0.5rem;
 }
 
-.toolbar > div:first-child {
-  padding: 0;
-  margin: 0;
-}
-
 .voice {
   display: flex;
   flex-wrap: wrap;

@@ -34,7 +34,7 @@ const gameLine = (game: ChessGameSummary): string => {
 // What pushing to 1d4 does, said on hover before the click that does it.
 const publishHelp = (): string =>
   'While on, each chess game that ends here gets a public page with both players’ ids and every move, ' +
-  `joins the public chess feed (${hubChessFeedUrl(hubPlayUrl())}) and can be indexed on 1d4. ` +
+  `joins the public chess feed (${hubChessFeedUrl(hubPlayUrl())}) and is sent to 1d4 to be indexed. ` +
   'It stays public for 30 days, even once this is off. Games that already ended stay private.'
 
 // The room's finished chess games (MoonBase#1637), each one reviewable,
@@ -115,7 +115,7 @@ const ChessGames = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean })
               <a href={hubChessFeedUrl(hubPlayUrl())} target="_blank" rel="noopener noreferrer">
                 public chess feed
               </a>{' '}
-              and can be indexed on 1d4. It stays public for 30 days, even once this is off. Games that already ended stay private.
+              and is sent to 1d4 to be indexed. It stays public for 30 days, even once this is off. Games that already ended stay private.
             </p>
           )}
         </>
@@ -225,9 +225,11 @@ export interface LobbyPanelProps {
   lobby: UseLobby
   // The room code field, for the command menu's "Join a room by code".
   roomCodeRef?: Ref<HTMLInputElement>
+  // Opens the room's chat; the row offers no Chat button without it.
+  onOpenChat?: () => void
 }
 
-const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
+const LobbyPanel = ({ lobby, roomCodeRef, onOpenChat }: LobbyPanelProps) => {
   const { room, connected, playerId } = lobby
 
   if (room === null) {
@@ -276,7 +278,16 @@ const LobbyPanel = ({ lobby, roomCodeRef }: LobbyPanelProps) => {
         </button>
       </div>
       <div className={styles.toolbar}>
-        <PermalinkDisplay label="Share room" url={`${window.location.origin}${lobbyRoomPath(room.roomId)}`} />
+        <PermalinkDisplay
+          label="Share room"
+          url={`${window.location.origin}${lobbyRoomPath(room.roomId)}`}
+          className={styles.secondary}
+        />
+        {onOpenChat && (
+          <button type="button" className={styles.secondary} onClick={onOpenChat}>
+            Chat
+          </button>
+        )}
         <VoiceControls voice={lobby.voice} connected={connected} />
         <VoiceStatus voice={lobby.voice} />
       </div>

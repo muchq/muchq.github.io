@@ -363,6 +363,13 @@ describe('LobbyGame', () => {
       expect(openChat).toHaveBeenCalledTimes(1)
     })
 
+    it("the panel's Chat button opens it", () => {
+      state.room = { roomId: 'R1', players: [], games: [] }
+      render(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'Chat' }))
+      expect(openChat).toHaveBeenCalledTimes(1)
+    })
+
     it('Ask the bot is only in a room, and seeds the composer', () => {
       const { rerender } = render(<LobbyGame />)
       openMenu()

@@ -147,7 +147,7 @@ const LobbyGame = (props: UseLobbyProps) => {
       </button>
       {panelOpen && (
         <div id="lobby-panel">
-          <LobbyPanel lobby={lobby} roomCodeRef={roomCodeRef} />
+          <LobbyPanel lobby={lobby} roomCodeRef={roomCodeRef} onOpenChat={() => chatRef.current?.open()} />
         </div>
       )}
       {room !== null && (
