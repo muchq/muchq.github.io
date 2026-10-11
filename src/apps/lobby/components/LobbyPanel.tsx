@@ -326,15 +326,15 @@ const LobbyPanel = ({ lobby, roomCodeRef, onOpenChat }: LobbyPanelProps) => {
                     {familyOf(game).games.length > 1 ? `${FAMILY_NOUNS[familyOf(game).family].plural} · ` : ''}
                     {game} {table.gameId} · {table.playerCount}/{seatsOf(game)} · {table.status === 'choosing' ? 'between deals' : table.status}
                     {table.terms === undefined ? '' : ` · ${table.terms}`}
-                    {pairing === undefined ? '' : ` · round robin: ${pairing.white} – ${pairing.black}`}
+                    {pairing === undefined ? '' : ` · round robin: ${pairing[0]} – ${pairing[1]}`}
                   </span>
                   <span className={styles.offers}>
-                    {/* Chess hides nothing, so any of its tables can be watched. */}
-                    {game === 'chess' && (
+                    {/* Chess and pong hide nothing, so any of their tables can be watched. */}
+                    {(game === 'chess' || game === 'pong') && (
                       <button
                         type="button"
                         className={styles.secondary}
-                        onClick={() => lobby.chess.watchTable(table.gameId)}
+                        onClick={() => lobby[game].watchTable(table.gameId)}
                         disabled={!connected || busy}
                         aria-label={`Watch ${game} ${table.gameId}`}
                       >

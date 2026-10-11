@@ -281,6 +281,30 @@ describe('useLobby', () => {
     expect(pathname()).toBe('/games/room/R1')
   })
 
+  it('a pong table swaps in on its own envelope, and its paddle rides it', async () => {
+    const { result, ws, pathname } = await open()
+    act(() => ws.receive('roomState', roomState('R1')))
+    act(() => result.current.pong.createTable())
+    expect(ws.lastSent()).toEqual({ event: 'pong', payload: { move: { createGame: {} } } })
+    const pongView = { gameId: 'P1', phase: 'waiting', players: [], scoreSheet: [] }
+    act(() => ws.receive('pong', { update: { gameJoined: { view: pongView } } }))
+    expect(result.current.pong.view?.gameId).toBe('P1')
+    expect(pathname()).toBe('/games/room/R1/table/P1')
+    act(() => result.current.pong.aim(0, 120))
+    expect(ws.lastSent()).toEqual({ event: 'pong', payload: { move: { paddle: { x: 0, y: 120 } } } })
+    act(() => result.current.pong.addBot(2))
+    act(() => ws.receive('commandRejected', { reason: 'no bot here' }))
+    expect(result.current.pong.seating).toBe(false)
+    act(() => ws.receive('roomLeft', { roomId: 'R1' }))
+    expect(result.current.pong.view).toBeNull()
+  })
+
+  it('a share link to a pong table sits at it in pong’s envelope', async () => {
+    const { ws } = await open({ permalinkRoomId: 'R1', permalinkGameId: 'P1' }, '/games/room/R1/table/P1')
+    act(() => ws.receive('roomState', roomState('R1', [{ gameId: 'P1', game: 'pong', status: 'waiting', playerCount: 1 }])))
+    expect(ws.lastSent()).toEqual({ event: 'pong', payload: { move: { joinGame: { gameId: 'P1' } } } })
+  })
+
   it('joining a listed golf table sends its join, and the table answers', async () => {
     const { result, ws } = await open()
     act(() => ws.receive('roomState', roomState('R1', [{ gameId: 'G7', game: 'golf', status: 'waiting', playerCount: 1 }])))

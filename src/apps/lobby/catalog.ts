@@ -4,7 +4,7 @@ import type { HubGameName } from '@/utils/hubStream'
 // picker, the command menu and every table's seat count read this list,
 // so a new game is one entry here and its table hook.
 
-export type GameFamily = 'Cards' | 'Board'
+export type GameFamily = 'Cards' | 'Board' | 'Arcade'
 
 export interface CatalogEntry {
   game: HubGameName
@@ -45,6 +45,14 @@ export const CATALOG: readonly CatalogEntry[] = [
     family: 'Board',
     seats: { min: 2, max: 2 },
     blurb: 'Standard chess and endgame practice positions, on the clock. Checkmate, promote, or hold the draw.'
+  },
+  {
+    game: 'pong',
+    label: 'Pong',
+    family: 'Arcade',
+    seats: { min: 2, max: 2 },
+    blurb: 'smallcat’s pong, live against a friend or a bot. Three lives each; miss the ball and lose one.',
+    variants: 'smallcat 2D or 3D'
   }
 ]
 
@@ -54,7 +62,8 @@ export const FAMILIES: readonly GameFamily[] = [...new Set(CATALOG.map(entry => 
 // ("Card game") and in front of a table's game ("cards · castle").
 export const FAMILY_NOUNS: Record<GameFamily, { singular: string; plural: string }> = {
   Cards: { singular: 'Card', plural: 'cards' },
-  Board: { singular: 'Board', plural: 'board' }
+  Board: { singular: 'Board', plural: 'board' },
+  Arcade: { singular: 'Arcade', plural: 'arcade' }
 }
 
 // A family of one game needs no name of its own: chess is chess.
