@@ -168,13 +168,16 @@ const PongTable = ({ playerId, connected, view, table }: PongTableProps) => {
   })()
 
   const courtPick = (
-    <select aria-label="Court" value={variant} onChange={event => setVariant(event.target.value as PongVariant)} disabled={!connected}>
-      {VARIANTS.map(option => (
-        <option key={option.variant} value={option.variant}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+    <label className={styles.pick}>
+      Court
+      <select value={variant} onChange={event => setVariant(event.target.value as PongVariant)} disabled={!connected}>
+        {VARIANTS.map(option => (
+          <option key={option.variant} value={option.variant}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
   )
   const size = court === undefined ? null : court.width === 0 ? flatSize(court) : tunnelSize(court)
 
@@ -251,13 +254,16 @@ const PongTable = ({ playerId, connected, view, table }: PongTableProps) => {
         <div className={styles.controls}>
           {view.phase === 'waiting' && alone && (
             <>
-              <select aria-label="Bot level" value={botLevel} onChange={event => setBotLevel(Number(event.target.value))} disabled={!connected}>
-                {BOT_LEVELS.map(({ level, label }) => (
-                  <option key={level} value={level}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+              <label className={styles.pick}>
+                Bot
+                <select value={botLevel} onChange={event => setBotLevel(Number(event.target.value))} disabled={!connected}>
+                  {BOT_LEVELS.map(({ level, label }) => (
+                    <option key={level} value={level}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button type="button" className={felt.secondary} onClick={() => table.addBot(botLevel)} disabled={!connected || table.seating}>
                 Add a bot
               </button>

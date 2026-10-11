@@ -52,7 +52,7 @@ export const CATALOG: readonly CatalogEntry[] = [
     family: 'Arcade',
     seats: { min: 2, max: 2 },
     blurb: 'smallcat’s pong, live against a friend or a bot. Three lives each; miss the ball and lose one.',
-    variants: 'smallcat 2D or 3D'
+    variants: '2D or 3D'
   }
 ]
 

@@ -205,6 +205,20 @@
   flex: 1;
 }
 
+/* A row of labelled pickers wraps rather than squeezing at phone width. */
+.pickerWrap {
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.pick {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
 /* The room's own controls in one row: sharing it, and its voice. */
 .toolbar {
   display: flex;

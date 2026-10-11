@@ -647,7 +647,12 @@ describe('LobbyPanel', () => {
       const hook = lobby({ room: roundRobinRoom(), chess: chess(null, []) })
       render(<LobbyPanel lobby={hook} />)
       newOne()
+      // Each picker is labelled on screen: a phone's native picker shows its options alone.
+      const visible = (name: string) => section().getByRole('combobox', { name }).closest('label')?.firstChild?.textContent
+      expect(visible('Round robin game')).toBe('Game')
+      expect(visible('Round robin clock')).toBe('Clock')
       fireEvent.change(section().getByRole('combobox', { name: 'Round robin game' }), { target: { value: 'pong' } })
+      expect(visible('Round robin variant')).toBe('Court')
       expect(section().queryByRole('combobox', { name: 'Round robin clock' })).toBeNull()
       fireEvent.change(section().getByRole('combobox', { name: 'Round robin variant' }), { target: { value: '3d' } })
       fireEvent.click(button('Start a round robin'))
