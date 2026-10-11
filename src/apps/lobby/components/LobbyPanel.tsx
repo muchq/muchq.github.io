@@ -34,7 +34,7 @@ const gameLine = (game: ChessGameSummary): string => {
 // What pushing to 1d4 does, said on hover before the click that does it.
 const publishHelp = (): string =>
   'While on, each chess game that ends here gets a public page with both players’ ids and every move, ' +
-  `joins the public chess feed (${hubChessFeedUrl(hubPlayUrl())}) and can be indexed on 1d4. ` +
+  `joins the public chess feed (${hubChessFeedUrl(hubPlayUrl())}) and is sent to 1d4 to be indexed. ` +
   'It stays public for 30 days, even once this is off. Games that already ended stay private.'
 
 // The room's finished chess games (MoonBase#1637), each one reviewable,
@@ -115,7 +115,7 @@ const ChessGames = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean })
               <a href={hubChessFeedUrl(hubPlayUrl())} target="_blank" rel="noopener noreferrer">
                 public chess feed
               </a>{' '}
-              and can be indexed on 1d4. It stays public for 30 days, even once this is off. Games that already ended stay private.
+              and is sent to 1d4 to be indexed. It stays public for 30 days, even once this is off. Games that already ended stay private.
             </p>
           )}
         </>

@@ -668,11 +668,12 @@ describe('LobbyPanel', () => {
       expect(title).toMatch(/public page with both players’ ids and every move/)
       expect(title).toMatch(/stays public for 30 days/)
       expect(title).toMatch(/Games that already ended stay private/)
+      expect(title).toMatch(/is sent to 1d4 to be indexed/)
       expect(title).toContain(hubChessFeedUrl(hubPlayUrl()))
       // Off hover, the same words describe it to a screen reader.
       expect(push).toHaveAccessibleDescription(title)
       expect(screen.queryByRole('checkbox', { name: /Publish/ })).toBeNull()
-      expect(screen.queryByText(/indexed on 1d4/)).toBeNull()
+      expect(screen.queryByText(/sent to 1d4/)).toBeNull()
       fireEvent.click(push)
       expect(hook.chess.publish).toHaveBeenCalledWith(true)
 
@@ -683,6 +684,7 @@ describe('LobbyPanel', () => {
       fireEvent.click(help)
       expect(help).toHaveAttribute('aria-expanded', 'true')
       expect(screen.getByText(/public page with both players’ ids and every move/)).toBeTruthy()
+      expect(screen.getByText(/is sent to 1d4 to be indexed/)).toBeTruthy()
       expect(screen.getByRole('link', { name: 'public chess feed' })).toHaveAttribute('href', hubChessFeedUrl(hubPlayUrl()))
       fireEvent.click(help)
       expect(screen.queryByText(/public page with both players’ ids/)).toBeNull()
