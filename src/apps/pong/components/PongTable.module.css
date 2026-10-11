@@ -40,6 +40,12 @@
   gap: 0.5rem;
 }
 
+.pick {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .sheet {
   margin: 0;
   padding-left: 1.25rem;

@@ -146,27 +146,37 @@ const NewRoundRobin = ({ lobby, disabled, onStarted }: Pick<Props, 'lobby' | 'di
           ))}
         </div>
       </fieldset>
-      <div className={styles.picker}>
-        <select aria-label="Round robin game" value={game} onChange={event => setGame(event.target.value as 'chess' | 'pong')} disabled={disabled}>
-          <option value="chess">Chess</option>
-          <option value="pong">Pong</option>
-        </select>
+      {/* Labelled on screen: a phone's native picker shows its options alone. */}
+      <div className={`${styles.picker} ${styles.pickerWrap}`}>
+        <label className={styles.pick}>
+          Game
+          <select aria-label="Round robin game" value={game} onChange={event => setGame(event.target.value as 'chess' | 'pong')} disabled={disabled}>
+            <option value="chess">Chess</option>
+            <option value="pong">Pong</option>
+          </select>
+        </label>
         {game === 'chess' ? (
-          <select aria-label="Round robin clock" value={clock} onChange={event => setClock(event.target.value)} disabled={disabled}>
-            {Object.keys(CLOCKS).map(label => (
-              <option key={label} value={label}>
-                {label}
-              </option>
-            ))}
-          </select>
+          <label className={styles.pick}>
+            Clock
+            <select aria-label="Round robin clock" value={clock} onChange={event => setClock(event.target.value)} disabled={disabled}>
+              {Object.keys(CLOCKS).map(label => (
+                <option key={label} value={label}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
         ) : (
-          <select aria-label="Round robin variant" value={variant} onChange={event => setVariant(event.target.value as PongVariant)} disabled={disabled}>
-            {VARIANTS.map(option => (
-              <option key={option.variant} value={option.variant}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <label className={styles.pick}>
+            Court
+            <select aria-label="Round robin variant" value={variant} onChange={event => setVariant(event.target.value as PongVariant)} disabled={disabled}>
+              {VARIANTS.map(option => (
+                <option key={option.variant} value={option.variant}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
         <button
           type="button"

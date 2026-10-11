@@ -112,8 +112,9 @@ describe('the court on screen', () => {
   })
 
   it('names smallcat’s bots by their level', () => {
-    expect(pongName('smallcat@1')).toBe('smallcat (Easy)')
-    expect(pongName('smallcat@3')).toBe('smallcat (Hard)')
+    expect(pongName('smallcat@1')).toBe('smallcat bot (Easy)')
+    expect(pongName('smallcat@2')).toBe('smallcat bot (Medium)')
+    expect(pongName('smallcat@3')).toBe('smallcat bot (Hard)')
     expect(pongName('alice')).toBe('alice')
   })
 })

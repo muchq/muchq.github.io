@@ -139,7 +139,7 @@ export interface PongMovePayloads {
 export type PongMoveName = keyof PongMovePayloads
 
 export const VARIANTS: ReadonlyArray<{ variant: PongVariant; label: string }> = [
-  { variant: 'smallcat', label: 'smallcat (2D)' },
+  { variant: 'smallcat', label: '2D' },
   { variant: '3d', label: '3D' }
 ]
 
@@ -148,6 +148,6 @@ export const variantLabel = (variant: PongVariant): string =>
 
 export const BOT_LEVELS: ReadonlyArray<{ level: number; label: string }> = [
   { level: 1, label: 'Easy' },
-  { level: 2, label: 'smallcat' },
+  { level: 2, label: 'Medium' },
   { level: 3, label: 'Hard' }
 ]

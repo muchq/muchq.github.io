@@ -67,7 +67,11 @@ describe('PongTable', () => {
     const held = mount({ view: view({ phase: 'waiting', variant: undefined, court: undefined, players: [{ playerId: 'alice' }] }) })
     expect(status()).toBe('Waiting for a second seat.')
     expect(screen.queryByRole('button', { name: 'Start' })).toBeNull()
-    fireEvent.change(screen.getByRole('combobox', { name: 'Bot level' }), { target: { value: '3' } })
+    const bot = screen.getByRole('combobox', { name: 'Bot' })
+    // Labelled on screen, not only for screen readers: a phone's picker shows the options alone.
+    expect(bot.closest('label')?.firstChild?.textContent).toBe('Bot')
+    expect(within(bot).getAllByRole('option').map(option => option.textContent)).toEqual(['Easy', 'Medium', 'Hard'])
+    fireEvent.change(bot, { target: { value: '3' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add a bot' }))
     expect(held.addBot).toHaveBeenCalledWith(3)
     fireEvent.click(screen.getByRole('button', { name: 'Leave table' }))
@@ -76,9 +80,12 @@ describe('PongTable', () => {
 
   it('with both seats filled, starts on the court picked', () => {
     const held = mount({ view: view({ phase: 'waiting', variant: undefined, court: undefined, players: [{ playerId: 'alice' }, { playerId: 'smallcat@2', bot: true }] }) })
-    expect(screen.getByText('smallcat (smallcat)')).toBeTruthy()
+    expect(screen.getByText('smallcat bot (Medium)')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Add a bot' })).toBeNull()
-    fireEvent.change(screen.getByRole('combobox', { name: 'Court' }), { target: { value: '3d' } })
+    const courtPick = screen.getByRole('combobox', { name: 'Court' })
+    expect(courtPick.closest('label')?.firstChild?.textContent).toBe('Court')
+    expect(within(courtPick).getAllByRole('option').map(option => option.textContent)).toEqual(['2D', '3D'])
+    fireEvent.change(courtPick, { target: { value: '3d' } })
     fireEvent.click(screen.getByRole('button', { name: 'Start' }))
     expect(held.startTable).toHaveBeenCalledWith('3d')
   })
@@ -173,7 +180,7 @@ describe('PongTable', () => {
 
   it('a watcher sees the rally and touches nothing', () => {
     const held = mount({ playerId: 'carol' })
-    expect(screen.getByRole('heading').textContent).toBe('Watching pong P1 · smallcat (2D)')
+    expect(screen.getByRole('heading').textContent).toBe('Watching pong P1 · 2D')
     const canvas = screen.getByRole('img', { name: /pong court/ })
     fireEvent.keyDown(canvas, { key: 'ArrowUp' })
     fireEvent.pointerMove(canvas, { clientX: 160, clientY: 70 })
