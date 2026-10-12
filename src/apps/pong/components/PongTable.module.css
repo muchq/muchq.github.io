@@ -24,6 +24,40 @@
   outline-offset: 2px;
 }
 
+/* The thumb stick under the court, wherever a finger may play: hidden
+   only on a device with no touch pointer at all, where a mouse or a
+   keyboard steers on the court itself. */
+.stick {
+  position: relative;
+  align-self: center;
+  width: 9rem;
+  height: 9rem;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.knob {
+  position: absolute;
+  left: 30%;
+  top: 30%;
+  width: 40%;
+  height: 40%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+}
+
+@media not all and (any-pointer: coarse) {
+  .stick {
+    display: none;
+  }
+}
+
 .seats {
   list-style: none;
   margin: 0;

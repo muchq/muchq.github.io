@@ -83,6 +83,34 @@ export const canvasPoint = (
 export const aimFor = (court: PongCourt, seat: Seat, point: ScreenPoint): { x: number; y: number } =>
   court.width === 0 ? { x: 0, y: point.y } : unproject(court, seat, point)
 
+// Below this share of its reach a stick asks for nothing.
+const STICK_DEADZONE = 0.3
+// A component counts toward the direction past this share of the stick's
+// lean: about 22.5° either side of each of eight directions.
+const STICK_AXIS = 0.38
+
+// Where a stick, leaning by `lean` (each axis -1 to 1, down and right
+// positive on screen), runs the seat's paddle: the edge it points at, in
+// eight directions. The flat court reads only up and down; from behind
+// end 1, x runs right to left. Null near the centre.
+export const stickTarget = (
+  court: PongCourt,
+  seat: Seat,
+  lean: ScreenPoint,
+  paddle: { x: number; y: number }
+): { x: number; y: number } | null => {
+  const reach = Math.hypot(lean.x, lean.y)
+  if (reach < STICK_DEADZONE) return null
+  const along = (value: number) => (Math.abs(value) >= STICK_AXIS * reach ? Math.sign(value) : 0)
+  const across = court.width === 0 ? 0 : along(seat === 0 ? lean.x : -lean.x)
+  const down = along(lean.y)
+  if (across === 0 && down === 0) return null
+  return {
+    x: across === 0 ? paddle.x : across > 0 ? court.width : 0,
+    y: down === 0 ? paddle.y : down > 0 ? court.height : 0
+  }
+}
+
 // No further than a few dropped frames: past that the rally has likely
 // moved on in a way the velocity doesn't know.
 const EXTRAPOLATE_MS = 100
