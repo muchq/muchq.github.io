@@ -52,14 +52,36 @@ const mount = (props: Partial<PongTableProps> = {}) => {
 
 const status = () => screen.getByRole('status').textContent
 
+// An Audio that remembers what it was asked to play, aloud or muted.
+class FakeAudio {
+  static aloud: string[] = []
+  static muted: string[] = []
+  static made: FakeAudio[] = []
+  muted = false
+  currentTime = 0
+  constructor(public src: string) {
+    FakeAudio.made.push(this)
+  }
+  play() {
+    ;(this.muted ? FakeAudio.muted : FakeAudio.aloud).push(this.src.replace('/audio/smallcat/', '').replace('.wav', ''))
+    return Promise.resolve()
+  }
+  pause() {}
+}
+
 describe('PongTable', () => {
   beforeEach(() => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 0)
+    FakeAudio.aloud = []
+    FakeAudio.muted = []
+    FakeAudio.made = []
+    vi.stubGlobal('Audio', FakeAudio)
   })
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
   // Alone at a table, a bot can take the second seat, at a level picked.
@@ -244,5 +266,102 @@ describe('PongTable', () => {
     mount({ view: view({ phase: 'ended', result: { winner: 'alice', ending: 'points' }, roundRobinId: 'E1' }) })
     expect(status()).toBe('You won.')
     expect(screen.queryByRole('button', { name: 'Play again' })).toBeNull()
+  })
+
+  // smallcat's sounds, from the viewer's side: woo when they miss, mah when you do.
+  it('plays smallcat’s sound for each miss', () => {
+    const held = table()
+    const { rerender } = render(<PongTable playerId="alice" connected view={view()} table={held} />)
+    rerender(<PongTable playerId="alice" connected view={view({ players: [{ playerId: 'alice', lives: 3 }, { playerId: 'bob', lives: 1 }] })} table={held} />)
+    expect(FakeAudio.aloud).toEqual(['woo'])
+    rerender(<PongTable playerId="alice" connected view={view({ players: [{ playerId: 'alice', lives: 2 }, { playerId: 'bob', lives: 1 }] })} table={held} />)
+    expect(FakeAudio.aloud).toEqual(['woo', 'mah'])
+  })
+
+  // A hit is heard where the ball turns back: boo for yours, ping for theirs.
+  it('plays smallcat’s sound for each hit, heard between frames', () => {
+    const frames: FrameRequestCallback[] = []
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => frames.push(callback))
+    let current: PongFrame = { ...frame, velocity: { x: 0, y: 1, z: -6 } }
+    const held = table({ latestFrame: () => ({ frame: current, receivedAt: 0 }) })
+    render(<PongTable playerId="alice" connected view={view()} table={held} />)
+    const step = () => frames.splice(0).forEach(callback => callback(0))
+    current = { ...frame, tick: 12, velocity: { x: 0, y: 1, z: 6 } }
+    step()
+    expect(FakeAudio.aloud).toEqual(['boo'])
+    step()
+    expect(FakeAudio.aloud).toEqual(['boo'])
+    current = { ...frame, tick: 14, velocity: { x: 0, y: 1, z: -6 } }
+    step()
+    expect(FakeAudio.aloud).toEqual(['boo', 'ping'])
+  })
+
+  // Each view brings a new court; the last frame heard outlives it, so a
+  // hit across a view is still heard.
+  it('hears a hit across a new view', () => {
+    const frames: FrameRequestCallback[] = []
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => frames.push(callback))
+    let current: PongFrame = { ...frame, velocity: { x: 0, y: 1, z: -6 } }
+    const held = table({ latestFrame: () => ({ frame: current, receivedAt: 0 }) })
+    const { rerender } = render(<PongTable playerId="alice" connected view={view()} table={held} />)
+    rerender(<PongTable playerId="alice" connected view={view({ court: { ...court } })} table={held} />)
+    current = { ...frame, tick: 12, velocity: { x: 0, y: 1, z: 6 } }
+    frames.splice(0).forEach(callback => callback(0))
+    expect(FakeAudio.aloud).toEqual(['boo'])
+  })
+
+  // iOS plays a sound from a loop only once a gesture has started it: the
+  // first touch at the table starts each one, muted.
+  it('readies the sounds on the first touch at the table', async () => {
+    mount({ view: view({ phase: 'waiting', variant: undefined, court: undefined, players: [{ playerId: 'alice' }] }) })
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Add a bot' }))
+    expect(FakeAudio.muted.sort()).toEqual(['boo', 'mah', 'ping', 'woo'])
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Add a bot' }))
+    expect(FakeAudio.muted).toHaveLength(4)
+    expect(FakeAudio.aloud).toEqual([])
+    // Readied, each is unmuted again for the game to play.
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(FakeAudio.made.every(sound => !sound.muted)).toBe(true)
+  })
+
+  // On a phone the court is small and a finger hides it: a stick under it
+  // runs the paddle for the edge it leans toward and stops it on release,
+  // as the arrow keys do.
+  it('steers with the stick under the court, and stops on release', () => {
+    vi.spyOn(performance, 'now').mockReturnValue(50)
+    const held = mount()
+    const stick = screen.getByRole('group', { name: 'Paddle stick' })
+    vi.spyOn(stick, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 100, height: 100 } as DOMRect)
+    fireEvent.pointerDown(stick, { clientX: 50, clientY: 0, pointerId: 1 })
+    expect(held.aimNow).toHaveBeenLastCalledWith(0, 0)
+    fireEvent.pointerMove(stick, { clientX: 50, clientY: 100, pointerId: 1 })
+    expect(held.aimNow).toHaveBeenLastCalledWith(0, 400)
+    fireEvent.pointerMove(stick, { clientX: 55, clientY: 95, pointerId: 1 })
+    expect(held.aimNow).toHaveBeenCalledTimes(2)
+    fireEvent.pointerUp(stick, { pointerId: 1 })
+    // 50ms is 3 ticks at 8 a tick, from 120 toward the bottom.
+    expect(held.aimNow).toHaveBeenLastCalledWith(0, 144)
+    expect(held.aim).not.toHaveBeenCalled()
+  })
+
+  // Capture can end with no lift, when the browser takes the pointer back:
+  // the paddle stops then too.
+  it('stops the paddle when the stick loses its pointer', () => {
+    vi.spyOn(performance, 'now').mockReturnValue(50)
+    const held = mount()
+    const stick = screen.getByRole('group', { name: 'Paddle stick' })
+    vi.spyOn(stick, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, width: 100, height: 100 } as DOMRect)
+    fireEvent.pointerDown(stick, { clientX: 50, clientY: 100, pointerId: 1 })
+    fireEvent.lostPointerCapture(stick, { pointerId: 1 })
+    expect(held.aimNow).toHaveBeenLastCalledWith(0, 144)
+    fireEvent.pointerMove(stick, { clientX: 50, clientY: 0, pointerId: 1 })
+    expect(held.aimNow).toHaveBeenCalledTimes(2)
+  })
+
+  it('offers a watcher no stick', () => {
+    mount({ playerId: 'carol' })
+    expect(screen.queryByRole('group', { name: 'Paddle stick' })).toBeNull()
   })
 })

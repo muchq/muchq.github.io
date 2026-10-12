@@ -3,16 +3,20 @@ import type { KeyboardEvent, PointerEvent } from 'react'
 import felt from '@/apps/castle/components/CastleTable.module.css'
 import AboutGame from '@/apps/lobby/components/AboutGame'
 import type { UsePongTable } from '@/hooks/usePongTable'
-import { aimFor, canvasPoint, extrapolate, flatSize, pongName, tunnelSize, viewSeat, type Seat } from '../court'
+import { aimFor, canvasPoint, extrapolate, flatSize, pongName, stickTarget, tunnelSize, viewSeat, type ScreenPoint, type Seat } from '../court'
 import { drawFlat, drawTunnel, type Scene } from '../draw'
-import { BOT_LEVELS, VARIANTS, variantLabel, type PongCourt, type PongVariant, type PongView } from '../wire'
+import { hitsBetween, missesBetween, soundFor } from '../sounds'
+import { BOT_LEVELS, VARIANTS, variantLabel, type PongCourt, type PongFrame, type PongVariant, type PongView } from '../wire'
 import styles from './PongTable.module.css'
+import { usePongSounds } from './usePongSounds'
 
 // The table from the viewer's seat: the court drawn each animation frame
 // from the newest frame the hub sent, the ball moved on by its velocity
 // between them. A seat steers its paddle with the pointer over the court
-// or the arrow keys; the hub chases where it asks at the court's speed.
-// A watcher sees it from the second seat's side and touches nothing.
+// or the arrow keys, or on a phone the stick under the court; the hub
+// chases where it asks at the court's speed. smallcat's sounds play for
+// each hit and miss. A watcher sees and hears it from the second seat's
+// side and touches nothing.
 
 export interface PongTableProps {
   playerId: string
@@ -35,6 +39,50 @@ const keyTarget = (court: PongCourt, seat: Seat, key: string, paddle: { x: numbe
 
 // From `from` toward `to`, no further than `reach` on each axis.
 const toward = (from: number, to: number, reach: number): number => from + Math.sign(to - from) * Math.min(reach, Math.abs(to - from))
+
+const clampUnit = (value: number): number => Math.max(-1, Math.min(1, value))
+
+// A thumb stick: where the finger leans from its centre, each axis -1 to
+// 1, while it is down; null once it lifts.
+const Stick = ({ onLean }: { onLean: (lean: ScreenPoint | null) => void }) => {
+  const [knob, setKnob] = useState<ScreenPoint | null>(null)
+  const active = useRef(false)
+  const read = (event: PointerEvent<HTMLDivElement>) => {
+    const box = event.currentTarget.getBoundingClientRect()
+    if (box.width === 0 || box.height === 0) return
+    const lean = {
+      x: clampUnit((event.clientX - box.left - box.width / 2) / (box.width / 2)),
+      y: clampUnit((event.clientY - box.top - box.height / 2) / (box.height / 2))
+    }
+    setKnob(lean)
+    onLean(lean)
+  }
+  const release = () => {
+    active.current = false
+    setKnob(null)
+    onLean(null)
+  }
+  return (
+    <div
+      role="group"
+      aria-label="Paddle stick"
+      className={styles.stick}
+      onPointerDown={event => {
+        active.current = true
+        event.currentTarget.setPointerCapture?.(event.pointerId)
+        read(event)
+      }}
+      onPointerMove={event => {
+        if (active.current) read(event)
+      }}
+      onPointerUp={release}
+      onPointerCancel={release}
+      onLostPointerCapture={release}
+    >
+      <span className={styles.knob} style={knob === null ? undefined : { transform: `translate(${knob.x * 75}%, ${knob.y * 75}%)` }} />
+    </div>
+  )
+}
 
 const lifeLine = (lives: number | undefined): string => (lives === undefined ? '' : ` · ${lives} ${lives === 1 ? 'life' : 'lives'}`)
 
@@ -65,19 +113,36 @@ const PongTable = ({ playerId, connected, view, table }: PongTableProps) => {
   const viewRef = useRef(view)
   viewRef.current = view
   const { latestFrame, aim, aimNow } = table
-  // The arrow key held and where it runs the paddle.
+  // What runs the paddle now, an arrow key or the stick, and its edge.
   const heldKey = useRef<{ key: string; target: { x: number; y: number } } | null>(null)
+  const { play, unlock } = usePongSounds()
 
-  // Drawn every animation frame while the court is up; the frames
-  // themselves never re-render this.
+  // A miss is a life lost, heard as each view lands.
+  const heardView = useRef<PongView | null>(null)
+  useEffect(() => {
+    for (const missed of missesBetween(heardView.current, view)) play(soundFor('miss', missed, seat))
+    heardView.current = view
+  }, [view, seat, play])
+
+  // Drawn every animation frame while the court is up, and each new frame
+  // heard for hits; the frames themselves never re-render this. The last
+  // frame heard outlives the loop, which restarts with each view's court.
+  const heardFrame = useRef<PongFrame | null>(null)
   useEffect(() => {
     if (court === undefined) return
-    const ctx = canvasRef.current?.getContext('2d')
-    if (ctx === null || ctx === undefined) return
+    const ctx = canvasRef.current?.getContext('2d') ?? null
     const draw = court.width === 0 ? drawFlat : drawTunnel
     let handle = 0
     const paint = () => {
       const held = latestFrame()
+      if (held?.frame !== heardFrame.current) {
+        if (held !== null) for (const end of hitsBetween(heardFrame.current, held.frame)) play(soundFor('hit', end, seat))
+        heardFrame.current = held?.frame ?? null
+      }
+      if (ctx === null) {
+        handle = requestAnimationFrame(paint)
+        return
+      }
       const lives = viewRef.current.players.map(player => player.lives ?? 0)
       const scene: Scene =
         held === null
@@ -93,7 +158,7 @@ const PongTable = ({ playerId, connected, view, table }: PongTableProps) => {
     }
     paint()
     return () => cancelAnimationFrame(handle)
-  }, [court, seat, latestFrame])
+  }, [court, seat, latestFrame, play])
 
   // A seat in play takes the keyboard on its court.
   const playing = view.phase === 'playing' && !watching
@@ -119,20 +184,38 @@ const PongTable = ({ playerId, connected, view, table }: PongTableProps) => {
     if (target === null) return
     event.preventDefault()
     if (event.repeat) return
-    heldKey.current = { key: event.key, target }
+    run(event.key, target)
+  }
+  const run = (key: string, target: { x: number; y: number }) => {
+    heldKey.current = { key, target }
     aimNow(target.x, target.y)
   }
   // Letting go stops it where it has got to: the last frame's paddle, run
   // on toward the key's edge at the court's speed since that frame.
-  const onKeyUp = (event: KeyboardEvent<HTMLCanvasElement>) => {
+  const onKeyUp = (event: KeyboardEvent<HTMLCanvasElement>) => stop(event.key)
+  const stop = (key: string) => {
     const held = heldKey.current
-    if (held === null || held.key !== event.key) return
+    if (held === null || held.key !== key) return
     heldKey.current = null
     const last = latestFrame()
     const paddle = last?.frame.paddles[seat]
     if (!playing || court === undefined || last === null || paddle === undefined) return
     const reach = (court.playerSpeed * (performance.now() - last.receivedAt) * court.ticksPerSecond) / 1000
     aimNow(toward(paddle.x, held.target.x, reach), toward(paddle.y, held.target.y, reach))
+  }
+  // The stick runs the paddle for the edge it leans toward, sending only
+  // when that edge changes, and stops it when it centres or lifts.
+  const onLean = (lean: ScreenPoint | null) => {
+    if (!playing || court === undefined) return
+    const paddle = latestFrame()?.frame.paddles[seat]
+    const target = lean === null || paddle === undefined ? null : stickTarget(court, seat, lean, paddle)
+    if (target === null) {
+      stop('stick')
+      return
+    }
+    const held = heldKey.current
+    if (held?.key === 'stick' && held.target.x === target.x && held.target.y === target.y) return
+    run('stick', target)
   }
   // On touch a pointer moves only while it drags, so a tap aims too.
   const onPointer = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -182,7 +265,7 @@ const PongTable = ({ playerId, connected, view, table }: PongTableProps) => {
   const size = court === undefined ? null : court.width === 0 ? flatSize(court) : tunnelSize(court)
 
   return (
-    <div className={styles.table} data-phase={view.phase}>
+    <div className={styles.table} data-phase={view.phase} onPointerDownCapture={unlock} onKeyDownCapture={unlock}>
       <h1 className={felt.title}>
         {watching ? 'Watching pong' : 'Pong'} {view.gameId}
         {view.variant === undefined ? '' : ` · ${variantLabel(view.variant)}`}
@@ -248,6 +331,7 @@ const PongTable = ({ playerId, connected, view, table }: PongTableProps) => {
           onPointerDown={onPointer}
         />
       )}
+      {playing && court !== undefined && <Stick onLean={onLean} />}
 
       {view.phase === 'waiting' && <AboutGame game="pong" className={felt.hint} />}
       {!watching && !pairing && (

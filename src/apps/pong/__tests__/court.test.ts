@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PongCourt, PongFrame } from '../wire'
-import { aimFor, canvasPoint, extrapolate, flatPoint, flatSize, pongName, project, tunnelSize, unproject, viewSeat } from '../court'
+import { aimFor, canvasPoint, extrapolate, stickTarget, flatPoint, flatSize, pongName, project, tunnelSize, unproject, viewSeat } from '../court'
 
 const flat: PongCourt = {
   width: 0,
@@ -109,6 +109,20 @@ describe('the court on screen', () => {
     expect(extrapolate(frame(), tunnel, 5000)).toEqual(extrapolate(frame(), tunnel, 100))
     expect(extrapolate(frame({ serveIn: 30 }), tunnel, 50)).toEqual({ x: 200, y: 150, z: 400 })
     expect(extrapolate(frame({ ball: { x: 200, y: 150, z: 790 } }), tunnel, 100).z).toBe(800)
+  })
+
+  // A stick held off centre runs the paddle for the edge it points at,
+  // in eight directions; near the centre it asks for nothing. The flat
+  // court reads only up and down; from behind end 1, x runs right to left.
+  it('reads a stick into the edge it runs the paddle for', () => {
+    const paddle = { x: 150, y: 120 }
+    expect(stickTarget(tunnel, 0, { x: 0.1, y: -0.1 }, paddle)).toBeNull()
+    expect(stickTarget(tunnel, 0, { x: 0, y: -1 }, paddle)).toEqual({ x: 150, y: 0 })
+    expect(stickTarget(tunnel, 0, { x: 0.8, y: 0.8 }, paddle)).toEqual({ x: 400, y: 300 })
+    expect(stickTarget(tunnel, 0, { x: -1, y: 0.1 }, paddle)).toEqual({ x: 0, y: 120 })
+    expect(stickTarget(tunnel, 1, { x: -1, y: 0 }, paddle)).toEqual({ x: 400, y: 120 })
+    expect(stickTarget(flat, 0, { x: 1, y: 0.1 }, { x: 0, y: 120 })).toBeNull()
+    expect(stickTarget(flat, 0, { x: 1, y: 0.9 }, { x: 0, y: 120 })).toEqual({ x: 0, y: 400 })
   })
 
   it('names smallcat’s bots by their level', () => {
