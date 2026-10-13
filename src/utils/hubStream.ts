@@ -140,7 +140,8 @@ export interface HubStreamCallbacks {
   onVoice?: (update: VoiceUpdate) => void
   // The reconnect loop gave up, or the hub refused the stream outright.
   // A refusal still reconnects (the next dial mints fresh), so a later
-  // onConnection(true) supersedes it.
+  // onConnection(true) supersedes it. A SeatConflict is not reported: the
+  // next dial keeps the identity and reclaims the seat.
   onLost?: (reason: string) => void
 }
 
@@ -160,7 +161,9 @@ export class HubStream {
   private closed = false
   private reconnectAttempts = 0
   private reconnectTimeout: number | null = null
+  private awaitingShow: (() => void) | null = null
   private sawSessionReady = false
+  private refusal: string | null = null
 
   constructor(options: HubStreamOptions) {
     this.playUrl = options.playUrl
@@ -170,7 +173,7 @@ export class HubStream {
 
   connect(): void {
     this.closed = false
-    void this.dial()
+    this.dialWhenShown()
   }
 
   disconnect(): void {
@@ -179,6 +182,7 @@ export class HubStream {
       clearTimeout(this.reconnectTimeout)
       this.reconnectTimeout = null
     }
+    this.stopAwaitingShow()
     this.ws?.close()
     this.ws = null
   }
@@ -193,6 +197,29 @@ export class HubStream {
 
   // --- session + socket lifecycle ---
 
+  // A dial takes the seat from any other socket holding this identity,
+  // and a duplicated tab holds the same token: only a tab being looked at
+  // dials, so the one in front holds the seat and two never trade it.
+  private dialWhenShown(): void {
+    if (document.visibilityState !== 'hidden') {
+      void this.dial()
+      return
+    }
+    if (this.awaitingShow) return
+    this.awaitingShow = () => {
+      if (document.visibilityState === 'hidden') return
+      this.stopAwaitingShow()
+      if (!this.closed) void this.dial()
+    }
+    document.addEventListener('visibilitychange', this.awaitingShow)
+  }
+
+  private stopAwaitingShow(): void {
+    if (!this.awaitingShow) return
+    document.removeEventListener('visibilitychange', this.awaitingShow)
+    this.awaitingShow = null
+  }
+
   private async dial(): Promise<void> {
     try {
       const session = await mintHubSession(this.playUrl, safeSessionStorage.get(this.resumeTokenKey))
@@ -205,6 +232,7 @@ export class HubStream {
       const ws = new WebSocket(`${this.playUrl}?ticket=${encodeURIComponent(session.ticket)}`, HUB_SUBPROTOCOL)
       this.ws = ws
       this.sawSessionReady = false
+      this.refusal = null
 
       ws.onopen = () => {
         this.reconnectAttempts = 0
@@ -222,11 +250,12 @@ export class HubStream {
       ws.onclose = () => {
         this.callbacks.onConnection?.(false)
         if (this.closed) return
-        if (!this.sawSessionReady) {
-          // Refused before admission (spent ticket, seat conflict, bad
-          // resume token): drop the token so the next dial mints fresh.
-          // A deliberate disconnect before admission is not a refusal,
-          // and keeps the identity for the next visit.
+        if (!this.sawSessionReady && this.refusal !== 'SeatConflict') {
+          // Refused before admission (spent ticket, bad resume token):
+          // drop the token so the next dial mints fresh. A SeatConflict
+          // is the seat's old session still unwinding, and the next dial
+          // reclaims it. A deliberate disconnect before admission is not
+          // a refusal, and keeps the identity for the next visit.
           safeSessionStorage.remove(this.resumeTokenKey)
         }
         this.scheduleReconnect()
@@ -247,7 +276,10 @@ export class HubStream {
       return
     }
     this.reconnectAttempts++
-    this.reconnectTimeout = window.setTimeout(() => void this.dial(), RECONNECT_DELAY_MS)
+    this.reconnectTimeout = window.setTimeout(() => {
+      this.reconnectTimeout = null
+      this.dialWhenShown()
+    }, RECONNECT_DELAY_MS)
   }
 
   private send(event: HubCommand, payload: unknown): void {
@@ -262,7 +294,10 @@ export class HubStream {
 
   private handleFrame(frame: HubFrame): void {
     if (frame.event === undefined) {
-      // A terminal refusal names its shape; the message is for people.
+      // A terminal refusal names its shape; the message is for people. A
+      // SeatConflict is not a loss: the next dial reclaims the seat.
+      this.refusal = frame.exception
+      if (frame.exception === 'SeatConflict') return
       this.callbacks.onLost?.(frame.payload?.message ?? frame.exception)
       return
     }

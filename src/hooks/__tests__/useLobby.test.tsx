@@ -642,8 +642,8 @@ describe('useLobby', () => {
         ws.open()
         ws.receive('sessionReady', { playerId: 'alice', resumed: false })
       })
-      act(() => ws.receiveRaw({ exception: 'SeatConflict', payload: { message: 'the player already holds a live seat' } }))
-      expect(result.current.lost).toBe('the player already holds a live seat')
+      act(() => ws.receiveRaw({ exception: 'Unauthenticated', payload: { message: 'ticket expired or already spent' } }))
+      expect(result.current.lost).toBe('ticket expired or already spent')
       act(() => ws.close())
       await act(async () => {
         await vi.advanceTimersByTimeAsync(2000)

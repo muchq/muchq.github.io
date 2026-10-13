@@ -112,8 +112,8 @@ describe('HubStream', () => {
   })
 
   // Tabs share localStorage: a token kept there would be offered by a
-  // second tab for the first tab's live seat, refused, and deleted.
-  // sessionStorage is the tab's own, and survives a reload.
+  // second tab, which would take the first tab's seat. sessionStorage is
+  // the tab's own, and survives a reload.
   it("keeps the resume token to this tab, never offering or touching another's", async () => {
     localStorage.setItem(TOKEN_KEY, 'rt-other-tab')
     await connect()
@@ -145,6 +145,84 @@ describe('HubStream', () => {
     ws.close()
     expect(sessionStorage.getItem(TOKEN_KEY)).toBe('rt-456')
     admittedHub.disconnect()
+  })
+
+  // The hub refuses a resume while the seat's old session is still
+  // unwinding; the identity is good, and the next dial reclaims it.
+  it('a SeatConflict refusal keeps the resume token and dials again with it', async () => {
+    vi.useFakeTimers()
+    const hub = stream()
+    hub.connect()
+    await vi.advanceTimersByTimeAsync(0)
+    const refused = FakeWebSocket.instances[0]
+    refused.open()
+    refused.receiveRaw({ exception: 'SeatConflict', payload: { message: 'player already has a live connection' } })
+    refused.close()
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    expect(callbacks.onLost).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(2000)
+    const [, init] = fetchMock.mock.calls[1]
+    expect(JSON.parse((init as { body: string }).body)).toEqual({ resumeToken: 'rt-456' })
+    hub.disconnect()
+  })
+
+  // A dial takes the seat from any other socket holding the identity, and
+  // a duplicated tab holds the same token: only the tab being looked at
+  // dials, so two of them never trade the seat back and forth.
+  describe('while the tab is hidden', () => {
+    let visibility: DocumentVisibilityState
+    const show = (state: DocumentVisibilityState) => {
+      visibility = state
+      document.dispatchEvent(new Event('visibilitychange'))
+    }
+
+    beforeEach(() => {
+      visibility = 'hidden'
+      vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
+    })
+
+    it('waits to redial until it is shown, then dials at once', async () => {
+      vi.useFakeTimers()
+      const hub = stream()
+      visibility = 'visible'
+      hub.connect()
+      await vi.advanceTimersByTimeAsync(0)
+      FakeWebSocket.instances[0].open()
+      FakeWebSocket.instances[0].receive('sessionReady', { playerId: 'alice', resumed: false })
+      visibility = 'hidden'
+      FakeWebSocket.instances[0].close()
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(callbacks.onLost).not.toHaveBeenCalled()
+
+      show('visible')
+      await vi.advanceTimersByTimeAsync(0)
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(FakeWebSocket.instances).toHaveLength(2)
+      hub.disconnect()
+    })
+
+    it('does not dial on its first connect until it is shown', async () => {
+      vi.useFakeTimers()
+      const hub = stream()
+      hub.connect()
+      await vi.advanceTimersByTimeAsync(10_000)
+      expect(fetchMock).not.toHaveBeenCalled()
+      show('visible')
+      await vi.advanceTimersByTimeAsync(0)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      hub.disconnect()
+    })
+
+    it('a disconnect while waiting never dials', async () => {
+      vi.useFakeTimers()
+      const hub = stream()
+      hub.connect()
+      hub.disconnect()
+      show('visible')
+      await vi.advanceTimersByTimeAsync(10_000)
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
   })
 
   it('a deliberate disconnect before admission keeps the identity', async () => {
