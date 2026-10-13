@@ -659,6 +659,32 @@ describe('useLobby', () => {
     }
   })
 
+  // The seat's old session is still letting go: not a loss, and the next
+  // dial asks for the same player back.
+  it('a SeatConflict is not lost, and the next dial resumes the same player', async () => {
+    vi.useFakeTimers()
+    try {
+      const { result } = mount()
+      let ws!: FakeWebSocket
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+        ws = FakeWebSocket.instances[0]
+        ws.open()
+      })
+      act(() => ws.receiveRaw({ exception: 'SeatConflict', payload: { message: 'player already has a live connection' } }))
+      act(() => ws.close())
+      expect(result.current.lost).toBeNull()
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000)
+      })
+      const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>
+      const redial = fetchMock.mock.calls[fetchMock.mock.calls.length - 1][1]
+      expect(JSON.parse(redial.body)).toEqual({ resumeToken: 'rt-456' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   describe('voice', () => {
     const STUN = [{ urls: ['stun:stun.example:3478'] }]
     const voiceFrames = (ws: FakeWebSocket) => ws.sentFrames().filter(frame => frame.event === 'voice')

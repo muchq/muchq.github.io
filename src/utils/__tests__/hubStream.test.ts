@@ -131,14 +131,17 @@ describe('HubStream', () => {
     expect(FakeWebSocket.instances).toHaveLength(0)
   })
 
-  it('a close before admission forgets the resume token; one after keeps it', async () => {
+  // The mint swaps a token it cannot resolve for a fresh identity, so a
+  // dial that fails before admission (a radio waking up, a restarting hub)
+  // never means the token is bad: forgetting it would cost the seat.
+  it('a close before admission keeps the resume token, as does one after', async () => {
     const hub = stream()
     hub.connect()
     await flushAsync()
     const refused = FakeWebSocket.instances[0]
     refused.open()
     refused.close()
-    expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull()
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('rt-456')
     hub.disconnect()
 
     const [admittedHub, ws] = await connect()
@@ -166,9 +169,56 @@ describe('HubStream', () => {
     hub.disconnect()
   })
 
+  // A refusal arrives after the socket opens; only admission is progress,
+  // so a seat that never frees spends the budget instead of looping.
+  it('refusals after the socket opens still spend the reconnect budget', async () => {
+    vi.useFakeTimers()
+    const hub = stream()
+    hub.connect()
+    for (let attempt = 0; attempt <= 10; attempt++) {
+      await vi.advanceTimersByTimeAsync(0)
+      const ws = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
+      ws.open()
+      ws.receiveRaw({ exception: 'SeatConflict', payload: { message: 'player already has a live connection' } })
+      ws.close()
+      await vi.advanceTimersByTimeAsync(2000)
+    }
+    expect(FakeWebSocket.instances).toHaveLength(11)
+    expect(callbacks.onLost).toHaveBeenCalledWith('Lost connection to the games hub')
+  })
+
+  // A socket's close can land after a disconnect and reconnect replaced
+  // it; it speaks for that socket only.
+  it('a replaced socket closing late neither dials again nor reports a drop', async () => {
+    vi.useFakeTimers()
+    const hub = stream()
+    hub.connect()
+    await vi.advanceTimersByTimeAsync(0)
+    const old = FakeWebSocket.instances[0]
+    old.open()
+    old.receive('sessionReady', { playerId: 'alice', resumed: false })
+    const lateClose = old.onclose
+    old.onclose = null
+    hub.disconnect()
+    hub.connect()
+    // Late enough to beat the next socket, as well as after it.
+    lateClose?.()
+    await vi.advanceTimersByTimeAsync(0)
+    const current = FakeWebSocket.instances[1]
+    current.open()
+    current.receive('sessionReady', { playerId: 'alice', resumed: true })
+    callbacks.onConnection.mockClear()
+    lateClose?.()
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(FakeWebSocket.instances).toHaveLength(2)
+    expect(callbacks.onConnection).not.toHaveBeenCalled()
+    expect(hub.isConnected).toBe(true)
+    hub.disconnect()
+  })
+
   // A dial takes the seat from any other socket holding the identity, and
   // a duplicated tab holds the same token: only the tab being looked at
-  // dials, so two of them never trade the seat back and forth.
+  // dials, so a duplicate in the background never takes the seat back.
   describe('while the tab is hidden', () => {
     let visibility: DocumentVisibilityState
     const show = (state: DocumentVisibilityState) => {

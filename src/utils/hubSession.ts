@@ -8,9 +8,9 @@ const MINT_TIMEOUT_MS = 10_000
 
 // Where the resume token lives, in the tab's sessionStorage: a reload
 // reclaims the seat, and a new tab mints its own rather than taking the
-// first tab's. A duplicated tab copies the token; HubStream keeps the seat
-// with whichever of the two is shown. The name is golf's from before there
-// was a lobby.
+// first tab's. A duplicated tab copies the token; HubStream dials only
+// while shown, so a duplicate in the background leaves the seat alone. The
+// name is golf's from before there was a lobby.
 export const HUB_RESUME_TOKEN_KEY = 'golf_v2_resume_token'
 
 // The one stream (MoonBase#1490): the room layer, the lobby's world, golf,
