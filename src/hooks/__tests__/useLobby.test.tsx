@@ -659,6 +659,44 @@ describe('useLobby', () => {
     }
   })
 
+  // Another window took the seat (close code 4001): this one stops instead
+  // of taking it back, and plays here again only when asked.
+  it('a superseded stream says so, stays down, and plays here on request', async () => {
+    vi.useFakeTimers()
+    try {
+      const { result } = mount()
+      let ws!: FakeWebSocket
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+        ws = FakeWebSocket.instances[0]
+        ws.open()
+        ws.receive('sessionReady', { playerId: 'alice', resumed: false })
+      })
+      expect(result.current.superseded).toBe(false)
+      act(() => ws.close(4001))
+      expect(result.current.superseded).toBe(true)
+      expect(result.current.lost).toBeNull()
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000)
+      })
+      expect(FakeWebSocket.instances).toHaveLength(1)
+
+      await act(async () => {
+        result.current.playHere()
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      const next = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
+      expect(FakeWebSocket.instances).toHaveLength(2)
+      act(() => {
+        next.open()
+        next.receive('sessionReady', { playerId: 'alice', resumed: true })
+      })
+      expect(result.current.superseded).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   // The seat's old session is still letting go: not a loss, and the next
   // dial asks for the same player back.
   it('a SeatConflict is not lost, and the next dial resumes the same player', async () => {

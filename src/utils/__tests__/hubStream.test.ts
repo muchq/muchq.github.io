@@ -30,7 +30,8 @@ describe('HubStream', () => {
       onGame: vi.fn(),
       onLobby: vi.fn(),
       onVoice: vi.fn(),
-      onLost: vi.fn()
+      onLost: vi.fn(),
+      onSuperseded: vi.fn()
     }
   })
 
@@ -202,13 +203,13 @@ describe('HubStream', () => {
     hub.disconnect()
     hub.connect()
     // Late enough to beat the next socket, as well as after it.
-    lateClose?.()
+    lateClose?.({ code: 1006 })
     await vi.advanceTimersByTimeAsync(0)
     const current = FakeWebSocket.instances[1]
     current.open()
     current.receive('sessionReady', { playerId: 'alice', resumed: true })
     callbacks.onConnection.mockClear()
-    lateClose?.()
+    lateClose?.({ code: 1006 })
     await vi.advanceTimersByTimeAsync(5000)
     expect(FakeWebSocket.instances).toHaveLength(2)
     expect(callbacks.onConnection).not.toHaveBeenCalled()
@@ -217,62 +218,43 @@ describe('HubStream', () => {
   })
 
   // A dial takes the seat from any other socket holding the identity, and
-  // a duplicated tab holds the same token: only the tab being looked at
-  // dials, so a duplicate in the background never takes the seat back.
-  describe('while the tab is hidden', () => {
-    let visibility: DocumentVisibilityState
-    const show = (state: DocumentVisibilityState) => {
-      visibility = state
-      document.dispatchEvent(new Event('visibilitychange'))
-    }
+  // the hub closes the one it took over with 4001: a duplicated tab, say.
+  // Redialing would take the seat straight back, so the stream stops and
+  // says so; connect() is the player choosing to play here instead.
+  it('a 4001 close is superseded: no redial until connect, and the identity is kept', async () => {
+    vi.useFakeTimers()
+    const hub = stream()
+    hub.connect()
+    await vi.advanceTimersByTimeAsync(0)
+    const kicked = FakeWebSocket.instances[0]
+    kicked.open()
+    kicked.receive('sessionReady', { playerId: 'alice', resumed: false })
+    kicked.close(4001)
+    expect(callbacks.onSuperseded).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(FakeWebSocket.instances).toHaveLength(1)
+    expect(callbacks.onLost).not.toHaveBeenCalled()
 
-    beforeEach(() => {
-      visibility = 'hidden'
-      vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
-    })
+    hub.connect()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(FakeWebSocket.instances).toHaveLength(2)
+    const [, init] = fetchMock.mock.calls[1]
+    expect(JSON.parse((init as { body: string }).body)).toEqual({ resumeToken: 'rt-456' })
+    hub.disconnect()
+  })
 
-    it('waits to redial until it is shown, then dials at once', async () => {
-      vi.useFakeTimers()
-      const hub = stream()
-      visibility = 'visible'
-      hub.connect()
-      await vi.advanceTimersByTimeAsync(0)
-      FakeWebSocket.instances[0].open()
-      FakeWebSocket.instances[0].receive('sessionReady', { playerId: 'alice', resumed: false })
-      visibility = 'hidden'
-      FakeWebSocket.instances[0].close()
-      await vi.advanceTimersByTimeAsync(60_000)
-      expect(fetchMock).toHaveBeenCalledTimes(1)
-      expect(callbacks.onLost).not.toHaveBeenCalled()
-
-      show('visible')
-      await vi.advanceTimersByTimeAsync(0)
-      expect(fetchMock).toHaveBeenCalledTimes(2)
-      expect(FakeWebSocket.instances).toHaveLength(2)
-      hub.disconnect()
-    })
-
-    it('does not dial on its first connect until it is shown', async () => {
-      vi.useFakeTimers()
-      const hub = stream()
-      hub.connect()
-      await vi.advanceTimersByTimeAsync(10_000)
-      expect(fetchMock).not.toHaveBeenCalled()
-      show('visible')
-      await vi.advanceTimersByTimeAsync(0)
-      expect(fetchMock).toHaveBeenCalledTimes(1)
-      hub.disconnect()
-    })
-
-    it('a disconnect while waiting never dials', async () => {
-      vi.useFakeTimers()
-      const hub = stream()
-      hub.connect()
-      hub.disconnect()
-      show('visible')
-      await vi.advanceTimersByTimeAsync(10_000)
-      expect(fetchMock).not.toHaveBeenCalled()
-    })
+  it('any other close redials as before', async () => {
+    vi.useFakeTimers()
+    const hub = stream()
+    hub.connect()
+    await vi.advanceTimersByTimeAsync(0)
+    FakeWebSocket.instances[0].open()
+    FakeWebSocket.instances[0].receive('sessionReady', { playerId: 'alice', resumed: false })
+    FakeWebSocket.instances[0].close(1000)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(FakeWebSocket.instances).toHaveLength(2)
+    expect(callbacks.onSuperseded).not.toHaveBeenCalled()
+    hub.disconnect()
   })
 
   it('a deliberate disconnect before admission keeps the identity', async () => {

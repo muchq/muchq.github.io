@@ -35,6 +35,9 @@ export { hubPlayUrl }
 // 2s x 10 sits well inside the hub's 5-minute reconnect grace.
 const RECONNECT_DELAY_MS = 2000
 const MAX_RECONNECT_ATTEMPTS = 10
+// How the hub closes a wire whose seat a newer connection took
+// (MoonBase games_hub README).
+const SUPERSEDED_CLOSE_CODE = 4001
 
 // --- wire shapes (mirrors model/games.smithy; each game envelope stays opaque) ---
 
@@ -138,6 +141,9 @@ export interface HubStreamCallbacks {
   onLobby?: (update: LobbyUpdate) => void
   // The room's voice, in the voice envelope.
   onVoice?: (update: VoiceUpdate) => void
+  // Another connection took this identity's seat (close code 4001): the
+  // stream stops rather than take it back; connect() plays here again.
+  onSuperseded?: () => void
   // The reconnect loop gave up, or the hub refused the stream outright.
   // A refusal still reconnects, so a later onConnection(true) supersedes
   // it. A SeatConflict is not reported: the next dial reclaims the seat.
@@ -160,7 +166,6 @@ export class HubStream {
   private closed = false
   private reconnectAttempts = 0
   private reconnectTimeout: number | null = null
-  private awaitingShow: (() => void) | null = null
 
   constructor(options: HubStreamOptions) {
     this.playUrl = options.playUrl
@@ -170,7 +175,8 @@ export class HubStream {
 
   connect(): void {
     this.closed = false
-    this.dialWhenShown()
+    this.reconnectAttempts = 0
+    void this.dial()
   }
 
   disconnect(): void {
@@ -179,7 +185,6 @@ export class HubStream {
       clearTimeout(this.reconnectTimeout)
       this.reconnectTimeout = null
     }
-    this.stopAwaitingShow()
     this.ws?.close()
     this.ws = null
   }
@@ -193,30 +198,6 @@ export class HubStream {
   }
 
   // --- session + socket lifecycle ---
-
-  // A dial takes the seat from any other socket holding this identity,
-  // and a duplicated tab holds the same token: only a tab being looked at
-  // dials, so a duplicate in the background never takes the seat back.
-  // Two windows both on screen still trade it on every redial.
-  private dialWhenShown(): void {
-    if (document.visibilityState !== 'hidden') {
-      void this.dial()
-      return
-    }
-    if (this.awaitingShow) return
-    this.awaitingShow = () => {
-      if (document.visibilityState === 'hidden') return
-      this.stopAwaitingShow()
-      if (!this.closed) void this.dial()
-    }
-    document.addEventListener('visibilitychange', this.awaitingShow)
-  }
-
-  private stopAwaitingShow(): void {
-    if (!this.awaitingShow) return
-    document.removeEventListener('visibilitychange', this.awaitingShow)
-    this.awaitingShow = null
-  }
 
   private async dial(): Promise<void> {
     try {
@@ -242,11 +223,15 @@ export class HubStream {
           console.error('hub: bad frame', error)
         }
       }
-      ws.onclose = () => {
+      ws.onclose = event => {
         // A socket a disconnect and reconnect replaced has no say.
         if (ws !== this.ws) return
         this.callbacks.onConnection?.(false)
         if (this.closed) return
+        if (event.code === SUPERSEDED_CLOSE_CODE) {
+          this.callbacks.onSuperseded?.()
+          return
+        }
         // The token survives every close: the mint swaps one it cannot
         // resolve for a fresh identity, so the next dial is never stuck.
         this.scheduleReconnect()
@@ -269,7 +254,7 @@ export class HubStream {
     this.reconnectAttempts++
     this.reconnectTimeout = window.setTimeout(() => {
       this.reconnectTimeout = null
-      this.dialWhenShown()
+      void this.dial()
     }, RECONNECT_DELAY_MS)
   }
 

@@ -180,6 +180,14 @@ const LobbyGame = (props: UseLobbyProps) => {
           {lobby.lost}
         </div>
       )}
+      {lobby.superseded && (
+        <div className={styles.hubLost} role="status">
+          Playing in another window{' '}
+          <button type="button" onClick={lobby.playHere}>
+            Play here
+          </button>
+        </div>
+      )}
       <CommandMenu registry={commands} ref={menuRef} />
       <div className={`${styles.notice} ${notice || said ? '' : styles.noticeEmpty}`} role="status">
         {notice || said}

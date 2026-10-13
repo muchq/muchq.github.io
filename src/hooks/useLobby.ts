@@ -76,6 +76,9 @@ export interface UseLobby {
   playerId: string
   connected: boolean
   lost: string | null
+  // Another window took this player's seat; this one waits to be asked.
+  superseded: boolean
+  playHere: () => void
   room: HubRoom | null
   chat: LobbyChat
   notice: string
@@ -112,6 +115,7 @@ export const useLobby = ({
   const [playerId, setPlayerId] = useState('')
   const [connected, setConnected] = useState(false)
   const [lost, setLost] = useState<string | null>(null)
+  const [superseded, setSuperseded] = useState(false)
   const [room, setRoom] = useState<HubRoom | null>(null)
   const [notice, setNotice] = useState('')
   const [roomCode, setRoomCode] = useState('')
@@ -423,8 +427,10 @@ export const useLobby = ({
       callbacks: {
         onConnection: up => {
           setConnected(up)
-          if (up) setLost(null)
-          else {
+          if (up) {
+            setLost(null)
+            setSuperseded(false)
+          } else {
             dropWorld()
             voice.dropped()
           }
@@ -445,6 +451,7 @@ export const useLobby = ({
         onGame: handleGame,
         onLobby: update => world.apply(update),
         onVoice: update => voice.apply(update),
+        onSuperseded: () => setSuperseded(true),
         onLost: reason => {
           dropWorld()
           voice.dropped()
@@ -476,11 +483,15 @@ export const useLobby = ({
   }, [roomCode, showNotice])
   const leaveRoom = useCallback(() => streamRef.current?.leaveRoom(), [])
   const sendChat = useCallback((text: string) => streamRef.current?.chat(text), [])
+  // Takes the seat back from the other window, which is told in turn.
+  const playHere = useCallback(() => streamRef.current?.connect(), [])
 
   return {
     playerId,
     connected,
     lost,
+    superseded,
+    playHere,
     room,
     chat,
     notice,
