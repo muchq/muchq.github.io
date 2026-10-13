@@ -10,9 +10,9 @@ import felt from '@/apps/castle/components/CastleTable.module.css'
 import AboutGame from '@/apps/lobby/components/AboutGame'
 import styles from './SpadesTable.module.css'
 
-// The spades table from the viewer's chair on castle's felt: the viewer
-// at 6 o'clock and the others round the ring in turn order — in partners,
-// the partner across at 12. The middle is the trick in play. Every rule is the hub's: the view names
+// The spades table from the viewer's chair on castle's felt: the viewer at
+// 6 o'clock and the others round the ring in turn order, a partner across
+// at 12. The middle is the trick in play. Every rule is the hub's: the view names
 // the viewer's legal plays, and only those are buttons.
 
 export interface SpadesTableProps {
@@ -26,7 +26,6 @@ export interface SpadesTableProps {
 const SHOWN_BACKS = 5
 
 const SEATS = seatsOf('spades')
-const SEATED = ['', 'One', 'Two', 'Three']
 
 const signed = (points: number) => (points > 0 ? `+${points}` : `${points}`)
 
@@ -45,11 +44,17 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
     move()
     handRef.current?.focus()
   }
-  // Staying puts back the button that asked, and focus with it.
+  // Asking takes away the button that asked, so focus goes to the
+  // question; staying puts the button back, and focus with it.
   const leaveRef = useRef<HTMLButtonElement>(null)
+  const confirmRef = useRef<HTMLButtonElement>(null)
   const stayed = useRef(false)
   useEffect(() => {
-    if (confirmingLeave || !stayed.current) return
+    if (confirmingLeave) {
+      confirmRef.current?.focus()
+      return
+    }
+    if (!stayed.current) return
     stayed.current = false
     leaveRef.current?.focus()
   }, [confirmingLeave])
@@ -79,7 +84,7 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
     if (view.phase === 'waiting') {
       const seated = view.players.length
       if (seated < 2) return 'Waiting for a second seat.'
-      if (seated < SEATS) return `${SEATED[seated]} seated: start cutthroat, every seat for itself, or wait for four to play partners.`
+      if (seated < SEATS) return `${seated === 2 ? 'Two' : 'Three'} seated: start cutthroat, every seat for itself, or wait for four to play partners.`
       return 'Four seated: partners across, or cutthroat.'
     }
     if (bidding && partner !== undefined) return `Your bid: the tricks you and ${partner.playerId} mean to take between you, or nil.`
@@ -97,9 +102,8 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
       return (
         <>
           <AboutGame game="spades" className={felt.hint} />
-          {/* Partners is the hub's own choice at four seats, so it names no mode. */}
           {view.players.length === SEATS && (
-            <button type="button" className={felt.primary} onClick={() => table.startTable()} disabled={!connected}>
+            <button type="button" className={felt.primary} onClick={() => table.startTable('partners')} disabled={!connected}>
               Start partners
             </button>
           )}
@@ -246,7 +250,7 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
         {view.phase !== 'closed' &&
           (confirmingLeave ? (
             <span className={styles.confirm}>
-              <button type="button" className={felt.secondary} onClick={table.leaveTable} disabled={!connected}>
+              <button ref={confirmRef} type="button" className={felt.secondary} onClick={table.leaveTable} disabled={!connected}>
                 Leave and end the game
               </button>
               <button
@@ -352,7 +356,7 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
   )
 }
 
-// A team's columns on one hand: its two bids, the tricks they took, what
+// A team's columns on one hand: its seats' bids, the tricks they took, what
 // the hand scored and the total after.
 const TeamLine = ({ bids, took, points, score }: { bids: number[]; took: number; points: number; score: number }) => (
   <>

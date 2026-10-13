@@ -7,7 +7,7 @@ import type { Card, SpadesMode, SpadesMoveName, SpadesMovePayloads, SpadesUpdate
 // reckons the rules or keeps an end of its own.
 
 export interface SpadesTableActions {
-  startTable: (mode?: SpadesMode) => void
+  startTable: (mode: SpadesMode) => void
   leaveTable: () => void
   // Another game at a new table, once this one has closed.
   playAgain: () => void
@@ -90,7 +90,7 @@ export const useSpadesTable = ({ playerId, move, showNotice, onLeft }: UseSpades
     },
     [move]
   )
-  const startTable = useCallback((mode?: SpadesMode) => (mode === undefined ? move('startGame') : move('startGame', { mode })), [move])
+  const startTable = useCallback((mode: SpadesMode) => move('startGame', { mode }), [move])
   const leaveTable = useCallback(() => {
     if (view !== null && view.phase !== 'closed') {
       move('leaveGame')

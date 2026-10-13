@@ -55,9 +55,9 @@ export interface SpadesHandLine {
 export interface SpadesView {
   gameId: string
   phase: SpadesPhase
-  // Absent while waiting, and from a hub older than cutthroat: partners.
+  // Absent while waiting.
   mode?: SpadesMode
-  // Cards a seat is dealt and the highest bid; absent as mode is: 13.
+  // Cards a seat is dealt and the highest bid; absent while waiting.
   handSize?: number
   // Seat order.
   players: SpadesPlayer[]
@@ -105,8 +105,8 @@ export interface SpadesUpdate {
 export interface SpadesMovePayloads {
   createGame: undefined
   joinGame: { gameId: string }
-  // Unnamed, the hub plays partners at four seats and cutthroat at fewer.
-  startGame: { mode: SpadesMode } | undefined
+  // Partners needs four seats.
+  startGame: { mode: SpadesMode }
   leaveGame: undefined
   // 0 (nil) to handSize.
   bid: { tricks: number }

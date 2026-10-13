@@ -65,8 +65,7 @@ describe('SpadesTable', () => {
   const waiting = (players: SpadesPlayer[]) =>
     view({ phase: 'waiting', players, handNumber: 0, dealer: undefined, currentPlayerId: undefined, teams: [], hands: [] })
 
-  // Two or three seats play cutthroat; four choose. Partners is the hub's
-  // own default at four, so it names no mode.
+  // Two or three seats play cutthroat; four choose.
   it('starts cutthroat from two seats, and offers partners at four', () => {
     const t = show(waiting(seats().slice(0, 1)))
     expect(screen.getByText(/spades trump/)).toBeTruthy()
@@ -83,9 +82,18 @@ describe('SpadesTable', () => {
     expect(screen.getByText('Four seated: partners across, or cutthroat.')).toBeTruthy()
     expect(screen.queryByRole('region', { name: 'table' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Start partners' }))
-    expect(t.startTable).toHaveBeenLastCalledWith()
+    expect(t.startTable).toHaveBeenLastCalledWith('partners')
     fireEvent.click(screen.getByRole('button', { name: 'Start cutthroat' }))
     expect(t.startTable).toHaveBeenLastCalledWith('cutthroat')
+  })
+
+  it('starts nothing, and opens no new table, with the link down', () => {
+    show(waiting(seats()), table(), false)
+    expect(screen.getByRole('button', { name: 'Start partners' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Start cutthroat' })).toBeDisabled()
+    cleanup()
+    show(view({ phase: 'closed', currentPlayerId: undefined, legal: [], left: 'dan' }), table(), false)
+    expect(screen.getByRole('button', { name: 'Play again' })).toBeDisabled()
   })
 
   // Three seats, seventeen cards each, every seat for itself.
@@ -179,11 +187,18 @@ describe('SpadesTable', () => {
 
   it('a bid or a deal on its way, or a dropped link, offers neither again', () => {
     const bidding = view({ phase: 'bidding', players: seats(), legal: [] })
-    const { rerender } = render(<SpadesTable playerId="alice" connected view={bidding} table={table()} />)
+    const t = table()
+    const { rerender } = render(<SpadesTable playerId="alice" connected view={bidding} table={t} />)
     fireEvent.change(screen.getByRole('combobox', { name: 'Your bid' }), { target: { value: '4' } })
     fireEvent.click(screen.getByRole('button', { name: 'Bid 4' }))
+    expect(t.bid).toHaveBeenCalledTimes(1)
     // Sent and not yet answered: a second tap is not a second bid.
-    rerender(<SpadesTable playerId="alice" connected view={bidding} table={table({ sending: true })} />)
+    rerender(<SpadesTable playerId="alice" connected view={bidding} table={{ ...t, sending: true }} />)
+    expect(screen.getByRole('combobox', { name: 'Your bid' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Bid 4' }))
+    expect(t.bid).toHaveBeenCalledTimes(1)
+    // Nor is one made with the link down.
+    rerender(<SpadesTable playerId="alice" connected={false} view={bidding} table={t} />)
     expect(screen.getByRole('combobox', { name: 'Your bid' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Bid 4' })).toBeDisabled()
     cleanup()
@@ -303,6 +318,8 @@ describe('SpadesTable', () => {
     const t = show(view())
     fireEvent.click(screen.getByRole('button', { name: 'Leave table' }))
     expect(t.leaveTable).not.toHaveBeenCalled()
+    // The button that asked is gone: focus goes to the question.
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Leave and end the game' }))
     fireEvent.click(screen.getByRole('button', { name: 'Stay' }))
     expect(screen.queryByRole('button', { name: 'Leave and end the game' })).toBeNull()
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Leave table' }))
