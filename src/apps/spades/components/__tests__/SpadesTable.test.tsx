@@ -88,6 +88,12 @@ describe('SpadesTable', () => {
     expect(within(screen.getByRole('region', { name: /^bob/ })).getByText('· 6 in hand')).toBeTruthy()
     expect(within(screen.getByRole('region', { name: /^dan/ })).getByText('· dealer')).toBeTruthy()
     expect(within(screen.getByRole('region', { name: /^bob/ })).queryByText('· dealer')).toBeNull()
+    // Backs stop at five; the count says the rest.
+    cleanup()
+    show(view({ players: seats({ bob: { handCount: 13 } }) }))
+    expect(within(screen.getByRole('group', { name: "bob's hand" })).getAllByRole('img')).toHaveLength(5)
+    expect(within(screen.getByRole('group', { name: "dan's hand" })).getAllByRole('img')).toHaveLength(5)
+    expect(within(screen.getByRole('region', { name: /^bob/ })).getByText('· 13 in hand')).toBeTruthy()
   })
 
   it('bids only once a number is picked, so nil is never a slip', () => {
@@ -166,6 +172,8 @@ describe('SpadesTable', () => {
     cleanup()
     show(view({ spadesBroken: true }))
     expect(screen.getByText('Your lead.')).toBeTruthy()
+    expect(screen.getByText('Spades broken')).toBeTruthy()
+    expect(screen.queryByText('Spades not broken')).toBeNull()
   })
 
   it('offers nothing while a move is on its way, or the link is down', () => {
@@ -215,6 +223,15 @@ describe('SpadesTable', () => {
     expect(within(board).getByRole('rowheader', { name: 'You & cat' })).toBeTruthy()
     const sheet = screen.getByRole('table', { name: 'Hands' })
     expect(within(sheet).getByRole('row', { name: '1 3 / 4 · took 9 +72 72 nil / 2 · took 4 -100 -100' })).toBeTruthy()
+    cleanup()
+    // A hand that scored nothing is 0, not +0.
+    show(view({ hands: [{ bids: [3, 3, 3, 3], tricks: [0, 3, 0, 0], points: [0, 60], scores: [0, 60] }] }))
+    expect(within(screen.getByRole('table', { name: 'Hands' })).getByRole('row', { name: '1 3 / 3 · took 0 0 0 3 / 3 · took 3 +60 60' })).toBeTruthy()
+    cleanup()
+    // The first hand in play has nothing on the sheet yet.
+    show(view({ hands: [] }))
+    expect(screen.queryByRole('table', { name: 'Hands' })).toBeNull()
+    expect(screen.getByRole('table', { name: 'Score' })).toBeTruthy()
   })
 
   it('a scored hand is anyone’s to deal on', () => {
@@ -264,6 +281,14 @@ describe('SpadesTable', () => {
     rerender(<SpadesTable playerId="alice" connected view={{ ...scored, phase: 'won' }} table={t} />)
     fireEvent.click(screen.getByRole('button', { name: 'Leave table' }))
     expect(t.leaveTable).toHaveBeenCalledTimes(1)
+  })
+
+  it('the leave question waits for the link', () => {
+    const t = table()
+    const { rerender } = render(<SpadesTable playerId="alice" connected view={view()} table={t} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Leave table' }))
+    rerender(<SpadesTable playerId="alice" connected={false} view={view()} table={t} />)
+    expect(screen.getByRole('button', { name: 'Leave and end the game' })).toBeDisabled()
   })
 
   it('bidding is a game in play too', () => {

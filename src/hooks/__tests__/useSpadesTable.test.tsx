@@ -97,6 +97,13 @@ describe('useSpadesTable', () => {
     expect(onLeft).toHaveBeenCalledTimes(2)
   })
 
+  it('leaving with no table in view asks nothing of the hub', () => {
+    const { result, move, onLeft } = mount()
+    act(() => result.current.leaveTable())
+    expect(move).not.toHaveBeenCalled()
+    expect(onLeft).toHaveBeenCalledTimes(1)
+  })
+
   // A closed table is gone from the hub: another game is a new table.
   it('plays again at a new table', () => {
     const { result, move, receive } = mount()
