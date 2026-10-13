@@ -15,6 +15,7 @@ import type { ChessMoveName, ChessUpdate } from '@/apps/chess/wire'
 import type { GolfMoveName, GolfUpdate } from '@/apps/golf/wire'
 import type { PongMoveName, PongUpdate } from '@/apps/pong/wire'
 import type { RummyMoveName, RummyUpdate } from '@/apps/rummy/wire'
+import type { SpadesMoveName, SpadesUpdate } from '@/apps/spades/wire'
 import { useCastleTable } from './useCastleTable'
 import type { UseCastleTable } from './useCastleTable'
 import { useChessTable } from './useChessTable'
@@ -25,6 +26,8 @@ import { usePongTable } from './usePongTable'
 import type { UsePongTable } from './usePongTable'
 import { useRummyTable } from './useRummyTable'
 import type { UseRummyTable } from './useRummyTable'
+import { useSpadesTable } from './useSpadesTable'
+import type { UseSpadesTable } from './useSpadesTable'
 
 // The lobby (MoonBase#1490): the one page for the games hub. One stream
 // carries the room, its chat, the world, and the tables. The world is
@@ -89,6 +92,7 @@ export interface UseLobby {
   rummy: UseRummyTable
   chess: UseChessTable
   pong: UsePongTable
+  spades: UseSpadesTable
 }
 
 // A share link's room the session is on its way to: left the resumed
@@ -195,6 +199,9 @@ export const useLobby = ({
   const pongMove = useCallback((name: PongMoveName, payload: unknown = {}) => {
     streamRef.current?.move('pong', name, payload)
   }, [])
+  const spadesMove = useCallback((name: SpadesMoveName, payload: unknown = {}) => {
+    streamRef.current?.move('spades', name, payload)
+  }, [])
   const onTableLeft = useCallback(() => {
     if (roomIdRef.current !== null) navigate(lobbyRoomPath(roomIdRef.current), { replace: true })
   }, [navigate])
@@ -213,12 +220,16 @@ export const useLobby = ({
   const pong = usePongTable({ playerId, move: pongMove, showNotice, onLeft: onTableLeft })
   const pongRef = useRef(pong)
   pongRef.current = pong
+  const spades = useSpadesTable({ playerId, move: spadesMove, showNotice, onLeft: onTableLeft })
+  const spadesRef = useRef(spades)
+  spadesRef.current = spades
   const clearTables = useCallback(() => {
     castleRef.current.clear()
     golfRef.current.clear()
     rummyRef.current.clear()
     chessRef.current.clear()
     pongRef.current.clear()
+    spadesRef.current.clear()
   }, [])
 
   // The share link's table, once its room is in hand: a table still
@@ -246,6 +257,7 @@ export const useLobby = ({
       else if (table.game === 'rummy') rummyRef.current.joinTable(gameId)
       else if (table.game === 'chess') chessRef.current.joinTable(gameId)
       else if (table.game === 'pong') pongRef.current.joinTable(gameId)
+      else if (table.game === 'spades') spadesRef.current.joinTable(gameId)
       else golfRef.current.joinTable(gameId)
     },
     [showNotice]
@@ -346,6 +358,7 @@ export const useLobby = ({
       rummyRef.current.handleRejected()
       chessRef.current.handleRejected()
       pongRef.current.handleRejected()
+      spadesRef.current.handleRejected()
       voice.rejected(reason)
       chatSeqRef.current += 1
       setChat(prev => ({ ...prev, rejection: { seq: chatSeqRef.current, reason } }))
@@ -387,6 +400,10 @@ export const useLobby = ({
         const pongUpdate = update as PongUpdate
         pongRef.current.handleUpdate(pongUpdate)
         joined = pongUpdate.gameJoined?.view.gameId
+      } else if (game === 'spades') {
+        const spadesUpdate = update as SpadesUpdate
+        spadesRef.current.handleUpdate(spadesUpdate)
+        joined = spadesUpdate.gameJoined?.view.gameId
       } else if (game === 'golf') {
         const golfUpdate = update as GolfUpdate
         golfRef.current.handleUpdate(golfUpdate)
@@ -479,6 +496,7 @@ export const useLobby = ({
     golf,
     rummy,
     chess,
-    pong
+    pong,
+    spades
   }
 }

@@ -51,9 +51,10 @@ export function atTable(room: HubRoom, playerId: string): boolean {
 // The table hook that speaks a game's vocabulary: a table is joined in its
 // own game's envelope, or the hub refuses it. A summary from before the
 // game was named is golf's.
-export function tableFor(lobby: Pick<UseLobby, 'castle' | 'golf' | 'rummy' | 'chess' | 'pong'>, game: HubGameName | undefined) {
+export function tableFor(lobby: Pick<UseLobby, 'castle' | 'golf' | 'rummy' | 'spades' | 'chess' | 'pong'>, game: HubGameName | undefined) {
   if (game === 'castle') return lobby.castle
   if (game === 'rummy') return lobby.rummy
+  if (game === 'spades') return lobby.spades
   if (game === 'chess') return lobby.chess
   if (game === 'pong') return lobby.pong
   return lobby.golf

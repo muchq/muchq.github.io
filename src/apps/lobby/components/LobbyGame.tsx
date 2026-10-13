@@ -3,6 +3,7 @@ import ThoughtsGame from '@/apps/thoughts/components/ThoughtsGame'
 import CastleTable from '@/apps/castle/components/CastleTable'
 import GolfTable from '@/apps/golf/components/GolfTable'
 import RummyTable from '@/apps/rummy/components/RummyTable'
+import SpadesTable from '@/apps/spades/components/SpadesTable'
 import ChessTable from '@/apps/chess/components/ChessTable'
 import GameReview from '@/apps/chess/components/GameReview'
 import PongTable from '@/apps/pong/components/PongTable'
@@ -32,10 +33,10 @@ const panelWanted = (): boolean => safeLocalStorage.get(PANEL_KEY) !== 'hidden' 
 
 const LobbyGame = (props: UseLobbyProps) => {
   const lobby = useLobby(props)
-  const { castle, golf, rummy, chess, pong, chat, connected, playerId, notice, room } = lobby
+  const { castle, golf, rummy, spades, chess, pong, chat, connected, playerId, notice, room } = lobby
   // A chess review (MoonBase#1637) takes the screen as a table does.
   const atTable =
-    castle.view !== null || golf.view !== null || rummy.view !== null || chess.view !== null || pong.view !== null || chess.review !== null
+    castle.view !== null || golf.view !== null || rummy.view !== null || spades.view !== null || chess.view !== null || pong.view !== null || chess.review !== null
   // A rummy dealer among these lets any seat deal (MoonBase#1609).
   const away = (room?.players ?? []).filter(player => !player.connected).map(player => player.playerId)
   // A table takes the screen, so the panel folds away when one comes up
@@ -111,6 +112,11 @@ const LobbyGame = (props: UseLobbyProps) => {
       {rummy.view !== null && (
         <div className={styles.tableOverlay}>
           <RummyTable playerId={playerId} connected={connected} view={rummy.view} table={rummy} away={away} />
+        </div>
+      )}
+      {spades.view !== null && (
+        <div className={styles.tableOverlay}>
+          <SpadesTable playerId={playerId} connected={connected} view={spades.view} table={spades} />
         </div>
       )}
       {chess.view !== null && (
