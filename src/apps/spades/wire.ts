@@ -109,5 +109,4 @@ export interface SpadesMovePayloads {
 
 export type SpadesMoveName = keyof SpadesMovePayloads
 
-export const SEATS = 4
 export const MAX_BID = 13

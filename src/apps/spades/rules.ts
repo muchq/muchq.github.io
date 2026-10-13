@@ -6,12 +6,18 @@ import type { Card, SpadesResult, SpadesView } from './wire'
 
 export { face }
 
+// A bid as it is said: 0 is nil, not zero tricks.
+export function bidNumber(bid: number): string {
+  return bid === 0 ? 'nil' : `${bid}`
+}
+
 export function bidWords(bid: number | undefined): string {
   if (bid === undefined) return 'to bid'
   return bid === 0 ? 'nil' : `bid ${bid}`
 }
 
-const you = (id: string, viewer: string) => (id === viewer ? 'you' : id)
+export const you = (id: string, viewer: string) => (id === viewer ? 'you' : id)
+export const You = (id: string, viewer: string) => (id === viewer ? 'You' : id)
 
 // "You & cat" for the viewer's team, "bob & dan" for the other.
 export function teamName(view: SpadesView, team: number, viewer: string): string {
@@ -28,7 +34,7 @@ export function isLegal(view: SpadesView, card: Card): boolean {
 export function describeResult(result: SpadesResult, view: SpadesView, viewer: string): string {
   if (result.ending === 'abandoned') {
     if (view.left === undefined) return 'The game was abandoned.'
-    return `${view.left === viewer ? 'You' : view.left} left: the game was abandoned.`
+    return `${You(view.left, viewer)} left: the game was abandoned.`
   }
   const team = view.players.find(player => player.playerId === result.winners[0])?.team ?? 0
   const [first, second] = [...result.winners].sort((a, b) => Number(b === viewer) - Number(a === viewer))

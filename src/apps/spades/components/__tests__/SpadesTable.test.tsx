@@ -69,6 +69,8 @@ describe('SpadesTable', () => {
     expect(screen.getByRole('button', { name: 'Start table' })).toBeDisabled()
     cleanup()
     show(view({ phase: 'waiting', players: seats(), handNumber: 0, dealer: undefined, currentPlayerId: undefined, teams: [], hands: [] }), t)
+    expect(screen.getByText('Four seated: start when ready.')).toBeTruthy()
+    expect(screen.queryByRole('region', { name: 'table' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Start table' }))
     expect(t.startTable).toHaveBeenCalledTimes(1)
   })
@@ -82,6 +84,10 @@ describe('SpadesTable', () => {
     expect(within(screen.getByRole('region', { name: /^cat/ })).getByText('bid 4 · 2 taken')).toBeTruthy()
     expect(within(screen.getByRole('region', { name: /^bob/ })).getByText('nil · 0 taken')).toBeTruthy()
     expect(within(screen.getByRole('region', { name: /^dan/ })).getByText('to bid · 0 taken')).toBeTruthy()
+    // A phone hides the backs and reads the count, so it is always there.
+    expect(within(screen.getByRole('region', { name: /^bob/ })).getByText('· 6 in hand')).toBeTruthy()
+    expect(within(screen.getByRole('region', { name: /^dan/ })).getByText('· dealer')).toBeTruthy()
+    expect(within(screen.getByRole('region', { name: /^bob/ })).queryByText('· dealer')).toBeNull()
   })
 
   it('bids only once a number is picked, so nil is never a slip', () => {
@@ -102,6 +108,38 @@ describe('SpadesTable', () => {
     fireEvent.change(picker, { target: { value: '4' } })
     fireEvent.click(screen.getByRole('button', { name: 'Bid 4' }))
     expect(t.bid).toHaveBeenLastCalledWith(4)
+    // The picker goes with the bid: focus lands on the hand, not the page.
+    expect(document.activeElement).toBe(hand())
+  })
+
+  // A pick is for the bid it was made for: the next game's first hand
+  // has the same number, and must not arrive with it already chosen.
+  it('forgets a pick once the bid is made', () => {
+    const bidding = view({ phase: 'bidding', players: seats(), legal: [] })
+    const t = table()
+    const { rerender } = render(<SpadesTable playerId="alice" connected view={bidding} table={t} />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Your bid' }), { target: { value: '5' } })
+    rerender(<SpadesTable playerId="alice" connected view={{ ...bidding, currentPlayerId: 'bob' }} table={t} />)
+    rerender(<SpadesTable playerId="alice" connected view={bidding} table={t} />)
+    expect(screen.getByRole('button', { name: 'Bid' })).toBeDisabled()
+  })
+
+  it('a bid or a deal on its way, or a dropped link, offers neither again', () => {
+    const bidding = view({ phase: 'bidding', players: seats(), legal: [] })
+    const { rerender } = render(<SpadesTable playerId="alice" connected view={bidding} table={table()} />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Your bid' }), { target: { value: '4' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Bid 4' }))
+    // Sent and not yet answered: a second tap is not a second bid.
+    rerender(<SpadesTable playerId="alice" connected view={bidding} table={table({ sending: true })} />)
+    expect(screen.getByRole('combobox', { name: 'Your bid' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Bid 4' })).toBeDisabled()
+    cleanup()
+    show(view({ phase: 'scored', currentPlayerId: undefined, legal: [] }), table({ sending: true }))
+    expect(screen.getByRole('button', { name: 'Deal the next hand' })).toBeDisabled()
+    cleanup()
+    show(view({ phase: 'scored', currentPlayerId: undefined, legal: [] }), table(), false)
+    expect(screen.getByRole('button', { name: 'Deal the next hand' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Leave table' })).toBeDisabled()
   })
 
   it('off its turn a seat is told whose bid it is, and offered none', () => {
@@ -119,6 +157,7 @@ describe('SpadesTable', () => {
     expect(screen.getByText('Your play: follow the suit led if you can.')).toBeTruthy()
     fireEvent.click(within(hand()).getByRole('button', { name: 'K♥' }))
     expect(t.play).toHaveBeenCalledWith(c('K♥'))
+    expect(document.activeElement).toBe(hand())
   })
 
   it('a lead says whether spades are broken', () => {
@@ -147,12 +186,18 @@ describe('SpadesTable', () => {
     const taken = { winner: 'cat', plays: [{ playerId: 'dan', card: c('J♦') }, { playerId: 'alice', card: c('2♦') }] }
     show(view({ trick: [{ playerId: 'bob', card: c('Q♣') }, { playerId: 'cat', card: c('3♣') }], lastTrick: taken }))
     expect(screen.queryByRole('group', { name: 'last trick' })).toBeNull()
+    // Another seat's play is said, not only drawn.
+    expect(screen.getByText('cat played 3♣')).toBeTruthy()
     const trick = screen.getByRole('group', { name: 'trick' })
     expect(within(trick).getByRole('img', { name: 'Q♣ from bob' })).toBeTruthy()
     expect(within(trick).getByRole('img', { name: '3♣ from cat' })).toBeTruthy()
     cleanup()
     show(view({ lastTrick: taken }))
     expect(screen.getByText('cat took the last trick')).toBeTruthy()
+    expect(screen.getByText('cat took the trick')).toBeTruthy()
+    cleanup()
+    show(view({ lastTrick: { ...taken, winner: 'alice' } }))
+    expect(screen.getByText('You took the last trick')).toBeTruthy()
     expect(within(screen.getByRole('group', { name: 'last trick' })).getByRole('img', { name: 'J♦ from dan' })).toBeTruthy()
   })
 
@@ -174,8 +219,10 @@ describe('SpadesTable', () => {
 
   it('a scored hand is anyone’s to deal on', () => {
     const t = show(view({ phase: 'scored', currentPlayerId: undefined, legal: [] }))
+    expect(screen.getByText('Hand 2 is scored: anyone can deal the next.')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Deal the next hand' }))
     expect(t.deal).toHaveBeenCalledTimes(1)
+    expect(document.activeElement).toBe(hand())
   })
 
   it('a won game says who won and deals a new one', () => {
@@ -194,6 +241,7 @@ describe('SpadesTable', () => {
     expect(t.leaveTable).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Stay' }))
     expect(screen.queryByRole('button', { name: 'Leave and end the game' })).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Leave table' }))
     fireEvent.click(screen.getByRole('button', { name: 'Leave table' }))
     fireEvent.click(screen.getByRole('button', { name: 'Leave and end the game' }))
     expect(t.leaveTable).toHaveBeenCalledTimes(1)
@@ -210,8 +258,19 @@ describe('SpadesTable', () => {
     // Asked while the game was on, answered after it was won: no game to end.
     rerender(<SpadesTable playerId="alice" connected view={{ ...scored, phase: 'won' }} table={t} />)
     expect(screen.queryByRole('button', { name: 'Leave and end the game' })).toBeNull()
+    // Nor does the question come back unasked with the next game.
+    rerender(<SpadesTable playerId="alice" connected view={{ ...scored, phase: 'bidding', handNumber: 1 }} table={t} />)
+    expect(screen.queryByRole('button', { name: 'Leave and end the game' })).toBeNull()
+    rerender(<SpadesTable playerId="alice" connected view={{ ...scored, phase: 'won' }} table={t} />)
     fireEvent.click(screen.getByRole('button', { name: 'Leave table' }))
     expect(t.leaveTable).toHaveBeenCalledTimes(1)
+  })
+
+  it('bidding is a game in play too', () => {
+    const t = show(view({ phase: 'bidding', legal: [] }))
+    fireEvent.click(screen.getByRole('button', { name: 'Leave table' }))
+    expect(t.leaveTable).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Leave and end the game' })).toBeTruthy()
   })
 
   it('a table still waiting, or a won game, is left at once', () => {
@@ -235,5 +294,8 @@ describe('SpadesTable', () => {
     expect(t.playAgain).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole('button', { name: 'Back to the room' }))
     expect(t.leaveTable).toHaveBeenCalledTimes(1)
+    cleanup()
+    show(view({ phase: 'closed', currentPlayerId: undefined, legal: [], left: 'dan' }), table({ opening: true }))
+    expect(screen.getByRole('button', { name: 'Opening…' })).toBeDisabled()
   })
 })

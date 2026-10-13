@@ -75,6 +75,9 @@ describe('useSpadesTable', () => {
     act(() => result.current.joinTable('S2'))
     act(() => result.current.handleRejected())
     expect(result.current.opening).toBe(false)
+    act(() => result.current.joinTable('S2'))
+    receive({ gameJoined: { view: view({ gameId: 'S2' }) } })
+    expect(result.current.opening).toBe(false)
   })
 
   it('leaving clears the table, and a closed one is left without asking the hub', () => {

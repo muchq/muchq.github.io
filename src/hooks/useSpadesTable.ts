@@ -7,15 +7,12 @@ import type { Card, SpadesMoveName, SpadesMovePayloads, SpadesUpdate, SpadesView
 // reckons the rules or keeps an end of its own.
 
 export interface SpadesTableActions {
-  // Needs all four seats.
   startTable: () => void
   leaveTable: () => void
   // Another game at a new table, once this one has closed.
   playAgain: () => void
-  // 0 (nil) to 13.
   bid: (tricks: number) => void
   play: (card: Card) => void
-  // The next hand, once this one is scored.
   deal: () => void
 }
 
@@ -107,17 +104,24 @@ export const useSpadesTable = ({ playerId, move, showNotice, onLeft }: UseSpades
     setOpening(true)
     move('createGame')
   }, [move])
-  const sent = useCallback(
-    <N extends SpadesMoveName>(name: N, payload?: SpadesMovePayloads[N]) => {
+  const bid = useCallback(
+    (tricks: number) => {
       setSending(true)
-      if (payload === undefined) move(name)
-      else move(name, payload)
+      move('bid', { tricks })
     },
     [move]
   )
-  const bid = useCallback((tricks: number) => sent('bid', { tricks }), [sent])
-  const play = useCallback((card: Card) => sent('play', { card }), [sent])
-  const deal = useCallback(() => sent('deal'), [sent])
+  const play = useCallback(
+    (card: Card) => {
+      setSending(true)
+      move('play', { card })
+    },
+    [move]
+  )
+  const deal = useCallback(() => {
+    setSending(true)
+    move('deal')
+  }, [move])
 
   return {
     view,

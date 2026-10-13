@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SpadesTableActions } from '@/hooks/useSpadesTable'
 import type { SpadesPlayer, SpadesTrickPlay, SpadesView } from '../wire'
-import { MAX_BID, SEATS } from '../wire'
-import { bidWords, describeResult, face, isLegal, teamName } from '../rules'
+import { MAX_BID } from '../wire'
+import { bidNumber, bidWords, describeResult, face, isLegal, teamName, you, You } from '../rules'
+import { seatsOf } from '@/apps/lobby/catalog'
 import { CardBack, CardFace } from '@/apps/castle/components/Cards'
 import { clockOf, fromViewer } from '@/apps/castle/seating'
 import felt from '@/apps/castle/components/CastleTable.module.css'
@@ -24,6 +25,7 @@ export interface SpadesTableProps {
 // Another seat's hand is backs: past this many, the count says the rest.
 const SHOWN_BACKS = 5
 
+const SEATS = seatsOf('spades')
 const BIDS = Array.from({ length: MAX_BID + 1 }, (_, tricks) => tricks)
 
 const signed = (points: number) => (points > 0 ? `+${points}` : `${points}`)
@@ -34,9 +36,23 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
   useEffect(() => {
     headingRef.current?.focus()
   }, [])
-  // The bid picked, for the hand it was picked in.
-  const [picked, setPicked] = useState<{ hand: number; tricks: number } | null>(null)
+  const [bid, setBid] = useState<number | null>(null)
   const [confirmingLeave, setConfirmingLeave] = useState(false)
+  // A move takes the control that made it away, so focus goes to the
+  // hand, where the next one is made.
+  const handRef = useRef<HTMLDivElement>(null)
+  const thenHand = (move: () => void) => () => {
+    move()
+    handRef.current?.focus()
+  }
+  // Staying puts back the button that asked, and focus with it.
+  const leaveRef = useRef<HTMLButtonElement>(null)
+  const stayed = useRef(false)
+  useEffect(() => {
+    if (confirmingLeave || !stayed.current) return
+    stayed.current = false
+    leaveRef.current?.focus()
+  }, [confirmingLeave])
 
   const me = view.players.find(player => player.playerId === playerId)
   const partner = me === undefined ? undefined : view.players.find(player => player.team === me.team && player !== me)
@@ -44,9 +60,19 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
   const able = connected && !sending
   const bidding = view.phase === 'bidding' && myTurn
   const playing = view.phase === 'playing' && myTurn
-  const bid = picked?.hand === view.handNumber ? picked.tricks : undefined
   // A leave ends the game for every seat, so one in play is asked twice.
   const inPlay = view.phase === 'bidding' || view.phase === 'playing' || view.phase === 'scored'
+  // A pick is for the bid it was made for, and the question for the game
+  // it was asked in.
+  if (bid !== null && !bidding) setBid(null)
+  if (confirmingLeave && !inPlay) setConfirmingLeave(false)
+  const lastPlay = view.trick.at(-1)
+  const said =
+    lastPlay !== undefined
+      ? `${You(lastPlay.playerId, playerId)} played ${face(lastPlay.card)}`
+      : view.lastTrick !== undefined
+        ? `${You(view.lastTrick.winner, playerId)} took the trick`
+        : ''
 
   const hint = (() => {
     if (view.phase === 'waiting') {
@@ -80,7 +106,7 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
             className={styles.bid}
             aria-label="Your bid"
             value={bid ?? ''}
-            onChange={event => setPicked({ hand: view.handNumber, tricks: Number(event.target.value) })}
+            onChange={event => setBid(Number(event.target.value))}
             disabled={!able}
           >
             <option value="" disabled>
@@ -92,15 +118,15 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
               </option>
             ))}
           </select>
-          <button type="button" className={felt.primary} onClick={() => bid !== undefined && table.bid(bid)} disabled={bid === undefined || !able}>
-            {bid === undefined ? 'Bid' : bid === 0 ? 'Bid nil' : `Bid ${bid}`}
+          <button type="button" className={felt.primary} onClick={thenHand(() => bid !== null && table.bid(bid))} disabled={bid === null || !able}>
+            {bid === null ? 'Bid' : `Bid ${bidNumber(bid)}`}
           </button>
         </>
       )
     }
     if (view.phase === 'scored' || view.phase === 'won') {
       return (
-        <button type="button" className={felt.primary} onClick={table.deal} disabled={!able}>
+        <button type="button" className={felt.primary} onClick={thenHand(table.deal)} disabled={!able}>
           {view.phase === 'won' ? 'Deal a new game' : 'Deal the next hand'}
         </button>
       )
@@ -126,7 +152,7 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
         <span key={face(play.card)} className={styles.play}>
           <CardFace card={play.card} label={`${face(play.card)} from ${play.playerId}`} />
           <span className={styles.player} aria-hidden="true">
-            {play.playerId === playerId ? 'you' : play.playerId}
+            {you(play.playerId, playerId)}
           </span>
         </span>
       ))}
@@ -149,16 +175,25 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
           {label}
           {seat === partner && <span className={felt.muted}> · partner</span>}
           {view.dealer === seat.playerId && <span className={felt.muted}> · dealer</span>}
+          {!mine && dealt && (
+            <span className={`${felt.handCount} ${seat.handCount > SHOWN_BACKS ? felt.handCountShown : ''}`}> · {seat.handCount} in hand</span>
+          )}
         </h3>
         {dealt && <p className={felt.muted}>{`${bidWords(seat.bid)} · ${seat.tricks} taken`}</p>}
         <div className={felt.seatFrame}>
           <div className={felt.seatCards}>
-            <div className={felt.hand} role="group" aria-label={mine ? 'Your hand' : `${seat.playerId}'s hand`}>
+            <div
+              className={felt.hand}
+              ref={mine ? handRef : undefined}
+              tabIndex={mine ? -1 : undefined}
+              role="group"
+              aria-label={mine ? 'Your hand' : `${seat.playerId}'s hand`}
+            >
               <div className={felt.fan}>
                 {mine
                   ? seat.hand.map(card => (
                       <span key={face(card)} className={felt.fanSlot}>
-                        <CardFace card={card} onClick={playing && able && isLegal(view, card) ? () => table.play(card) : undefined} />
+                        <CardFace card={card} onClick={playing && able && isLegal(view, card) ? thenHand(() => table.play(card)) : undefined} />
                       </span>
                     ))
                   : Array.from({ length: Math.min(seat.handCount, SHOWN_BACKS) }, (_, i) => (
@@ -168,7 +203,6 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
                     ))}
               </div>
             </div>
-            {!mine && seat.handCount > SHOWN_BACKS && <span className={felt.muted}>{seat.handCount} in hand</span>}
           </div>
         </div>
         {mine && <div className={felt.actions}>{actions}</div>}
@@ -190,19 +224,35 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
           <p className={felt.hint} role="status">
             {hint}
           </p>
+          <p className={felt.srOnly} role="status">
+            {said}
+          </p>
         </div>
         {view.phase !== 'closed' &&
-          (confirmingLeave && inPlay ? (
+          (confirmingLeave ? (
             <span className={styles.confirm}>
               <button type="button" className={felt.secondary} onClick={table.leaveTable} disabled={!connected}>
                 Leave and end the game
               </button>
-              <button type="button" className={felt.link} onClick={() => setConfirmingLeave(false)}>
+              <button
+                type="button"
+                className={felt.link}
+                onClick={() => {
+                  setConfirmingLeave(false)
+                  stayed.current = true
+                }}
+              >
                 Stay
               </button>
             </span>
           ) : (
-            <button type="button" className={felt.link} onClick={inPlay ? () => setConfirmingLeave(true) : table.leaveTable} disabled={!connected}>
+            <button
+              ref={leaveRef}
+              type="button"
+              className={felt.link}
+              onClick={inPlay ? () => setConfirmingLeave(true) : table.leaveTable}
+              disabled={!connected}
+            >
               Leave table
             </button>
           ))}
@@ -210,6 +260,22 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
       <p className={felt.ending} role="status">
         {view.result === undefined ? '' : describeResult(view.result, view, playerId)}
       </p>
+      <div className={felt.ring}>
+        {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, clockOf(all.length, i)))}
+        {view.handNumber > 0 && (
+          <section className={felt.pile} aria-label="table">
+            {view.trick.length > 0 || view.lastTrick === undefined ? (
+              trickCards(view.trick, 'trick')
+            ) : (
+              <>
+                <p className={felt.muted}>{`${You(view.lastTrick.winner, playerId)} took the last trick`}</p>
+                {trickCards(view.lastTrick.plays, 'last trick')}
+              </>
+            )}
+            <p className={felt.muted}>{view.spadesBroken ? 'Spades broken' : 'Spades not broken'}</p>
+          </section>
+        )}
+      </div>
       {view.teams.length > 0 && (
         <div className={styles.sheets}>
           <table className={styles.sheet} aria-label="Score">
@@ -258,22 +324,6 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
           )}
         </div>
       )}
-      <div className={felt.ring}>
-        {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, clockOf(all.length, i)))}
-        {view.handNumber > 0 && (
-          <section className={felt.pile} aria-label="table">
-            {view.trick.length > 0 || view.lastTrick === undefined ? (
-              trickCards(view.trick, 'trick')
-            ) : (
-              <>
-                <p className={felt.muted}>{`${view.lastTrick.winner === playerId ? 'You' : view.lastTrick.winner} took the last trick`}</p>
-                {trickCards(view.lastTrick.plays, 'last trick')}
-              </>
-            )}
-            <p className={felt.muted}>{view.spadesBroken ? 'Spades broken' : 'Spades not broken'}</p>
-          </section>
-        )}
-      </div>
     </div>
   )
 }
@@ -282,7 +332,7 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
 // the hand scored and the total after.
 const TeamLine = ({ bids, took, points, score }: { bids: number[]; took: number; points: number; score: number }) => (
   <>
-    <td>{`${bids.map(b => (b === 0 ? 'nil' : b)).join(' / ')} · took ${took}`}</td>
+    <td>{`${bids.map(bidNumber).join(' / ')} · took ${took}`}</td>
     <td>{signed(points)}</td>
     <td>{score}</td>
   </>
