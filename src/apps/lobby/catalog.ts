@@ -43,8 +43,9 @@ export const CATALOG: readonly CatalogEntry[] = [
     game: 'spades',
     label: 'Spades',
     family: 'Cards',
-    seats: { min: 4, max: 4 },
-    blurb: 'Partners across the table. Bid your tricks, spades trump; first team to 500 wins, but mind the bags.'
+    seats: { min: 2, max: 4 },
+    blurb: 'Bid your tricks, spades trump; first to 500 wins, but mind the bags.',
+    variants: 'partners or cutthroat'
   },
   {
     game: 'chess',

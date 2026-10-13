@@ -62,17 +62,64 @@ const hand = () => screen.getByRole('group', { name: 'Your hand' })
 describe('SpadesTable', () => {
   beforeEach(() => cleanup())
 
-  it('waits for four seats, then any of them starts', () => {
-    const t = show(view({ phase: 'waiting', players: seats().slice(0, 3), handNumber: 0, dealer: undefined, currentPlayerId: undefined, teams: [], hands: [] }))
-    expect(screen.getByText(/Partners across the table/)).toBeTruthy()
-    expect(screen.getByText('Waiting for 1 more.')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Start table' })).toBeDisabled()
+  const waiting = (players: SpadesPlayer[]) =>
+    view({ phase: 'waiting', players, handNumber: 0, dealer: undefined, currentPlayerId: undefined, teams: [], hands: [] })
+
+  // Two or three seats play cutthroat; four choose. Partners is the hub's
+  // own default at four, so it names no mode.
+  it('starts cutthroat from two seats, and offers partners at four', () => {
+    const t = show(waiting(seats().slice(0, 1)))
+    expect(screen.getByText(/spades trump/)).toBeTruthy()
+    expect(screen.getByText('Waiting for a second seat.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Start cutthroat' })).toBeDisabled()
     cleanup()
-    show(view({ phase: 'waiting', players: seats(), handNumber: 0, dealer: undefined, currentPlayerId: undefined, teams: [], hands: [] }), t)
-    expect(screen.getByText('Four seated: start when ready.')).toBeTruthy()
+    show(waiting(seats().slice(0, 3)), t)
+    expect(screen.getByText('Three seated: start cutthroat, every seat for itself, or wait for four to play partners.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Start partners' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Start cutthroat' }))
+    expect(t.startTable).toHaveBeenLastCalledWith('cutthroat')
+    cleanup()
+    show(waiting(seats()), t)
+    expect(screen.getByText('Four seated: partners across, or cutthroat.')).toBeTruthy()
     expect(screen.queryByRole('region', { name: 'table' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Start table' }))
-    expect(t.startTable).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Start partners' }))
+    expect(t.startTable).toHaveBeenLastCalledWith()
+    fireEvent.click(screen.getByRole('button', { name: 'Start cutthroat' }))
+    expect(t.startTable).toHaveBeenLastCalledWith('cutthroat')
+  })
+
+  // Three seats, seventeen cards each, every seat for itself.
+  const cutthroat = (over: Partial<SpadesView> = {}) =>
+    view({
+      mode: 'cutthroat',
+      handSize: 17,
+      players: seats({ alice: { team: 0 }, bob: { team: 1 }, cat: { team: 2 } }).slice(0, 3),
+      teams: [
+        { players: ['alice'], score: 31, bags: 1, gamesWon: 0 },
+        { players: ['bob'], score: 100, bags: 0, gamesWon: 1 },
+        { players: ['cat'], score: -50, bags: 0, gamesWon: 0 }
+      ],
+      hands: [{ bids: [3, 0, 5], tricks: [4, 0, 4], points: [31, 100, -50], scores: [31, 100, -50] }],
+      ...over
+    })
+
+  it('seats a cutthroat table round the felt, every seat for itself', () => {
+    show(cutthroat({ phase: 'bidding', legal: [], players: seats({ bob: { team: 1, bid: 0 }, cat: { team: 2 } }).slice(0, 3) }))
+    const clockOf = (name: string) => screen.getByRole('region', { name }).getAttribute('data-clock')
+    expect(['alice (you)', 'bob', 'cat'].map(clockOf)).toEqual(['6', '10', '2'])
+    expect(screen.queryByText(/partner/)).toBeNull()
+    expect(screen.getByText('Your bid: the tricks you mean to take, or nil.')).toBeTruthy()
+    const options = within(screen.getByRole('combobox', { name: 'Your bid' })).getAllByRole('option')
+    expect(options.at(-1)?.textContent).toBe('17')
+    expect(options).toHaveLength(19)
+  })
+
+  it('scores a cutthroat table seat by seat', () => {
+    show(cutthroat())
+    const board = screen.getByRole('table', { name: 'Score' })
+    expect(within(board).getAllByRole('rowheader').map(cell => cell.textContent)).toEqual(['You', 'bob', 'cat'])
+    const sheet = screen.getByRole('table', { name: 'Hands' })
+    expect(within(sheet).getByRole('row', { name: '1 3 · took 4 +31 31 nil · took 0 +100 100 5 · took 4 -50 -50' })).toBeTruthy()
   })
 
   // Partners sit across: the viewer at 6, the partner at 12.

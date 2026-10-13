@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import type { Card, SpadesMoveName, SpadesMovePayloads, SpadesUpdate, SpadesView } from '@/apps/spades/wire'
+import type { Card, SpadesMode, SpadesMoveName, SpadesMovePayloads, SpadesUpdate, SpadesView } from '@/apps/spades/wire'
 
 // A spades table as the wire sends it (MoonBase#1658), over the lobby's
 // stream (useLobby). The view is the whole truth: the hub sends the
@@ -7,7 +7,7 @@ import type { Card, SpadesMoveName, SpadesMovePayloads, SpadesUpdate, SpadesView
 // reckons the rules or keeps an end of its own.
 
 export interface SpadesTableActions {
-  startTable: () => void
+  startTable: (mode?: SpadesMode) => void
   leaveTable: () => void
   // Another game at a new table, once this one has closed.
   playAgain: () => void
@@ -90,7 +90,7 @@ export const useSpadesTable = ({ playerId, move, showNotice, onLeft }: UseSpades
     },
     [move]
   )
-  const startTable = useCallback(() => move('startGame'), [move])
+  const startTable = useCallback((mode?: SpadesMode) => (mode === undefined ? move('startGame') : move('startGame', { mode })), [move])
   const leaveTable = useCallback(() => {
     if (view !== null && view.phase !== 'closed') {
       move('leaveGame')

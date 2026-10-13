@@ -19,7 +19,8 @@ export function bidWords(bid: number | undefined): string {
 export const you = (id: string, viewer: string) => (id === viewer ? 'you' : id)
 export const You = (id: string, viewer: string) => (id === viewer ? 'You' : id)
 
-// "You & cat" for the viewer's team, "bob & dan" for the other.
+// "You & cat" for the viewer's team, "bob & dan" for the other; in
+// cutthroat, "You" or "bob".
 export function teamName(view: SpadesView, team: number, viewer: string): string {
   const seats = view.players.filter(player => player.team === team).map(player => you(player.playerId, viewer))
   if (seats[0] === 'you') seats[0] = 'You'
@@ -30,14 +31,16 @@ export function isLegal(view: SpadesView, card: Card): boolean {
   return view.legal.some(legal => face(legal) === face(card))
 }
 
-// The winners' score first: "You and cat won, 520 to 310."
+// The winners' score, then the best of the rest: "You and cat won, 520 to
+// 310."; "bob won, 512 to 300."
 export function describeResult(result: SpadesResult, view: SpadesView, viewer: string): string {
   if (result.ending === 'abandoned') {
     if (view.left === undefined) return 'The game was abandoned.'
     return `${You(view.left, viewer)} left: the game was abandoned.`
   }
   const team = view.players.find(player => player.playerId === result.winners[0])?.team ?? 0
-  const [first, second] = [...result.winners].sort((a, b) => Number(b === viewer) - Number(a === viewer))
-  const who = first === viewer ? `You and ${second}` : `${first} and ${second}`
-  return `${who} won, ${result.scores[team]} to ${result.scores[1 - team]}.`
+  const [first, ...rest] = [...result.winners].sort((a, b) => Number(b === viewer) - Number(a === viewer))
+  const who = [You(first, viewer), ...rest].join(' and ')
+  const runnerUp = Math.max(...result.scores.filter((_, t) => t !== team))
+  return `${who} won, ${result.scores[team]} to ${runnerUp}.`
 }

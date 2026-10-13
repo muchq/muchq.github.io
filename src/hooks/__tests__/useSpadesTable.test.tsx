@@ -52,6 +52,8 @@ describe('useSpadesTable', () => {
     expect(result.current.opening).toBe(true)
     act(() => result.current.startTable())
     expect(move).toHaveBeenLastCalledWith('startGame')
+    act(() => result.current.startTable('cutthroat'))
+    expect(move).toHaveBeenLastCalledWith('startGame', { mode: 'cutthroat' })
     act(() => result.current.bid(0))
     expect(move).toHaveBeenLastCalledWith('bid', { tricks: 0 })
     act(() => result.current.play({ rank: 'A', suit: '♠' }))

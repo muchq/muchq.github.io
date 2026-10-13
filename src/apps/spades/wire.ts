@@ -1,6 +1,7 @@
 // Spades' vocabulary on the room stream (MoonBase#1658), mirroring
-// model/spades.smithy. Four seats, partners across: seats 0 and 2 are
-// team 0, seats 1 and 3 team 1, in the order they joined.
+// model/spades.smithy. Two to four seats in the order they joined:
+// partners at four, seats 0 and 2 team 0 and 1 and 3 team 1; or
+// cutthroat, every seat a team of its own.
 
 import type { Card } from '@/apps/castle/wire'
 
@@ -10,8 +11,11 @@ export type { Card }
 // game; closed: a seat left.
 export type SpadesPhase = 'waiting' | 'bidding' | 'playing' | 'scored' | 'won' | 'closed'
 
+export type SpadesMode = 'partners' | 'cutthroat'
+
 export interface SpadesPlayer {
   playerId: string
+  // Its index in the view's teams.
   team: number
   handCount: number
   // The viewer's own hand, by suit (♠ ♥ ♣ ♦) then rank; empty for others.
@@ -51,6 +55,10 @@ export interface SpadesHandLine {
 export interface SpadesView {
   gameId: string
   phase: SpadesPhase
+  // Absent while waiting, and from a hub older than cutthroat: partners.
+  mode?: SpadesMode
+  // Cards a seat is dealt and the highest bid; absent as mode is: 13.
+  handSize?: number
   // Seat order.
   players: SpadesPlayer[]
   // Absent while waiting.
@@ -63,7 +71,7 @@ export interface SpadesView {
   spadesBroken: boolean
   // The cards the viewer may play now; empty off turn.
   legal: Card[]
-  // Team 0 then team 1; empty while waiting.
+  // In team order; empty while waiting.
   teams: SpadesTeam[]
   // This game's hands, in order.
   hands: SpadesHandLine[]
@@ -74,9 +82,9 @@ export interface SpadesView {
 
 export interface SpadesResult {
   ending: 'points' | 'abandoned'
-  // The winning team's two seats; empty when abandoned.
+  // The winning team's seats; empty when abandoned.
   winners: string[]
-  // Each team's score at the end, team 0 first.
+  // Each team's score at the end, in team order.
   scores: number[]
 }
 
@@ -97,10 +105,10 @@ export interface SpadesUpdate {
 export interface SpadesMovePayloads {
   createGame: undefined
   joinGame: { gameId: string }
-  // Needs all four seats.
-  startGame: undefined
+  // Unnamed, the hub plays partners at four seats and cutthroat at fewer.
+  startGame: { mode: SpadesMode } | undefined
   leaveGame: undefined
-  // 0 (nil) to 13.
+  // 0 (nil) to handSize.
   bid: { tricks: number }
   play: { card: Card }
   // The next hand, once this one is scored.
@@ -109,4 +117,4 @@ export interface SpadesMovePayloads {
 
 export type SpadesMoveName = keyof SpadesMovePayloads
 
-export const MAX_BID = 13
+export const HAND_SIZE = 13

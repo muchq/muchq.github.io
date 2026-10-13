@@ -33,6 +33,26 @@ describe('spades rules', () => {
     expect(teamName(view(), 1, 'eve')).toBe('bob & dan')
   })
 
+  // Cutthroat: a team of one a seat.
+  const cutthroat = view({
+    mode: 'cutthroat',
+    players: ['alice', 'bob', 'cat'].map((playerId, seat) => ({ playerId, team: seat, handCount: 17, hand: [], tricks: 0 }))
+  })
+
+  it('names a cutthroat team by its one seat', () => {
+    expect(teamName(cutthroat, 1, 'alice')).toBe('bob')
+    expect(teamName(cutthroat, 1, 'bob')).toBe('You')
+  })
+
+  // The winner's score, then the best of the rest.
+  it('tells a cutthroat game’s end: one winner', () => {
+    const won = { ending: 'points' as const, winners: ['bob'], scores: [300, 512, 120] }
+    expect(describeResult(won, cutthroat, 'alice')).toBe('bob won, 512 to 300.')
+    expect(describeResult(won, cutthroat, 'bob')).toBe('You won, 512 to 300.')
+    const bust = { ending: 'points' as const, winners: ['cat'], scores: [-210, 90, 140] }
+    expect(describeResult(bust, cutthroat, 'alice')).toBe('cat won, 140 to 90.')
+  })
+
   it('a card is legal by its face, not its object', () => {
     const v = view({ legal: [{ rank: 'A', suit: '♠' }] })
     expect(isLegal(v, { rank: 'A', suit: '♠' })).toBe(true)

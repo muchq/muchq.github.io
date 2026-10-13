@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SpadesTableActions } from '@/hooks/useSpadesTable'
 import type { SpadesPlayer, SpadesTrickPlay, SpadesView } from '../wire'
-import { MAX_BID } from '../wire'
+import { HAND_SIZE } from '../wire'
 import { bidNumber, bidWords, describeResult, face, isLegal, teamName, you, You } from '../rules'
 import { seatsOf } from '@/apps/lobby/catalog'
 import { CardBack, CardFace } from '@/apps/castle/components/Cards'
@@ -11,8 +11,8 @@ import AboutGame from '@/apps/lobby/components/AboutGame'
 import styles from './SpadesTable.module.css'
 
 // The spades table from the viewer's chair on castle's felt: the viewer
-// at 6 o'clock, the partner across at 12, the other team at 9 and 3. The
-// middle is the trick in play. Every rule is the hub's: the view names
+// at 6 o'clock and the others round the ring in turn order — in partners,
+// the partner across at 12. The middle is the trick in play. Every rule is the hub's: the view names
 // the viewer's legal plays, and only those are buttons.
 
 export interface SpadesTableProps {
@@ -26,7 +26,7 @@ export interface SpadesTableProps {
 const SHOWN_BACKS = 5
 
 const SEATS = seatsOf('spades')
-const BIDS = Array.from({ length: MAX_BID + 1 }, (_, tricks) => tricks)
+const SEATED = ['', 'One', 'Two', 'Three']
 
 const signed = (points: number) => (points > 0 ? `+${points}` : `${points}`)
 
@@ -57,6 +57,7 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
   const me = view.players.find(player => player.playerId === playerId)
   const partner = me === undefined ? undefined : view.players.find(player => player.team === me.team && player !== me)
   const myTurn = view.currentPlayerId === playerId
+  const seatsOfTeam = (team: number) => view.players.flatMap((player, seat) => (player.team === team ? [seat] : []))
   const able = connected && !sending
   const bidding = view.phase === 'bidding' && myTurn
   const playing = view.phase === 'playing' && myTurn
@@ -76,10 +77,13 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
 
   const hint = (() => {
     if (view.phase === 'waiting') {
-      const short = SEATS - view.players.length
-      return short > 0 ? `Waiting for ${short} more.` : 'Four seated: start when ready.'
+      const seated = view.players.length
+      if (seated < 2) return 'Waiting for a second seat.'
+      if (seated < SEATS) return `${SEATED[seated]} seated: start cutthroat, every seat for itself, or wait for four to play partners.`
+      return 'Four seated: partners across, or cutthroat.'
     }
-    if (bidding) return `Your bid: the tricks you and ${partner?.playerId ?? 'your partner'} mean to take between you, or nil.`
+    if (bidding && partner !== undefined) return `Your bid: the tricks you and ${partner.playerId} mean to take between you, or nil.`
+    if (bidding) return 'Your bid: the tricks you mean to take, or nil.'
     if (view.phase === 'bidding') return `Waiting for ${view.currentPlayerId} to bid.`
     if (playing && view.trick.length === 0) return view.spadesBroken ? 'Your lead.' : 'Your lead. Spades aren’t broken yet.'
     if (playing) return 'Your play: follow the suit led if you can.'
@@ -93,8 +97,19 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
       return (
         <>
           <AboutGame game="spades" className={felt.hint} />
-          <button type="button" className={felt.primary} onClick={table.startTable} disabled={view.players.length < SEATS || !connected}>
-            Start table
+          {/* Partners is the hub's own choice at four seats, so it names no mode. */}
+          {view.players.length === SEATS && (
+            <button type="button" className={felt.primary} onClick={() => table.startTable()} disabled={!connected}>
+              Start partners
+            </button>
+          )}
+          <button
+            type="button"
+            className={view.players.length === SEATS ? felt.secondary : felt.primary}
+            onClick={() => table.startTable('cutthroat')}
+            disabled={view.players.length < 2 || !connected}
+          >
+            Start cutthroat
           </button>
         </>
       )
@@ -112,7 +127,7 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
             <option value="" disabled>
               Pick…
             </option>
-            {BIDS.map(tricks => (
+            {Array.from({ length: (view.handSize ?? HAND_SIZE) + 1 }, (_, tricks) => (
               <option key={tricks} value={tricks}>
                 {tricks === 0 ? 'Nil' : tricks}
               </option>
@@ -303,7 +318,7 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
               <thead>
                 <tr>
                   <th scope="col">#</th>
-                  {[0, 1].map(t => (
+                  {view.teams.map((_, t) => (
                     <th key={t} scope="colgroup" colSpan={3}>
                       {teamName(view, t, playerId)}
                     </th>
@@ -314,9 +329,18 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
                 {view.hands.map((line, h) => (
                   <tr key={h}>
                     <th scope="row">{h + 1}</th>
-                    {[0, 1].map(t => (
-                      <TeamLine key={t} bids={[line.bids[t], line.bids[t + 2]]} took={line.tricks[t] + line.tricks[t + 2]} points={line.points[t]} score={line.scores[t]} />
-                    ))}
+                    {view.teams.map((_, t) => {
+                      const of = seatsOfTeam(t)
+                      return (
+                        <TeamLine
+                          key={t}
+                          bids={of.map(seat => line.bids[seat])}
+                          took={of.reduce((sum, seat) => sum + line.tricks[seat], 0)}
+                          points={line.points[t]}
+                          score={line.scores[t]}
+                        />
+                      )
+                    })}
                   </tr>
                 ))}
               </tbody>
