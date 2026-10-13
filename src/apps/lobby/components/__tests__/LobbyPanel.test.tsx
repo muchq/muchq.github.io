@@ -48,6 +48,7 @@ const lobby = (over: Partial<UseLobby> = {}): UseLobby =>
     castle: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['castle'],
     golf: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['golf'],
     rummy: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['rummy'],
+    spades: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['spades'],
     chess: { createTable: vi.fn(), joinTable: vi.fn(), watchTable: vi.fn(), history: null, loadHistory: vi.fn(), roundRobins: [], loadRoundRobins: vi.fn() } as unknown as UseLobby['chess'],
     pong: pong(),
     ...over
@@ -245,13 +246,13 @@ describe('LobbyPanel', () => {
     const picker = screen.getByRole('combobox', { name: 'Game' })
     expect(within(picker).getAllByRole('option').map(option => option.textContent)).toEqual(['Cards', 'Chess', 'Pong'])
     const cards = screen.getByRole('combobox', { name: 'Card game' })
-    expect(within(cards).getAllByRole('option').map(option => option.textContent)).toEqual(['Castle', 'Golf', 'Rummy'])
+    expect(within(cards).getAllByRole('option').map(option => option.textContent)).toEqual(['Castle', 'Golf', 'Rummy', 'Spades'])
     expect(screen.getAllByRole('button', { name: /^Open a table/ })).toHaveLength(1)
     expect(screen.queryByText(/Shed every card first/)).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Open a table: castle' }))
     expect(hook.castle.createTable).toHaveBeenCalledTimes(1)
-    for (const game of ['golf', 'rummy'] as const) {
+    for (const game of ['golf', 'rummy', 'spades'] as const) {
       fireEvent.change(cards, { target: { value: game } })
       fireEvent.click(screen.getByRole('button', { name: `Open a table: ${game}` }))
       expect(hook[game].createTable).toHaveBeenCalledTimes(1)
@@ -266,7 +267,7 @@ describe('LobbyPanel', () => {
     expect(hook.pong.createTable).toHaveBeenCalledTimes(1)
     // Back to cards, the card game picked last is still picked.
     fireEvent.change(picker, { target: { value: 'cards' } })
-    expect(screen.getByRole('combobox', { name: 'Card game' })).toHaveValue('rummy')
+    expect(screen.getByRole('combobox', { name: 'Card game' })).toHaveValue('spades')
   })
 
   it('names a card game’s table as cards, then its game', () => {

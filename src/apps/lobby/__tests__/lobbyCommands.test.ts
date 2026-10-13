@@ -18,6 +18,7 @@ const lobbyWith = (over: Partial<UseLobby>): UseLobby =>
     castle: { createTable: vi.fn(), joinTable: vi.fn() },
     golf: { createTable: vi.fn(), joinTable: vi.fn() },
     rummy: { createTable: vi.fn(), joinTable: vi.fn() },
+    spades: { createTable: vi.fn(), joinTable: vi.fn() },
     chess: { createTable: vi.fn(), joinTable: vi.fn() },
     pong: { createTable: vi.fn(), joinTable: vi.fn() },
     voice: voiceIn(),
@@ -91,6 +92,7 @@ describe('lobbyCommands', () => {
       'Open a castle table',
       'Open a golf table',
       'Open a rummy table',
+      'Open a spades table',
       'Open a chess table',
       'Open a pong table',
       'Join castle table C1',
@@ -129,6 +131,8 @@ describe('lobbyCommands', () => {
     expect(lobby.golf.createTable).toHaveBeenCalledTimes(1)
     run(lobby, 'Open a rummy table')
     expect(lobby.rummy.createTable).toHaveBeenCalledTimes(1)
+    run(lobby, 'Open a spades table')
+    expect(lobby.spades.createTable).toHaveBeenCalledTimes(1)
     run(lobby, 'Join chess table K1')
     expect(lobby.chess.joinTable).toHaveBeenCalledWith('K1')
     run(lobby, 'Open a chess table')

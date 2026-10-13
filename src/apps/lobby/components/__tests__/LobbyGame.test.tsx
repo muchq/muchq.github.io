@@ -7,6 +7,7 @@ import type { CastleView } from '@/apps/castle/wire'
 import type { RummyView } from '@/apps/rummy/wire'
 import type { ChessReview, ChessView } from '@/apps/chess/wire'
 import type { PongView } from '@/apps/pong/wire'
+import type { SpadesView } from '@/apps/spades/wire'
 import type { GameState } from '@/types/golf'
 import type { CommandRegistry } from '@/utils/commandRegistry'
 import { COMMAND_HOTKEY } from '@/utils/hotkeys'
@@ -34,7 +35,8 @@ const state = {
   golf: { view: null as GameState | null, ended: null, peekCountdown: null },
   rummy: { view: null as RummyView | null, ended: null, selected: [] },
   chess: { view: null as ChessView | null, opening: false, history: null, review: null as ChessReview | null, closeReview: vi.fn(), loadHistory: vi.fn(), roundRobins: [], loadRoundRobins: vi.fn() },
-  pong: { view: null as PongView | null, opening: false, roundRobins: [], loadRoundRobins: vi.fn(), latestFrame: () => null }
+  pong: { view: null as PongView | null, opening: false, roundRobins: [], loadRoundRobins: vi.fn(), latestFrame: () => null },
+  spades: { view: null as SpadesView | null, opening: false }
 } as unknown as UseLobby
 
 vi.mock('@/hooks/useLobby', async importOriginal => ({
@@ -62,6 +64,7 @@ vi.mock('@/apps/thoughts/components/ThoughtsGame', () => ({
 vi.mock('@/apps/castle/components/CastleTable', () => ({ default: () => <div>table</div> }))
 vi.mock('@/apps/chess/components/ChessTable', () => ({ default: () => <div>chess table</div> }))
 vi.mock('@/apps/pong/components/PongTable', () => ({ default: () => <div>pong table</div> }))
+vi.mock('@/apps/spades/components/SpadesTable', () => ({ default: () => <div>spades table</div> }))
 vi.mock('@/apps/chess/components/GameReview', () => ({
   default: ({ review, onClose }: { review: ChessReview; onClose: () => void }) => (
     <button type="button" onClick={onClose}>
@@ -96,6 +99,7 @@ describe('LobbyGame', () => {
     state.golf.view = null
     state.chess.view = null
     state.pong.view = null
+    state.spades.view = null
     state.lost = null
     state.room = null
     localStorage.clear()
@@ -190,6 +194,18 @@ describe('LobbyGame', () => {
     state.pong.view = null
     rerender(<LobbyGame />)
     expect(screen.queryByText('pong table')).toBeNull()
+    expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
+  })
+
+  it('a spades table is a table too: over the world, the panel folded', () => {
+    const { rerender } = render(<LobbyGame />)
+    state.spades.view = { gameId: 'S1' } as SpadesView
+    rerender(<LobbyGame />)
+    expect(screen.getByText('spades table')).toBeTruthy()
+    expect(screen.queryByRole('complementary', { name: 'lobby' })).toBeNull()
+    state.spades.view = null
+    rerender(<LobbyGame />)
+    expect(screen.queryByText('spades table')).toBeNull()
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
   })
 

@@ -305,6 +305,29 @@ describe('useLobby', () => {
     expect(ws.lastSent()).toEqual({ event: 'pong', payload: { move: { joinGame: { gameId: 'P1' } } } })
   })
 
+  it('a spades table swaps in on its own envelope, and its bids ride it', async () => {
+    const { result, ws, pathname } = await open()
+    act(() => ws.receive('roomState', roomState('R1')))
+    act(() => result.current.spades.createTable())
+    expect(ws.lastSent()).toEqual({ event: 'spades', payload: { move: { createGame: {} } } })
+    const spadesView = { gameId: 'S1', phase: 'waiting', players: [], handNumber: 0, trick: [], spadesBroken: false, legal: [], teams: [], hands: [] }
+    act(() => ws.receive('spades', { update: { gameJoined: { view: spadesView } } }))
+    expect(result.current.spades.view?.gameId).toBe('S1')
+    expect(pathname()).toBe('/games/room/R1/table/S1')
+    act(() => result.current.spades.bid(4))
+    expect(ws.lastSent()).toEqual({ event: 'spades', payload: { move: { bid: { tricks: 4 } } } })
+    act(() => ws.receive('commandRejected', { reason: 'not your bid' }))
+    expect(result.current.spades.sending).toBe(false)
+    act(() => ws.receive('roomLeft', { roomId: 'R1' }))
+    expect(result.current.spades.view).toBeNull()
+  })
+
+  it('a share link to a spades table sits at it in spades’ envelope', async () => {
+    const { ws } = await open({ permalinkRoomId: 'R1', permalinkGameId: 'S1' }, '/games/room/R1/table/S1')
+    act(() => ws.receive('roomState', roomState('R1', [{ gameId: 'S1', game: 'spades', status: 'waiting', playerCount: 1 }])))
+    expect(ws.lastSent()).toEqual({ event: 'spades', payload: { move: { joinGame: { gameId: 'S1' } } } })
+  })
+
   it('joining a listed golf table sends its join, and the table answers', async () => {
     const { result, ws } = await open()
     act(() => ws.receive('roomState', roomState('R1', [{ gameId: 'G7', game: 'golf', status: 'waiting', playerCount: 1 }])))
