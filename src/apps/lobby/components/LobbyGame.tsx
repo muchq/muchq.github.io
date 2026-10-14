@@ -193,7 +193,7 @@ const LobbyGame = (props: UseLobbyProps) => {
       )}
       {lobby.roomLink && (
         <div className={styles.hubLost} role="status">
-          You are at a table in room {lobby.roomLink.from}{' '}
+          You are at a table in room {lobby.room?.roomId}{' '}
           <button type="button" onClick={lobby.followRoomLink}>
             Leave it for room {lobby.roomLink.roomId}
           </button>{' '}

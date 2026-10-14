@@ -21,7 +21,7 @@ const state = {
   lost: null,
   superseded: false,
   playHere: vi.fn(),
-  roomLink: null as { from: string; roomId: string; gameId: string | null } | null,
+  roomLink: null as { roomId: string; gameId: string | null } | null,
   followRoomLink: vi.fn(),
   stayInRoom: vi.fn(),
   room: null,
@@ -167,7 +167,8 @@ describe('LobbyGame', () => {
 
   // A link to another room, opened while seated: one click follows it.
   it('a room link while seated offers to follow it or stay', () => {
-    state.roomLink = { from: 'R1', roomId: 'R2', gameId: null }
+    state.roomLink = { roomId: 'R2', gameId: null }
+    state.room = { roomId: 'R1', players: [], games: [] }
     render(<LobbyGame />)
     expect(screen.getByText(/You are at a table in room R1/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Leave it for room R2' }))

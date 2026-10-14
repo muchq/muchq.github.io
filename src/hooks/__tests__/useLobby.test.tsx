@@ -606,7 +606,7 @@ describe('useLobby', () => {
     expect(ws.sentFrames().some(frame => frame.event === 'leaveRoom' || frame.event === 'joinRoom')).toBe(false)
     expect(result.current.room?.roomId).toBe('R1')
     expect(pathname()).toBe('/games/room/R1')
-    expect(result.current.roomLink).toEqual({ from: 'R1', roomId: 'R2', gameId: null })
+    expect(result.current.roomLink).toEqual({ roomId: 'R2', gameId: null })
     expect(result.current.notice).toBe('')
     // Staying, the room's world is joined as on any resume.
     expect(lobbyFrames(ws)).toHaveLength(1)

@@ -82,7 +82,7 @@ export interface UseLobby {
   // stream has given up.
   playHere: () => void
   // A link to another room, held back because this session is seated at
-  // a table in `from`: follow it (the table is given up) or stay.
+  // a table in this one: follow it (the table is given up) or stay.
   roomLink: RoomLink | null
   followRoomLink: () => void
   stayInRoom: () => void
@@ -105,18 +105,16 @@ export interface UseLobby {
   spades: UseSpadesTable
 }
 
-// A share link's room the session is on its way to: leaving the resumed
-// one (unless seated at a table there), or asked for this one, and
-// waiting on the hub.
+// A share link's room, and the table it named.
 export interface RoomLink {
-  from: string
   roomId: string
   gameId: string | null
 }
 
-interface RoomSwitch {
-  roomId: string
-  gameId: string | null
+// A share link's room the session is on its way to: leaving the resumed
+// one (unless seated at a table there), or asked for this one, and
+// waiting on the hub.
+interface RoomSwitch extends RoomLink {
   // The leave is sent; until then the resumed room's state decides.
   leaving: boolean
 }
@@ -344,7 +342,7 @@ export const useLobby = ({
         // stays and offers the link.
         const me = next.players.find(player => player.playerId === streamRef.current?.playerId)
         if (me?.table !== undefined) {
-          setRoomLink({ from: next.roomId, roomId: pending.roomId, gameId: pending.gameId })
+          setRoomLink({ roomId: pending.roomId, gameId: pending.gameId })
           switchRef.current = null
           pending = null
           navigate(lobbyRoomPath(next.roomId), { replace: true })
