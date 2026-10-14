@@ -26,7 +26,7 @@ import type { ChatMessage } from '@/types/roomChat'
 import type { GameStatePlayer } from '@/types/game'
 import type { TapeSplat } from './tapeSplats'
 import type { Geometry } from './surface'
-import { safeSessionStorage } from './safeLocalStorage'
+import { safeLocalStorage, safeSessionStorage } from './safeLocalStorage'
 import type { VoiceAction, VoiceUpdate } from './voiceMesh'
 import { HUB_SUBPROTOCOL, hubPlayUrl, mintHubSession } from './hubSession'
 
@@ -208,16 +208,23 @@ export class HubStream {
 
   // --- session + socket lifecycle ---
 
+  // Shared by every tab: the token is the player. A tab from before it was
+  // shared kept it in its own storage, and still offers that one.
+  private storedResumeToken(): string | null {
+    return safeLocalStorage.get(this.resumeTokenKey) ?? safeSessionStorage.get(this.resumeTokenKey)
+  }
+
   private async dial(): Promise<void> {
     this.dialing = true
     try {
-      const session = await mintHubSession(this.playUrl, safeSessionStorage.get(this.resumeTokenKey))
+      const session = await mintHubSession(this.playUrl, this.storedResumeToken())
       this.dialing = false
       // Disconnected during the mint: no socket, or a torn-down stream
       // would hold a seat under the live one's playerId.
       if (this.closed) return
       this._playerId = session.playerId
-      safeSessionStorage.set(this.resumeTokenKey, session.resumeToken)
+      safeLocalStorage.set(this.resumeTokenKey, session.resumeToken)
+      safeSessionStorage.remove(this.resumeTokenKey)
 
       const ws = new WebSocket(`${this.playUrl}?ticket=${encodeURIComponent(session.ticket)}`, HUB_SUBPROTOCOL)
       this.ws = ws

@@ -64,7 +64,7 @@ describe('HubStream', () => {
     expect(ws.protocol).toBe('smithy.eventstream.v1+json')
     expect(hub.isConnected).toBe(true)
     expect(hub.playerId).toBe('alice')
-    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
     expect(callbacks.onConnection).toHaveBeenCalledWith(true)
     expect(callbacks.onSessionReady).toHaveBeenCalledWith({ playerId: 'alice', resumed: false })
   })
@@ -103,25 +103,36 @@ describe('HubStream', () => {
   })
 
   it('offers its own resume token, under its own key, and writes only there', async () => {
-    sessionStorage.setItem(TOKEN_KEY, 'rt-old')
-    sessionStorage.setItem('golf_v2_resume_token', 'rt-golf')
+    localStorage.setItem(TOKEN_KEY, 'rt-old')
+    localStorage.setItem('golf_v2_resume_token', 'rt-golf')
     await connect()
     const [, init] = fetchMock.mock.calls[0]
     expect(JSON.parse((init as { body: string }).body)).toEqual({ resumeToken: 'rt-old' })
-    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('rt-456')
-    expect(sessionStorage.getItem('golf_v2_resume_token')).toBe('rt-golf')
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    expect(localStorage.getItem('golf_v2_resume_token')).toBe('rt-golf')
   })
 
-  // Tabs share localStorage: a token kept there would be offered by a
-  // second tab, which would take the first tab's seat. sessionStorage is
-  // the tab's own, and survives a reload.
-  it("keeps the resume token to this tab, never offering or touching another's", async () => {
+  // The token is the player's, not the tab's: a new tab, or the page reopened
+  // from a link, offers the one another tab stored and takes that seat (the
+  // hub tells the other tab it was superseded).
+  it('offers the resume token another tab stored, and keeps it for every tab', async () => {
     localStorage.setItem(TOKEN_KEY, 'rt-other-tab')
     await connect()
     const [, init] = fetchMock.mock.calls[0]
-    expect(JSON.parse((init as { body: string }).body)).toEqual({})
-    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('rt-456')
-    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-other-tab')
+    expect(JSON.parse((init as { body: string }).body)).toEqual({ resumeToken: 'rt-other-tab' })
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull()
+  })
+
+  // A tab from before the token was shared kept it in its own storage: that
+  // player is still that player, and the token moves to the shared store.
+  it("carries a token from this tab's own storage over to the shared one", async () => {
+    sessionStorage.setItem(TOKEN_KEY, 'rt-this-tab')
+    await connect()
+    const [, init] = fetchMock.mock.calls[0]
+    expect(JSON.parse((init as { body: string }).body)).toEqual({ resumeToken: 'rt-this-tab' })
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull()
   })
 
   it('a disconnect during the mint creates no socket', async () => {
@@ -142,12 +153,12 @@ describe('HubStream', () => {
     const refused = FakeWebSocket.instances[0]
     refused.open()
     refused.close()
-    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
     hub.disconnect()
 
     const [admittedHub, ws] = await connect()
     ws.close()
-    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
     admittedHub.disconnect()
   })
 
@@ -162,7 +173,7 @@ describe('HubStream', () => {
     refused.open()
     refused.receiveRaw({ exception: 'SeatConflict', payload: { message: 'player already has a live connection' } })
     refused.close()
-    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
     expect(callbacks.onLost).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(2000)
     const [, init] = fetchMock.mock.calls[1]
@@ -315,9 +326,9 @@ describe('HubStream', () => {
     const hub = stream()
     hub.connect()
     await flushAsync()
-    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
     hub.disconnect()
-    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('rt-456')
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
   })
 
   it('encodes room commands bare and game moves in their envelope', async () => {
