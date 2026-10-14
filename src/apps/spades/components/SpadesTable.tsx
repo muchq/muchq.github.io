@@ -12,8 +12,8 @@ import VariantPicker from '@/apps/lobby/components/VariantPicker'
 import styles from './SpadesTable.module.css'
 
 const VARIANT_OPTIONS = [
-  { value: 'partners', label: 'partners' },
-  { value: 'cutthroat', label: 'cutthroat' }
+  { value: 'partners', label: 'Partners' },
+  { value: 'cutthroat', label: 'Cutthroat' }
 ] as const satisfies readonly { value: SpadesMode; label: string }[]
 
 // The spades table from the viewer's chair on the felt (cards/felt.module.css): the viewer at
@@ -115,10 +115,9 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
             options={view.players.length === SEATS ? VARIANT_OPTIONS : VARIANT_OPTIONS.filter(option => option.value === 'cutthroat')}
             value={variant}
             onChange={setVariant}
-            action={option => `Start ${option.label}`}
+            action={option => `Start ${option.value}`}
             onAction={table.startTable}
-            disabled={!connected}
-            actionDisabled={view.players.length < 2}
+            disabled={!connected || view.players.length < 2}
           />
         </>
       )

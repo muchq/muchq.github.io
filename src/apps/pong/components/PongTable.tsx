@@ -328,7 +328,7 @@ const PongTable = ({ playerId, connected, view, table }: PongTableProps) => {
         <div className={styles.controls}>
           {view.phase === 'waiting' && alone && (
             <>
-              <label className={styles.pick}>
+              <label className={felt.pick}>
                 Bot
                 <select value={botLevel} onChange={event => setBotLevel(Number(event.target.value))} disabled={!connected}>
                   {BOT_LEVELS.map(({ level, label }) => (
@@ -344,25 +344,20 @@ const PongTable = ({ playerId, connected, view, table }: PongTableProps) => {
             </>
           )}
           {view.phase === 'waiting' && !alone && (
-            <>
-              <VariantPicker label="Court" options={courts} value={variant} onChange={setVariant} action="Start" onAction={table.startTable} disabled={!connected} />
-            </>
+            <VariantPicker label="Court" options={courts} value={variant} onChange={setVariant} action="Start" onAction={table.startTable} disabled={!connected} />
           )}
+          {/* A closed table plays again on its own court. */}
           {(view.phase === 'ended' || view.phase === 'closed') && (
-            <>
-              {/* A closed table plays again on its own court. */}
-              <VariantPicker
-                label="Court"
-                options={view.phase === 'ended' ? courts : courts.filter(court => court.value === variant)}
-                value={variant}
-                onChange={setVariant}
-                action="Play again"
-                onAction={table.playAgain}
-                disabled={!connected}
-                actionDisabled={table.opening}
-                buttonRef={againRef}
-              />
-            </>
+            <VariantPicker
+              label="Court"
+              options={view.phase === 'ended' ? courts : courts.filter(court => court.value === variant)}
+              value={variant}
+              onChange={setVariant}
+              action="Play again"
+              onAction={table.playAgain}
+              disabled={!connected || table.opening}
+              buttonRef={againRef}
+            />
           )}
         </div>
       )}

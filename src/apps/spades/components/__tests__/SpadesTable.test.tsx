@@ -84,7 +84,7 @@ describe('SpadesTable', () => {
     expect(screen.queryByRole('region', { name: 'table' })).toBeNull()
     // Four choose from one list, partners first, and one button starts it.
     const game = screen.getByRole('combobox', { name: 'Game' })
-    expect(within(game).getAllByRole('option').map(option => option.textContent)).toEqual(['partners', 'cutthroat'])
+    expect(within(game).getAllByRole('option').map(option => option.textContent)).toEqual(['Partners', 'Cutthroat'])
     expect(screen.getAllByRole('button', { name: /^Start/ })).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'Start partners' }))
     expect(t.startTable).toHaveBeenLastCalledWith('partners')

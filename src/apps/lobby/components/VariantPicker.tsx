@@ -1,6 +1,5 @@
 import type { Ref } from 'react'
 import felt from '@/apps/cards/felt.module.css'
-import styles from './VariantPicker.module.css'
 
 // A table's choice of game, made the same way at every table: one
 // labelled list, and one button that names what it starts. One option is
@@ -19,10 +18,7 @@ interface VariantPickerProps<V extends string> {
   onChange: (value: V) => void
   action: string | ((option: VariantOption<V>) => string)
   onAction: (value: V) => void
-  // Holds the list and the button.
   disabled?: boolean
-  // Holds the button alone.
-  actionDisabled?: boolean
   buttonRef?: Ref<HTMLButtonElement>
 }
 
@@ -34,7 +30,6 @@ export default function VariantPicker<V extends string>({
   action,
   onAction,
   disabled = false,
-  actionDisabled = false,
   buttonRef
 }: VariantPickerProps<V>) {
   const current = options.find(option => option.value === value) ?? options[0]
@@ -42,7 +37,7 @@ export default function VariantPicker<V extends string>({
   return (
     <>
       {options.length > 1 && (
-        <label className={styles.pick}>
+        <label className={felt.pick}>
           {label}
           <select value={current.value} onChange={event => onChange(event.target.value as V)} disabled={disabled}>
             {options.map(option => (
@@ -53,7 +48,7 @@ export default function VariantPicker<V extends string>({
           </select>
         </label>
       )}
-      <button ref={buttonRef} type="button" className={felt.primary} onClick={() => onAction(current.value)} disabled={disabled || actionDisabled}>
+      <button ref={buttonRef} type="button" className={felt.primary} onClick={() => onAction(current.value)} disabled={disabled}>
         {typeof action === 'string' ? action : action(current)}
       </button>
     </>

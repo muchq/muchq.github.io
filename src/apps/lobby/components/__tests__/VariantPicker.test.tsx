@@ -40,14 +40,20 @@ describe('VariantPicker', () => {
     expect(onAction).toHaveBeenCalledWith('cutthroat')
   })
 
-  it('disabled holds the list and the button; the button can be held alone', () => {
-    const { rerender } = render(
-      <VariantPicker label="Game" options={options} value="partners" onChange={vi.fn()} action="Start" onAction={vi.fn()} disabled />
-    )
+  it('nothing on offer draws nothing', () => {
+    const { container } = render(<VariantPicker label="Game" options={[]} value="partners" onChange={vi.fn()} action="Start" onAction={vi.fn()} />)
+    expect(container.childElementCount).toBe(0)
+  })
+
+  it('the list shows the pick it acts on', () => {
+    const three = [...options, { value: 'solo', label: 'solo' }]
+    render(<VariantPicker label="Game" options={three.slice(1)} value="partners" onChange={vi.fn()} action="Start" onAction={vi.fn()} />)
+    expect(screen.getByRole('combobox', { name: 'Game' })).toHaveProperty('value', 'cutthroat')
+  })
+
+  it('disabled holds the list and the button', () => {
+    render(<VariantPicker label="Game" options={options} value="partners" onChange={vi.fn()} action="Start" onAction={vi.fn()} disabled />)
     expect(screen.getByRole('combobox', { name: 'Game' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Start' })).toBeDisabled()
-    rerender(<VariantPicker label="Game" options={options} value="partners" onChange={vi.fn()} action="Start" onAction={vi.fn()} actionDisabled />)
-    expect(screen.getByRole('combobox', { name: 'Game' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Start' })).toBeDisabled()
   })
 })

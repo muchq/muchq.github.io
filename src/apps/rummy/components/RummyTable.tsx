@@ -289,8 +289,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
         onChange={variant => setPicking({ deal: dealKey, variant })}
         action={dealing ? 'Dealing…' : option => `Deal ${option.label}`}
         onAction={table.chooseVariant}
-        disabled={dealing}
-        actionDisabled={!connected}
+        disabled={!connected || dealing}
         buttonRef={focusButton ? playAgainRef : undefined}
       />
     )
