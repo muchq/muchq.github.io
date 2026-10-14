@@ -7,6 +7,7 @@ import { seatsOf } from '@/apps/lobby/catalog'
 import { CardBack, CardFace } from '@/apps/cards/Cards'
 import { clockOf, fromViewer } from '@/apps/cards/seating'
 import felt from '@/apps/cards/felt.module.css'
+import GameEnding from '@/apps/cards/GameEnding'
 import AboutGame from '@/apps/lobby/components/AboutGame'
 import VariantPicker from '@/apps/lobby/components/VariantPicker'
 import styles from './SpadesTable.module.css'
@@ -155,16 +156,7 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
       )
     }
     if (view.phase === 'closed') {
-      return (
-        <>
-          <button type="button" className={felt.primary} onClick={table.playAgain} disabled={!connected || opening}>
-            {opening ? 'Opening…' : 'Play again'}
-          </button>
-          <button type="button" className={felt.secondary} onClick={table.leaveTable}>
-            Back to the room
-          </button>
-        </>
-      )
+      return <GameEnding onPlayAgain={table.playAgain} onBack={table.leaveTable} opening={opening} connected={connected} />
     }
     return null
   })()
