@@ -78,6 +78,8 @@ export interface UseLobby {
   lost: string | null
   // Another window took this player's seat; this one waits to be asked.
   superseded: boolean
+  // Dials again with the same identity: after a supersede, or once the
+  // stream has given up.
   playHere: () => void
   room: HubRoom | null
   chat: LobbyChat
@@ -453,6 +455,7 @@ export const useLobby = ({
         onVoice: update => voice.apply(update),
         onSuperseded: () => setSuperseded(true),
         onLost: reason => {
+          setSuperseded(false)
           dropWorld()
           voice.dropped()
           setLost(reason)
@@ -484,7 +487,10 @@ export const useLobby = ({
   const leaveRoom = useCallback(() => streamRef.current?.leaveRoom(), [])
   const sendChat = useCallback((text: string) => streamRef.current?.chat(text), [])
   // Takes the seat back from the other window, which is told in turn.
-  const playHere = useCallback(() => streamRef.current?.connect(), [])
+  const playHere = useCallback(() => {
+    setSuperseded(false)
+    streamRef.current?.connect()
+  }, [])
 
   return {
     playerId,

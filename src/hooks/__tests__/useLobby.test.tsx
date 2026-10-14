@@ -685,6 +685,8 @@ describe('useLobby', () => {
         result.current.playHere()
         await vi.advanceTimersByTimeAsync(0)
       })
+      // Asked to play here: the banner goes; a failure says lost instead.
+      expect(result.current.superseded).toBe(false)
       const next = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
       expect(FakeWebSocket.instances).toHaveLength(2)
       act(() => {

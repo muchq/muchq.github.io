@@ -243,6 +243,60 @@ describe('HubStream', () => {
     hub.disconnect()
   })
 
+  // Play here clicked twice, or while a redial waits: one dial, not two
+  // sockets racing for the seat.
+  it('connect while a dial is under way or a redial waits dials once', async () => {
+    vi.useFakeTimers()
+    const hub = stream()
+    hub.connect()
+    hub.connect()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(FakeWebSocket.instances).toHaveLength(1)
+
+    FakeWebSocket.instances[0].close()  // a redial is now 2s away
+    hub.connect()
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(FakeWebSocket.instances).toHaveLength(2)
+    hub.disconnect()
+  })
+
+  // A socket a newer dial replaced speaks for nothing: its frames are not
+  // the session's.
+  it("a replaced socket's frames are ignored", async () => {
+    vi.useFakeTimers()
+    const hub = stream()
+    hub.connect()
+    await vi.advanceTimersByTimeAsync(0)
+    const old = FakeWebSocket.instances[0]
+    old.open()
+    old.receive('sessionReady', { playerId: 'alice', resumed: false })
+    const lateMessage = old.onmessage
+    old.close(4001)
+    hub.connect()
+    await vi.advanceTimersByTimeAsync(0)
+    callbacks.onRoom.mockClear()
+    lateMessage?.({ data: JSON.stringify({ event: 'roomState', payload: { roomId: 'R1', players: [], games: [] } }) })
+    expect(callbacks.onRoom).not.toHaveBeenCalled()
+    hub.disconnect()
+  })
+
+  // Playing here is a fresh start: ten tries, whatever the last outage spent.
+  it('connect gives the next outage the whole reconnect budget', async () => {
+    vi.useFakeTimers()
+    fetchMock.mockRejectedValue(new Error('down'))
+    const hub = stream()
+    hub.connect()
+    await vi.advanceTimersByTimeAsync(0)
+    for (let attempt = 0; attempt < 10; attempt++) await vi.advanceTimersByTimeAsync(2000)
+    expect(callbacks.onLost).toHaveBeenCalledTimes(1)
+    hub.connect()
+    await vi.advanceTimersByTimeAsync(0)
+    for (let attempt = 0; attempt < 9; attempt++) await vi.advanceTimersByTimeAsync(2000)
+    expect(callbacks.onLost).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(callbacks.onLost).toHaveBeenCalledTimes(2)
+  })
+
   it('any other close redials as before', async () => {
     vi.useFakeTimers()
     const hub = stream()

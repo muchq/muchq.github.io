@@ -147,6 +147,9 @@ describe('LobbyGame', () => {
     render(<LobbyGame />)
     expect(screen.getByText('Lost connection to the games hub')).toBeTruthy()
     expect(screen.getByText('world')).toBeTruthy()
+    // The stream gave up (a restart outlasting its tries): one click dials again.
+    fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }))
+    expect(state.playHere).toHaveBeenCalledTimes(1)
   })
 
   // A duplicated tab took the seat: this one says so and offers it back.

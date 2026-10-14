@@ -166,6 +166,7 @@ export class HubStream {
   private closed = false
   private reconnectAttempts = 0
   private reconnectTimeout: number | null = null
+  private dialing = false
 
   constructor(options: HubStreamOptions) {
     this.playUrl = options.playUrl
@@ -173,9 +174,17 @@ export class HubStream {
     this.callbacks = options.callbacks ?? {}
   }
 
+  // Idempotent while a dial is under way or a socket is live; a redial
+  // waiting out its delay happens now instead.
   connect(): void {
     this.closed = false
     this.reconnectAttempts = 0
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout)
+      this.reconnectTimeout = null
+    }
+    const live = this.ws !== null && this.ws.readyState <= WebSocket.OPEN
+    if (this.dialing || live) return
     void this.dial()
   }
 
@@ -200,8 +209,10 @@ export class HubStream {
   // --- session + socket lifecycle ---
 
   private async dial(): Promise<void> {
+    this.dialing = true
     try {
       const session = await mintHubSession(this.playUrl, safeSessionStorage.get(this.resumeTokenKey))
+      this.dialing = false
       // Disconnected during the mint: no socket, or a torn-down stream
       // would hold a seat under the live one's playerId.
       if (this.closed) return
@@ -211,10 +222,12 @@ export class HubStream {
       const ws = new WebSocket(`${this.playUrl}?ticket=${encodeURIComponent(session.ticket)}`, HUB_SUBPROTOCOL)
       this.ws = ws
 
+      // A socket a disconnect and reconnect replaced has no say.
       ws.onopen = () => {
-        this.callbacks.onConnection?.(true)
+        if (ws === this.ws) this.callbacks.onConnection?.(true)
       }
       ws.onmessage = event => {
+        if (ws !== this.ws) return
         try {
           // The one boundary cast: frames are validated by shape of use,
           // not a runtime schema — unknown events fall through the switch.
@@ -224,7 +237,6 @@ export class HubStream {
         }
       }
       ws.onclose = event => {
-        // A socket a disconnect and reconnect replaced has no say.
         if (ws !== this.ws) return
         this.callbacks.onConnection?.(false)
         if (this.closed) return
@@ -240,6 +252,7 @@ export class HubStream {
         // onclose follows; nothing useful in the browser error event.
       }
     } catch (error) {
+      this.dialing = false
       console.error('hub: dial failed', error)
       this.scheduleReconnect()
     }
