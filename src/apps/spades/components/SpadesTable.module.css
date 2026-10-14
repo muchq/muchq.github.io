@@ -42,6 +42,7 @@
 /* Under the felt, so a long game never pushes the hand off screen; a
    phone too narrow for the hand sheet scrolls it, not the table. */
 .sheets {
+  flex-shrink: 0;
   max-width: 100%;
   overflow-x: auto;
   display: flex;

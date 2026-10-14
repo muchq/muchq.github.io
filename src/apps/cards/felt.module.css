@@ -1,10 +1,22 @@
 .table {
+  --felt-min: 30rem;
+  /* Header, gaps and a scoreboard under the felt: with --felt-min, the
+     shortest table that still fits a readable circle. */
+  --table-chrome: 10rem;
+  /* Lobby overlay: top 60px, padding 3.5rem + 1rem (LobbyGame.module.css). */
+  --overlay-chrome: calc(60px + 4.5rem);
   width: 100%;
   max-width: 960px;
   display: flex;
   flex-direction: column;
   gap: 1rem;
   color: white;
+  box-sizing: border-box;
+  /* Fill the overlay's content box; grow past it only when the felt
+     would otherwise drop below --felt-min (then the overlay scrolls).
+     Closed form of the size rule: feltSize.ts. */
+  height: calc(100dvh - var(--overlay-chrome));
+  min-height: calc(var(--felt-min) + var(--table-chrome));
 }
 
 .title {
@@ -78,6 +90,7 @@
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .tableHeader .status {
@@ -88,6 +101,10 @@
 .ending,
 .hint {
   margin: 0;
+}
+
+.ending {
+  flex-shrink: 0;
 }
 
 .ending {
@@ -134,8 +151,9 @@
 }
 
 /* The table from above: a round felt, the pile in the middle, the chairs
-   on the rim by clock. The felt fits the viewport, so the viewer's own
-   hand and moves are on screen without a scroll.
+   on the rim by clock. The felt is the largest square in the space the
+   header and scoreboard leave (min of width and remaining height), so
+   those stay on screen without a scroll (#447).
 
    Three rows down the middle — the far chair, the pile, the viewer's
    chair — so the middle and the chairs cannot be given the same pixels.
@@ -149,17 +167,19 @@
    The chairs on the sides stay placed by percentage: they sit in the
    felt's empty flanks, which is the one place nothing else wants. */
 .ring {
-  --felt-min: 30rem;
-  /* What is above and below the felt: the header row, its gap, and the
-     overlay's own padding. The felt takes what is left. */
-  --chrome: 13rem;
+  /* Largest square in the flex space left by the header and scoreboard:
+     height from the row, width from aspect-ratio, capped at 52rem / 100%. */
   position: relative;
   display: grid;
   grid-template-rows: auto 1fr auto;
   justify-items: center;
   align-items: center;
-  width: min(100%, 52rem, max(var(--felt-min), calc(100dvh - var(--chrome))));
+  flex: 1 1 0;
+  min-height: 0;
+  width: auto;
+  max-width: min(100%, 52rem);
   aspect-ratio: 1;
+  align-self: center;
   padding: 1rem;
   margin: 0 auto;
   border-radius: 50%;
@@ -815,13 +835,19 @@ down and to the right so the back's corner shows under it. */
 @media (max-height: 700px) and (min-width: 601px) {
   .table {
     gap: 0.5rem;
+    /* Rows size the felt; don't trap them in the overlay's box. */
+    height: auto;
+    min-height: 0;
   }
 
   .ring {
     /* Wider than the rows need: an oval only as wide as the widest
        chair cuts the corners off the chairs at its ends, where it is
        narrowing. The width is free here — the height is the rows'. */
-    --felt-min: 38rem;
+    flex: 1 0 auto;
+    width: min(100%, 52rem);
+    height: auto;
+    max-height: none;
     aspect-ratio: auto;
     gap: 0.5rem;
     padding: 0.4rem;
@@ -897,6 +923,7 @@ down and to the right so the back's corner shows under it. */
     margin-top: -2.75rem;
     /* The overlay's height, given the margin back: the felt below fills
        what the header leaves, however tall the header is. */
+    height: auto;
     min-height: calc(100% + 2.75rem);
     gap: 0.5rem;
   }
@@ -928,6 +955,9 @@ down and to the right so the back's corner shows under it. */
   .ring {
     flex: 1 0 auto;
     width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: none;
     aspect-ratio: auto;
     padding: 0.75rem 0.5rem;
     grid-template-columns: auto 1fr auto;
