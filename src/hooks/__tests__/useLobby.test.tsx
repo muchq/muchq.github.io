@@ -94,7 +94,7 @@ describe('useLobby', () => {
   const lobbyFrames = (ws: FakeWebSocket) => ws.sentFrames().filter(frame => frame.event === 'lobby')
 
   it("dials with golf's identity and joins the plaza's world once the session is ready", async () => {
-    sessionStorage.setItem(HUB_RESUME_TOKEN_KEY, 'rt-golf')
+    localStorage.setItem(HUB_RESUME_TOKEN_KEY, 'rt-golf')
     const onPlayerIdChange = vi.fn()
     const { result, ws, gameState, pathname } = await open({ onPlayerIdChange })
     const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>
@@ -394,10 +394,17 @@ describe('useLobby', () => {
 
   it("a resumed session in another room leaves it for the linked one, through the hub's own order", async () => {
     const { result, ws, pathname } = await open({ permalinkRoomId: 'R2' }, '/games/room/R2', 'R1')
+    // The resumed room's state says whether its table holds the player;
+    // not seated, the session leaves for the linked room.
+    expect(ws.sentFrames().some(frame => frame.event === 'leaveRoom')).toBe(false)
+    // Another player's seat is not this one's.
+    const othersSeated = roomState('R1')
+    othersSeated.players.push({ ...othersSeated.players[0], playerId: 'bob', table: { game: 'chess', gameId: 'C1' } })
+    act(() => ws.receive('roomState', othersSeated))
     expect(ws.lastSent()).toEqual({ event: 'leaveRoom', payload: {} })
-    // The hub projects the resumed room before it reads the leave: that
-    // is where the session is, not where it is going.
-    act(() => ws.receive('roomState', roomState('R1')))
+    // The resumed room's state keeps coming until the hub's roomLeft; one leave.
+    act(() => ws.receive('roomState', othersSeated))
+    expect(ws.sentFrames().filter(frame => frame.event === 'leaveRoom')).toHaveLength(1)
     expect(result.current.room?.roomId).toBe('R1')
     expect(pathname()).toBe('/games/room/R2')
     expect(lobbyFrames(ws)).toHaveLength(0)
@@ -589,8 +596,24 @@ describe('useLobby', () => {
     }
   })
 
+  // A link to another room, opened in a new tab mid-game, must not cost the
+  // player their seat: they stay at the table and are told why.
+  it('a resumed session seated at a table stays in its room rather than follow a link', async () => {
+    const { result, ws, pathname } = await open({ permalinkRoomId: 'R2' }, '/games/room/R2', 'R1')
+    const seated = roomState('R1')
+    seated.players[0].table = { game: 'chess', gameId: 'C1' }
+    act(() => ws.receive('roomState', seated))
+    expect(ws.sentFrames().some(frame => frame.event === 'leaveRoom' || frame.event === 'joinRoom')).toBe(false)
+    expect(result.current.room?.roomId).toBe('R1')
+    expect(pathname()).toBe('/games/room/R1')
+    expect(result.current.notice).toBe('You are at a table in room R1: leave it, then open the link to room R2 again')
+    // Staying, the room's world is joined as on any resume.
+    expect(lobbyFrames(ws)).toHaveLength(1)
+  })
+
   it('a link refused while leaving the resumed room gives up rather than looping', async () => {
     const { result, ws, pathname } = await open({ permalinkRoomId: 'R2' }, '/games/room/R2', 'R1')
+    act(() => ws.receive('roomState', roomState('R1')))
     expect(ws.lastSent()).toEqual({ event: 'leaveRoom', payload: {} })
     act(() => ws.receive('commandRejected', { reason: 'room not found' }))
     expect(result.current.notice).toBe('Room R2 is gone')
@@ -642,8 +665,8 @@ describe('useLobby', () => {
         ws.open()
         ws.receive('sessionReady', { playerId: 'alice', resumed: false })
       })
-      act(() => ws.receiveRaw({ exception: 'SeatConflict', payload: { message: 'the player already holds a live seat' } }))
-      expect(result.current.lost).toBe('the player already holds a live seat')
+      act(() => ws.receiveRaw({ exception: 'Unauthenticated', payload: { message: 'ticket expired or already spent' } }))
+      expect(result.current.lost).toBe('ticket expired or already spent')
       act(() => ws.close())
       await act(async () => {
         await vi.advanceTimersByTimeAsync(2000)
@@ -654,6 +677,75 @@ describe('useLobby', () => {
         next.receive('sessionReady', { playerId: 'alice', resumed: true })
       })
       expect(result.current.lost).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // Another window took the seat (close code 4001): this one stops instead
+  // of taking it back, and plays here again only when asked.
+  it('a superseded stream says so, stays down, and plays here on request', async () => {
+    vi.useFakeTimers()
+    try {
+      const { result } = mount()
+      let ws!: FakeWebSocket
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+        ws = FakeWebSocket.instances[0]
+        ws.open()
+        ws.receive('sessionReady', { playerId: 'alice', resumed: false })
+      })
+      expect(result.current.superseded).toBe(false)
+      // A refusal just before the takeover: one banner, the takeover's.
+      act(() => ws.receiveRaw({ exception: 'Unauthorized', payload: { message: 'refused' } }))
+      expect(result.current.lost).toBe('refused')
+      act(() => ws.close(4001))
+      expect(result.current.superseded).toBe(true)
+      expect(result.current.lost).toBeNull()
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000)
+      })
+      expect(FakeWebSocket.instances).toHaveLength(1)
+
+      await act(async () => {
+        result.current.playHere()
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      // Asked to play here: the banner goes; a failure says lost instead.
+      expect(result.current.superseded).toBe(false)
+      const next = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
+      expect(FakeWebSocket.instances).toHaveLength(2)
+      act(() => {
+        next.open()
+        next.receive('sessionReady', { playerId: 'alice', resumed: true })
+      })
+      expect(result.current.superseded).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // The seat's old session is still letting go: not a loss, and the next
+  // dial asks for the same player back.
+  it('a SeatConflict is not lost, and the next dial resumes the same player', async () => {
+    vi.useFakeTimers()
+    try {
+      const { result } = mount()
+      let ws!: FakeWebSocket
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+        ws = FakeWebSocket.instances[0]
+        ws.open()
+      })
+      act(() => ws.receiveRaw({ exception: 'SeatConflict', payload: { message: 'player already has a live connection' } }))
+      act(() => ws.close())
+      expect(result.current.lost).toBeNull()
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000)
+      })
+      const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>
+      const redial = fetchMock.mock.calls[fetchMock.mock.calls.length - 1][1]
+      expect(JSON.parse(redial.body)).toEqual({ resumeToken: 'rt-456' })
     } finally {
       vi.useRealTimers()
     }

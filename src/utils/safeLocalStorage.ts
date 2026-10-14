@@ -29,5 +29,3 @@ function safeStorage(store: () => Storage) {
 
 // Shared by every tab of the site.
 export const safeLocalStorage = safeStorage(() => localStorage)
-// This tab's own; survives a reload, not a new tab.
-export const safeSessionStorage = safeStorage(() => sessionStorage)

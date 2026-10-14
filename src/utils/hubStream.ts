@@ -26,7 +26,7 @@ import type { ChatMessage } from '@/types/roomChat'
 import type { GameStatePlayer } from '@/types/game'
 import type { TapeSplat } from './tapeSplats'
 import type { Geometry } from './surface'
-import { safeSessionStorage } from './safeLocalStorage'
+import { safeLocalStorage } from './safeLocalStorage'
 import type { VoiceAction, VoiceUpdate } from './voiceMesh'
 import { HUB_SUBPROTOCOL, hubPlayUrl, mintHubSession } from './hubSession'
 
@@ -35,6 +35,9 @@ export { hubPlayUrl }
 // 2s x 10 sits well inside the hub's 5-minute reconnect grace.
 const RECONNECT_DELAY_MS = 2000
 const MAX_RECONNECT_ATTEMPTS = 10
+// How the hub closes a wire whose seat a newer connection took
+// (MoonBase games_hub README).
+const SUPERSEDED_CLOSE_CODE = 4001
 
 // --- wire shapes (mirrors model/games.smithy; each game envelope stays opaque) ---
 
@@ -138,9 +141,12 @@ export interface HubStreamCallbacks {
   onLobby?: (update: LobbyUpdate) => void
   // The room's voice, in the voice envelope.
   onVoice?: (update: VoiceUpdate) => void
+  // Another connection took this identity's seat (close code 4001): the
+  // stream stops rather than take it back; connect() plays here again.
+  onSuperseded?: () => void
   // The reconnect loop gave up, or the hub refused the stream outright.
-  // A refusal still reconnects (the next dial mints fresh), so a later
-  // onConnection(true) supersedes it.
+  // A refusal still reconnects, so a later onConnection(true) supersedes
+  // it. A SeatConflict is not reported: the next dial reclaims the seat.
   onLost?: (reason: string) => void
 }
 
@@ -160,7 +166,8 @@ export class HubStream {
   private closed = false
   private reconnectAttempts = 0
   private reconnectTimeout: number | null = null
-  private sawSessionReady = false
+  private dialing = false
+  private resumeToken: string | null = null
 
   constructor(options: HubStreamOptions) {
     this.playUrl = options.playUrl
@@ -168,8 +175,17 @@ export class HubStream {
     this.callbacks = options.callbacks ?? {}
   }
 
+  // Idempotent while a dial is under way or a socket is live; a redial
+  // waiting out its delay happens now instead.
   connect(): void {
     this.closed = false
+    this.reconnectAttempts = 0
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout)
+      this.reconnectTimeout = null
+    }
+    const live = this.ws !== null && this.ws.readyState <= WebSocket.OPEN
+    if (this.dialing || live) return
     void this.dial()
   }
 
@@ -179,8 +195,12 @@ export class HubStream {
       clearTimeout(this.reconnectTimeout)
       this.reconnectTimeout = null
     }
-    this.ws?.close()
+    // Let go first: the browser's onclose comes later and no longer
+    // speaks, so the drop is reported here.
+    const ws = this.ws
     this.ws = null
+    if (ws?.readyState === WebSocket.OPEN) this.callbacks.onConnection?.(false)
+    ws?.close()
   }
 
   get isConnected(): boolean {
@@ -194,23 +214,30 @@ export class HubStream {
   // --- session + socket lifecycle ---
 
   private async dial(): Promise<void> {
+    this.dialing = true
     try {
-      const session = await mintHubSession(this.playUrl, safeSessionStorage.get(this.resumeTokenKey))
+      // This stream's own player once it has one, so a drop never turns it
+      // into whoever another tab stored since; the shared store only seeds
+      // the first dial.
+      const offered = this.resumeToken ?? safeLocalStorage.get(this.resumeTokenKey)
+      const session = await mintHubSession(this.playUrl, offered)
+      this.dialing = false
       // Disconnected during the mint: no socket, or a torn-down stream
       // would hold a seat under the live one's playerId.
       if (this.closed) return
       this._playerId = session.playerId
-      safeSessionStorage.set(this.resumeTokenKey, session.resumeToken)
+      this.resumeToken = session.resumeToken
+      safeLocalStorage.set(this.resumeTokenKey, session.resumeToken)
 
       const ws = new WebSocket(`${this.playUrl}?ticket=${encodeURIComponent(session.ticket)}`, HUB_SUBPROTOCOL)
       this.ws = ws
-      this.sawSessionReady = false
 
+      // A socket a disconnect and reconnect replaced has no say.
       ws.onopen = () => {
-        this.reconnectAttempts = 0
-        this.callbacks.onConnection?.(true)
+        if (ws === this.ws) this.callbacks.onConnection?.(true)
       }
       ws.onmessage = event => {
+        if (ws !== this.ws) return
         try {
           // The one boundary cast: frames are validated by shape of use,
           // not a runtime schema — unknown events fall through the switch.
@@ -219,22 +246,23 @@ export class HubStream {
           console.error('hub: bad frame', error)
         }
       }
-      ws.onclose = () => {
+      ws.onclose = event => {
+        if (ws !== this.ws) return
         this.callbacks.onConnection?.(false)
         if (this.closed) return
-        if (!this.sawSessionReady) {
-          // Refused before admission (spent ticket, seat conflict, bad
-          // resume token): drop the token so the next dial mints fresh.
-          // A deliberate disconnect before admission is not a refusal,
-          // and keeps the identity for the next visit.
-          safeSessionStorage.remove(this.resumeTokenKey)
+        if (event.code === SUPERSEDED_CLOSE_CODE) {
+          this.callbacks.onSuperseded?.()
+          return
         }
+        // The token survives every close: the mint swaps one it cannot
+        // resolve for a fresh identity, so the next dial is never stuck.
         this.scheduleReconnect()
       }
       ws.onerror = () => {
         // onclose follows; nothing useful in the browser error event.
       }
     } catch (error) {
+      this.dialing = false
       console.error('hub: dial failed', error)
       this.scheduleReconnect()
     }
@@ -247,7 +275,10 @@ export class HubStream {
       return
     }
     this.reconnectAttempts++
-    this.reconnectTimeout = window.setTimeout(() => void this.dial(), RECONNECT_DELAY_MS)
+    this.reconnectTimeout = window.setTimeout(() => {
+      this.reconnectTimeout = null
+      void this.dial()
+    }, RECONNECT_DELAY_MS)
   }
 
   private send(event: HubCommand, payload: unknown): void {
@@ -262,14 +293,18 @@ export class HubStream {
 
   private handleFrame(frame: HubFrame): void {
     if (frame.event === undefined) {
-      // A terminal refusal names its shape; the message is for people.
+      // A terminal refusal names its shape; the message is for people. A
+      // SeatConflict is not a loss: the next dial reclaims the seat.
+      if (frame.exception === 'SeatConflict') return
       this.callbacks.onLost?.(frame.payload?.message ?? frame.exception)
       return
     }
     switch (frame.event) {
       case 'sessionReady':
+        // Admission, not an open socket, is progress: a refusal comes after
+        // the open.
+        this.reconnectAttempts = 0
         this._playerId = frame.payload.playerId
-        this.sawSessionReady = true
         this.callbacks.onSessionReady?.(frame.payload)
         return
       case 'roomState':

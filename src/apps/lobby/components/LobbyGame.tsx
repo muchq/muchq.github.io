@@ -177,7 +177,18 @@ const LobbyGame = (props: UseLobbyProps) => {
       )}
       {lobby.lost && (
         <div className={styles.hubLost} role="status">
-          {lobby.lost}
+          {lobby.lost}{' '}
+          <button type="button" onClick={lobby.playHere}>
+            Reconnect
+          </button>
+        </div>
+      )}
+      {lobby.superseded && (
+        <div className={styles.hubLost} role="status">
+          Playing in another window{' '}
+          <button type="button" onClick={lobby.playHere}>
+            Play here
+          </button>
         </div>
       )}
       <CommandMenu registry={commands} ref={menuRef} />

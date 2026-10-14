@@ -19,6 +19,8 @@ const state = {
   playerId: 'alice',
   connected: true,
   lost: null,
+  superseded: false,
+  playHere: vi.fn(),
   room: null,
   chat: { messages: [], replayUpTo: 0, rejection: null },
   notice: '',
@@ -101,6 +103,7 @@ describe('LobbyGame', () => {
     state.pong.view = null
     state.spades.view = null
     state.lost = null
+    state.superseded = false
     state.room = null
     localStorage.clear()
     vi.clearAllMocks()
@@ -144,6 +147,18 @@ describe('LobbyGame', () => {
     render(<LobbyGame />)
     expect(screen.getByText('Lost connection to the games hub')).toBeTruthy()
     expect(screen.getByText('world')).toBeTruthy()
+    // The stream gave up (a restart outlasting its tries): one click dials again.
+    fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }))
+    expect(state.playHere).toHaveBeenCalledTimes(1)
+  })
+
+  // A duplicated tab took the seat: this one says so and offers it back.
+  it('a superseded seat says where it went and plays here on request', () => {
+    state.superseded = true
+    render(<LobbyGame />)
+    expect(screen.getByText('Playing in another window')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Play here' }))
+    expect(state.playHere).toHaveBeenCalledTimes(1)
   })
 
   it('a golf table is a table too: over the world, the panel folded', () => {

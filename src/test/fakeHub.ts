@@ -14,7 +14,7 @@ export class FakeWebSocket {
   sent: string[] = []
   onopen: (() => void) | null = null
   onmessage: ((event: { data: string }) => void) | null = null
-  onclose: (() => void) | null = null
+  onclose: ((event: { code: number }) => void) | null = null
   onerror: (() => void) | null = null
 
   constructor(url: string, protocol: string) {
@@ -27,9 +27,10 @@ export class FakeWebSocket {
     this.sent.push(data)
   }
 
-  close(): void {
+  // 1006 is the browser's code for a connection lost without a close frame.
+  close(code = 1006): void {
     this.readyState = 3
-    this.onclose?.()
+    this.onclose?.({ code })
   }
 
   open(): void {
