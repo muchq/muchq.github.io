@@ -10,7 +10,7 @@ import felt from '@/apps/cards/felt.module.css'
 import AboutGame from '@/apps/lobby/components/AboutGame'
 import styles from './SpadesTable.module.css'
 
-// The spades table from the viewer's chair on castle's felt: the viewer at
+// The spades table from the viewer's chair on the felt (cards/felt.module.css): the viewer at
 // 6 o'clock and the others round the ring in turn order, a partner across
 // at 12. The middle is the trick in play. Every rule is the hub's: the view names
 // the viewer's legal plays, and only those are buttons.

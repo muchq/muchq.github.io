@@ -8,8 +8,9 @@ import { CommandRegistry } from '@/utils/commandRegistry'
 import { lobbyTablePath, useLobby } from '@/hooks/useLobby'
 import type { RoomLink, UseLobby, UseLobbyProps } from '@/hooks/useLobby'
 import LobbyPanel from './LobbyPanel'
-import GameTableView from './GameTableView'
-import type { TableContext } from '../games'
+import { GAME_TABLES } from '../games'
+import type { GameTable, LobbyTables, TableContext } from '../games'
+import type { HubGameName } from '@/utils/hubStream'
 import { HUB_GAMES } from '@/utils/hubStream'
 import { safeLocalStorage } from '@/utils/safeLocalStorage'
 import styles from './LobbyGame.module.css'
@@ -36,7 +37,6 @@ const LobbyGame = (props: UseLobbyProps) => {
   const tableContext: TableContext = {
     playerId,
     connected,
-    room,
     // A rummy dealer among these lets any seat deal (MoonBase#1609).
     away: (room?.players ?? []).filter(player => !player.connected).map(player => player.playerId),
     tableUrl: gameId => (room === null ? null : `${window.location.origin}${lobbyTablePath(room.roomId, gameId)}`)
@@ -110,7 +110,7 @@ const LobbyGame = (props: UseLobbyProps) => {
         game =>
           lobby[game].view !== null && (
             <div key={game} className={styles.tableOverlay}>
-              <GameTableView game={game} table={lobby[game]} context={tableContext} />
+              <GameTableView game={game} tables={lobby} context={tableContext} />
             </div>
           )
       )}
@@ -206,4 +206,13 @@ function RoomLinkBanner({ link, lobby }: { link: RoomLink; lobby: UseLobby }) {
       </button>
     </div>
   )
+}
+
+// One game's table, if its hook holds a view. The registry pairs each
+// hook with its own table; TypeScript cannot follow that pairing through
+// an index, hence the one cast.
+function GameTableView<G extends HubGameName>({ game, tables, context }: { game: G; tables: LobbyTables; context: TableContext }) {
+  const table = tables[game]
+  const Table = GAME_TABLES[game].Table as GameTable<LobbyTables[G]>['Table']
+  return <Table table={table} context={context} />
 }

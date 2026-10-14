@@ -10,6 +10,7 @@ import RoundRobins from './RoundRobins'
 import type { VoiceMesh, VoiceView } from '@/utils/voiceMesh'
 import { CATALOG, FAMILIES, FAMILY_NOUNS, familyOf, type GameFamily } from '../catalog'
 import { atTable, offerFor, pairingAt, seatsOf, tableFor } from '../offers'
+import type { TableHook } from '../games'
 import styles from './LobbyPanel.module.css'
 
 // The side panel beside the world: where you are (the plaza, or a room
@@ -319,6 +320,8 @@ const LobbyPanel = ({ lobby, roomCodeRef, onOpenChat }: LobbyPanelProps) => {
               // A summary from before tables named their game is golf's.
               const game = table.game ?? 'golf'
               const pairing = pairingAt(lobby, table)
+              // Any table of a game that hides nothing can be watched.
+              const { watchTable: watch }: TableHook = tableFor(lobby, game)
               const offer = offerFor(lobby, table)
               return (
                 <li key={table.gameId} className={styles.row}>
@@ -329,12 +332,11 @@ const LobbyPanel = ({ lobby, roomCodeRef, onOpenChat }: LobbyPanelProps) => {
                     {pairing === undefined ? '' : ` · round robin: ${pairing[0]} – ${pairing[1]}`}
                   </span>
                   <span className={styles.offers}>
-                    {/* Chess and pong hide nothing, so any of their tables can be watched. */}
-                    {(game === 'chess' || game === 'pong') && (
+                    {watch !== undefined && (
                       <button
                         type="button"
                         className={styles.secondary}
-                        onClick={() => lobby[game].watchTable(table.gameId)}
+                        onClick={() => watch(table.gameId)}
                         disabled={!connected || busy}
                         aria-label={`Watch ${game} ${table.gameId}`}
                       >

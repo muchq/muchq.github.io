@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { ChatMessage } from '@/types/roomChat'
 import { mergeChatMessages } from '@/types/roomChat'
 import { HUB_RESUME_TOKEN_KEY } from '@/utils/hubSession'
-import { HUB_GAMES, HubStream, hubPlayUrl, isHubGame } from '@/utils/hubStream'
+import { HUB_GAMES, HubStream, hubPlayUrl } from '@/utils/hubStream'
 import type { HubGameName, HubRoom, HubSessionReady } from '@/utils/hubStream'
 import { HubWorldLink } from '@/utils/hubWorldLink'
 import { PLANE_GEOMETRY } from '@/utils/surface'
@@ -16,7 +16,7 @@ import type { LobbyTables, TableHook, TableHookProps } from '@/apps/lobby/games'
 // The lobby (MoonBase#1490): the one page for the games hub. One stream
 // carries the room, its chat, the world, and the tables. The world is
 // always up — the hub puts this session in its room's world, or the
-// plaza's — and a table of either game swaps the main view while the
+// plaza's — and a table of any game swaps the main view while the
 // world keeps ticking (MoonBase#1502). A seat is at one table at most,
 // so at most one of the table hooks holds a view.
 //
@@ -182,13 +182,13 @@ export const useLobby = ({
   }, [world])
 
   // One move per game, each in its own envelope.
-  const movesRef = useRef<Record<HubGameName, TableHookProps['move']> | null>(null)
-  if (movesRef.current === null) {
-    movesRef.current = Object.fromEntries(
-      HUB_GAMES.map(game => [game, (name: string, payload: unknown = {}) => streamRef.current?.move(game, name, payload)])
-    ) as Record<HubGameName, TableHookProps['move']>
-  }
-  const moves = movesRef.current
+  const moves = useMemo(
+    () =>
+      Object.fromEntries(
+        HUB_GAMES.map(game => [game, (name: string, payload: unknown = {}) => streamRef.current?.move(game, name, payload)])
+      ) as Record<HubGameName, TableHookProps['move']>,
+    []
+  )
   const onTableLeft = useCallback(() => {
     setRoomLink(null)
     // On the way to another room, the URL already names it.
@@ -368,9 +368,10 @@ export const useLobby = ({
   // Each game's envelope to its table; a gameJoined — sat at from here,
   // or the seat a resume found still held — names the table in the URL.
   const handleGame = useCallback(
-    (game: string, update: Record<string, unknown>) => {
-      if (!isHubGame(game)) return
+    (game: HubGameName, update: Record<string, unknown>) => {
       ;(tablesRef.current[game].handleUpdate as (update: Record<string, unknown>) => void)(update)
+      // Each game's smithy gives its gameJoined a view with a gameId; a new
+      // game's must too.
       const joined = (update as { gameJoined?: { view: { gameId: string } } }).gameJoined?.view.gameId
       if (joined !== undefined && roomIdRef.current !== null) {
         navigate(lobbyTablePath(roomIdRef.current, joined), { replace: true })

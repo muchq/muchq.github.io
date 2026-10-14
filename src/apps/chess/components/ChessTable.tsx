@@ -13,8 +13,8 @@ import AboutGame from '@/apps/lobby/components/AboutGame'
 // opponent's clock above it and their own below. A tap on a piece offers
 // the moves the hub listed for it, and a tap on one of those plays it;
 // the hub refuses anything else in band. A watcher, in no chair, sees it
-// from White's and touches nothing. The table's chrome is castle's, as
-// rummy's is.
+// from White's and touches nothing. The table's chrome is the felt's
+// (cards/felt.module.css), as every table's is.
 
 export interface ChessTableProps {
   playerId: string

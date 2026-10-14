@@ -476,10 +476,13 @@ describe('HubStream', () => {
   })
 
   it('hands every game envelope to onGame, and nothing else', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const [hub, ws] = await connect()
     for (const game of HUB_GAMES) ws.receive(game, { update: { tick: game } })
+    expect(warn).not.toHaveBeenCalled()
     ws.receive('checkers', { update: {} })
     expect(callbacks.onGame.mock.calls).toEqual(HUB_GAMES.map(game => [game, { tick: game }]))
+    expect(warn).toHaveBeenCalledTimes(1)
     hub.disconnect()
   })
 

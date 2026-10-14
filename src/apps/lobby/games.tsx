@@ -11,7 +11,7 @@ import { useGolfTable } from '@/hooks/useGolfTable'
 import { usePongTable } from '@/hooks/usePongTable'
 import { useRummyTable } from '@/hooks/useRummyTable'
 import { useSpadesTable } from '@/hooks/useSpadesTable'
-import type { HubGameName, HubRoom } from '@/utils/hubStream'
+import type { HubGameName } from '@/utils/hubStream'
 
 // Each game's table in the lobby: the hook that speaks its envelope and
 // the table that draws it. The lobby reads this instead of naming games,
@@ -35,13 +35,14 @@ export interface TableHook {
   handleUpdate: (update: never) => void
   // A refusal settles a table waiting on an answer; golf waits on none.
   handleRejected?: () => void
+  // A game that hides nothing lets anyone watch its tables.
+  watchTable?: (gameId: string) => void
 }
 
 // The room around a table, for the tables that show it.
 export interface TableContext {
   playerId: string
   connected: boolean
-  room: HubRoom | null
   // Seats the room shows away.
   away: string[]
   // A table's share link, while in a room.

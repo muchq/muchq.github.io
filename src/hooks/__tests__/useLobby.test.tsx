@@ -195,6 +195,18 @@ describe('useLobby', () => {
     act(() => ws.receive('castle', { update: { gameLeft: { gameId: 'G1' } } }))
     expect(result.current.castle.view).toBeNull()
     expect(pathname()).toBe('/games/room/R1')
+
+    // A room left with the table still up takes the table too.
+    act(() => ws.receive('castle', { update: { gameJoined: { view: waitingView() } } }))
+    act(() => ws.receive('roomLeft', { roomId: 'R1' }))
+    expect(result.current.castle.view).toBeNull()
+  })
+
+  // A summary from before the game was named is golf's.
+  it("a share link to a table that names no game sits at it as golf's", async () => {
+    const { ws } = await open({ permalinkRoomId: 'R1', permalinkGameId: 'G4' }, '/games/room/R1/table/G4')
+    act(() => ws.receive('roomState', roomState('R1', [{ gameId: 'G4', status: 'waiting', playerCount: 1 }])))
+    expect(ws.lastSent()).toEqual({ event: 'golf', payload: { move: { joinGame: { gameId: 'G4' } } } })
   })
 
   it('a golf table swaps in the same way, on its own envelope, and the world stays up', async () => {

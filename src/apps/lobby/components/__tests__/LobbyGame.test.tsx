@@ -114,6 +114,16 @@ describe('LobbyGame', () => {
     vi.clearAllMocks()
   })
 
+  // An overlay covers the world: one per table up, none without.
+  it('lays an overlay over the world only for a table that is up', () => {
+    const overlays = () => document.querySelectorAll('[class*="tableOverlay"]').length
+    const { rerender } = render(<LobbyGame />)
+    expect(overlays()).toBe(0)
+    state.castle.view = view
+    rerender(<LobbyGame />)
+    expect(overlays()).toBe(1)
+  })
+
   it('folds the panel while a table is up and unfolds it when the table goes', () => {
     const { rerender } = render(<LobbyGame />)
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
