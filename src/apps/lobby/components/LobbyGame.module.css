@@ -13,7 +13,9 @@
   z-index: 1100;
 }
 
-/* A table over the world: the canvas keeps ticking beneath. */
+/* A table over the world: the canvas keeps ticking beneath.
+   Column flex so the table can fill this box without copying the
+   top/padding into a 100dvh height on the table. */
 .tableOverlay {
   position: fixed;
   top: 60px;
@@ -23,8 +25,8 @@
   overflow-y: auto;
   padding: 3.5rem 1rem 1rem;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
   background: rgba(43, 29, 79, 0.92);
   z-index: 10;
 }

@@ -495,43 +495,45 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
           </div>,
           document.body
         )}
-      <div className={styles.ring}>
-        {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, clockOf(all.length, i)))}
-        {(view.phase === 'playing' || view.phase === 'ended') && (
-          <section className={styles.pile} aria-label="pile">
-            <div className={styles.piles}>
-              {/* The draw pile, as a thing rather than a count in prose. */}
-              <div
-                className={`${styles.drawPile} ${view.drawPileCount === 0 ? styles.drawn : ''}`}
-                role="img"
-                aria-label={`${view.drawPileCount} to draw`}
-              >
-                <span className={`${styles.card} ${styles.back}`} />
-                <span className={styles.count}>{view.drawPileCount}</span>
+      <div className={styles.ringSlot}>
+        <div className={styles.ring} data-felt="ring">
+          {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, clockOf(all.length, i)))}
+          {(view.phase === 'playing' || view.phase === 'ended') && (
+            <section className={styles.pile} aria-label="pile">
+              <div className={styles.piles}>
+                {/* The draw pile, as a thing rather than a count in prose. */}
+                <div
+                  className={`${styles.drawPile} ${view.drawPileCount === 0 ? styles.drawn : ''}`}
+                  role="img"
+                  aria-label={`${view.drawPileCount} to draw`}
+                >
+                  <span className={`${styles.card} ${styles.back}`} />
+                  <span className={styles.count}>{view.drawPileCount}</span>
+                </div>
+                <div className={styles.pileCards} role="group" aria-label={`${view.pileCount} on the pile`}>
+                  {view.run.length === 0 ? (
+                    <div className={styles.emptyPile}>empty</div>
+                  ) : (
+                    // The run on top, tightly fanned: a pair of sevens reads as a pair.
+                    <div className={styles.run} role="group" aria-label="run on top">
+                      {view.run.map((card, i) => (
+                        <span key={i} className={styles.runSlot} style={{ transform: `rotate(${(i - (view.run.length - 1) / 2) * 4}deg)` }}>
+                          <CardFace card={card} />
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {view.pileCount > 0 && <span className={styles.count}>{view.pileCount}</span>}
+                </div>
               </div>
-              <div className={styles.pileCards} role="group" aria-label={`${view.pileCount} on the pile`}>
-                {view.run.length === 0 ? (
-                  <div className={styles.emptyPile}>empty</div>
-                ) : (
-                  // The run on top, tightly fanned: a pair of sevens reads as a pair.
-                  <div className={styles.run} role="group" aria-label="run on top">
-                    {view.run.map((card, i) => (
-                      <span key={i} className={styles.runSlot} style={{ transform: `rotate(${(i - (view.run.length - 1) / 2) * 4}deg)` }}>
-                        <CardFace card={card} />
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {view.pileCount > 0 && <span className={styles.count}>{view.pileCount}</span>}
-              </div>
-            </div>
-            {/* The price, for everyone and always: the rank to beat is on
-                the pile, but how many to play is not, and a line that
-                came and went with the turn moved the middle every time
-                it did. */}
-            <p className={styles.price}>{describePile(view)}</p>
-          </section>
-        )}
+              {/* The price, for everyone and always: the rank to beat is on
+                  the pile, but how many to play is not, and a line that
+                  came and went with the turn moved the middle every time
+                  it did. */}
+              <p className={styles.price}>{describePile(view)}</p>
+            </section>
+          )}
+        </div>
       </div>
       {children}
     </div>

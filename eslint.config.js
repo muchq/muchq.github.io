@@ -11,7 +11,7 @@ export default [
   
   // Global ignores
   {
-    ignores: ['dist/**', 'node_modules/**', '.eslintrc.cjs', 'backup/**'],
+    ignores: ['dist/**', 'node_modules/**', '.eslintrc.cjs', 'backup/**', 'playwright-report/**', 'test-results/**'],
   },
   
   // TypeScript and React configuration
