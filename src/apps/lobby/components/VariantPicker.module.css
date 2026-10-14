@@ -1,0 +1,16 @@
+/* A table's choice of game: its name beside the list, on the felt. */
+.pick {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.pick select {
+  min-height: 2.5rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 0.4rem;
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  font: inherit;
+}
