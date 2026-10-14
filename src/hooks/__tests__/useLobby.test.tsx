@@ -394,10 +394,11 @@ describe('useLobby', () => {
 
   it("a resumed session in another room leaves it for the linked one, through the hub's own order", async () => {
     const { result, ws, pathname } = await open({ permalinkRoomId: 'R2' }, '/games/room/R2', 'R1')
-    expect(ws.lastSent()).toEqual({ event: 'leaveRoom', payload: {} })
-    // The hub projects the resumed room before it reads the leave: that
-    // is where the session is, not where it is going.
+    // The resumed room's state says whether its table holds the player;
+    // not seated, the session leaves for the linked room.
+    expect(ws.sentFrames().some(frame => frame.event === 'leaveRoom')).toBe(false)
     act(() => ws.receive('roomState', roomState('R1')))
+    expect(ws.lastSent()).toEqual({ event: 'leaveRoom', payload: {} })
     expect(result.current.room?.roomId).toBe('R1')
     expect(pathname()).toBe('/games/room/R2')
     expect(lobbyFrames(ws)).toHaveLength(0)
@@ -589,8 +590,22 @@ describe('useLobby', () => {
     }
   })
 
+  // A link to another room, opened in a new tab mid-game, must not cost the
+  // player their seat: they stay at the table and are told why.
+  it('a resumed session seated at a table stays in its room rather than follow a link', async () => {
+    const { result, ws, pathname } = await open({ permalinkRoomId: 'R2' }, '/games/room/R2', 'R1')
+    const seated = roomState('R1')
+    seated.players[0].table = { game: 'chess', gameId: 'C1' }
+    act(() => ws.receive('roomState', seated))
+    expect(ws.sentFrames().some(frame => frame.event === 'leaveRoom' || frame.event === 'joinRoom')).toBe(false)
+    expect(result.current.room?.roomId).toBe('R1')
+    expect(pathname()).toBe('/games/room/R1')
+    expect(result.current.notice).toBe('You are at a table in room R1: leave it to join room R2')
+  })
+
   it('a link refused while leaving the resumed room gives up rather than looping', async () => {
     const { result, ws, pathname } = await open({ permalinkRoomId: 'R2' }, '/games/room/R2', 'R1')
+    act(() => ws.receive('roomState', roomState('R1')))
     expect(ws.lastSent()).toEqual({ event: 'leaveRoom', payload: {} })
     act(() => ws.receive('commandRejected', { reason: 'room not found' }))
     expect(result.current.notice).toBe('Room R2 is gone')

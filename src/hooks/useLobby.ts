@@ -100,11 +100,14 @@ export interface UseLobby {
   spades: UseSpadesTable
 }
 
-// A share link's room the session is on its way to: left the resumed
-// one, or asked for this one, and waiting on the hub.
+// A share link's room the session is on its way to: leaving the resumed
+// one (unless seated at a table there), or asked for this one, and
+// waiting on the hub.
 interface RoomSwitch {
   roomId: string
   gameId: string | null
+  // The leave is sent; until then the resumed room's state decides.
+  leaving: boolean
 }
 
 export const useLobby = ({
@@ -296,12 +299,12 @@ export const useLobby = ({
       roomIdRef.current = here
       const wanted = permalinkRef.current
       if (wanted.roomId && wanted.roomId !== here) {
-        // The link names another room: leave the resumed one first and
-        // join on the roomLeft, or join outright when there is none. The
-        // world waits for the room to settle.
-        switchRef.current = { roomId: wanted.roomId, gameId: wanted.gameId ?? null }
-        if (here !== null) streamRef.current?.leaveRoom()
-        else streamRef.current?.joinRoom(wanted.roomId)
+        // The link names another room: join it outright when there is no
+        // resumed room; otherwise the resumed room's state decides whether
+        // to leave it (handleRoom), then join on the roomLeft. The world
+        // waits for the room to settle.
+        switchRef.current = { roomId: wanted.roomId, gameId: wanted.gameId ?? null, leaving: here === null }
+        if (here === null) streamRef.current?.joinRoom(wanted.roomId)
         return
       }
       if (wanted.gameId) tablePendingRef.current = wanted.gameId
@@ -318,7 +321,21 @@ export const useLobby = ({
       // The room's surface, before its world is joined: the spawn has to
       // be a point of it or the hub refuses the join (MoonBase#1554).
       worldRef.current?.roomGeometry(next.geometry ?? PLANE_GEOMETRY)
-      const pending = switchRef.current
+      let pending = switchRef.current
+      if (pending !== null && !pending.leaving && next.roomId !== pending.roomId) {
+        // A link opened mid-game (often in a new tab, the same player) must
+        // not cost the seat: seated at a table here, the session stays.
+        const me = next.players.find(player => player.playerId === streamRef.current?.playerId)
+        if (me?.table !== undefined) {
+          showNotice(`You are at a table in room ${next.roomId}: leave it to join room ${pending.roomId}`)
+          switchRef.current = null
+          pending = null
+          navigate(lobbyRoomPath(next.roomId), { replace: true })
+        } else {
+          pending.leaving = true
+          streamRef.current?.leaveRoom()
+        }
+      }
       if (pending !== null && next.roomId !== pending.roomId) {
         // The resumed room's own state, on the way out of it.
         roomIdRef.current = next.roomId
@@ -339,7 +356,7 @@ export const useLobby = ({
       enterWorld(next.roomId)
       sitAtPendingTable(next)
     },
-    [enterWorld, navigate, resetChat, sitAtPendingTable]
+    [enterWorld, navigate, resetChat, showNotice, sitAtPendingTable]
   )
 
   const handleRoomLeft = useCallback(() => {
