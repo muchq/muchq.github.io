@@ -375,6 +375,7 @@ export const useLobby = ({
   )
 
   const handleRoomLeft = useCallback(() => {
+    setRoomLink(null)
     roomIdRef.current = null
     setRoom(null)
     clearTables()
@@ -532,7 +533,8 @@ export const useLobby = ({
   // Gives up the table and the room for the link's: the hub's leave
   // takes the seat with it, and the roomLeft joins the linked room.
   const followRoomLink = useCallback(() => {
-    if (roomLink === null) return
+    // Once: a second click before the render would send a second leave.
+    if (roomLink === null || switchRef.current !== null) return
     setRoomLink(null)
     switchRef.current = { roomId: roomLink.roomId, gameId: roomLink.gameId, leaving: true }
     navigate(

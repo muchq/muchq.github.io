@@ -206,6 +206,11 @@ export default LobbyGame
 // play forfeits it, so that asks first, as Resign does.
 function RoomLinkBanner({ link, lobby }: { link: RoomLink; lobby: UseLobby }) {
   const [confirming, setConfirming] = useState(false)
+  // The confirm takes Go's place, and its focus.
+  const confirmRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (confirming) confirmRef.current?.focus()
+  }, [confirming])
   const { room, playerId } = lobby
   const table = room?.players.find(player => player.playerId === playerId)?.table
   const status = room?.games.find(game => game.gameId === table?.gameId)?.status
@@ -214,7 +219,7 @@ function RoomLinkBanner({ link, lobby }: { link: RoomLink; lobby: UseLobby }) {
     <div className={styles.hubLost} role="status">
       {inPlay ? 'You are in a game' : 'You are at a table'} in room {room?.roomId}.{' '}
       {confirming ? (
-        <button type="button" onClick={lobby.followRoomLink}>
+        <button type="button" ref={confirmRef} onClick={lobby.followRoomLink}>
           Forfeit and go to room {link.roomId}
         </button>
       ) : (

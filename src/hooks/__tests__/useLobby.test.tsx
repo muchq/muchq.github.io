@@ -657,6 +657,22 @@ describe('useLobby', () => {
     expect(ws.lastSent()).toEqual({ event: 'castle', payload: { move: { joinGame: { gameId: 'T9' } } } })
   })
 
+  it('following twice before a render leaves once', async () => {
+    const { result, ws } = await seatedInR1WithLinkToR2()
+    const follow = result.current.followRoomLink
+    act(() => {
+      follow()
+      follow()
+    })
+    expect(ws.sentFrames().filter(frame => frame.event === 'leaveRoom')).toHaveLength(1)
+  })
+
+  it('a room link goes with the room it was offered in', async () => {
+    const { result, ws } = await seatedInR1WithLinkToR2()
+    act(() => ws.receive('roomLeft', { roomId: 'R1' }))
+    expect(result.current.roomLink).toBeNull()
+  })
+
   it('staying put drops the room link and sends nothing', async () => {
     const { result, ws } = await seatedInR1WithLinkToR2()
     const sent = ws.sent.length

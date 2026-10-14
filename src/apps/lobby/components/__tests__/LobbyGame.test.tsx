@@ -193,7 +193,9 @@ describe('LobbyGame', () => {
     expect(screen.getByText(/You are in a game in room R1\./)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Go to room R2' }))
     expect(state.followRoomLink).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Forfeit and go to room R2' }))
+    const confirm = screen.getByRole('button', { name: 'Forfeit and go to room R2' })
+    expect(document.activeElement).toBe(confirm)
+    fireEvent.click(confirm)
     expect(state.followRoomLink).toHaveBeenCalledTimes(1)
   })
 
