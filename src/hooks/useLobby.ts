@@ -81,6 +81,11 @@ export interface UseLobby {
   // Dials again with the same identity: after a supersede, or once the
   // stream has given up.
   playHere: () => void
+  // A link to another room, held back because this session is seated at
+  // a table in this one: follow it (the table is given up) or stay.
+  roomLink: RoomLink | null
+  followRoomLink: () => void
+  stayInRoom: () => void
   room: HubRoom | null
   chat: LobbyChat
   notice: string
@@ -100,12 +105,16 @@ export interface UseLobby {
   spades: UseSpadesTable
 }
 
+// A share link's room, and the table it named.
+export interface RoomLink {
+  roomId: string
+  gameId: string | null
+}
+
 // A share link's room the session is on its way to: leaving the resumed
 // one (unless seated at a table there), or asked for this one, and
 // waiting on the hub.
-interface RoomSwitch {
-  roomId: string
-  gameId: string | null
+interface RoomSwitch extends RoomLink {
   // The leave is sent; until then the resumed room's state decides.
   leaving: boolean
 }
@@ -121,6 +130,7 @@ export const useLobby = ({
   const [connected, setConnected] = useState(false)
   const [lost, setLost] = useState<string | null>(null)
   const [superseded, setSuperseded] = useState(false)
+  const [roomLink, setRoomLink] = useState<RoomLink | null>(null)
   const [room, setRoom] = useState<HubRoom | null>(null)
   const [notice, setNotice] = useState('')
   const [roomCode, setRoomCode] = useState('')
@@ -212,6 +222,9 @@ export const useLobby = ({
     streamRef.current?.move('spades', name, payload)
   }, [])
   const onTableLeft = useCallback(() => {
+    setRoomLink(null)
+    // On the way to another room, the URL already names it.
+    if (switchRef.current !== null) return
     if (roomIdRef.current !== null) navigate(lobbyRoomPath(roomIdRef.current), { replace: true })
   }, [navigate])
   const castle = useCastleTable({ playerId, move: castleMove, showNotice, onLeft: onTableLeft })
@@ -287,6 +300,7 @@ export const useLobby = ({
       worldRoomRef.current = undefined
       switchRef.current = null
       tablePendingRef.current = null
+      setRoomLink(null)
       const here = ready.roomId ?? null
       // A reconnect that lands somewhere other than the room this
       // session was showing — the room reaped while it was away, or a
@@ -324,10 +338,11 @@ export const useLobby = ({
       let pending = switchRef.current
       if (pending !== null && !pending.leaving && next.roomId !== pending.roomId) {
         // A link opened mid-game (often in a new tab, the same player) must
-        // not cost the seat: seated at a table here, the session stays.
+        // not cost the seat unasked: seated at a table here, the session
+        // stays and offers the link.
         const me = next.players.find(player => player.playerId === streamRef.current?.playerId)
         if (me?.table !== undefined) {
-          showNotice(`You are at a table in room ${next.roomId}: leave it, then open the link to room ${pending.roomId} again`)
+          setRoomLink({ roomId: pending.roomId, gameId: pending.gameId })
           switchRef.current = null
           pending = null
           navigate(lobbyRoomPath(next.roomId), { replace: true })
@@ -356,10 +371,11 @@ export const useLobby = ({
       enterWorld(next.roomId)
       sitAtPendingTable(next)
     },
-    [enterWorld, navigate, resetChat, showNotice, sitAtPendingTable]
+    [enterWorld, navigate, resetChat, sitAtPendingTable]
   )
 
   const handleRoomLeft = useCallback(() => {
+    setRoomLink(null)
     roomIdRef.current = null
     setRoom(null)
     clearTables()
@@ -386,7 +402,9 @@ export const useLobby = ({
       chatSeqRef.current += 1
       setChat(prev => ({ ...prev, rejection: { seq: chatSeqRef.current, reason } }))
       const pending = switchRef.current
-      if (pending === null) {
+      // Until the hub's roomLeft the link's join is unsent, so a refusal
+      // on the way out is something else's: a move the table had queued.
+      if (pending === null || (pending.leaving && roomIdRef.current !== null)) {
         showNotice(reason)
         return
       }
@@ -512,12 +530,30 @@ export const useLobby = ({
     streamRef.current?.connect()
   }, [])
 
+  // Gives up the table and the room for the link's: the hub's leave
+  // takes the seat with it, and the roomLeft joins the linked room.
+  const followRoomLink = useCallback(() => {
+    // Once: a second click before the render would send a second leave.
+    if (roomLink === null || switchRef.current !== null) return
+    setRoomLink(null)
+    switchRef.current = { roomId: roomLink.roomId, gameId: roomLink.gameId, leaving: true }
+    navigate(
+      roomLink.gameId === null ? lobbyRoomPath(roomLink.roomId) : lobbyTablePath(roomLink.roomId, roomLink.gameId),
+      { replace: true }
+    )
+    streamRef.current?.leaveRoom()
+  }, [navigate, roomLink])
+  const stayInRoom = useCallback(() => setRoomLink(null), [])
+
   return {
     playerId,
     connected,
     lost,
     superseded,
     playHere,
+    roomLink,
+    followRoomLink,
+    stayInRoom,
     room,
     chat,
     notice,
