@@ -56,7 +56,18 @@ export interface GameTable<T extends TableHook> {
   Table(props: { table: T; context: TableContext }): ReactNode
 }
 
-const entry = <T extends TableHook>(game: GameTable<T>) => game
+// A gameJoined names its table, and the lobby puts that id in the URL.
+export interface JoinedUpdate {
+  gameJoined?: { view: { gameId: string } }
+}
+
+type UpdateOf<T> = T extends { handleUpdate: (update: infer U) => void } ? U : never
+
+// Refuses, at compile time, a game whose updates do not name the table
+// they join.
+const entry = <T extends TableHook>(
+  game: GameTable<T> & (UpdateOf<T> extends JoinedUpdate ? unknown : { gameJoinedMustNameItsTable: never })
+) => game
 
 export const GAME_TABLES = {
   golf: entry({

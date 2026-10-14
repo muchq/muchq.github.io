@@ -11,7 +11,7 @@ import { VoiceMesh } from '@/utils/voiceMesh'
 import type { VoiceDevice } from '@/utils/voiceMesh'
 import { browserVoiceDevice } from '@/utils/voiceDevice'
 import { GAME_TABLES } from '@/apps/lobby/games'
-import type { LobbyTables, TableHook, TableHookProps } from '@/apps/lobby/games'
+import type { JoinedUpdate, LobbyTables, TableHook, TableHookProps } from '@/apps/lobby/games'
 
 // The lobby (MoonBase#1490): the one page for the games hub. One stream
 // carries the room, its chat, the world, and the tables. The world is
@@ -370,9 +370,8 @@ export const useLobby = ({
   const handleGame = useCallback(
     (game: HubGameName, update: Record<string, unknown>) => {
       ;(tablesRef.current[game].handleUpdate as (update: Record<string, unknown>) => void)(update)
-      // Each game's smithy gives its gameJoined a view with a gameId; a new
-      // game's must too.
-      const joined = (update as { gameJoined?: { view: { gameId: string } } }).gameJoined?.view.gameId
+      // games.tsx refuses a game whose update type lacks this.
+      const joined = (update as JoinedUpdate).gameJoined?.view.gameId
       if (joined !== undefined && roomIdRef.current !== null) {
         navigate(lobbyTablePath(roomIdRef.current, joined), { replace: true })
       }

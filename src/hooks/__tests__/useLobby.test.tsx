@@ -11,6 +11,7 @@ import { ShapeType } from '@/types/game'
 import { sphereGeometry } from '@/utils/surface'
 import type { CastleView } from '@/apps/castle/wire'
 import type { GolfView } from '@/apps/golf/wire'
+import { HUB_GAMES } from '@/utils/hubStream'
 import type { HubRoom } from '@/utils/hubStream'
 import { FakeVoiceDevice } from '@/test/fakeVoice'
 
@@ -170,7 +171,7 @@ describe('useLobby', () => {
   })
 
   // Every game's table speaks in its own envelope: open, and join by id.
-  it.each(['castle', 'golf', 'rummy', 'spades', 'chess', 'pong'] as const)('opens and joins a %s table in its own envelope', async game => {
+  it.each(HUB_GAMES)('opens and joins a %s table in its own envelope', async game => {
     const { result, ws } = await open()
     act(() => ws.receive('roomState', roomState('R1')))
     act(() => result.current[game].createTable())
