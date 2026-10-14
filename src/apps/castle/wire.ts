@@ -2,10 +2,9 @@
 // model/castle.smithy. The view is the UI's model as well as the wire's:
 // the hub already redacts per viewer, so there is nothing to translate.
 
-export interface Card {
-  rank: string
-  suit: string
-}
+import type { Card } from '@/apps/cards/card'
+
+export type { Card }
 
 export type CastlePhase = 'waiting' | 'setup' | 'playing' | 'ended'
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
-import felt from '@/apps/castle/components/CastleTable.module.css'
+import felt from '@/apps/cards/felt.module.css'
 import type { ChessColor, ChessReview } from '../wire'
 import { analysisUrl, describeResult, lastMoveSquares, moveRows, nameOf, pieceImage, pieceName, readBoard, squaresFor } from '../rules'
 import tableStyles from './ChessTable.module.css'

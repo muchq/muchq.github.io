@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
-import felt from '@/apps/castle/components/CastleTable.module.css'
+import felt from '@/apps/cards/felt.module.css'
 import AboutGame from '@/apps/lobby/components/AboutGame'
 import type { UsePongTable } from '@/hooks/usePongTable'
 import { aimFor, canvasPoint, extrapolate, flatSize, pongName, stickTarget, tunnelSize, viewSeat, type ScreenPoint, type Seat } from '../court'

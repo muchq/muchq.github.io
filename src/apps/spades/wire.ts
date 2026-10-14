@@ -3,7 +3,7 @@
 // partners at four, seats 0 and 2 team 0 and 1 and 3 team 1; or
 // cutthroat, every seat a team of its own.
 
-import type { Card } from '@/apps/castle/wire'
+import type { Card } from '@/apps/cards/card'
 
 export type { Card }
 
