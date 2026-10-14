@@ -169,6 +169,16 @@ describe('useLobby', () => {
     expect(lobbyFrames(ws)).toHaveLength(3)
   })
 
+  // Every game's table speaks in its own envelope: open, and join by id.
+  it.each(['castle', 'golf', 'rummy', 'spades', 'chess', 'pong'] as const)('opens and joins a %s table in its own envelope', async game => {
+    const { result, ws } = await open()
+    act(() => ws.receive('roomState', roomState('R1')))
+    act(() => result.current[game].createTable())
+    expect(ws.lastSent()).toEqual({ event: game, payload: { move: { createGame: {} } } })
+    act(() => result.current[game].joinTable('T1'))
+    expect(ws.lastSent()).toEqual({ event: game, payload: { move: { joinGame: { gameId: 'T1' } } } })
+  })
+
   it('a castle table swaps in on gameJoined and out on gameLeft, the URL naming the table', async () => {
     const { result, ws, pathname } = await open()
     act(() => ws.receive('roomState', roomState('R1')))
