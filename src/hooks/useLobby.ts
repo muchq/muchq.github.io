@@ -303,7 +303,7 @@ export const useLobby = ({
         // resumed room; otherwise the resumed room's state decides whether
         // to leave it (handleRoom), then join on the roomLeft. The world
         // waits for the room to settle.
-        switchRef.current = { roomId: wanted.roomId, gameId: wanted.gameId ?? null, leaving: here === null }
+        switchRef.current = { roomId: wanted.roomId, gameId: wanted.gameId ?? null, leaving: false }
         if (here === null) streamRef.current?.joinRoom(wanted.roomId)
         return
       }
@@ -327,7 +327,7 @@ export const useLobby = ({
         // not cost the seat: seated at a table here, the session stays.
         const me = next.players.find(player => player.playerId === streamRef.current?.playerId)
         if (me?.table !== undefined) {
-          showNotice(`You are at a table in room ${next.roomId}: leave it to join room ${pending.roomId}`)
+          showNotice(`You are at a table in room ${next.roomId}: leave it, then open the link to room ${pending.roomId} again`)
           switchRef.current = null
           pending = null
           navigate(lobbyRoomPath(next.roomId), { replace: true })

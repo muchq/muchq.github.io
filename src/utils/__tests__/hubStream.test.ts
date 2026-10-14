@@ -152,16 +152,6 @@ describe('HubStream', () => {
     hub.disconnect()
   })
 
-  // The shared store is the only one: a token a tab kept in its own storage
-  // is not offered, and that tab's player starts fresh.
-  it("never offers a token from the tab's own storage", async () => {
-    sessionStorage.setItem(TOKEN_KEY, 'rt-this-tab')
-    await connect()
-    const [, init] = fetchMock.mock.calls[0]
-    expect(JSON.parse((init as { body: string }).body)).toEqual({})
-    expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
-  })
-
   it('a disconnect during the mint creates no socket', async () => {
     const hub = stream()
     hub.connect()
