@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { ChatMessage } from '@/types/roomChat'
 import { mergeChatMessages } from '@/types/roomChat'
 import { HUB_RESUME_TOKEN_KEY } from '@/utils/hubSession'
-import { HUB_GAMES, HubStream, hubPlayUrl } from '@/utils/hubStream'
+import { HUB_GAMES, HubStream, hubPlayUrl, isHubGame } from '@/utils/hubStream'
 import type { HubGameName, HubRoom, HubSessionReady } from '@/utils/hubStream'
 import { HubWorldLink } from '@/utils/hubWorldLink'
 import { PLANE_GEOMETRY } from '@/utils/surface'
@@ -96,6 +96,13 @@ interface RoomSwitch extends RoomLink {
   // The leave is sent; until then the resumed room's state decides.
   leaving: boolean
 }
+
+// The room without tables of games this page predates: a hub deployed
+// ahead of the site hosts games the lobby cannot draw or join.
+const knownGames = (room: HubRoom): HubRoom => ({
+  ...room,
+  games: room.games.filter(table => isHubGame(table.game ?? 'golf'))
+})
 
 export const useLobby = ({
   permalinkRoomId = null,
@@ -224,12 +231,17 @@ export const useLobby = ({
         showNotice(`Table ${gameId} is gone`)
         return
       }
+      // A summary from before the game was named is golf's.
+      const game: string = table.game ?? 'golf'
+      if (!isHubGame(game)) {
+        showNotice(`Table ${gameId} is a game this page does not know yet: reload to play it`)
+        return
+      }
       if (table.status !== 'waiting') {
         showNotice(`Table ${gameId} is in play`)
         return
       }
-      // A summary from before the game was named is golf's.
-      tablesRef.current[table.game ?? 'golf'].joinTable(gameId)
+      tablesRef.current[game].joinTable(gameId)
     },
     [showNotice]
   )
@@ -303,7 +315,7 @@ export const useLobby = ({
       if (pending !== null && next.roomId !== pending.roomId) {
         // The resumed room's own state, on the way out of it.
         roomIdRef.current = next.roomId
-        setRoom(next)
+        setRoom(knownGames(next))
         return
       }
       const changed = roomIdRef.current !== next.roomId
@@ -316,7 +328,7 @@ export const useLobby = ({
         resetChat()
         navigate(lobbyRoomPath(next.roomId), { replace: true })
       }
-      setRoom(next)
+      setRoom(knownGames(next))
       enterWorld(next.roomId)
       sitAtPendingTable(next)
     },

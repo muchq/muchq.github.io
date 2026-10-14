@@ -203,6 +203,26 @@ describe('useLobby', () => {
     expect(result.current.castle.view).toBeNull()
   })
 
+  // A game the hub hosts but this page predates (the hub deployed first)
+  // is left out of the room rather than breaking the lobby.
+  it("leaves out a table of a game this page doesn't know", async () => {
+    const { result, ws } = await open()
+    const games = [
+      { gameId: 'G1', game: 'castle', status: 'waiting', playerCount: 1 },
+      { gameId: 'X1', game: 'canasta', status: 'waiting', playerCount: 1 }
+    ] as unknown as HubRoom['games']
+    act(() => ws.receive('roomState', roomState('R1', games)))
+    expect(result.current.room?.games.map(table => table.gameId)).toEqual(['G1'])
+  })
+
+  it("a share link to a game this page doesn't know asks for a reload", async () => {
+    const { result, ws } = await open({ permalinkRoomId: 'R1', permalinkGameId: 'X1' }, '/games/room/R1/table/X1')
+    const games = [{ gameId: 'X1', game: 'canasta', status: 'waiting', playerCount: 1 }] as unknown as HubRoom['games']
+    act(() => ws.receive('roomState', roomState('R1', games)))
+    expect(result.current.notice).toBe('Table X1 is a game this page does not know yet: reload to play it')
+    expect(ws.sentFrames().some(frame => frame.event === 'canasta')).toBe(false)
+  })
+
   // A summary from before the game was named is golf's.
   it("a share link to a table that names no game sits at it as golf's", async () => {
     const { ws } = await open({ permalinkRoomId: 'R1', permalinkGameId: 'G4' }, '/games/room/R1/table/G4')
