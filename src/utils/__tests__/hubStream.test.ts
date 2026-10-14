@@ -121,18 +121,45 @@ describe('HubStream', () => {
     const [, init] = fetchMock.mock.calls[0]
     expect(JSON.parse((init as { body: string }).body)).toEqual({ resumeToken: 'rt-other-tab' })
     expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
-    expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull()
   })
 
-  // A tab from before the token was shared kept it in its own storage: that
-  // player is still that player, and the token moves to the shared store.
-  it("carries a token from this tab's own storage over to the shared one", async () => {
+  // One stream's identity is the next stream's: a tab opened after another
+  // is admitted offers that tab's token.
+  it('a second stream offers the token the first one stored', async () => {
+    const [first] = await connect()
+    first.disconnect()
+    await connect()
+    const [, init] = fetchMock.mock.calls[1]
+    expect(JSON.parse((init as { body: string }).body)).toEqual({ resumeToken: 'rt-456' })
+  })
+
+  // Two tabs that mint fresh players at once leave only the later token in
+  // the shared store; the earlier tab stays its own player across a drop
+  // rather than becoming the other one and abandoning its seat.
+  it('a redial offers the token this stream was admitted with, not a newer stored one', async () => {
+    vi.useFakeTimers()
+    const hub = stream()
+    hub.connect()
+    await vi.advanceTimersByTimeAsync(0)
+    const ws = FakeWebSocket.instances[0]
+    ws.open()
+    ws.receive('sessionReady', { playerId: 'alice', resumed: false })
+    localStorage.setItem(TOKEN_KEY, 'rt-other-tab')
+    ws.close()
+    await vi.advanceTimersByTimeAsync(2000)
+    const [, init] = fetchMock.mock.calls[1]
+    expect(JSON.parse((init as { body: string }).body)).toEqual({ resumeToken: 'rt-456' })
+    hub.disconnect()
+  })
+
+  // The shared store is the only one: a token a tab kept in its own storage
+  // is not offered, and that tab's player starts fresh.
+  it("never offers a token from the tab's own storage", async () => {
     sessionStorage.setItem(TOKEN_KEY, 'rt-this-tab')
     await connect()
     const [, init] = fetchMock.mock.calls[0]
-    expect(JSON.parse((init as { body: string }).body)).toEqual({ resumeToken: 'rt-this-tab' })
+    expect(JSON.parse((init as { body: string }).body)).toEqual({})
     expect(localStorage.getItem(TOKEN_KEY)).toBe('rt-456')
-    expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull()
   })
 
   it('a disconnect during the mint creates no socket', async () => {

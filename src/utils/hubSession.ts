@@ -8,7 +8,8 @@ const MINT_TIMEOUT_MS = 10_000
 
 // Where the resume token lives: localStorage, shared by every tab, because
 // the token is the player. A reload, a new tab or the page reopened from a
-// link all come back to the same seat; the hub gives it to the newest
+// link all come back to the same seat within the hub's grace (MoonBase
+// games_hub README); the hub gives it to the newest
 // connection and tells the one it took it from (close code 4001), which
 // offers to play here instead. The name is golf's from before there was a
 // lobby.
