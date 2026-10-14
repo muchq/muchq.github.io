@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SpadesTableActions } from '@/hooks/useSpadesTable'
-import type { SpadesPlayer, SpadesTrickPlay, SpadesView } from '../wire'
+import type { SpadesMode, SpadesPlayer, SpadesTrickPlay, SpadesView } from '../wire'
 import { HAND_SIZE } from '../wire'
 import { bidNumber, bidWords, describeResult, face, isLegal, teamName, you, You } from '../rules'
 import { seatsOf } from '@/apps/lobby/catalog'
@@ -8,7 +8,13 @@ import { CardBack, CardFace } from '@/apps/cards/Cards'
 import { clockOf, fromViewer } from '@/apps/cards/seating'
 import felt from '@/apps/cards/felt.module.css'
 import AboutGame from '@/apps/lobby/components/AboutGame'
+import VariantPicker from '@/apps/lobby/components/VariantPicker'
 import styles from './SpadesTable.module.css'
+
+const VARIANT_OPTIONS = [
+  { value: 'partners', label: 'partners' },
+  { value: 'cutthroat', label: 'cutthroat' }
+] as const satisfies readonly { value: SpadesMode; label: string }[]
 
 // The spades table from the viewer's chair on the felt (cards/felt.module.css): the viewer at
 // 6 o'clock and the others round the ring in turn order, a partner across
@@ -36,6 +42,7 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
     headingRef.current?.focus()
   }, [])
   const [bid, setBid] = useState<number | null>(null)
+  const [variant, setVariant] = useState<SpadesMode>('partners')
   const [confirmingLeave, setConfirmingLeave] = useState(false)
   // A move takes the control that made it away, so focus goes to the
   // hand, where the next one is made.
@@ -102,19 +109,17 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
       return (
         <>
           <AboutGame game="spades" className={felt.hint} />
-          {view.players.length === SEATS && (
-            <button type="button" className={felt.primary} onClick={() => table.startTable('partners')} disabled={!connected}>
-              Start partners
-            </button>
-          )}
-          <button
-            type="button"
-            className={view.players.length === SEATS ? felt.secondary : felt.primary}
-            onClick={() => table.startTable('cutthroat')}
-            disabled={view.players.length < 2 || !connected}
-          >
-            Start cutthroat
-          </button>
+          {/* Partners needs all four seats; cutthroat plays from two. */}
+          <VariantPicker
+            label="Game"
+            options={view.players.length === SEATS ? VARIANT_OPTIONS : VARIANT_OPTIONS.filter(option => option.value === 'cutthroat')}
+            value={variant}
+            onChange={setVariant}
+            action={option => `Start ${option.label}`}
+            onAction={table.startTable}
+            disabled={!connected}
+            actionDisabled={view.players.length < 2}
+          />
         </>
       )
     }

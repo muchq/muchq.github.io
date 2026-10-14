@@ -237,6 +237,8 @@ describe('PongTable', () => {
     expect(status()).toBe('You won: your opponent left.')
     // The court no longer answers: the keyboard lands on what does.
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Play again' }))
+    // A closed table plays again on its own court: nothing to pick.
+    expect(screen.queryByRole('combobox', { name: 'Court' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Play again' }))
     expect(held.playAgain).toHaveBeenCalledWith('smallcat')
     cleanup()

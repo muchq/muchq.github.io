@@ -26,6 +26,7 @@ import felt from '@/apps/cards/felt.module.css'
 import styles from './RummyTable.module.css'
 import ScoreSheet from './ScoreSheet'
 import AboutGame from '@/apps/lobby/components/AboutGame'
+import VariantPicker from '@/apps/lobby/components/VariantPicker'
 
 // The rummy table from the viewer's chair, seen from above, on castle's
 // felt: the viewer at 6 o'clock with their moves under their hand, the
@@ -281,26 +282,17 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
   const choice = [picking?.deal === dealKey ? picking.variant : undefined, view.variant].find((v): v is string => v !== null && v !== undefined && options.includes(v)) ?? options[0]
   const dealButtons = (focusButton = false) =>
     choice !== undefined && (
-      <>
-        {options.length > 1 && (
-          <select className={styles.pick} aria-label="Game" value={choice} onChange={event => setPicking({ deal: dealKey, variant: event.target.value })} disabled={dealing}>
-            {options.map(variant => (
-              <option key={variant} value={variant}>
-                {variantLabel(variant)}
-              </option>
-            ))}
-          </select>
-        )}
-        <button
-          ref={focusButton ? playAgainRef : undefined}
-          type="button"
-          className={felt.primary}
-          onClick={() => table.chooseVariant(choice)}
-          disabled={!connected || dealing}
-        >
-          {dealing ? 'Dealing…' : `Deal ${variantLabel(choice)}`}
-        </button>
-      </>
+      <VariantPicker
+        label="Game"
+        options={options.map(variant => ({ value: variant, label: variantLabel(variant) }))}
+        value={choice}
+        onChange={variant => setPicking({ deal: dealKey, variant })}
+        action={dealing ? 'Dealing…' : option => `Deal ${option.label}`}
+        onAction={table.chooseVariant}
+        disabled={dealing}
+        actionDisabled={!connected}
+        buttonRef={focusButton ? playAgainRef : undefined}
+      />
     )
 
   const actions = (() => {
