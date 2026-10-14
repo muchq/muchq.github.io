@@ -397,8 +397,14 @@ describe('useLobby', () => {
     // The resumed room's state says whether its table holds the player;
     // not seated, the session leaves for the linked room.
     expect(ws.sentFrames().some(frame => frame.event === 'leaveRoom')).toBe(false)
-    act(() => ws.receive('roomState', roomState('R1')))
+    // Another player's seat is not this one's.
+    const othersSeated = roomState('R1')
+    othersSeated.players.push({ ...othersSeated.players[0], playerId: 'bob', table: { game: 'chess', gameId: 'C1' } })
+    act(() => ws.receive('roomState', othersSeated))
     expect(ws.lastSent()).toEqual({ event: 'leaveRoom', payload: {} })
+    // The resumed room's state keeps coming until the hub's roomLeft; one leave.
+    act(() => ws.receive('roomState', othersSeated))
+    expect(ws.sentFrames().filter(frame => frame.event === 'leaveRoom')).toHaveLength(1)
     expect(result.current.room?.roomId).toBe('R1')
     expect(pathname()).toBe('/games/room/R2')
     expect(lobbyFrames(ws)).toHaveLength(0)
@@ -601,6 +607,8 @@ describe('useLobby', () => {
     expect(result.current.room?.roomId).toBe('R1')
     expect(pathname()).toBe('/games/room/R1')
     expect(result.current.notice).toBe('You are at a table in room R1: leave it to join room R2')
+    // Staying, the room's world is joined as on any resume.
+    expect(lobbyFrames(ws)).toHaveLength(1)
   })
 
   it('a link refused while leaving the resumed room gives up rather than looping', async () => {
