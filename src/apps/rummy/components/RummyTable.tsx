@@ -713,7 +713,6 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
           )}
         </div>
       </div>
-
       {children}
     </div>
   )
