@@ -1,6 +1,6 @@
 /* The board, the clocks and chess's own controls. The table's chrome —
-   title, header row, status line, buttons — is castle's
-   (CastleTable.module.css), as rummy's is. */
+   title, header row, status line, buttons — is the felt's
+   (cards/felt.module.css), as every table's is. */
 
 /* The table fills the overlay's height, so the board can take what the
    rest leaves of it. */

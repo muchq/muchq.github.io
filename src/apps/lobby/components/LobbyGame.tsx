@@ -1,12 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import ThoughtsGame from '@/apps/thoughts/components/ThoughtsGame'
-import CastleTable from '@/apps/castle/components/CastleTable'
-import GolfTable from '@/apps/golf/components/GolfTable'
-import RummyTable from '@/apps/rummy/components/RummyTable'
-import SpadesTable from '@/apps/spades/components/SpadesTable'
-import ChessTable from '@/apps/chess/components/ChessTable'
 import GameReview from '@/apps/chess/components/GameReview'
-import PongTable from '@/apps/pong/components/PongTable'
 import RoomChat, { type RoomChatHandle } from './RoomChat'
 import CommandMenu, { type CommandMenuHandle } from './CommandMenu'
 import { lobbyCommands } from '../lobbyCommands'
@@ -14,6 +8,10 @@ import { CommandRegistry } from '@/utils/commandRegistry'
 import { lobbyTablePath, useLobby } from '@/hooks/useLobby'
 import type { RoomLink, UseLobby, UseLobbyProps } from '@/hooks/useLobby'
 import LobbyPanel from './LobbyPanel'
+import { GAME_TABLES } from '../games'
+import type { GameTable, LobbyTables, TableContext } from '../games'
+import type { HubGameName } from '@/utils/hubStream'
+import { HUB_GAMES } from '@/utils/hubStream'
 import { safeLocalStorage } from '@/utils/safeLocalStorage'
 import styles from './LobbyGame.module.css'
 
@@ -33,12 +31,16 @@ const panelWanted = (): boolean => safeLocalStorage.get(PANEL_KEY) !== 'hidden' 
 
 const LobbyGame = (props: UseLobbyProps) => {
   const lobby = useLobby(props)
-  const { castle, golf, rummy, spades, chess, pong, chat, connected, playerId, notice, room } = lobby
+  const { chess, chat, connected, playerId, notice, room } = lobby
   // A chess review (MoonBase#1637) takes the screen as a table does.
-  const atTable =
-    castle.view !== null || golf.view !== null || rummy.view !== null || spades.view !== null || chess.view !== null || pong.view !== null || chess.review !== null
-  // A rummy dealer among these lets any seat deal (MoonBase#1609).
-  const away = (room?.players ?? []).filter(player => !player.connected).map(player => player.playerId)
+  const atTable = HUB_GAMES.some(game => lobby[game].view !== null) || chess.review !== null
+  const tableContext: TableContext = {
+    playerId,
+    connected,
+    // A rummy dealer among these lets any seat deal (MoonBase#1609).
+    away: (room?.players ?? []).filter(player => !player.connected).map(player => player.playerId),
+    tableUrl: gameId => (room === null ? null : `${window.location.origin}${lobbyTablePath(room.roomId, gameId)}`)
+  }
   // A table takes the screen, so the panel folds away when one comes up
   // and returns to what the player wants when it goes.
   const [panelOpen, setPanelOpen] = useState(panelWanted)
@@ -104,41 +106,13 @@ const LobbyGame = (props: UseLobbyProps) => {
   return (
     <>
       <ThoughtsGame link={lobby.world} commands={commands} onTripleTap={openMenu} />
-      {castle.view !== null && (
-        <div className={styles.tableOverlay}>
-          <CastleTable playerId={playerId} connected={connected} view={castle.view} table={castle} />
-        </div>
-      )}
-      {rummy.view !== null && (
-        <div className={styles.tableOverlay}>
-          <RummyTable playerId={playerId} connected={connected} view={rummy.view} table={rummy} away={away} />
-        </div>
-      )}
-      {spades.view !== null && (
-        <div className={styles.tableOverlay}>
-          <SpadesTable playerId={playerId} connected={connected} view={spades.view} table={spades} />
-        </div>
-      )}
-      {chess.view !== null && (
-        <div className={styles.tableOverlay}>
-          <ChessTable playerId={playerId} connected={connected} view={chess.view} table={chess} />
-        </div>
-      )}
-      {pong.view !== null && (
-        <div className={styles.tableOverlay}>
-          <PongTable playerId={playerId} connected={connected} view={pong.view} table={pong} />
-        </div>
-      )}
-      {golf.view !== null && (
-        <div className={styles.tableOverlay}>
-          <GolfTable
-            playerId={playerId}
-            connected={connected}
-            view={golf.view}
-            table={golf}
-            shareUrl={room === null ? null : `${window.location.origin}${lobbyTablePath(room.roomId, golf.view.id)}`}
-          />
-        </div>
+      {HUB_GAMES.map(
+        game =>
+          lobby[game].view !== null && (
+            <div key={game} className={styles.tableOverlay}>
+              <GameTableView game={game} tables={lobby} context={tableContext} />
+            </div>
+          )
       )}
       {/* A finished game under review, over any table: closing it goes
           back to whatever was under it. */}
@@ -232,4 +206,13 @@ function RoomLinkBanner({ link, lobby }: { link: RoomLink; lobby: UseLobby }) {
       </button>
     </div>
   )
+}
+
+// One game's table, if its hook holds a view. The registry pairs each
+// hook with its own table; TypeScript cannot follow that pairing through
+// an index, hence the one cast.
+function GameTableView<G extends HubGameName>({ game, tables, context }: { game: G; tables: LobbyTables; context: TableContext }) {
+  const table = tables[game]
+  const Table = GAME_TABLES[game].Table as GameTable<LobbyTables[G]>['Table']
+  return <Table table={table} context={context} />
 }

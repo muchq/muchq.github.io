@@ -11,6 +11,7 @@ import { ShapeType } from '@/types/game'
 import { sphereGeometry } from '@/utils/surface'
 import type { CastleView } from '@/apps/castle/wire'
 import type { GolfView } from '@/apps/golf/wire'
+import { HUB_GAMES } from '@/utils/hubStream'
 import type { HubRoom } from '@/utils/hubStream'
 import { FakeVoiceDevice } from '@/test/fakeVoice'
 
@@ -169,6 +170,16 @@ describe('useLobby', () => {
     expect(lobbyFrames(ws)).toHaveLength(3)
   })
 
+  // Every game's table speaks in its own envelope: open, and join by id.
+  it.each(HUB_GAMES)('opens and joins a %s table in its own envelope', async game => {
+    const { result, ws } = await open()
+    act(() => ws.receive('roomState', roomState('R1')))
+    act(() => result.current[game].createTable())
+    expect(ws.lastSent()).toEqual({ event: game, payload: { move: { createGame: {} } } })
+    act(() => result.current[game].joinTable('T1'))
+    expect(ws.lastSent()).toEqual({ event: game, payload: { move: { joinGame: { gameId: 'T1' } } } })
+  })
+
   it('a castle table swaps in on gameJoined and out on gameLeft, the URL naming the table', async () => {
     const { result, ws, pathname } = await open()
     act(() => ws.receive('roomState', roomState('R1')))
@@ -185,6 +196,38 @@ describe('useLobby', () => {
     act(() => ws.receive('castle', { update: { gameLeft: { gameId: 'G1' } } }))
     expect(result.current.castle.view).toBeNull()
     expect(pathname()).toBe('/games/room/R1')
+
+    // A room left with the table still up takes the table too.
+    act(() => ws.receive('castle', { update: { gameJoined: { view: waitingView() } } }))
+    act(() => ws.receive('roomLeft', { roomId: 'R1' }))
+    expect(result.current.castle.view).toBeNull()
+  })
+
+  // A game the hub hosts but this page predates (the hub deployed first)
+  // is left out of the room rather than breaking the lobby.
+  it("leaves out a table of a game this page doesn't know", async () => {
+    const { result, ws } = await open()
+    const games = [
+      { gameId: 'G1', game: 'castle', status: 'waiting', playerCount: 1 },
+      { gameId: 'X1', game: 'canasta', status: 'waiting', playerCount: 1 }
+    ] as unknown as HubRoom['games']
+    act(() => ws.receive('roomState', roomState('R1', games)))
+    expect(result.current.room?.games.map(table => table.gameId)).toEqual(['G1'])
+  })
+
+  it("a share link to a game this page doesn't know asks for a reload", async () => {
+    const { result, ws } = await open({ permalinkRoomId: 'R1', permalinkGameId: 'X1' }, '/games/room/R1/table/X1')
+    const games = [{ gameId: 'X1', game: 'canasta', status: 'waiting', playerCount: 1 }] as unknown as HubRoom['games']
+    act(() => ws.receive('roomState', roomState('R1', games)))
+    expect(result.current.notice).toBe('Table X1 is a game this page does not know yet: reload to play it')
+    expect(ws.sentFrames().some(frame => frame.event === 'canasta')).toBe(false)
+  })
+
+  // A summary from before the game was named is golf's.
+  it("a share link to a table that names no game sits at it as golf's", async () => {
+    const { ws } = await open({ permalinkRoomId: 'R1', permalinkGameId: 'G4' }, '/games/room/R1/table/G4')
+    act(() => ws.receive('roomState', roomState('R1', [{ gameId: 'G4', status: 'waiting', playerCount: 1 }])))
+    expect(ws.lastSent()).toEqual({ event: 'golf', payload: { move: { joinGame: { gameId: 'G4' } } } })
   })
 
   it('a golf table swaps in the same way, on its own envelope, and the world stays up', async () => {

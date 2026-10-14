@@ -1,8 +1,9 @@
 import type { HubGameName } from '@/utils/hubStream'
 
 // What a room can play, in the order the lobby offers it: the panel's
-// picker, the command menu and every table's seat count read this list,
-// so a new game is one entry here and its table hook.
+// picker, the command menu and every table's seat count read this list.
+// A new game is also a name in HUB_GAMES and an entry in games.tsx (its
+// table hook and its table).
 
 export type GameFamily = 'Cards' | 'Board' | 'Arcade'
 
