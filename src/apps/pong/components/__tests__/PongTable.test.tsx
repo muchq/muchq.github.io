@@ -100,6 +100,20 @@ describe('PongTable', () => {
     expect(held.leaveTable).toHaveBeenCalledTimes(1)
   })
 
+  it('starts nothing with the link down, and plays again once only', () => {
+    const seated = [{ playerId: 'alice' }, { playerId: 'bob' }]
+    render(<PongTable playerId="alice" connected={false} view={view({ phase: 'waiting', variant: undefined, court: undefined, players: seated })} table={table()} />)
+    expect(screen.getByRole('combobox', { name: 'Court' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Start' })).toHaveProperty('disabled', true)
+    cleanup()
+    const ended = view({ phase: 'ended', players: seated, result: { winner: 'bob', ending: 'points' } })
+    render(<PongTable playerId="alice" connected={false} view={ended} table={table()} />)
+    expect(screen.getByRole('button', { name: 'Play again' })).toHaveProperty('disabled', true)
+    cleanup()
+    mount({ view: ended, table: table({ opening: true }) })
+    expect(screen.getByRole('button', { name: 'Play again' })).toHaveProperty('disabled', true)
+  })
+
   it('with both seats filled, starts on the court picked', () => {
     const held = mount({ view: view({ phase: 'waiting', variant: undefined, court: undefined, players: [{ playerId: 'alice' }, { playerId: 'smallcat@2', bot: true }] }) })
     expect(screen.getByText('smallcat bot (Medium)')).toBeTruthy()
@@ -237,6 +251,8 @@ describe('PongTable', () => {
     expect(status()).toBe('You won: your opponent left.')
     // The court no longer answers: the keyboard lands on what does.
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Play again' }))
+    // A closed table plays again on its own court: nothing to pick.
+    expect(screen.queryByRole('combobox', { name: 'Court' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Play again' }))
     expect(held.playAgain).toHaveBeenCalledWith('smallcat')
     cleanup()

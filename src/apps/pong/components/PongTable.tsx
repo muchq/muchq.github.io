@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent } from 'react'
 import felt from '@/apps/cards/felt.module.css'
 import AboutGame from '@/apps/lobby/components/AboutGame'
+import VariantPicker from '@/apps/lobby/components/VariantPicker'
 import type { UsePongTable } from '@/hooks/usePongTable'
 import { aimFor, canvasPoint, extrapolate, flatSize, pongName, stickTarget, tunnelSize, viewSeat, type ScreenPoint, type Seat } from '../court'
 import { drawFlat, drawTunnel, type Scene } from '../draw'
@@ -250,18 +251,7 @@ const PongTable = ({ playerId, connected, view, table }: PongTableProps) => {
       : 'You’re red, nearest you. Steer with the pointer or the arrow keys.'
   })()
 
-  const courtPick = (
-    <label className={styles.pick}>
-      Court
-      <select value={variant} onChange={event => setVariant(event.target.value as PongVariant)} disabled={!connected}>
-        {VARIANTS.map(option => (
-          <option key={option.variant} value={option.variant}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
+  const courts = VARIANTS.map(option => ({ value: option.variant, label: option.label }))
   const size = court === undefined ? null : court.width === 0 ? flatSize(court) : tunnelSize(court)
 
   return (
@@ -338,7 +328,7 @@ const PongTable = ({ playerId, connected, view, table }: PongTableProps) => {
         <div className={styles.controls}>
           {view.phase === 'waiting' && alone && (
             <>
-              <label className={styles.pick}>
+              <label className={felt.pick}>
                 Bot
                 <select value={botLevel} onChange={event => setBotLevel(Number(event.target.value))} disabled={!connected}>
                   {BOT_LEVELS.map(({ level, label }) => (
@@ -354,20 +344,20 @@ const PongTable = ({ playerId, connected, view, table }: PongTableProps) => {
             </>
           )}
           {view.phase === 'waiting' && !alone && (
-            <>
-              {courtPick}
-              <button type="button" className={felt.primary} onClick={() => table.startTable(variant)} disabled={!connected}>
-                Start
-              </button>
-            </>
+            <VariantPicker label="Court" options={courts} value={variant} onChange={setVariant} action="Start" onAction={table.startTable} disabled={!connected} />
           )}
+          {/* A closed table plays again on its own court. */}
           {(view.phase === 'ended' || view.phase === 'closed') && (
-            <>
-              {view.phase === 'ended' && courtPick}
-              <button ref={againRef} type="button" className={felt.primary} onClick={() => table.playAgain(variant)} disabled={!connected || table.opening}>
-                Play again
-              </button>
-            </>
+            <VariantPicker
+              label="Court"
+              options={view.phase === 'ended' ? courts : courts.filter(court => court.value === variant)}
+              value={variant}
+              onChange={setVariant}
+              action="Play again"
+              onAction={table.playAgain}
+              disabled={!connected || table.opening}
+              buttonRef={againRef}
+            />
           )}
         </div>
       )}

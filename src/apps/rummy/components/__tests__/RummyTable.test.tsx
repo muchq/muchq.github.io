@@ -345,8 +345,15 @@ describe('RummyTable', () => {
   })
 
   it('a deal asked for is not asked twice', () => {
-    mountWith(between({ dealer: 'alice', dealNumber: 0 }), { dealing: true })
+    mountWith(between({ dealer: 'alice', dealNumber: 0, options: ['7-card', 'gin'] }), { dealing: true })
     expect(screen.getByRole('button', { name: 'Dealing…' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('combobox', { name: 'Game' })).toHaveProperty('disabled', true)
+  })
+
+  it('deals nothing with the link down', () => {
+    mountWith(between({ dealer: 'alice', dealNumber: 0, options: ['7-card', 'gin'] }), {}, false)
+    expect(screen.getByRole('button', { name: 'Deal 7-card rummy' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('combobox', { name: 'Game' })).toHaveProperty('disabled', true)
   })
 
   it('between deals every hand is face up, so the felt marks the showdown', () => {
