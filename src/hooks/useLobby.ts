@@ -470,7 +470,10 @@ export const useLobby = ({
         onGame: handleGame,
         onLobby: update => world.apply(update),
         onVoice: update => voice.apply(update),
-        onSuperseded: () => setSuperseded(true),
+        onSuperseded: () => {
+          setLost(null)
+          setSuperseded(true)
+        },
         onLost: reason => {
           setSuperseded(false)
           dropWorld()

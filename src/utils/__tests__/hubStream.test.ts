@@ -288,6 +288,30 @@ describe('HubStream', () => {
     hub.disconnect()
   })
 
+  it('connect while the socket is live dials no second one', async () => {
+    const [hub] = await connect()
+    hub.connect()
+    await flushAsync()
+    expect(FakeWebSocket.instances).toHaveLength(1)
+    expect(hub.isConnected).toBe(true)
+    hub.disconnect()
+  })
+
+  // A browser's onclose lands after disconnect() has let the socket go, so
+  // the drop is reported at once, and once.
+  it('a disconnect reports the drop at once; the late close adds nothing', async () => {
+    const [hub, ws] = await connect()
+    const lateClose = ws.onclose
+    ws.close = () => {
+      ws.readyState = 3
+    }
+    callbacks.onConnection.mockClear()
+    hub.disconnect()
+    expect(callbacks.onConnection.mock.calls).toEqual([[false]])
+    lateClose?.({ code: 1000 })
+    expect(callbacks.onConnection.mock.calls).toEqual([[false]])
+  })
+
   // A socket a newer dial replaced speaks for nothing: its frames are not
   // the session's.
   it("a replaced socket's frames are ignored", async () => {

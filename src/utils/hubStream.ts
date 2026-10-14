@@ -195,8 +195,12 @@ export class HubStream {
       clearTimeout(this.reconnectTimeout)
       this.reconnectTimeout = null
     }
-    this.ws?.close()
+    // Let go first: the browser's onclose comes later and no longer
+    // speaks, so the drop is reported here.
+    const ws = this.ws
     this.ws = null
+    if (ws?.readyState === WebSocket.OPEN) this.callbacks.onConnection?.(false)
+    ws?.close()
   }
 
   get isConnected(): boolean {

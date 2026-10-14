@@ -696,6 +696,9 @@ describe('useLobby', () => {
         ws.receive('sessionReady', { playerId: 'alice', resumed: false })
       })
       expect(result.current.superseded).toBe(false)
+      // A refusal just before the takeover: one banner, the takeover's.
+      act(() => ws.receiveRaw({ exception: 'Unauthorized', payload: { message: 'refused' } }))
+      expect(result.current.lost).toBe('refused')
       act(() => ws.close(4001))
       expect(result.current.superseded).toBe(true)
       expect(result.current.lost).toBeNull()
