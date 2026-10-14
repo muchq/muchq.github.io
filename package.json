@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "test:run": "vitest run",
     "local-server": "cross-env VITE_HUB_WEBSOCKET_URL=ws://localhost:2015/games/v2/play VITE_METRICS_API_URL=http://localhost:2015/metrics/v1 VITE_MITHRIL_API_URL=http://localhost:2015/mithril/v1/wordchain VITE_TRACY_API_URL=http://localhost:2015/portrait/v1/trace VITE_POSTERIZE_API_URL=http://localhost:2015/imagine/v1 VITE_R3DR_API_URL=http://localhost:2015/r3dr/v2 VITE_DEJA_API_URL=http://localhost:2015/deja/v1 vite",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "test:layout": "playwright test"
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.1.1",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.55.0",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",

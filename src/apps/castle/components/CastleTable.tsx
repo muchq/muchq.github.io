@@ -496,7 +496,7 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
           document.body
         )}
       <div className={styles.ringSlot}>
-        <div className={styles.ring}>
+        <div className={styles.ring} data-felt="ring">
           {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, clockOf(all.length, i)))}
           {(view.phase === 'playing' || view.phase === 'ended') && (
             <section className={styles.pile} aria-label="pile">

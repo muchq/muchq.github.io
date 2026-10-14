@@ -276,7 +276,7 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
         {view.result === undefined ? '' : describeResult(view.result, view, playerId)}
       </p>
       <div className={felt.ringSlot}>
-        <div className={felt.ring}>
+        <div className={felt.ring} data-felt="ring">
           {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, clockOf(all.length, i)))}
           {view.handNumber > 0 && (
             <section className={felt.pile} aria-label="table">

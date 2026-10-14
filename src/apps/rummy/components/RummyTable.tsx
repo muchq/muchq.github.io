@@ -612,107 +612,108 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
           document.body
         )}
       <div className={felt.ringSlot}>
-        <div className={felt.ring}>
-        {dealt && <ScoreSheet view={view} playerId={playerId} />}
-        {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, clockOf(all.length, i)))}
-        {view.phase !== 'waiting' && dealt && (
-          <section className={`${felt.pile} ${styles.middle}`} aria-label="table">
-            <div className={felt.piles}>
-              <div className={`${felt.drawPile} ${view.stockCount === 0 ? felt.drawn : ''}`}>
-                {drawing && view.canDrawStock && downToCard === null ? (
-                  <button
-                    type="button"
-                    className={`${felt.card} ${felt.back} ${styles.drawable}`}
-                    onClick={thenHand(table.drawStock)}
-                    disabled={!connected}
-                    aria-label={turning ? 'turn the discard pile over and draw' : `draw from the stock, ${view.stockCount} left`}
-                  />
-                ) : (
-                  <span className={`${felt.card} ${felt.back}`} role="img" aria-label={`stock, ${view.stockCount} left`} />
-                )}
-                <span className={felt.count}>{view.stockCount}</span>
-              </div>
-              <div className={felt.pileCards} role="group" aria-label="discard pile">
-                <div ref={spreadRef} className={gin ? '' : styles.discardSpread} style={{ '--gaps': Math.max(pile.length - 1, 1) } as CSSProperties}>
-                  {pile.slice(0, -1).map(card =>
-                    deeperPickable ? (
-                      <CardFace
-                        key={face(card)}
-                        card={card}
-                        className={styles.pickable}
-                        label={`take the pile down to ${face(card)}`}
-                        toggle={downTo === face(card)}
-                        onClick={connected ? thenHand(() => table.pickDownTo(card)) : undefined}
-                      />
-                    ) : (
-                      <CardFace key={face(card)} card={card} label={`${face(card)} in the discard pile`} />
-                    )
-                  )}
-                  {view.discardTop === undefined ? (
-                    <div className={felt.emptyPile}>discard</div>
-                  ) : (
-                    <CardFace
-                      card={view.discardTop}
-                      className={takeable ? styles.drawable : ''}
-                      label={takeable ? `take ${face(view.discardTop)} from the discard pile` : `${face(view.discardTop)} on the discard pile`}
-                      onClick={takeable && connected ? thenHand(() => table.drawDiscard()) : undefined}
+        <div className={felt.ring} data-felt="ring">
+          {dealt && <ScoreSheet view={view} playerId={playerId} />}
+          {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, clockOf(all.length, i)))}
+          {view.phase !== 'waiting' && dealt && (
+            <section className={`${felt.pile} ${styles.middle}`} aria-label="table">
+              <div className={felt.piles}>
+                <div className={`${felt.drawPile} ${view.stockCount === 0 ? felt.drawn : ''}`}>
+                  {drawing && view.canDrawStock && downToCard === null ? (
+                    <button
+                      type="button"
+                      className={`${felt.card} ${felt.back} ${styles.drawable}`}
+                      onClick={thenHand(table.drawStock)}
+                      disabled={!connected}
+                      aria-label={turning ? 'turn the discard pile over and draw' : `draw from the stock, ${view.stockCount} left`}
                     />
+                  ) : (
+                    <span className={`${felt.card} ${felt.back}`} role="img" aria-label={`stock, ${view.stockCount} left`} />
+                  )}
+                  <span className={felt.count}>{view.stockCount}</span>
+                </div>
+                <div className={felt.pileCards} role="group" aria-label="discard pile">
+                  <div ref={spreadRef} className={gin ? '' : styles.discardSpread} style={{ '--gaps': Math.max(pile.length - 1, 1) } as CSSProperties}>
+                    {pile.slice(0, -1).map(card =>
+                      deeperPickable ? (
+                        <CardFace
+                          key={face(card)}
+                          card={card}
+                          className={styles.pickable}
+                          label={`take the pile down to ${face(card)}`}
+                          toggle={downTo === face(card)}
+                          onClick={connected ? thenHand(() => table.pickDownTo(card)) : undefined}
+                        />
+                      ) : (
+                        <CardFace key={face(card)} card={card} label={`${face(card)} in the discard pile`} />
+                      )
+                    )}
+                    {view.discardTop === undefined ? (
+                      <div className={felt.emptyPile}>discard</div>
+                    ) : (
+                      <CardFace
+                        card={view.discardTop}
+                        className={takeable ? styles.drawable : ''}
+                        label={takeable ? `take ${face(view.discardTop)} from the discard pile` : `${face(view.discardTop)} on the discard pile`}
+                        onClick={takeable && connected ? thenHand(() => table.drawDiscard()) : undefined}
+                      />
+                    )}
+                  </div>
+                  {view.discardCount > 0 && <span className={felt.count}>{view.discardCount}</span>}
+                </div>
+              </div>
+              {!gin && (
+                <div className={styles.melds} role="group" aria-label="melds">
+                  {view.melds.length === 0 ? (
+                    <p className={`${felt.muted} ${styles.noMelds}`}>No melds yet</p>
+                  ) : (
+                    view.melds.map((tableMeld, m) => {
+                      const fits = fitting.includes(m)
+                      const cards = (
+                        <>
+                          <span className={styles.meldCards}>
+                            {tableMeld.cards.map((card, i) => (
+                              <span key={face(card)} className={styles.meldSlot} style={{ zIndex: i }}>
+                                <CardFace card={card} />
+                              </span>
+                            ))}
+                          </span>
+                          {/* Who laid it: a lay-off can go on anyone's, but at three
+                              or four seats it helps to know whose run is whose. */}
+                          <span className={styles.meldOwner} aria-hidden="true">
+                            {tableMeld.owner === playerId ? 'you' : tableMeld.owner}
+                          </span>
+                        </>
+                      )
+                      const lastLaid = view.lastMove?.meldIndex === m && moment !== undefined
+                      const classes = `${styles.meld} ${fits ? styles.fits : ''} ${lastLaid ? styles.justLaid : ''}`
+                      const named = `${tableMeld.cards.map(face).join(' ')}, ${tableMeld.owner === playerId ? 'yours' : `${tableMeld.owner}'s`}`
+                      const layingOff = fits ? single : downLaysOff
+                      return layingOff !== null ? (
+                        <button
+                          key={m}
+                          type="button"
+                          className={classes}
+                          onClick={thenHand(() => (single !== null ? table.layOffSelected(m) : table.takeDownLayOff(m)))}
+                          disabled={!connected}
+                          aria-label={`lay off ${face(layingOff)} on ${named}`}
+                        >
+                          {cards}
+                        </button>
+                      ) : (
+                        <span key={m} className={classes} role="img" aria-label={named}>
+                          {cards}
+                        </span>
+                      )
+                    })
                   )}
                 </div>
-                {view.discardCount > 0 && <span className={felt.count}>{view.discardCount}</span>}
-              </div>
-            </div>
-            {!gin && (
-              <div className={styles.melds} role="group" aria-label="melds">
-                {view.melds.length === 0 ? (
-                  <p className={`${felt.muted} ${styles.noMelds}`}>No melds yet</p>
-                ) : (
-                  view.melds.map((tableMeld, m) => {
-                    const fits = fitting.includes(m)
-                    const cards = (
-                      <>
-                        <span className={styles.meldCards}>
-                          {tableMeld.cards.map((card, i) => (
-                            <span key={face(card)} className={styles.meldSlot} style={{ zIndex: i }}>
-                              <CardFace card={card} />
-                            </span>
-                          ))}
-                        </span>
-                        {/* Who laid it: a lay-off can go on anyone's, but at three
-                            or four seats it helps to know whose run is whose. */}
-                        <span className={styles.meldOwner} aria-hidden="true">
-                          {tableMeld.owner === playerId ? 'you' : tableMeld.owner}
-                        </span>
-                      </>
-                    )
-                    const lastLaid = view.lastMove?.meldIndex === m && moment !== undefined
-                    const classes = `${styles.meld} ${fits ? styles.fits : ''} ${lastLaid ? styles.justLaid : ''}`
-                    const named = `${tableMeld.cards.map(face).join(' ')}, ${tableMeld.owner === playerId ? 'yours' : `${tableMeld.owner}'s`}`
-                    const layingOff = fits ? single : downLaysOff
-                    return layingOff !== null ? (
-                      <button
-                        key={m}
-                        type="button"
-                        className={classes}
-                        onClick={thenHand(() => (single !== null ? table.layOffSelected(m) : table.takeDownLayOff(m)))}
-                        disabled={!connected}
-                        aria-label={`lay off ${face(layingOff)} on ${named}`}
-                      >
-                        {cards}
-                      </button>
-                    ) : (
-                      <span key={m} className={classes} role="img" aria-label={named}>
-                        {cards}
-                      </span>
-                    )
-                  })
-                )}
-              </div>
-            )}
-          </section>
-        )}
+              )}
+            </section>
+          )}
         </div>
       </div>
+
       {children}
     </div>
   )
