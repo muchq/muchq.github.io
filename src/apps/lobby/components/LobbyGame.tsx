@@ -191,6 +191,17 @@ const LobbyGame = (props: UseLobbyProps) => {
           </button>
         </div>
       )}
+      {lobby.roomLink && (
+        <div className={styles.hubLost} role="status">
+          You are at a table in room {lobby.roomLink.from}{' '}
+          <button type="button" onClick={lobby.followRoomLink}>
+            Leave it for room {lobby.roomLink.roomId}
+          </button>{' '}
+          <button type="button" onClick={lobby.stayInRoom}>
+            Stay
+          </button>
+        </div>
+      )}
       <CommandMenu registry={commands} ref={menuRef} />
       <div className={`${styles.notice} ${notice || said ? '' : styles.noticeEmpty}`} role="status">
         {notice || said}

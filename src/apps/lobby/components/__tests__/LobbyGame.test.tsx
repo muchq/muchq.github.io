@@ -21,6 +21,9 @@ const state = {
   lost: null,
   superseded: false,
   playHere: vi.fn(),
+  roomLink: null as { from: string; roomId: string; gameId: string | null } | null,
+  followRoomLink: vi.fn(),
+  stayInRoom: vi.fn(),
   room: null,
   chat: { messages: [], replayUpTo: 0, rejection: null },
   notice: '',
@@ -104,6 +107,7 @@ describe('LobbyGame', () => {
     state.spades.view = null
     state.lost = null
     state.superseded = false
+    state.roomLink = null
     state.room = null
     localStorage.clear()
     vi.clearAllMocks()
@@ -159,6 +163,17 @@ describe('LobbyGame', () => {
     expect(screen.getByText('Playing in another window')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Play here' }))
     expect(state.playHere).toHaveBeenCalledTimes(1)
+  })
+
+  // A link to another room, opened while seated: one click follows it.
+  it('a room link while seated offers to follow it or stay', () => {
+    state.roomLink = { from: 'R1', roomId: 'R2', gameId: null }
+    render(<LobbyGame />)
+    expect(screen.getByText(/You are at a table in room R1/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Leave it for room R2' }))
+    expect(state.followRoomLink).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Stay' }))
+    expect(state.stayInRoom).toHaveBeenCalledTimes(1)
   })
 
   it('a golf table is a table too: over the world, the panel folded', () => {

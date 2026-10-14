@@ -606,9 +606,65 @@ describe('useLobby', () => {
     expect(ws.sentFrames().some(frame => frame.event === 'leaveRoom' || frame.event === 'joinRoom')).toBe(false)
     expect(result.current.room?.roomId).toBe('R1')
     expect(pathname()).toBe('/games/room/R1')
-    expect(result.current.notice).toBe('You are at a table in room R1: leave it, then open the link to room R2 again')
+    expect(result.current.roomLink).toEqual({ from: 'R1', roomId: 'R2', gameId: null })
+    expect(result.current.notice).toBe('')
     // Staying, the room's world is joined as on any resume.
     expect(lobbyFrames(ws)).toHaveLength(1)
+  })
+
+  const seatedInR1WithLinkToR2 = async () => {
+    const opened = await open({ permalinkRoomId: 'R2' }, '/games/room/R2', 'R1')
+    const seated = roomState('R1')
+    seated.players[0].table = { game: 'chess', gameId: 'C1' }
+    // The hub's resume order: the room, then the seat's table.
+    act(() => opened.ws.receive('roomState', seated))
+    const table = { gameId: 'C1', phase: 'playing', players: [{ playerId: 'alice' }, { playerId: 'bob' }], moves: [], inCheck: false, legalMoves: [] }
+    act(() => opened.ws.receive('chess', { update: { gameJoined: { view: table } } }))
+    return opened
+  }
+
+  it("following a seated session's room link gives up the table for the linked room in one go", async () => {
+    const { result, ws, pathname } = await seatedInR1WithLinkToR2()
+    act(() => result.current.followRoomLink())
+    expect(result.current.roomLink).toBeNull()
+    expect(ws.lastSent()).toEqual({ event: 'leaveRoom', payload: {} })
+    expect(pathname()).toBe('/games/room/R2')
+    // The hub's order: the table's gameLeft, then roomLeft.
+    act(() => ws.receive('chess', { update: { gameLeft: { gameId: 'C1' } } }))
+    expect(pathname()).toBe('/games/room/R2')
+    act(() => ws.receive('roomLeft', { roomId: 'R1' }))
+    expect(ws.lastSent()).toEqual({ event: 'joinRoom', payload: { roomId: 'R2' } })
+    act(() => ws.receive('roomState', roomState('R2')))
+    expect(result.current.room?.roomId).toBe('R2')
+    expect(pathname()).toBe('/games/room/R2')
+  })
+
+  it('staying put drops the room link and sends nothing', async () => {
+    const { result, ws } = await seatedInR1WithLinkToR2()
+    const sent = ws.sent.length
+    act(() => result.current.stayInRoom())
+    expect(result.current.roomLink).toBeNull()
+    expect(ws.sent.length).toBe(sent)
+  })
+
+  it('a room link goes with the session it was offered in', async () => {
+    const { result, ws } = await seatedInR1WithLinkToR2()
+    ws.close()
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 2100))
+    })
+    const next = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
+    act(() => {
+      next.open()
+      next.receive('sessionReady', { playerId: 'alice', resumed: true, roomId: 'R1' })
+    })
+    expect(result.current.roomLink).toBeNull()
+  })
+
+  it('a room link goes once the table it stood for is left', async () => {
+    const { result, ws } = await seatedInR1WithLinkToR2()
+    act(() => ws.receive('chess', { update: { gameLeft: { gameId: 'C1' } } }))
+    expect(result.current.roomLink).toBeNull()
   })
 
   it('a link refused while leaving the resumed room gives up rather than looping', async () => {
