@@ -611,7 +611,8 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
           </div>,
           document.body
         )}
-      <div className={felt.ring}>
+      <div className={felt.ringSlot}>
+        <div className={felt.ring}>
         {dealt && <ScoreSheet view={view} playerId={playerId} />}
         {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, clockOf(all.length, i)))}
         {view.phase !== 'waiting' && dealt && (
@@ -710,6 +711,7 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
             )}
           </section>
         )}
+        </div>
       </div>
       {children}
     </div>

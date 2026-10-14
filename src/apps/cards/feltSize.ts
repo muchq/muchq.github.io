@@ -2,7 +2,7 @@
 // width and the height left after the lobby overlay and the table's own
 // chrome (header, gaps, scoreboard). Below feltMin the overlay scrolls.
 //
-// felt.module.css applies the same policy with flex + aspect-ratio so the
+// felt.module.css applies the same policy with ringSlot (cqw/cqh) so the
 // real header and scoreboard size the leftover; this closed form is what
 // a test can pin (jsdom does not lay out).
 

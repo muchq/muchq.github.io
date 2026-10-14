@@ -3,7 +3,7 @@ import { FELT_MAX_WIDTH_PX, FELT_MIN_PX, FELT_OVERLAY_CHROME_PX, feltSizePx } fr
 
 // #447: a width-sized square on a tall desktop scrolled the scoreboard
 // off; the felt must be min(width, remaining height). felt.module.css
-// applies the same policy with flex + aspect-ratio (jsdom cannot lay that out).
+// applies the same policy with ringSlot + cqw/cqh (jsdom cannot lay that out).
 
 describe('feltSizePx', () => {
   it('shrinks below the width cap when the scoreboard leaves less height', () => {

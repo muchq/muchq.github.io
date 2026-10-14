@@ -14,7 +14,7 @@
   box-sizing: border-box;
   /* Fill the overlay's content box; grow past it only when the felt
      would otherwise drop below --felt-min (then the overlay scrolls).
-     Closed form of the size rule: feltSize.ts. */
+     Closed form of the size rule: feltSize.ts. ringSlot + cqw/cqh. */
   height: calc(100dvh - var(--overlay-chrome));
   min-height: calc(var(--felt-min) + var(--table-chrome));
 }
@@ -166,22 +166,32 @@
 
    The chairs on the sides stay placed by percentage: they sit in the
    felt's empty flanks, which is the one place nothing else wants. */
+
+/* Flex leftover after header/scoreboard. Size containment so cqw/cqh
+   are the slot, not the circle; the circle then picks min of both. */
+.ringSlot {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  container-type: size;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .ring {
-  /* Largest square in the flex space left by the header and scoreboard:
-     height from the row, width from aspect-ratio, capped at 52rem / 100%. */
+  /* Largest square in the slot: min(width, height, 52rem). flex-grow on
+     the circle itself stretched tall desktops into ovals (#447). */
   position: relative;
   display: grid;
   grid-template-rows: auto 1fr auto;
   justify-items: center;
   align-items: center;
-  flex: 1 1 0;
-  min-height: 0;
-  width: auto;
-  max-width: min(100%, 52rem);
+  width: min(100cqw, 100cqh, 52rem);
   aspect-ratio: 1;
-  align-self: center;
+  height: auto;
   padding: 1rem;
-  margin: 0 auto;
   border-radius: 50%;
   background: radial-gradient(circle at 50% 45%, #2f7d57 0%, #1e5c3e 60%, #16452e 100%);
   box-shadow:
@@ -840,11 +850,17 @@ down and to the right so the back's corner shows under it. */
     min-height: 0;
   }
 
+  .ringSlot {
+    /* Rows size the circle; drop size containment so height can grow. */
+    flex: 1 0 auto;
+    container-type: normal;
+    height: auto;
+  }
+
   .ring {
     /* Wider than the rows need: an oval only as wide as the widest
        chair cuts the corners off the chairs at its ends, where it is
        narrowing. The width is free here — the height is the rows'. */
-    flex: 1 0 auto;
     width: min(100%, 52rem);
     height: auto;
     max-height: none;
@@ -947,13 +963,18 @@ down and to the right so the back's corner shows under it. */
     font-size: 0.85rem;
   }
 
+  .ringSlot {
+    flex: 1 0 auto;
+    container-type: normal;
+    height: auto;
+  }
+
   /* The felt takes the width and whatever height the header leaves,
      so the viewer's hand and moves are on screen without a scroll. Its
      height is the rows' when they need more — four chairs on a short
      phone — and then the overlay scrolls rather than the chairs
      overlapping. */
   .ring {
-    flex: 1 0 auto;
     width: 100%;
     max-width: 100%;
     height: auto;

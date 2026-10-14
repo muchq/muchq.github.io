@@ -275,21 +275,23 @@ const SpadesTable = ({ playerId, connected, view, table }: SpadesTableProps) => 
       <p className={felt.ending} role="status">
         {view.result === undefined ? '' : describeResult(view.result, view, playerId)}
       </p>
-      <div className={felt.ring}>
-        {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, clockOf(all.length, i)))}
-        {view.handNumber > 0 && (
-          <section className={felt.pile} aria-label="table">
-            {view.trick.length > 0 || view.lastTrick === undefined ? (
-              trickCards(view.trick, 'trick')
-            ) : (
-              <>
-                <p className={felt.muted}>{`${You(view.lastTrick.winner, playerId)} took the last trick`}</p>
-                {trickCards(view.lastTrick.plays, 'last trick')}
-              </>
-            )}
-            <p className={felt.muted}>{view.spadesBroken ? 'Spades broken' : 'Spades not broken'}</p>
-          </section>
-        )}
+      <div className={felt.ringSlot}>
+        <div className={felt.ring}>
+          {fromViewer(view.players, playerId).map((seat, i, all) => renderSeat(seat, clockOf(all.length, i)))}
+          {view.handNumber > 0 && (
+            <section className={felt.pile} aria-label="table">
+              {view.trick.length > 0 || view.lastTrick === undefined ? (
+                trickCards(view.trick, 'trick')
+              ) : (
+                <>
+                  <p className={felt.muted}>{`${You(view.lastTrick.winner, playerId)} took the last trick`}</p>
+                  {trickCards(view.lastTrick.plays, 'last trick')}
+                </>
+              )}
+              <p className={felt.muted}>{view.spadesBroken ? 'Spades broken' : 'Spades not broken'}</p>
+            </section>
+          )}
+        </div>
       </div>
       {view.teams.length > 0 && (
         <div className={styles.sheets}>
