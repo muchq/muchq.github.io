@@ -3,31 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import type { ChatMessage } from '@/types/roomChat'
 import { mergeChatMessages } from '@/types/roomChat'
 import { HUB_RESUME_TOKEN_KEY } from '@/utils/hubSession'
-import { HubStream, hubPlayUrl } from '@/utils/hubStream'
-import type { HubRoom, HubSessionReady } from '@/utils/hubStream'
+import { HUB_GAMES, HubStream, hubPlayUrl, isHubGame } from '@/utils/hubStream'
+import type { HubGameName, HubRoom, HubSessionReady } from '@/utils/hubStream'
 import { HubWorldLink } from '@/utils/hubWorldLink'
 import { PLANE_GEOMETRY } from '@/utils/surface'
 import { VoiceMesh } from '@/utils/voiceMesh'
 import type { VoiceDevice } from '@/utils/voiceMesh'
 import { browserVoiceDevice } from '@/utils/voiceDevice'
-import type { CastleMoveName, CastleUpdate } from '@/apps/castle/wire'
-import type { ChessMoveName, ChessUpdate } from '@/apps/chess/wire'
-import type { GolfMoveName, GolfUpdate } from '@/apps/golf/wire'
-import type { PongMoveName, PongUpdate } from '@/apps/pong/wire'
-import type { RummyMoveName, RummyUpdate } from '@/apps/rummy/wire'
-import type { SpadesMoveName, SpadesUpdate } from '@/apps/spades/wire'
-import { useCastleTable } from './useCastleTable'
-import type { UseCastleTable } from './useCastleTable'
-import { useChessTable } from './useChessTable'
-import type { UseChessTable } from './useChessTable'
-import { useGolfTable } from './useGolfTable'
-import type { UseGolfTable } from './useGolfTable'
-import { usePongTable } from './usePongTable'
-import type { UsePongTable } from './usePongTable'
-import { useRummyTable } from './useRummyTable'
-import type { UseRummyTable } from './useRummyTable'
-import { useSpadesTable } from './useSpadesTable'
-import type { UseSpadesTable } from './useSpadesTable'
+import { GAME_TABLES } from '@/apps/lobby/games'
+import type { LobbyTables, TableHook, TableHookProps } from '@/apps/lobby/games'
 
 // The lobby (MoonBase#1490): the one page for the games hub. One stream
 // carries the room, its chat, the world, and the tables. The world is
@@ -72,7 +56,7 @@ export interface UseLobbyProps {
   voiceDevice?: VoiceDevice
 }
 
-export interface UseLobby {
+export interface UseLobby extends LobbyTables {
   playerId: string
   connected: boolean
   lost: string | null
@@ -97,12 +81,6 @@ export interface UseLobby {
   sendChat: (text: string) => void
   world: HubWorldLink
   voice: VoiceMesh
-  castle: UseCastleTable
-  golf: UseGolfTable
-  rummy: UseRummyTable
-  chess: UseChessTable
-  pong: UsePongTable
-  spades: UseSpadesTable
 }
 
 // A share link's room, and the table it named.
@@ -203,55 +181,30 @@ export const useLobby = ({
     world.dropped()
   }, [world])
 
-  const castleMove = useCallback((name: CastleMoveName, payload: unknown = {}) => {
-    streamRef.current?.move('castle', name, payload)
-  }, [])
-  const golfMove = useCallback((name: GolfMoveName, payload: unknown = {}) => {
-    streamRef.current?.move('golf', name, payload)
-  }, [])
-  const rummyMove = useCallback((name: RummyMoveName, payload: unknown = {}) => {
-    streamRef.current?.move('rummy', name, payload)
-  }, [])
-  const chessMove = useCallback((name: ChessMoveName, payload: unknown = {}) => {
-    streamRef.current?.move('chess', name, payload)
-  }, [])
-  const pongMove = useCallback((name: PongMoveName, payload: unknown = {}) => {
-    streamRef.current?.move('pong', name, payload)
-  }, [])
-  const spadesMove = useCallback((name: SpadesMoveName, payload: unknown = {}) => {
-    streamRef.current?.move('spades', name, payload)
-  }, [])
+  // One move per game, each in its own envelope.
+  const movesRef = useRef<Record<HubGameName, TableHookProps['move']> | null>(null)
+  if (movesRef.current === null) {
+    movesRef.current = Object.fromEntries(
+      HUB_GAMES.map(game => [game, (name: string, payload: unknown = {}) => streamRef.current?.move(game, name, payload)])
+    ) as Record<HubGameName, TableHookProps['move']>
+  }
+  const moves = movesRef.current
   const onTableLeft = useCallback(() => {
     setRoomLink(null)
     // On the way to another room, the URL already names it.
     if (switchRef.current !== null) return
     if (roomIdRef.current !== null) navigate(lobbyRoomPath(roomIdRef.current), { replace: true })
   }, [navigate])
-  const castle = useCastleTable({ playerId, move: castleMove, showNotice, onLeft: onTableLeft })
-  const castleRef = useRef(castle)
-  castleRef.current = castle
-  const golf = useGolfTable({ playerId, move: golfMove, showNotice, onLeft: onTableLeft })
-  const golfRef = useRef(golf)
-  golfRef.current = golf
-  const rummy = useRummyTable({ playerId, move: rummyMove, showNotice, onLeft: onTableLeft })
-  const rummyRef = useRef(rummy)
-  rummyRef.current = rummy
-  const chess = useChessTable({ playerId, move: chessMove, showNotice, onLeft: onTableLeft })
-  const chessRef = useRef(chess)
-  chessRef.current = chess
-  const pong = usePongTable({ playerId, move: pongMove, showNotice, onLeft: onTableLeft })
-  const pongRef = useRef(pong)
-  pongRef.current = pong
-  const spades = useSpadesTable({ playerId, move: spadesMove, showNotice, onLeft: onTableLeft })
-  const spadesRef = useRef(spades)
-  spadesRef.current = spades
+  const tables = {} as Record<HubGameName, TableHook>
+  for (const game of HUB_GAMES) {
+    // HUB_GAMES is a module constant: the same hooks, in the same order,
+    // every render.
+    tables[game] = GAME_TABLES[game].useTable({ playerId, move: moves[game], showNotice, onLeft: onTableLeft })
+  }
+  const tablesRef = useRef(tables)
+  tablesRef.current = tables
   const clearTables = useCallback(() => {
-    castleRef.current.clear()
-    golfRef.current.clear()
-    rummyRef.current.clear()
-    chessRef.current.clear()
-    pongRef.current.clear()
-    spadesRef.current.clear()
+    for (const game of HUB_GAMES) tablesRef.current[game].clear()
   }, [])
 
   // The share link's table, once its room is in hand: a table still
@@ -275,12 +228,8 @@ export const useLobby = ({
         showNotice(`Table ${gameId} is in play`)
         return
       }
-      if (table.game === 'castle') castleRef.current.joinTable(gameId)
-      else if (table.game === 'rummy') rummyRef.current.joinTable(gameId)
-      else if (table.game === 'chess') chessRef.current.joinTable(gameId)
-      else if (table.game === 'pong') pongRef.current.joinTable(gameId)
-      else if (table.game === 'spades') spadesRef.current.joinTable(gameId)
-      else golfRef.current.joinTable(gameId)
+      // A summary from before the game was named is golf's.
+      tablesRef.current[table.game ?? 'golf'].joinTable(gameId)
     },
     [showNotice]
   )
@@ -393,11 +342,7 @@ export const useLobby = ({
   const handleRejected = useCallback(
     (reason: string) => {
       // Whatever was refused, nothing a table asked for arrived.
-      castleRef.current.handleRejected()
-      rummyRef.current.handleRejected()
-      chessRef.current.handleRejected()
-      pongRef.current.handleRejected()
-      spadesRef.current.handleRejected()
+      for (const game of HUB_GAMES) tablesRef.current[game].handleRejected?.()
       voice.rejected(reason)
       chatSeqRef.current += 1
       setChat(prev => ({ ...prev, rejection: { seq: chatSeqRef.current, reason } }))
@@ -424,32 +369,9 @@ export const useLobby = ({
   // or the seat a resume found still held — names the table in the URL.
   const handleGame = useCallback(
     (game: string, update: Record<string, unknown>) => {
-      let joined: string | undefined
-      if (game === 'castle') {
-        const castleUpdate = update as CastleUpdate
-        castleRef.current.handleUpdate(castleUpdate)
-        joined = castleUpdate.gameJoined?.view.gameId
-      } else if (game === 'rummy') {
-        const rummyUpdate = update as RummyUpdate
-        rummyRef.current.handleUpdate(rummyUpdate)
-        joined = rummyUpdate.gameJoined?.view.gameId
-      } else if (game === 'chess') {
-        const chessUpdate = update as ChessUpdate
-        chessRef.current.handleUpdate(chessUpdate)
-        joined = chessUpdate.gameJoined?.view.gameId
-      } else if (game === 'pong') {
-        const pongUpdate = update as PongUpdate
-        pongRef.current.handleUpdate(pongUpdate)
-        joined = pongUpdate.gameJoined?.view.gameId
-      } else if (game === 'spades') {
-        const spadesUpdate = update as SpadesUpdate
-        spadesRef.current.handleUpdate(spadesUpdate)
-        joined = spadesUpdate.gameJoined?.view.gameId
-      } else if (game === 'golf') {
-        const golfUpdate = update as GolfUpdate
-        golfRef.current.handleUpdate(golfUpdate)
-        joined = golfUpdate.gameJoined?.view.gameId
-      }
+      if (!isHubGame(game)) return
+      ;(tablesRef.current[game].handleUpdate as (update: Record<string, unknown>) => void)(update)
+      const joined = (update as { gameJoined?: { view: { gameId: string } } }).gameJoined?.view.gameId
       if (joined !== undefined && roomIdRef.current !== null) {
         navigate(lobbyTablePath(roomIdRef.current, joined), { replace: true })
       }
@@ -565,11 +487,6 @@ export const useLobby = ({
     sendChat,
     world,
     voice,
-    castle,
-    golf,
-    rummy,
-    chess,
-    pong,
-    spades
+    ...(tables as LobbyTables)
   }
 }

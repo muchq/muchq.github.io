@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { Mock } from 'vitest'
-import { HubStream, hubPlayUrl } from '../hubStream'
+import { HUB_GAMES, HubStream, hubPlayUrl } from '../hubStream'
 import type { HubStreamCallbacks } from '../hubStream'
 import { FakeWebSocket, admitted, flushAsync, installFakeHub } from '@/test/fakeHub'
 
@@ -473,6 +473,14 @@ describe('HubStream', () => {
     ws.receiveRaw({ exception: 'ThrottlingException', payload: {} })
     expect(callbacks.onLost).toHaveBeenCalledWith('ThrottlingException')
     expect(callbacks.onRejected).not.toHaveBeenCalled()
+  })
+
+  it('hands every game envelope to onGame, and nothing else', async () => {
+    const [hub, ws] = await connect()
+    for (const game of HUB_GAMES) ws.receive(game, { update: { tick: game } })
+    ws.receive('checkers', { update: {} })
+    expect(callbacks.onGame.mock.calls).toEqual(HUB_GAMES.map(game => [game, { tick: game }]))
+    hub.disconnect()
   })
 
   it('an unreadable frame is dropped, not fatal', async () => {

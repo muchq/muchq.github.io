@@ -1,5 +1,5 @@
 /* The court and pong's own controls. The table's chrome — title, header
-   row, status line, buttons — is castle's (CastleTable.module.css). */
+   row, status line, buttons — is the felt's (cards/felt.module.css). */
 
 .table {
   width: 100%;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CATALOG, catalogEntry, seatsOf, seatsLine } from '../catalog'
+import { HUB_GAMES } from '@/utils/hubStream'
 
 // One list says what the room can play: the panel's picker, the command
 // menu and the tables' seat counts all read it.
@@ -8,6 +9,11 @@ describe('the game catalog', () => {
   it('names each game once, families in the order the picker shows them', () => {
     expect(CATALOG.map(entry => entry.game)).toEqual(['castle', 'golf', 'rummy', 'spades', 'chess', 'pong'])
     expect(CATALOG.map(entry => entry.family)).toEqual(['Cards', 'Cards', 'Cards', 'Cards', 'Board', 'Arcade'])
+  })
+
+  // A game the hub hosts but the catalog lacks is one no room can open.
+  it('lists every game the hub hosts', () => {
+    expect(CATALOG.map(entry => entry.game).sort()).toEqual([...HUB_GAMES].sort())
   })
 
   it('reads each game’s seats; a summary from before games were named is golf’s', () => {

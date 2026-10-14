@@ -1,7 +1,7 @@
 // The games hub's one stream, game-agnostic: the session mint, the
 // smithy event-stream socket with its reconnect loop, the room and chat
 // commands and events, the lobby envelope (the world), the voice
-// envelope (the room's voice), and one envelope per game (golf, castle, rummy, chess, pong, spades)
+// envelope (the room's voice), and one envelope per game (HUB_GAMES)
 // whose contents are the game client's business.
 //
 // Wire shape (smithy-cpp ADR-0018 JSON-text mode):
@@ -41,7 +41,13 @@ const SUPERSEDED_CLOSE_CODE = 4001
 
 // --- wire shapes (mirrors model/games.smithy; each game envelope stays opaque) ---
 
-export type HubGameName = 'golf' | 'castle' | 'rummy' | 'chess' | 'pong' | 'spades'
+// Every game the hub hosts, each in its own envelope.
+export const HUB_GAMES = ['golf', 'castle', 'rummy', 'chess', 'pong', 'spades'] as const
+export type HubGameName = (typeof HUB_GAMES)[number]
+
+export function isHubGame(event: string): event is HubGameName {
+  return (HUB_GAMES as readonly string[]).includes(event)
+}
 
 // The table a member is at, pending or in play (MoonBase#1490); absent
 // while idle, which is how the lobby tells who is free.
@@ -111,12 +117,7 @@ type HubFrame =
   | { event: 'roomChat'; payload: ChatMessage }
   | { event: 'roomChatHistory'; payload: { messages: ChatMessage[] } }
   | { event: 'commandRejected'; payload: { reason: string } }
-  | { event: 'golf'; payload: { update: Record<string, unknown> } }
-  | { event: 'castle'; payload: { update: Record<string, unknown> } }
-  | { event: 'rummy'; payload: { update: Record<string, unknown> } }
-  | { event: 'chess'; payload: { update: Record<string, unknown> } }
-  | { event: 'pong'; payload: { update: Record<string, unknown> } }
-  | { event: 'spades'; payload: { update: Record<string, unknown> } }
+  | { event: HubGameName; payload: { update: Record<string, unknown> } }
   | { event: 'lobby'; payload: { update: LobbyUpdate } }
   | { event: 'voice'; payload: { update: VoiceUpdate } }
   | { event?: undefined; exception: string; payload: { message?: string } }
@@ -322,14 +323,6 @@ export class HubStream {
       case 'commandRejected':
         this.callbacks.onRejected?.(frame.payload.reason)
         return
-      case 'golf':
-      case 'castle':
-      case 'rummy':
-      case 'chess':
-      case 'pong':
-      case 'spades':
-        this.callbacks.onGame?.(frame.event, frame.payload.update)
-        return
       case 'lobby':
         this.callbacks.onLobby?.(frame.payload.update)
         return
@@ -337,6 +330,10 @@ export class HubStream {
         this.callbacks.onVoice?.(frame.payload.update)
         return
       default:
+        if (isHubGame(frame.event)) {
+          this.callbacks.onGame?.(frame.event, frame.payload.update)
+          return
+        }
         console.warn('hub: unknown event', frame)
     }
   }

@@ -66,10 +66,10 @@ repos, not here.
 players and their tables, and the room's chat, all on one stream. Sharing the room and its
 voice sit in one row at the panel's top. A new table is picked as Cards (then castle, golf or
 rummy) or Chess (`catalog.ts`), and each game says what it is at its own table while that waits
-(`AboutGame`). A table of any game opens over the world (MoonBase#1502); `GolfTable`,
-`CastleTable` and `RummyTable` (MoonBase#245) are the tables, `useGolfTable`, `useCastleTable` and `useRummyTable` their state over the
-room stream's game envelopes. Castle and rummy share the felt and the card faces
-(`castle/components/Cards.tsx`, `CastleTable.module.css`). `ChessTable` and `useChessTable`
+(`AboutGame`). A table of any game opens over the world (MoonBase#1502). Each game is one entry in
+`apps/lobby/games.tsx` (its table hook and its table) and one in `catalog.ts`; the lobby reads
+those rather than naming games. The card games share the felt, the card faces and the seating
+(`apps/cards/`). `ChessTable` and `useChessTable`
 are chess's: two seats, the board from the viewer's side (tap a piece then its square, or drag it), one cancellable premove that is sent only if
 the hub lists it when the turn arrives (the client holds no rules), a server-owned starting-position picker before each game, the clocks counted down from each view, and a
 score notepad as the table plays on: Next game starts another there, sides swapped. Any chess table can be
