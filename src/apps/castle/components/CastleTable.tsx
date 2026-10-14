@@ -9,6 +9,7 @@ import { enteredSince, face } from '@/apps/cards/card'
 import { clockOf, fromViewer } from '@/apps/cards/seating'
 import { CardBack, CardFace } from '@/apps/cards/Cards'
 import styles from '@/apps/cards/felt.module.css'
+import GameEnding from '@/apps/cards/GameEnding'
 import AboutGame from '@/apps/lobby/components/AboutGame'
 
 // The table from the viewer's chair, seen from above: the viewer at 6
@@ -288,16 +289,12 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
       // until gameEnded lands, nobody has been told who won. Back is the
       // way out in the meantime.
       return (
-        <>
-          {ended !== null && (
-            <button type="button" className={styles.primary} onClick={table.playAgain} disabled={!connected || opening}>
-              {opening ? 'Opening…' : 'Play again'}
-            </button>
-          )}
-          <button type="button" className={styles.secondary} onClick={table.leaveTable}>
-            Back to the room
-          </button>
-        </>
+        <GameEnding
+          onPlayAgain={ended !== null ? table.playAgain : undefined}
+          onBack={table.leaveTable}
+          opening={opening}
+          connected={connected}
+        />
       )
     }
     return null
@@ -483,18 +480,13 @@ const CastleTable = ({ playerId, connected, view, table, children }: CastleTable
               </h2>
               <p className={styles.endingLine}>{describeEnding(ended.finished, ended.loser, playerId)}</p>
               <div className={styles.endingButtons}>
-                <button
-                  ref={playAgainRef}
-                  type="button"
-                  className={styles.primary}
-                  onClick={table.playAgain}
-                  disabled={!connected || opening}
-                >
-                  {opening ? 'Opening…' : 'Play again'}
-                </button>
-                <button type="button" className={styles.secondary} onClick={table.leaveTable}>
-                  Back to the room
-                </button>
+                <GameEnding
+                  onPlayAgain={table.playAgain}
+                  onBack={table.leaveTable}
+                  opening={opening}
+                  connected={connected}
+                  playAgainRef={playAgainRef}
+                />
               </div>
               <button type="button" className={styles.link} onClick={dismissEnding}>
                 See the final hands

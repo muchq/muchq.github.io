@@ -23,6 +23,7 @@ import {
 import { CardBack, CardFace } from '@/apps/cards/Cards'
 import { clockOf, fromViewer } from '@/apps/cards/seating'
 import felt from '@/apps/cards/felt.module.css'
+import GameEnding from '@/apps/cards/GameEnding'
 import styles from './RummyTable.module.css'
 import ScoreSheet from './ScoreSheet'
 import AboutGame from '@/apps/lobby/components/AboutGame'
@@ -374,16 +375,12 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
     }
     if (view.phase === 'ended' && !showEnding) {
       return (
-        <>
-          {ended !== null && (
-            <button type="button" className={felt.primary} onClick={table.playAgain} disabled={!connected || opening}>
-              {opening ? 'Opening…' : 'Play again'}
-            </button>
-          )}
-          <button type="button" className={felt.secondary} onClick={table.leaveTable}>
-            Back to the room
-          </button>
-        </>
+        <GameEnding
+          onPlayAgain={ended !== null ? table.playAgain : undefined}
+          onBack={table.leaveTable}
+          opening={opening}
+          connected={connected}
+        />
       )
     }
     return null
@@ -597,12 +594,13 @@ const RummyTable = ({ playerId, connected, view, table, away = [], children }: R
                     </table>
                   )}
                   <div className={felt.endingButtons}>
-                    <button ref={playAgainRef} type="button" className={felt.primary} onClick={table.playAgain} disabled={!connected || opening}>
-                      {opening ? 'Opening…' : 'Play again'}
-                    </button>
-                    <button type="button" className={felt.secondary} onClick={table.leaveTable}>
-                      Back to the room
-                    </button>
+                    <GameEnding
+                      onPlayAgain={table.playAgain}
+                      onBack={table.leaveTable}
+                      opening={opening}
+                      connected={connected}
+                      playAgainRef={playAgainRef}
+                    />
                   </div>
                   <button type="button" className={felt.link} onClick={dismissEnding}>
                     See the final hands
