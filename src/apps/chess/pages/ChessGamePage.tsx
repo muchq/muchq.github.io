@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import felt from '@/apps/castle/components/CastleTable.module.css'
+import felt from '@/apps/cards/felt.module.css'
 import { fetchPublishedChessGame, hubPlayUrl } from '@/utils/hubSession'
 import GameReview from '../components/GameReview'
 import type { ChessReview } from '../wire'

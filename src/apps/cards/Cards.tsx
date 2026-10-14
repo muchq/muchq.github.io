@@ -1,10 +1,8 @@
 import type { CSSProperties } from 'react'
-import type { Card } from '../wire'
-import { face, isRed } from '../rules'
-import styles from './CastleTable.module.css'
+import { face, isRed, type Card } from './card'
+import styles from './felt.module.css'
 
-// A playing card as every table draws it — castle's and rummy's — in
-// castle's stylesheet, which is the house style for cards on felt.
+// A playing card as every card table draws it, in the felt's stylesheet.
 
 interface CardFaceProps {
   card: Card

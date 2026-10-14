@@ -1,7 +1,7 @@
 // Chairs around the table, seen from above (muchq.github.io#304): the
 // viewer at 6 o'clock, the others clockwise in turn order. One other
-// sits at 12; two at 10 and 2; three at 9, 12 and 3. Both games seat
-// four; a fifth chair has nowhere to go and lands on 6.
+// sits at 12; two at 10 and 2; three at 9, 12 and 3. Every card game
+// seats four at most; a fifth chair has nowhere to go and lands on 6.
 
 const CLOCKS: Record<number, number[]> = {
   1: [6],

@@ -4,10 +4,11 @@ import type { CSSProperties, KeyboardEvent, MouseEvent, PointerEvent, ReactNode 
 import type { Standing } from '../rules'
 import type { CastleTableActions } from '@/hooks/useCastleTable'
 import type { Card, CastleGameEnded, CastleLastPlay, CastlePlayer, CastleView } from '../wire'
-import { cardsOf, describeEnding, describeLastPlay, describePile, enteredSince, face, headlineOf, rowInPlay, seatOf, standingOf } from '../rules'
-import { clockOf, fromViewer } from '../seating'
-import { CardBack, CardFace } from './Cards'
-import styles from './CastleTable.module.css'
+import { cardsOf, describeEnding, describeLastPlay, describePile, headlineOf, rowInPlay, seatOf, standingOf } from '../rules'
+import { enteredSince, face } from '@/apps/cards/card'
+import { clockOf, fromViewer } from '@/apps/cards/seating'
+import { CardBack, CardFace } from '@/apps/cards/Cards'
+import styles from '@/apps/cards/felt.module.css'
 import AboutGame from '@/apps/lobby/components/AboutGame'
 
 // The table from the viewer's chair, seen from above: the viewer at 6

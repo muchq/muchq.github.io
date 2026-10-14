@@ -8,7 +8,7 @@
 // heads-up (#1610); each deal's end passes the deal on; it ends only when
 // fewer than two seats are left.
 
-import type { Card } from '@/apps/castle/wire'
+import type { Card } from '@/apps/cards/card'
 
 export type { Card }
 

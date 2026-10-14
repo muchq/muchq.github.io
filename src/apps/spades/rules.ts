@@ -1,4 +1,4 @@
-import { face } from '@/apps/castle/rules'
+import { face } from '@/apps/cards/card'
 import type { Card, SpadesResult, SpadesView } from './wire'
 
 // What the spades table says, from the viewer's chair. The rules

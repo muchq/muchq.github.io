@@ -5,9 +5,9 @@
 // the engine refuses is a button that does nothing.
 
 import type { Card, RummyDealResult, RummyGameEnded, RummyLastMove, RummyMeld, RummyPlayer, RummyView } from './wire'
-import { face } from '@/apps/castle/rules'
+import { face } from '@/apps/cards/card'
 
-export { face, isRed, enteredSince } from '@/apps/castle/rules'
+export { face, isRed, enteredSince } from '@/apps/cards/card'
 
 // Ace low, which is how a hand reads and how the ace counts; runs also
 // take it above the king.

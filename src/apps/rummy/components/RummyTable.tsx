@@ -20,9 +20,9 @@ import {
   sortHand,
   variantLabel
 } from '../rules'
-import { CardBack, CardFace } from '@/apps/castle/components/Cards'
-import { clockOf, fromViewer } from '@/apps/castle/seating'
-import felt from '@/apps/castle/components/CastleTable.module.css'
+import { CardBack, CardFace } from '@/apps/cards/Cards'
+import { clockOf, fromViewer } from '@/apps/cards/seating'
+import felt from '@/apps/cards/felt.module.css'
 import styles from './RummyTable.module.css'
 import ScoreSheet from './ScoreSheet'
 import AboutGame from '@/apps/lobby/components/AboutGame'
