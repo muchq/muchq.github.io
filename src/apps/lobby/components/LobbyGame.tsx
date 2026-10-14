@@ -12,7 +12,7 @@ import CommandMenu, { type CommandMenuHandle } from './CommandMenu'
 import { lobbyCommands } from '../lobbyCommands'
 import { CommandRegistry } from '@/utils/commandRegistry'
 import { lobbyTablePath, useLobby } from '@/hooks/useLobby'
-import type { UseLobbyProps } from '@/hooks/useLobby'
+import type { RoomLink, UseLobby, UseLobbyProps } from '@/hooks/useLobby'
 import LobbyPanel from './LobbyPanel'
 import { safeLocalStorage } from '@/utils/safeLocalStorage'
 import styles from './LobbyGame.module.css'
@@ -191,17 +191,7 @@ const LobbyGame = (props: UseLobbyProps) => {
           </button>
         </div>
       )}
-      {lobby.roomLink && (
-        <div className={styles.hubLost} role="status">
-          You are at a table in room {lobby.room?.roomId}{' '}
-          <button type="button" onClick={lobby.followRoomLink}>
-            Leave it for room {lobby.roomLink.roomId}
-          </button>{' '}
-          <button type="button" onClick={lobby.stayInRoom}>
-            Stay
-          </button>
-        </div>
-      )}
+      {lobby.roomLink && connected && <RoomLinkBanner link={lobby.roomLink} lobby={lobby} />}
       <CommandMenu registry={commands} ref={menuRef} />
       <div className={`${styles.notice} ${notice || said ? '' : styles.noticeEmpty}`} role="status">
         {notice || said}
@@ -211,3 +201,30 @@ const LobbyGame = (props: UseLobbyProps) => {
 }
 
 export default LobbyGame
+
+// A link to another room, held back while seated here. Leaving a game in
+// play forfeits it, so that asks first, as Resign does.
+function RoomLinkBanner({ link, lobby }: { link: RoomLink; lobby: UseLobby }) {
+  const [confirming, setConfirming] = useState(false)
+  const { room, playerId } = lobby
+  const table = room?.players.find(player => player.playerId === playerId)?.table
+  const status = room?.games.find(game => game.gameId === table?.gameId)?.status
+  const inPlay = status !== undefined && status !== 'waiting'
+  return (
+    <div className={styles.hubLost} role="status">
+      {inPlay ? 'You are in a game' : 'You are at a table'} in room {room?.roomId}.{' '}
+      {confirming ? (
+        <button type="button" onClick={lobby.followRoomLink}>
+          Forfeit and go to room {link.roomId}
+        </button>
+      ) : (
+        <button type="button" onClick={inPlay ? () => setConfirming(true) : lobby.followRoomLink}>
+          Go to room {link.roomId}
+        </button>
+      )}{' '}
+      <button type="button" onClick={lobby.stayInRoom}>
+        Stay
+      </button>
+    </div>
+  )
+}

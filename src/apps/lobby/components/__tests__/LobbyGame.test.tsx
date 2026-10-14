@@ -108,6 +108,7 @@ describe('LobbyGame', () => {
     state.lost = null
     state.superseded = false
     state.roomLink = null
+    state.connected = true
     state.room = null
     localStorage.clear()
     vi.clearAllMocks()
@@ -165,16 +166,43 @@ describe('LobbyGame', () => {
     expect(state.playHere).toHaveBeenCalledTimes(1)
   })
 
-  // A link to another room, opened while seated: one click follows it.
+  // A link to another room, opened while seated: one click follows it
+  // from a table not yet in play.
+  const seatedIn = (status: string) => ({
+    roomId: 'R1',
+    players: [{ playerId: 'alice', connected: true, gamesPlayed: 0, gamesWon: 0, totalScore: 0, table: { game: 'chess', gameId: 'C1' } }],
+    games: [{ gameId: 'C1', game: 'chess', status, playerCount: 2 }]
+  })
+
   it('a room link while seated offers to follow it or stay', () => {
     state.roomLink = { roomId: 'R2', gameId: null }
-    state.room = { roomId: 'R1', players: [], games: [] }
+    state.room = seatedIn('waiting') as never
     render(<LobbyGame />)
-    expect(screen.getByText(/You are at a table in room R1/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Leave it for room R2' }))
+    expect(screen.getByText(/You are at a table in room R1\./)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Go to room R2' }))
     expect(state.followRoomLink).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole('button', { name: 'Stay' }))
     expect(state.stayInRoom).toHaveBeenCalledTimes(1)
+  })
+
+  // Leaving a game in play forfeits it, so that asks first, as Resign does.
+  it('a room link from a game in play asks before forfeiting it', () => {
+    state.roomLink = { roomId: 'R2', gameId: null }
+    state.room = seatedIn('playing') as never
+    render(<LobbyGame />)
+    expect(screen.getByText(/You are in a game in room R1\./)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Go to room R2' }))
+    expect(state.followRoomLink).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Forfeit and go to room R2' }))
+    expect(state.followRoomLink).toHaveBeenCalledTimes(1)
+  })
+
+  it('a room link waits out a lost connection', () => {
+    state.roomLink = { roomId: 'R2', gameId: null }
+    state.room = seatedIn('waiting') as never
+    state.connected = false
+    render(<LobbyGame />)
+    expect(screen.queryByRole('button', { name: 'Go to room R2' })).toBeNull()
   })
 
   it('a golf table is a table too: over the world, the panel folded', () => {

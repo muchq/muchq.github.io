@@ -401,7 +401,9 @@ export const useLobby = ({
       chatSeqRef.current += 1
       setChat(prev => ({ ...prev, rejection: { seq: chatSeqRef.current, reason } }))
       const pending = switchRef.current
-      if (pending === null) {
+      // Until the hub's roomLeft the link's join is unsent, so a refusal
+      // on the way out is something else's: a move the table had queued.
+      if (pending === null || (pending.leaving && roomIdRef.current !== null)) {
         showNotice(reason)
         return
       }
