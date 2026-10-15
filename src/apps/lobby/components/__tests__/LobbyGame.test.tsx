@@ -272,6 +272,18 @@ describe('LobbyGame', () => {
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
   })
 
+  it('a go table is a table too: over the world, the panel folded', () => {
+    const { rerender } = render(<LobbyGame />)
+    state.go.view = { gameId: 'W1' } as GoView
+    rerender(<LobbyGame />)
+    expect(screen.getByText('go table')).toBeTruthy()
+    expect(screen.queryByRole('complementary', { name: 'lobby' })).toBeNull()
+    state.go.view = null
+    rerender(<LobbyGame />)
+    expect(screen.queryByText('go table')).toBeNull()
+    expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
+  })
+
   it('a spades table is a table too: over the world, the panel folded', () => {
     const { rerender } = render(<LobbyGame />)
     state.spades.view = { gameId: 'S1' } as SpadesView
