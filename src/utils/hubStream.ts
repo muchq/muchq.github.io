@@ -42,7 +42,7 @@ const SUPERSEDED_CLOSE_CODE = 4001
 // --- wire shapes (mirrors model/games.smithy; each game envelope stays opaque) ---
 
 // Every game the hub hosts, each in its own envelope.
-export const HUB_GAMES = ['golf', 'castle', 'rummy', 'chess', 'pong', 'spades'] as const
+export const HUB_GAMES = ['golf', 'castle', 'rummy', 'chess', 'pong', 'spades', 'go'] as const
 export type HubGameName = (typeof HUB_GAMES)[number]
 
 export function isHubGame(event: string): event is HubGameName {
