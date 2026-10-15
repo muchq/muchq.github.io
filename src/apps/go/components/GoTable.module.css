@@ -81,13 +81,21 @@
 
 .point {
   fill: transparent;
+  outline: none;
+}
+
+.point[data-playable='true'] {
   cursor: pointer;
 }
 
-.point:hover,
-.point:focus-visible {
+.point[data-playable='true']:hover {
   fill: rgba(0, 0, 0, 0.2);
-  outline: none;
+}
+
+/* Gold, as chess's squares are. */
+.point:focus-visible {
+  stroke: #f0c96a;
+  stroke-width: 0.1;
 }
 
 .seat {

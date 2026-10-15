@@ -102,4 +102,94 @@ describe('GoTable', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next game' }))
     expect(held.playAgain).toHaveBeenCalledWith(19)
   })
+
+  it('the next game follows the table’s size when none is picked', () => {
+    const held = mount({ view: view({ phase: 'ended', result: { ending: 'resignation', winner: 'bob' } }) })
+    fireEvent.click(screen.getByRole('button', { name: 'Next game' }))
+    expect(held.playAgain).toHaveBeenCalledWith(9)
+  })
+
+  it('a size picked before the start gives way to the size the game has', () => {
+    const waiting = view({ phase: 'waiting', size: undefined, board: undefined })
+    const { rerender } = render(<GoTable playerId="alice" connected view={waiting} table={table()} />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Board size' }), { target: { value: '13' } })
+    const held = table()
+    rerender(<GoTable playerId="alice" connected view={view({ phase: 'ended', result: { ending: 'resignation', winner: 'bob' } })} table={held} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Next game' }))
+    expect(held.playAgain).toHaveBeenCalledWith(9)
+  })
+
+  it('names the stones and says the last move', () => {
+    mount()
+    expect(board().getByRole('img', { name: 'A9, black stone' })).toBeTruthy()
+    expect(board().getByRole('img', { name: 'B8, white stone' })).toBeTruthy()
+    expect(screen.getByTestId('go-status').textContent).toBe('White played B8. Your move.')
+    cleanup()
+    mount({ view: view({ lastMove: { color: 'white', pass: true } }) })
+    expect(screen.getByTestId('go-status').textContent).toBe('White passed. Your move.')
+  })
+
+  it('keeps one point in the tab order, moved by the arrows', () => {
+    mount()
+    const tabbable = () => document.querySelectorAll('[data-point][tabindex="0"]')
+    expect(tabbable()).toHaveLength(1)
+    expect(tabbable()[0].getAttribute('aria-label')).toBe('Play E5')
+    fireEvent.keyDown(tabbable()[0], { key: 'ArrowRight' })
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Play F5')
+    expect(tabbable()).toHaveLength(1)
+    expect(tabbable()[0]).toBe(document.activeElement)
+  })
+
+  it('a pass hands focus back to the board', () => {
+    const held = mount()
+    const pass = screen.getByRole('button', { name: 'Pass' })
+    pass.focus()
+    fireEvent.click(pass)
+    expect(held.pass).toHaveBeenCalledTimes(1)
+    expect(document.activeElement?.getAttribute('data-point')).toBe('4-4')
+  })
+
+  it('resigning asks first, and keeping on puts focus back on Resign', () => {
+    const held = mount()
+    fireEvent.click(screen.getByRole('button', { name: 'Resign' }))
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Confirm resign' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Keep playing' }))
+    expect(held.resign).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Resign' }))
+  })
+
+  it('offline, nothing can be played', () => {
+    mount({ connected: false })
+    expect(board().queryAllByRole('button')).toHaveLength(0)
+    expect(screen.getByRole('button', { name: 'Pass' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Resign' })).toHaveProperty('disabled', true)
+  })
+
+  it('a closed table offers another, focused, or the way back', () => {
+    const held = mount({ view: view({ phase: 'closed' }) })
+    expect(screen.getByTestId('go-status').textContent).toBe('Your opponent left the table.')
+    expect(screen.queryByRole('combobox', { name: 'Next board size' })).toBeNull()
+    const again = screen.getByRole('button', { name: 'Play again' })
+    expect(document.activeElement).toBe(again)
+    fireEvent.click(again)
+    expect(held.playAgain).toHaveBeenCalledWith(undefined)
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the room' }))
+    expect(held.leaveTable).toHaveBeenCalledTimes(1)
+  })
+
+  it('a watcher sees Black’s clock under the board and touches nothing', () => {
+    const held = mount({ playerId: 'carol' })
+    expect(screen.getByRole('heading').textContent).toContain('Watching go')
+    expect(board().queryAllByRole('button')).toHaveLength(0)
+    expect(screen.queryByRole('button', { name: 'Pass' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Resign' })).toBeNull()
+    expect(screen.getByTestId('go-seat-white').compareDocumentPosition(screen.getByTestId('go-seat-black')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Stop watching' }))
+    expect(held.leaveTable).toHaveBeenCalledTimes(1)
+  })
+
+  it('the viewer’s clock sits under the board', () => {
+    mount({ playerId: 'bob' })
+    expect(screen.getByTestId('go-seat-black').compareDocumentPosition(screen.getByTestId('go-seat-white')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
 })
