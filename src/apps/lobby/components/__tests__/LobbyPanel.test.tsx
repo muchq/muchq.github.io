@@ -50,7 +50,7 @@ const lobby = (over: Partial<UseLobby> = {}): UseLobby =>
     rummy: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['rummy'],
     spades: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['spades'],
     chess: { createTable: vi.fn(), joinTable: vi.fn(), watchTable: vi.fn(), history: null, loadHistory: vi.fn(), roundRobins: [], loadRoundRobins: vi.fn() } as unknown as UseLobby['chess'],
-    go: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['go'],
+    go: { createTable: vi.fn(), joinTable: vi.fn(), watchTable: vi.fn() } as unknown as UseLobby['go'],
     pong: pong(),
     ...over
   }) as UseLobby
@@ -203,16 +203,17 @@ describe('LobbyPanel', () => {
     expect(hook.chess.joinTable).toHaveBeenCalledWith('K1')
   })
 
-  // Any chess or pong table can be watched by a member at none
+  // Any chess, go or pong table can be watched by a member at none
   // (MoonBase#1633); no other game's can.
-  it('offers to watch every chess and pong table, and no other', () => {
+  it('offers to watch every chess, go and pong table, and no other', () => {
     const hook = lobby({
       room: room({
         games: [
           { gameId: 'K1', game: 'chess', status: 'playing', playerCount: 2 },
           { gameId: 'K2', game: 'chess', status: 'waiting', playerCount: 1 },
           { gameId: 'G2', game: 'golf', status: 'playing', playerCount: 2 },
-          { gameId: 'P1', game: 'pong', status: 'playing', playerCount: 2 }
+          { gameId: 'P1', game: 'pong', status: 'playing', playerCount: 2 },
+          { gameId: 'W1', game: 'go', status: 'playing', playerCount: 2 }
         ]
       })
     })
@@ -220,12 +221,15 @@ describe('LobbyPanel', () => {
     expect(screen.getAllByRole('button', { name: /^Watch / }).map(button => button.getAttribute('aria-label'))).toEqual([
       'Watch chess K1',
       'Watch chess K2',
-      'Watch pong P1'
+      'Watch pong P1',
+      'Watch go W1'
     ])
     fireEvent.click(screen.getByRole('button', { name: 'Watch chess K1' }))
     expect(hook.chess.watchTable).toHaveBeenCalledWith('K1')
     fireEvent.click(screen.getByRole('button', { name: 'Watch pong P1' }))
     expect(hook.pong.watchTable).toHaveBeenCalledWith('P1')
+    fireEvent.click(screen.getByRole('button', { name: 'Watch go W1' }))
+    expect(hook.go.watchTable).toHaveBeenCalledWith('W1')
   })
 
   it('a member at a table cannot watch another', () => {

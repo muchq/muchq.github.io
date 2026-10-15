@@ -96,4 +96,19 @@ describe('useGoTable', () => {
     expect(hook.result.current.view).toBeNull()
     expect(onLeft).toHaveBeenCalledTimes(1)
   })
+
+  it('watches a table by its id', () => {
+    const { hook, move } = setup()
+    act(() => hook.result.current.watchTable('G07'))
+    expect(move).toHaveBeenCalledWith('watch', { gameId: 'G07' })
+  })
+
+  it('leaving a table in play asks the hub', () => {
+    const { hook, move, onLeft } = setup()
+    act(() => hook.result.current.handleUpdate({ gameJoined: { view: view() } }))
+    act(() => hook.result.current.leaveTable())
+    expect(move).toHaveBeenCalledWith('leaveGame')
+    expect(hook.result.current.view).not.toBeNull()
+    expect(onLeft).not.toHaveBeenCalled()
+  })
 })

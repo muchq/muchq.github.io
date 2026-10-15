@@ -22,6 +22,8 @@ export interface GoTableActions {
 export interface UseGoTable extends GoTableActions {
   createTable: () => void
   joinTable: (gameId: string) => void
+  // Go hides nothing: anyone may watch a table, from no seat.
+  watchTable: (gameId: string) => void
   view: GoView | null
   // Another game has been asked for and not yet arrived.
   opening: boolean
@@ -80,6 +82,7 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
     },
     [move]
   )
+  const watchTable = useCallback((gameId: string) => move('watch', { gameId }), [move])
   const startTable = useCallback((terms: GoMovePayloads['startGame'] = {}) => move('startGame', terms), [move])
   const playAgain = useCallback(
     (size?: GoBoardSize) => {
@@ -128,6 +131,7 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
     clear,
     createTable,
     joinTable,
+    watchTable,
     startTable,
     leaveTable,
     playAgain,
