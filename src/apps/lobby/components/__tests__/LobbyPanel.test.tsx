@@ -6,7 +6,6 @@ import type { HubRoom } from '@/utils/hubStream'
 import { fakeVoiceMesh } from '@/test/fakeVoice'
 import type { ChessGameSummary, ChessHistory, ChessPairing, ChessRoundRobin } from '@/apps/chess/wire'
 import type { PongRoundRobin } from '@/apps/pong/wire'
-import { hubChessFeedUrl, hubPlayUrl } from '@/utils/hubSession'
 
 // The panel over a fake hook: what it offers in the plaza and in a room,
 // who reads as free or at which table, and which button sends what.
@@ -78,7 +77,6 @@ const chess = (history: ChessHistory | null, roundRobins: ChessRoundRobin[] | nu
     history,
     loadHistory: vi.fn(),
     reviewArchived: vi.fn(),
-    publish: vi.fn(),
     roundRobins,
     loadRoundRobins: vi.fn(),
     createRoundRobin: vi.fn(),
@@ -796,44 +794,12 @@ describe('LobbyPanel', () => {
       expect(screen.getByText('No finished games yet')).toBeTruthy()
     })
 
-    // One button pushes the room's games to 1d4, or stops; what that
-    // means is its hover text, said before the click that does it.
-    it('pushes to 1d4 by a toggle whose title says what that makes public', () => {
-      const hook = lobby({ room: room(), chess: chess({ published: false, games: [] }) })
-      const { rerender } = render(<LobbyPanel lobby={hook} />)
-      const push = screen.getByRole('button', { name: 'Push to 1d4' })
-      expect(push).toHaveAttribute('aria-pressed', 'false')
-      const title = push.getAttribute('title') ?? ''
-      expect(title).toMatch(/public page with both players’ ids and every move/)
-      expect(title).toMatch(/stays public for 30 days/)
-      expect(title).toMatch(/Games that already ended stay private/)
-      expect(title).toMatch(/is sent to 1d4 to be indexed/)
-      expect(title).toContain(hubChessFeedUrl(hubPlayUrl()))
-      // Off hover, the same words describe it to a screen reader.
-      expect(push).toHaveAccessibleDescription(title)
-      expect(screen.queryByRole('checkbox', { name: /Publish/ })).toBeNull()
-      expect(screen.queryByText(/sent to 1d4/)).toBeNull()
-      fireEvent.click(push)
-      expect(hook.chess.publish).toHaveBeenCalledWith(true)
-
-      // Without hover (a phone, a keyboard), ? says the same, the feed a link.
-      const help = screen.getByRole('button', { name: 'What Push to 1d4 does' })
-      expect(help).toHaveAttribute('aria-expanded', 'false')
-      expect(screen.queryByText(/public page with both players’ ids/)).toBeNull()
-      fireEvent.click(help)
-      expect(help).toHaveAttribute('aria-expanded', 'true')
-      expect(screen.getByText(/public page with both players’ ids and every move/)).toBeTruthy()
-      expect(screen.getByText(/is sent to 1d4 to be indexed/)).toBeTruthy()
-      expect(screen.getByRole('link', { name: 'public chess feed' })).toHaveAttribute('href', hubChessFeedUrl(hubPlayUrl()))
-      fireEvent.click(help)
-      expect(screen.queryByText(/public page with both players’ ids/)).toBeNull()
-
-      const published = lobby({ room: room(), chess: chess({ published: true, games: [] }) })
-      rerender(<LobbyPanel lobby={published} />)
-      const on = screen.getByRole('button', { name: 'Push to 1d4' })
-      expect(on).toHaveAttribute('aria-pressed', 'true')
-      fireEvent.click(on)
-      expect(published.chess.publish).toHaveBeenCalledWith(false)
+    // Publishing is the default, not a choice the panel offers.
+    it('offers no publish control', () => {
+      render(<LobbyPanel lobby={lobby({ room: room(), chess: chess({ published: false, games: [] }) })} />)
+      const section = within(screen.getByRole('region', { name: 'Chess games' }))
+      expect(section.getAllByRole('button').map(button => button.textContent)).toEqual(['Refresh'])
+      expect(section.queryByText(/1d4/)).toBeNull()
     })
   })
 })
