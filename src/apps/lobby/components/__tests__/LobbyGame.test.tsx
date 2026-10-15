@@ -359,6 +359,32 @@ describe('LobbyGame', () => {
     }
   })
 
+  // Chess history is asked for on room arrival so unpublished rooms get
+  // published even when the lobby panel stays folded.
+  describe('chess history on room arrival', () => {
+    it('asks while the panel is hidden, and not before a room is in hand', () => {
+      const { rerender } = render(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'Hide lobby' }))
+      expect(state.chess.loadHistory).not.toHaveBeenCalled()
+      state.room = { roomId: 'ROOM01', players: [], games: [] } as unknown as UseLobby['room']
+      rerender(<LobbyGame />)
+      expect(state.chess.loadHistory).toHaveBeenCalledTimes(1)
+    })
+
+    it('asks on a narrow screen where the panel starts folded', () => {
+      const width = window.innerWidth
+      window.innerWidth = 500
+      try {
+        state.room = { roomId: 'ROOM01', players: [], games: [] } as unknown as UseLobby['room']
+        render(<LobbyGame />)
+        expect(screen.queryByRole('complementary', { name: 'lobby' })).toBeNull()
+        expect(state.chess.loadHistory).toHaveBeenCalledTimes(1)
+      } finally {
+        window.innerWidth = width
+      }
+    })
+  })
+
   // The bare world is the panel hidden on purpose, and on purpose means
   // it stays hidden.
   describe('a hidden panel', () => {

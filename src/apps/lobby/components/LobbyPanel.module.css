@@ -246,12 +246,6 @@
   overflow: hidden;
 }
 
-/* A toggle that is on. */
-.pressed {
-  background: rgba(240, 201, 106, 0.2);
-  border-color: #f0c96a;
-}
-
 /* A section's heading with its own small controls beside it. */
 .sectionHead {
   display: flex;
