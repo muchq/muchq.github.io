@@ -9,8 +9,8 @@ import type { ChessHistory, ChessMoveName, ChessMovePayloads, ChessReview, Chess
 // seats' own, with no chair of its own in it.
 //
 // The room's finished games (MoonBase#1637) ride beside the table: the
-// history as last asked for, the published flag as last heard, and the
-// game under review, which outlives the table it came from. So do the
+// history as last asked for (a room it says is unpublished gets published),
+// and the game under review, which outlives the table it came from. So do the
 // room's round robins (MoonBase#1647): unknown until asked for, then kept
 // current by each one every member hears.
 
@@ -51,7 +51,6 @@ export interface UseChessTable extends ChessTableActions {
   // A game from the room's history, by its archive id.
   reviewArchived: (archiveId: number) => void
   closeReview: () => void
-  publish: (published: boolean) => void
   roundRobins: ChessRoundRobin[] | null
   loadRoundRobins: () => void
   createRoundRobin: (entrants: string[], terms: ChessMovePayloads['challenge']) => void
@@ -134,6 +133,8 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
       }
       if (update.history) {
         setHistory(update.history)
+        // Every room's games are public.
+        if (!update.history.published) move('publish', { published: true })
         return
       }
       if (update.review) {
@@ -162,22 +163,12 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
         return
       }
       if (update.published) {
-        const { published, by } = update.published
+        const { published } = update.published
         setHistory(held => (held === null ? held : { ...held, published }))
-        if (by === playerId) {
-          showNotice(
-            published
-              ? 'You published this room’s chess games: games that end from now on are public'
-              : 'You stopped publishing this room’s chess games: games already public stay up for 30 days'
-          )
-          return
-        }
-        if (by === undefined) showNotice(`this room’s chess games are ${published ? 'now published' : 'no longer published'}`)
-        else showNotice(`${by} ${published ? 'published' : 'stopped publishing'} this room’s chess games`)
       }
       // gameStarted, turnChanged and gameEnded: the view says it all.
     },
-    [askList, clearTable, onLeft, playerId, settle, showNotice]
+    [askList, clearTable, move, onLeft, playerId, settle, showNotice]
   )
 
   const createTable = useCallback(() => move('createGame'), [move])
@@ -236,7 +227,6 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
   const reviewGame = useCallback((gameId: string, ordinal: number) => move('review', { gameId, ordinal }), [move])
   const reviewArchived = useCallback((archiveId: number) => move('review', { archiveId }), [move])
   const closeReview = useCallback(() => setReview(null), [])
-  const publish = useCallback((published: boolean) => move('publish', { published }), [move])
   const loadRoundRobins = askList
   const createRoundRobin = useCallback(
     (entrants: string[], terms: ChessMovePayloads['challenge']) => move('createRoundRobin', { entrants, terms }),
@@ -261,7 +251,6 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
     reviewGame,
     reviewArchived,
     closeReview,
-    publish,
     roundRobins,
     loadRoundRobins,
     createRoundRobin,

@@ -79,9 +79,8 @@ waiting table, the seat posts a challenge (position and clock) where two seats w
 terms and **Accept** joins and starts on them. A room keeps its finished chess games (MoonBase#1637): the lobby's Chess
 games section lists them, and Review game at a table's end or Review in the list opens `GameReview` over everything, the
 hub's positions stepped through by button, arrow key or move list, with the hub's PGN to download and the position shown
-on lichess's analysis board. Any member may publish the room's games with **Push to 1d4**, whose hover text (and its **?**,
-for phones and keyboards) says what that makes public; those that end while published join the hub's
-public feed (`/games/v2/chess.pgn`) for 30 days. The Round robins section (MoonBase#1647) starts one among 3 to 8 of
+on lichess's analysis board. Every room's games are published: the lobby publishes a room whose history says it isn't, and
+each game that ends joins the hub's public feed (`/games/v2/chess.pgn`) for 30 days. The Round robins section (MoonBase#1647) starts one among 3 to 8 of
 the room's members on a clock (behind **New round robin**), and is absent from a room of fewer than 3 with none. Each
 one shows its progress and the player's **Play** (a table for one of their pairings, which only its opponent can fill)
 or **Join** (one the opponent opened); its standings, pairings and moderation fold under **Details**. The Tables list

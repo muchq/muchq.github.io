@@ -3,7 +3,6 @@ import PermalinkDisplay from './PermalinkDisplay'
 import type { UseLobby } from '@/hooks/useLobby'
 import { lobbyRoomPath } from '@/hooks/useLobby'
 import type { HubGameName, HubRoomPlayer } from '@/utils/hubStream'
-import { hubChessFeedUrl, hubPlayUrl } from '@/utils/hubSession'
 import type { ChessGameSummary } from '@/apps/chess/wire'
 import { nameOf } from '@/apps/chess/rules'
 import RoundRobins from './RoundRobins'
@@ -32,22 +31,12 @@ const gameLine = (game: ChessGameSummary): string => {
   return `${nameOf(game.white)} vs ${nameOf(game.black)} · ${score} ${game.result.ending} · ${Math.ceil(game.plies / 2)} moves`
 }
 
-// What pushing to 1d4 does, said on hover before the click that does it.
-const publishHelp = (): string =>
-  'While on, each chess game that ends here gets a public page with both players’ ids and every move, ' +
-  `joins the public chess feed (${hubChessFeedUrl(hubPlayUrl())}) and is sent to 1d4 to be indexed. ` +
-  'It stays public for 30 days, even once this is off. Games that already ended stay private.'
-
 // The room's finished chess games (MoonBase#1637), each one reviewable,
-// a published one linked to its page; and whether the room publishes
-// them, which any member may change and every member hears about. Asked
-// for on arriving, since that answer is the only one that says whether
-// the room publishes.
+// a published one linked to its page. Asked for on arriving, since that
+// answer is what publishes a room that isn't yet.
 const ChessGames = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean }) => {
   const { history, loadHistory } = lobby.chess
   const unknown = history === null
-  // The hover text, on a tap: phones and keyboards have no hover.
-  const [explaining, setExplaining] = useState(false)
   useEffect(() => {
     if (unknown && !disabled) loadHistory()
   }, [unknown, disabled, loadHistory])
@@ -91,34 +80,6 @@ const ChessGames = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean })
           <button type="button" className={styles.link} onClick={lobby.chess.loadHistory} disabled={disabled} aria-label="Refresh finished games">
             Refresh
           </button>
-          <button
-            type="button"
-            className={`${styles.secondary} ${history.published ? styles.pressed : ''}`}
-            aria-pressed={history.published}
-            title={publishHelp()}
-            onClick={() => lobby.chess.publish(!history.published)}
-            disabled={disabled}
-          >
-            Push to 1d4
-          </button>
-          <button
-            type="button"
-            className={styles.link}
-            aria-expanded={explaining}
-            aria-label="What Push to 1d4 does"
-            onClick={() => setExplaining(open => !open)}
-          >
-            ?
-          </button>
-          {explaining && (
-            <p className={styles.muted}>
-              While on, each chess game that ends here gets a public page with both players’ ids and every move, joins the{' '}
-              <a href={hubChessFeedUrl(hubPlayUrl())} target="_blank" rel="noopener noreferrer">
-                public chess feed
-              </a>{' '}
-              and is sent to 1d4 to be indexed. It stays public for 30 days, even once this is off. Games that already ended stay private.
-            </p>
-          )}
         </>
       )}
     </section>
