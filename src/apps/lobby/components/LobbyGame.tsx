@@ -32,6 +32,7 @@ const panelWanted = (): boolean => safeLocalStorage.get(PANEL_KEY) !== 'hidden' 
 const LobbyGame = (props: UseLobbyProps) => {
   const lobby = useLobby(props)
   const { chess, chat, connected, playerId, notice, room } = lobby
+  const { history: chessHistory, loadHistory: loadChessHistory } = chess
   // A chess review (MoonBase#1637) takes the screen as a table does.
   const atTable = HUB_GAMES.some(game => lobby[game].view !== null) || chess.review !== null
   const tableContext: TableContext = {
@@ -102,6 +103,15 @@ const LobbyGame = (props: UseLobbyProps) => {
   })
   useEffect(() => commands.publish('lobby', offered))
   useEffect(() => () => commands.withdraw('lobby'), [commands])
+
+  // Chess history is asked for on room arrival — not when the panel's
+  // Chess games section mounts — so a room that isn't published yet is
+  // published even while the lobby stays folded (narrow screens, the
+  // remembered hide, a table opened from the command menu).
+  useEffect(() => {
+    if (room === null || !connected || chessHistory !== null) return
+    loadChessHistory()
+  }, [room, connected, chessHistory, loadChessHistory])
 
   return (
     <>

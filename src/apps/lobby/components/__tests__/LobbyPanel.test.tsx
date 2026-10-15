@@ -752,11 +752,12 @@ describe('LobbyPanel', () => {
   // arriving, listed newest first with a review each, and the room's
   // publishing, whose state only that answer carries.
   describe('chess games', () => {
-    it('asks the hub for them on arriving in a room, once', () => {
+    // History is asked for on room arrival in LobbyGame; the panel only
+    // shows what the hook already holds, and Refresh asks again.
+    it('shows loading until history arrives, and does not ask on its own', () => {
       const hook = lobby({ room: room(), chess: chess(null) })
-      const { rerender } = render(<LobbyPanel lobby={hook} />)
-      rerender(<LobbyPanel lobby={hook} />)
-      expect(hook.chess.loadHistory).toHaveBeenCalledTimes(1)
+      render(<LobbyPanel lobby={hook} />)
+      expect(hook.chess.loadHistory).not.toHaveBeenCalled()
       expect(screen.getByText('Loading finished games…')).toBeTruthy()
       expect(within(screen.getByRole('region', { name: 'Chess games' })).queryByRole('checkbox')).toBeNull()
     })

@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore, type Ref } from 'react'
+import { useState, useSyncExternalStore, type Ref } from 'react'
 import PermalinkDisplay from './PermalinkDisplay'
 import type { UseLobby } from '@/hooks/useLobby'
 import { lobbyRoomPath } from '@/hooks/useLobby'
@@ -32,14 +32,10 @@ const gameLine = (game: ChessGameSummary): string => {
 }
 
 // The room's finished chess games (MoonBase#1637), each one reviewable,
-// a published one linked to its page. Asked for on arriving, since that
-// answer is what publishes a room that isn't yet.
+// a published one linked to its page. History is asked for on room
+// arrival in LobbyGame; Refresh here asks again.
 const ChessGames = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean }) => {
-  const { history, loadHistory } = lobby.chess
-  const unknown = history === null
-  useEffect(() => {
-    if (unknown && !disabled) loadHistory()
-  }, [unknown, disabled, loadHistory])
+  const { history } = lobby.chess
   return (
     <section className={styles.section} aria-labelledby="lobby-chess-games">
       <h2 id="lobby-chess-games">Chess games</h2>

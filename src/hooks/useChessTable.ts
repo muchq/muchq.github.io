@@ -165,6 +165,8 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
       if (update.published) {
         const { published } = update.published
         setHistory(held => (held === null ? held : { ...held, published }))
+        // A withdraw (old client, or the wire) is published again.
+        if (!published) move('publish', { published: true })
       }
       // gameStarted, turnChanged and gameEnded: the view says it all.
     },

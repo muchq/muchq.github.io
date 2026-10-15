@@ -249,16 +249,24 @@ describe('useChessTable', () => {
   })
 
   // Every room's games are public: one heard unpublished is published,
-  // and nobody is told either way.
+  // and a withdraw is published again. Nobody is told either way.
   it('publishes a room its history says is unpublished, without a notice', () => {
-    const { receive, move, showNotice } = mount()
+    const { result, receive, move, showNotice } = mount()
     receive({ history: { published: false, games: [] } })
     expect(move.mock.calls).toEqual([['publish', { published: true }]])
     receive({ history: { published: true, games: [] } })
     expect(move).toHaveBeenCalledTimes(1)
+    expect(result.current.history?.published).toBe(true)
     receive({ published: { published: true, by: 'alice' } })
+    expect(result.current.history?.published).toBe(true)
     receive({ published: { published: false, by: 'bob' } })
+    expect(result.current.history?.published).toBe(false)
+    expect(move.mock.calls).toEqual([
+      ['publish', { published: true }],
+      ['publish', { published: true }]
+    ])
     receive({ published: { published: true } })
+    expect(result.current.history?.published).toBe(true)
     expect(showNotice).not.toHaveBeenCalled()
   })
 
