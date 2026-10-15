@@ -41,7 +41,7 @@ const TICK_MS = 100
 const colorName = (color: GoColor) => (color === 'black' ? 'Black' : 'White')
 
 function describeResult(result: GoResult, playerId: string): string {
-  const scores = result.scores === undefined ? '' : ` Black ${result.scores.black}, White ${result.scores.white}.`
+  const scores = result.score === undefined ? '' : ` Black ${result.score.black}, White ${result.score.white}.`
   const winner = result.winner === undefined ? 'Nobody' : result.winner === playerId ? 'You' : result.winner
   const color = result.winnerColor === undefined ? '' : ` (${colorName(result.winnerColor)})`
   const how = { score: 'on points', resignation: 'by resignation', timeout: 'on time', abandoned: 'by abandonment' }[result.ending]
@@ -72,7 +72,7 @@ const Clock = ({ view, color, name }: { view: GoView; color: GoColor; name: stri
 }
 
 const Board = ({ view, onPlay }: { view: GoView; onPlay?: (x: number, y: number) => void }) => {
-  const size = view.boardSize ?? 9
+  const size = view.size ?? 9
   const rows = view.board ?? []
   const edge = size - 1
   const last = view.lastMove
@@ -124,7 +124,7 @@ const Board = ({ view, onPlay }: { view: GoView; onPlay?: (x: number, y: number)
 }
 
 const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
-  const [boardSize, setBoardSize] = useState<GoBoardSize>(view.boardSize ?? 19)
+  const [size, setBoardSize] = useState<GoBoardSize>(view.size ?? 19)
   const [clock, setClock] = useState(Object.keys(CLOCKS)[0])
   // Held for one view: any move answered puts the question away.
   const [confirmResign, setConfirmResign] = useState<GoView | null>(null)
@@ -145,7 +145,7 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
   })()
 
   const sizePicker = (label: string) => (
-    <select aria-label={label} value={boardSize} onChange={event => setBoardSize(Number(event.target.value) as GoBoardSize)}>
+    <select aria-label={label} value={size} onChange={event => setBoardSize(Number(event.target.value) as GoBoardSize)}>
       {SIZES.map(size => (
         <option key={size} value={size}>
           {size}×{size}
@@ -158,7 +158,7 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
     <div className={styles.table} data-phase={view.phase}>
       <h1 className={felt.title}>
         Go {view.gameId}
-        {view.boardSize !== undefined && ` · ${view.boardSize}×${view.boardSize}`}
+        {view.size !== undefined && ` · ${view.size}×${view.size}`}
         {view.komi !== undefined && ` · komi ${view.komi}`}
       </h1>
       <div className={felt.tableHeader}>
@@ -190,7 +190,7 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
                   </option>
                 ))}
               </select>
-              <button type="button" className={felt.primary} onClick={() => table.startTable({ boardSize, ...CLOCKS[clock] })} disabled={!connected}>
+              <button type="button" className={felt.primary} onClick={() => table.startTable({ size, ...CLOCKS[clock] })} disabled={!connected}>
                 Start
               </button>
             </div>
@@ -231,7 +231,7 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
                 <button
                   type="button"
                   className={felt.primary}
-                  onClick={() => table.playAgain(view.phase === 'ended' ? boardSize : undefined)}
+                  onClick={() => table.playAgain(view.phase === 'ended' ? size : undefined)}
                   disabled={!connected || table.opening}
                 >
                   {table.opening ? 'Opening…' : view.phase === 'ended' ? 'Next game' : 'Play again'}

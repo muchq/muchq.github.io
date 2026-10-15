@@ -10,13 +10,15 @@ const view = (over: Partial<GoView> = {}): GoView => ({
     { playerId: 'alice', color: 'black' },
     { playerId: 'bob', color: 'white' }
   ],
-  boardSize: 9,
+  size: 9,
   board: Array.from({ length: 9 }, () => '.........'),
   captures: { black: 0, white: 0 },
   sideToMove: 'black',
   currentPlayerId: 'alice',
   clock: { blackMs: 300_000, whiteMs: 300_000, initialMs: 300_000, incrementMs: 5_000 },
   komi: 6.5,
+  moveCount: 0,
+  scoreSheet: [],
   ...over
 })
 
@@ -59,7 +61,7 @@ describe('useGoTable', () => {
     const { hook, move } = setup()
     act(() => hook.result.current.handleUpdate({ gameState: { view: view({ phase: 'ended' }) } }))
     act(() => hook.result.current.playAgain(13))
-    expect(move).toHaveBeenCalledWith('startGame', { boardSize: 13, komi: 6.5, initialSeconds: 300, incrementSeconds: 5 })
+    expect(move).toHaveBeenCalledWith('startGame', { size: 13, komi: 6.5, initialSeconds: 300, incrementSeconds: 5 })
     expect(hook.result.current.opening).toBe(true)
   })
 

@@ -34,6 +34,7 @@ export interface GoCount {
 // The point played, or absent coordinates for a pass.
 export interface GoLastMove {
   color: GoColor
+  pass: boolean
   x?: number
   y?: number
 }
@@ -43,7 +44,12 @@ export interface GoResult {
   winner?: string
   winnerColor?: GoColor
   ending: GoEnding
-  scores?: GoCount
+  score?: GoCount
+}
+
+export interface GoScoreLine {
+  winner?: string
+  ending: GoEnding
 }
 
 export interface GoView {
@@ -51,7 +57,7 @@ export interface GoView {
   phase: GoPhase
   players: GoPlayer[]
   // Absent while waiting.
-  boardSize?: GoBoardSize
+  size?: GoBoardSize
   // One string per row from the top, one character per point: '.', 'b' or 'w'.
   board?: string[]
   // Stones each color has captured.
@@ -62,6 +68,8 @@ export interface GoView {
   lastMove?: GoLastMove
   komi?: number
   result?: GoResult
+  moveCount: number
+  scoreSheet: GoScoreLine[]
 }
 
 // The go update union's JSON encoding: exactly one member present.
@@ -79,12 +87,13 @@ export interface GoMovePayloads {
   createGame: undefined
   joinGame: { gameId: string }
   // Absent fields use the hub's defaults.
-  startGame: { boardSize?: GoBoardSize; komi?: number; initialSeconds?: number; incrementSeconds?: number }
+  startGame: { size?: GoBoardSize; komi?: number; initialSeconds?: number; incrementSeconds?: number }
   leaveGame: undefined
   // x is the column from the left, y the row from the top, both from 0.
   play: { x: number; y: number }
   pass: undefined
   resign: undefined
+  watch: { gameId: string }
 }
 
 export type GoMoveName = keyof GoMovePayloads

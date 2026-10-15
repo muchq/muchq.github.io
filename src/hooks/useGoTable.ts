@@ -11,7 +11,7 @@ export interface GoTableActions {
   leaveTable: () => void
   // Another game: the table's next, on its clock and komi, while it is
   // open; a new table once it has closed.
-  playAgain: (boardSize?: GoBoardSize) => void
+  playAgain: (size?: GoBoardSize) => void
   play: (x: number, y: number) => void
   pass: () => void
   // A move sent and not yet answered: the next view, or a refusal, lets it go.
@@ -82,11 +82,11 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
   )
   const startTable = useCallback((terms: GoMovePayloads['startGame'] = {}) => move('startGame', terms), [move])
   const playAgain = useCallback(
-    (boardSize?: GoBoardSize) => {
+    (size?: GoBoardSize) => {
       setOpening(true)
       if (view?.phase === 'ended' && view.clock !== undefined) {
         move('startGame', {
-          boardSize: boardSize ?? view.boardSize,
+          size: size ?? view.size,
           ...(view.komi === undefined ? {} : { komi: view.komi }),
           initialSeconds: view.clock.initialMs / 1000,
           incrementSeconds: view.clock.incrementMs / 1000

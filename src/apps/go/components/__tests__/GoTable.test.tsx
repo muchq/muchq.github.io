@@ -12,13 +12,15 @@ const view = (over: Partial<GoView> = {}): GoView => ({
     { playerId: 'alice', color: 'black' },
     { playerId: 'bob', color: 'white' }
   ],
-  boardSize: 9,
+  size: 9,
   board: ['b........', '.w.......', ...empty(9).slice(2)],
   captures: { black: 2, white: 1 },
   sideToMove: 'black',
   currentPlayerId: 'alice',
   clock: { blackMs: 300_000, whiteMs: 290_000, initialMs: 300_000, incrementMs: 5_000 },
-  lastMove: { color: 'white', x: 1, y: 1 },
+  lastMove: { color: 'white', pass: false, x: 1, y: 1 },
+  moveCount: 2,
+  scoreSheet: [],
   komi: 6.5,
   ...over
 })
@@ -85,14 +87,14 @@ describe('GoTable', () => {
   })
 
   it('starts on the picked board size and clock', () => {
-    const held = mount({ view: view({ phase: 'waiting', boardSize: undefined, board: undefined }) })
+    const held = mount({ view: view({ phase: 'waiting', size: undefined, board: undefined }) })
     fireEvent.change(screen.getByRole('combobox', { name: 'Board size' }), { target: { value: '13' } })
     fireEvent.click(screen.getByRole('button', { name: 'Start' }))
-    expect(held.startTable).toHaveBeenCalledWith({ boardSize: 13, initialSeconds: 600, incrementSeconds: 5 })
+    expect(held.startTable).toHaveBeenCalledWith({ size: 13, initialSeconds: 600, incrementSeconds: 5 })
   })
 
   it('says the result, and offers the next game on the size picked', () => {
-    const result = { ending: 'score' as const, winner: 'bob', winnerColor: 'white' as const, scores: { black: 40, white: 45.5 } }
+    const result = { ending: 'score' as const, winner: 'bob', winnerColor: 'white' as const, score: { black: 40, white: 45.5 } }
     const held = mount({ view: view({ phase: 'ended', result }) })
     expect(screen.getByTestId('go-status').textContent).toBe('bob (White) won on points. Black 40, White 45.5.')
     expect(screen.queryByRole('button', { name: 'Pass' })).toBeNull()
