@@ -1,0 +1,164 @@
+.table {
+  width: 100%;
+  max-width: 560px;
+  height: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  color: white;
+}
+
+.waiting {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.play {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* What the seats and actions leave, measured rather than budgeted: the
+   board is the larger square that fits it. Below 15rem the overlay
+   scrolls rather than shrink the points past a tap. */
+.boardSlot {
+  flex: 1 1 0;
+  min-height: 15rem;
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.board {
+  width: min(100cqw, 100cqh);
+  aspect-ratio: 1;
+  border-radius: 4px;
+  touch-action: manipulation;
+}
+
+.wood {
+  fill: #dcb35c;
+}
+
+.line {
+  stroke: #3b2a12;
+  stroke-width: 0.04;
+}
+
+.star {
+  fill: #3b2a12;
+}
+
+.stone[data-color='black'] {
+  fill: #111;
+}
+
+.stone[data-color='white'] {
+  fill: #f5f5f0;
+  stroke: #555;
+  stroke-width: 0.03;
+}
+
+.lastMove {
+  fill: none;
+  stroke-width: 0.08;
+}
+
+.lastMove[data-color='black'] {
+  stroke: white;
+}
+
+.lastMove[data-color='white'] {
+  stroke: black;
+}
+
+.point {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.point:hover,
+.point:focus-visible {
+  fill: rgba(0, 0, 0, 0.2);
+  outline: none;
+}
+
+.seat {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+}
+
+.seat[data-running='true'] {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.swatch {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  border: 1px solid #555;
+}
+
+.swatch[data-color='black'] {
+  background: #111;
+}
+
+.swatch[data-color='white'] {
+  background: #f5f5f0;
+}
+
+.name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clock {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* Held open during play so Pass and Resign swapping for the next-game
+   buttons does not resize the board. */
+.foot {
+  min-height: 2.75rem;
+  display: flex;
+  justify-content: center;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.danger {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  background: #c0392b;
+  color: white;
+  font-weight: 600;
+  touch-action: manipulation;
+}
+
+.danger:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
