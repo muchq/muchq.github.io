@@ -1,12 +1,14 @@
 import type { ReactNode } from 'react'
 import CastleTable from '@/apps/castle/components/CastleTable'
 import ChessTable from '@/apps/chess/components/ChessTable'
+import GoTable from '@/apps/go/components/GoTable'
 import GolfTable from '@/apps/golf/components/GolfTable'
 import PongTable from '@/apps/pong/components/PongTable'
 import RummyTable from '@/apps/rummy/components/RummyTable'
 import SpadesTable from '@/apps/spades/components/SpadesTable'
 import { useCastleTable } from '@/hooks/useCastleTable'
 import { useChessTable } from '@/hooks/useChessTable'
+import { useGoTable } from '@/hooks/useGoTable'
 import { useGolfTable } from '@/hooks/useGolfTable'
 import { usePongTable } from '@/hooks/usePongTable'
 import { useRummyTable } from '@/hooks/useRummyTable'
@@ -99,6 +101,11 @@ export const GAME_TABLES = {
     useTable: useChessTable,
     Table: ({ table, context }) =>
       table.view && <ChessTable playerId={context.playerId} connected={context.connected} view={table.view} table={table} />
+  }),
+  go: entry({
+    useTable: useGoTable,
+    Table: ({ table, context }) =>
+      table.view && <GoTable playerId={context.playerId} connected={context.connected} view={table.view} table={table} />
   }),
   pong: entry({
     useTable: usePongTable,

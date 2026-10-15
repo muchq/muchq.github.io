@@ -50,6 +50,7 @@ const lobby = (over: Partial<UseLobby> = {}): UseLobby =>
     rummy: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['rummy'],
     spades: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['spades'],
     chess: { createTable: vi.fn(), joinTable: vi.fn(), watchTable: vi.fn(), history: null, loadHistory: vi.fn(), roundRobins: [], loadRoundRobins: vi.fn() } as unknown as UseLobby['chess'],
+    go: { createTable: vi.fn(), joinTable: vi.fn(), watchTable: vi.fn() } as unknown as UseLobby['go'],
     pong: pong(),
     ...over
   }) as UseLobby
@@ -185,7 +186,7 @@ describe('LobbyPanel', () => {
       })
     })
     render(<LobbyPanel lobby={hook} />)
-    expect(screen.getByText('chess K1 · 1/2 · waiting')).toBeTruthy()
+    expect(screen.getByText('board · chess K1 · 1/2 · waiting')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Full chess K2' })).toHaveProperty('disabled', true)
     fireEvent.click(screen.getByRole('button', { name: 'Join chess K1' }))
     expect(hook.chess.joinTable).toHaveBeenCalledWith('K1')
@@ -197,21 +198,22 @@ describe('LobbyPanel', () => {
       room: room({ games: [{ gameId: 'K1', game: 'chess', status: 'waiting', playerCount: 1, terms: 'Standard starting position · 3+2' }] })
     })
     render(<LobbyPanel lobby={hook} />)
-    expect(screen.getByText('chess K1 · 1/2 · waiting · Standard starting position · 3+2')).toBeTruthy()
+    expect(screen.getByText('board · chess K1 · 1/2 · waiting · Standard starting position · 3+2')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Accept chess K1' }))
     expect(hook.chess.joinTable).toHaveBeenCalledWith('K1')
   })
 
-  // Any chess or pong table can be watched by a member at none
+  // Any chess, go or pong table can be watched by a member at none
   // (MoonBase#1633); no other game's can.
-  it('offers to watch every chess and pong table, and no other', () => {
+  it('offers to watch every chess, go and pong table, and no other', () => {
     const hook = lobby({
       room: room({
         games: [
           { gameId: 'K1', game: 'chess', status: 'playing', playerCount: 2 },
           { gameId: 'K2', game: 'chess', status: 'waiting', playerCount: 1 },
           { gameId: 'G2', game: 'golf', status: 'playing', playerCount: 2 },
-          { gameId: 'P1', game: 'pong', status: 'playing', playerCount: 2 }
+          { gameId: 'P1', game: 'pong', status: 'playing', playerCount: 2 },
+          { gameId: 'W1', game: 'go', status: 'playing', playerCount: 2 }
         ]
       })
     })
@@ -219,12 +221,15 @@ describe('LobbyPanel', () => {
     expect(screen.getAllByRole('button', { name: /^Watch / }).map(button => button.getAttribute('aria-label'))).toEqual([
       'Watch chess K1',
       'Watch chess K2',
-      'Watch pong P1'
+      'Watch pong P1',
+      'Watch go W1'
     ])
     fireEvent.click(screen.getByRole('button', { name: 'Watch chess K1' }))
     expect(hook.chess.watchTable).toHaveBeenCalledWith('K1')
     fireEvent.click(screen.getByRole('button', { name: 'Watch pong P1' }))
     expect(hook.pong.watchTable).toHaveBeenCalledWith('P1')
+    fireEvent.click(screen.getByRole('button', { name: 'Watch go W1' }))
+    expect(hook.go.watchTable).toHaveBeenCalledWith('W1')
   })
 
   it('a member at a table cannot watch another', () => {
@@ -238,13 +243,13 @@ describe('LobbyPanel', () => {
 
   // One picker and one button however many games there are: the games
   // grouped by family, and the chosen one described under it.
-  // One picker: Cards, whose game is picked beside it, Chess or Pong. What a
+  // One picker: Cards or Board, whose game is picked beside it, or Pong. What a
   // game is, its table says once open; the lobby only offers.
-  it('opens a table of whichever game is picked: cards and the card game, or chess', () => {
+  it('opens a table of whichever game is picked: a family and its game, or pong', () => {
     const hook = lobby({ room: room() })
     render(<LobbyPanel lobby={hook} />)
     const picker = screen.getByRole('combobox', { name: 'Game' })
-    expect(within(picker).getAllByRole('option').map(option => option.textContent)).toEqual(['Cards', 'Chess', 'Pong'])
+    expect(within(picker).getAllByRole('option').map(option => option.textContent)).toEqual(['Cards', 'Board', 'Pong'])
     const cards = screen.getByRole('combobox', { name: 'Card game' })
     expect(within(cards).getAllByRole('option').map(option => option.textContent)).toEqual(['Castle', 'Golf', 'Rummy', 'Spades'])
     expect(screen.getAllByRole('button', { name: /^Open a table/ })).toHaveLength(1)
@@ -257,10 +262,15 @@ describe('LobbyPanel', () => {
       fireEvent.click(screen.getByRole('button', { name: `Open a table: ${game}` }))
       expect(hook[game].createTable).toHaveBeenCalledTimes(1)
     }
-    fireEvent.change(picker, { target: { value: 'chess' } })
+    fireEvent.change(picker, { target: { value: 'board' } })
     expect(screen.queryByRole('combobox', { name: 'Card game' })).toBeNull()
+    const boards = screen.getByRole('combobox', { name: 'Board game' })
+    expect(within(boards).getAllByRole('option').map(option => option.textContent)).toEqual(['Chess', 'Go'])
     fireEvent.click(screen.getByRole('button', { name: 'Open a table: chess' }))
     expect(hook.chess.createTable).toHaveBeenCalledTimes(1)
+    fireEvent.change(boards, { target: { value: 'go' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Open a table: go' }))
+    expect(hook.go.createTable).toHaveBeenCalledTimes(1)
     expect(hook.castle.createTable).toHaveBeenCalledTimes(1)
     fireEvent.change(picker, { target: { value: 'pong' } })
     fireEvent.click(screen.getByRole('button', { name: 'Open a table: pong' }))

@@ -7,8 +7,8 @@ import { HUB_GAMES } from '@/utils/hubStream'
 
 describe('the game catalog', () => {
   it('names each game once, families in the order the picker shows them', () => {
-    expect(CATALOG.map(entry => entry.game)).toEqual(['castle', 'golf', 'rummy', 'spades', 'chess', 'pong'])
-    expect(CATALOG.map(entry => entry.family)).toEqual(['Cards', 'Cards', 'Cards', 'Cards', 'Board', 'Arcade'])
+    expect(CATALOG.map(entry => entry.game)).toEqual(['castle', 'golf', 'rummy', 'spades', 'chess', 'go', 'pong'])
+    expect(CATALOG.map(entry => entry.family)).toEqual(['Cards', 'Cards', 'Cards', 'Cards', 'Board', 'Board', 'Arcade'])
   })
 
   // A game the hub hosts but the catalog lacks is one no room can open.
@@ -28,6 +28,7 @@ describe('the game catalog', () => {
     expect(seatsLine(catalogEntry('chess'))).toBe('2 players')
     expect(seatsLine(catalogEntry('castle'))).toBe('2–4 players')
     expect(seatsLine(catalogEntry('spades'))).toBe('2–4 players · partners or cutthroat, chosen at the table')
+    expect(seatsLine(catalogEntry('go'))).toBe('2 players · 9×9, 13×13 or 19×19, chosen at the table')
     expect(seatsLine(catalogEntry('pong'))).toBe('2 players · 2D or 3D, chosen at the table')
     expect(seatsLine(catalogEntry('rummy'))).toBe('2–4 players · 7-card, 10-card or gin, chosen at the table')
   })

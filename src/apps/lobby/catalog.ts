@@ -56,6 +56,14 @@ export const CATALOG: readonly CatalogEntry[] = [
     blurb: 'Standard chess and endgame practice positions, on the clock. Checkmate, promote, or hold the draw.'
   },
   {
+    game: 'go',
+    label: 'Go',
+    family: 'Board',
+    seats: { min: 2, max: 2 },
+    blurb: 'Place stones in turn to surround territory; capture by taking a group’s last liberty. Komi to White, on the clock.',
+    variants: '9×9, 13×13 or 19×19'
+  },
+  {
     game: 'pong',
     label: 'Pong',
     family: 'Arcade',
