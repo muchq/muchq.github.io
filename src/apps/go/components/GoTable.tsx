@@ -5,6 +5,8 @@ import felt from '@/apps/cards/felt.module.css'
 import AboutGame from '@/apps/lobby/components/AboutGame'
 import { formatClock } from '@/apps/chess/rules'
 import type { GoBoardSize, GoColor, GoResult, GoView } from '../wire'
+import { unlockGoSounds } from '../sounds'
+import { useGoSounds } from '../useGoSounds'
 import styles from './GoTable.module.css'
 
 // The board as the hub sends it, black's side nowhere in particular: go
@@ -164,6 +166,7 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
   const center = Math.floor(boardSize / 2)
   const [cursor, setCursor] = useState<[number, number]>([center, center])
   const boardRef = useRef<SVGSVGElement>(null)
+  const { muted, toggleMuted } = useGoSounds(view)
   const resignRef = useRef<HTMLButtonElement>(null)
   const confirmRef = useRef<HTMLButtonElement>(null)
   const playAgainRef = useRef<HTMLButtonElement>(null)
@@ -224,7 +227,7 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
   )
 
   return (
-    <div className={styles.table} data-phase={view.phase}>
+    <div className={styles.table} data-phase={view.phase} onPointerDown={unlockGoSounds}>
       <h1 className={felt.title}>
         {watching ? 'Watching go' : 'Go'} {view.gameId}
         {view.size !== undefined && ` · ${view.size}×${view.size}`}
@@ -234,6 +237,9 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
         <p className={felt.hint} role="status" data-testid="go-status">
           {status}
         </p>
+        <button type="button" className={felt.link} onClick={toggleMuted} aria-pressed={!muted}>
+          Sound
+        </button>
         {watching ? (
           <button type="button" className={felt.link} onClick={table.leaveTable}>
             Stop watching

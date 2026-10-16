@@ -1,7 +1,10 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { playGoSounds } from '../../sounds'
 import GoTable, { type GoTableProps } from '../GoTable'
 import type { GoView } from '../../wire'
+
+vi.mock('../../sounds', async importOriginal => ({ ...(await importOriginal<typeof import('../../sounds')>()), playGoSounds: vi.fn() }))
 
 const empty = (size: number) => Array.from({ length: size }, () => '.'.repeat(size))
 
@@ -45,7 +48,11 @@ const mount = (props: Partial<GoTableProps> = {}) => {
 
 const board = () => within(screen.getByRole('group', { name: 'board' }))
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.mocked(playGoSounds).mockClear()
+  localStorage.clear()
+})
 
 describe('GoTable', () => {
   it('draws the stones, the last move, captures and clocks', () => {
@@ -191,5 +198,28 @@ describe('GoTable', () => {
   it('the viewer’s clock sits under the board', () => {
     mount({ playerId: 'bob' })
     expect(screen.getByTestId('go-seat-black').compareDocumentPosition(screen.getByTestId('go-seat-white')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('sounds a move off the view, not on arrival', () => {
+    const { rerender } = render(<GoTable playerId="alice" connected view={view()} table={table()} />)
+    expect(playGoSounds).not.toHaveBeenCalled()
+    rerender(<GoTable playerId="alice" connected view={view({ moveCount: 3, captures: { black: 3, white: 1 } })} table={table()} />)
+    expect(playGoSounds).toHaveBeenCalledWith([{ kind: 'place' }, { kind: 'capture', stones: 1 }])
+  })
+
+  it('muted stays muted, across tables, and says nothing', () => {
+    render(<GoTable playerId="alice" connected view={view()} table={table()} />)
+    const sound = screen.getByRole('button', { name: 'Sound' })
+    expect(sound.getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(sound)
+    expect(sound.getAttribute('aria-pressed')).toBe('false')
+    cleanup()
+    const { rerender } = render(<GoTable playerId="alice" connected view={view()} table={table()} />)
+    expect(screen.getByRole('button', { name: 'Sound' }).getAttribute('aria-pressed')).toBe('false')
+    rerender(<GoTable playerId="alice" connected view={view({ moveCount: 3 })} table={table()} />)
+    expect(playGoSounds).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Sound' }))
+    rerender(<GoTable playerId="alice" connected view={view({ moveCount: 4 })} table={table()} />)
+    expect(playGoSounds).toHaveBeenCalledWith([{ kind: 'place' }])
   })
 })
