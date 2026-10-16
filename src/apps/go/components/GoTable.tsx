@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { RefObject } from 'react'
 import type { GoTableActions } from '@/hooks/useGoTable'
 import felt from '@/apps/cards/felt.module.css'
@@ -42,6 +43,78 @@ const starPoints = (size: number): Array<[number, number]> => {
 }
 
 const TICK_MS = 100
+
+// A first game's worth of shape, not a curriculum.
+const TIPS = [
+  'Corners first, then sides, then the center: walls on two edges make territory cheapest.',
+  'Count liberties. A group with one left (atari) is captured on the next move unless it runs or gets help.',
+  'A group lives with two separate eyes. A group under attack needs room to make them.',
+  'Keep your stones connected; cut your opponent’s apart.',
+  'Don’t chase captures for their own sake. Territory and strong groups win.',
+  'Reply to atari, but ask first whether the stones are worth saving.',
+  'When nothing is urgent, play the biggest open area. When something is, play there.'
+]
+
+// Out of the lobby's stacking context so its chrome can't sit above the
+// dim; Escape is marked handled so the command menu doesn't open too, and
+// Tab stays in the card since aria-modal doesn't.
+const Tips = ({ onClose }: { onClose: () => void }) => {
+  const card = useRef<HTMLDivElement>(null)
+  const close = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null
+    close.current?.focus()
+    return () => opener?.focus()
+  }, [])
+  return createPortal(
+    <div className={styles.scrim} onClick={onClose}>
+      <div
+        ref={card}
+        className={styles.tips}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="go-tips"
+        onClick={event => event.stopPropagation()}
+        onKeyDown={event => {
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            onClose()
+          } else if (event.key === 'Tab') {
+            const focusable = card.current?.querySelectorAll<HTMLElement>('a, button')
+            if (focusable === undefined || focusable.length === 0) return
+            const first = focusable[0]
+            const last = focusable[focusable.length - 1]
+            if (event.shiftKey && document.activeElement === first) {
+              event.preventDefault()
+              last.focus()
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault()
+              first.focus()
+            }
+          }
+        }}
+      >
+        <h2 id="go-tips">Tips for beginners</h2>
+        <ul>
+          {TIPS.map(tip => (
+            <li key={tip}>{tip}</li>
+          ))}
+        </ul>
+        <p>
+          Learn the rules hands-on with{' '}
+          <a href="https://online-go.com/learn-to-play-go" target="_blank" rel="noreferrer">
+            OGS’s interactive tutorial
+          </a>
+          .
+        </p>
+        <button ref={close} type="button" className={felt.link} onClick={onClose}>
+          Close
+        </button>
+      </div>
+    </div>,
+    document.body
+  )
+}
 
 const colorName = (color: GoColor) => (color === 'black' ? 'Black' : 'White')
 
@@ -162,6 +235,8 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
   const [clock, setClock] = useState(Object.keys(CLOCKS)[0])
   // Held for one view: any move answered puts the question away.
   const [confirmResign, setConfirmResign] = useState<GoView | null>(null)
+  // Held for one phase: the game ending or starting puts them away.
+  const [tipsPhase, setTipsPhase] = useState<GoView['phase'] | null>(null)
   const boardSize = view.size ?? 19
   const center = Math.floor(boardSize / 2)
   const [cursor, setCursor] = useState<[number, number]>([center, center])
@@ -228,6 +303,7 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
 
   return (
     <div className={styles.table} data-phase={view.phase} onPointerDownCapture={unlockGoSounds} onKeyDownCapture={unlockGoSounds}>
+      {tipsPhase === view.phase && <Tips onClose={() => setTipsPhase(null)} />}
       <h1 className={felt.title}>
         {watching ? 'Watching go' : 'Go'} {view.gameId}
         {view.size !== undefined && ` · ${view.size}×${view.size}`}
@@ -239,6 +315,9 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
         </p>
         <button type="button" className={felt.link} onClick={toggleMuted}>
           {muted ? 'Sound off' : 'Sound on'}
+        </button>
+        <button type="button" className={styles.help} onClick={() => setTipsPhase(view.phase)} aria-label="Tips for beginners">
+          ?
         </button>
         {watching ? (
           <button type="button" className={felt.link} onClick={table.leaveTable}>
