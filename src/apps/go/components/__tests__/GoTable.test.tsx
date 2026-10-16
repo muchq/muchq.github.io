@@ -1,7 +1,10 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { playGoSounds, unlockGoSounds } from '../../sounds'
 import GoTable, { type GoTableProps } from '../GoTable'
 import type { GoView } from '../../wire'
+
+vi.mock('../../sounds', async importOriginal => ({ ...(await importOriginal<typeof import('../../sounds')>()), playGoSounds: vi.fn(), unlockGoSounds: vi.fn() }))
 
 const empty = (size: number) => Array.from({ length: size }, () => '.'.repeat(size))
 
@@ -45,7 +48,13 @@ const mount = (props: Partial<GoTableProps> = {}) => {
 
 const board = () => within(screen.getByRole('group', { name: 'board' }))
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.mocked(playGoSounds).mockClear()
+  vi.mocked(unlockGoSounds).mockClear()
+  vi.restoreAllMocks()
+  localStorage.clear()
+})
 
 describe('GoTable', () => {
   it('draws the stones, the last move, captures and clocks', () => {
@@ -191,5 +200,53 @@ describe('GoTable', () => {
   it('the viewer’s clock sits under the board', () => {
     mount({ playerId: 'bob' })
     expect(screen.getByTestId('go-seat-black').compareDocumentPosition(screen.getByTestId('go-seat-white')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('sounds a move off the view, not on arrival', () => {
+    const { rerender } = render(<GoTable playerId="alice" connected view={view()} table={table()} />)
+    expect(playGoSounds).not.toHaveBeenCalled()
+    rerender(<GoTable playerId="alice" connected view={view({ moveCount: 3, captures: { black: 3, white: 1 } })} table={table()} />)
+    expect(playGoSounds).toHaveBeenCalledWith([{ kind: 'place' }, { kind: 'capture', stones: 1 }])
+  })
+
+  it('muted stays muted across tables', () => {
+    render(<GoTable playerId="alice" connected view={view()} table={table()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Sound on' }))
+    cleanup()
+    const { rerender } = render(<GoTable playerId="alice" connected view={view()} table={table()} />)
+    rerender(<GoTable playerId="alice" connected view={view({ moveCount: 3 })} table={table()} />)
+    expect(screen.getByRole('button', { name: 'Sound off' })).toBeTruthy()
+    expect(playGoSounds).not.toHaveBeenCalled()
+  })
+
+  it('moves heard while muted are not replayed on unmuting', () => {
+    const { rerender } = render(<GoTable playerId="alice" connected view={view()} table={table()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Sound on' }))
+    rerender(<GoTable playerId="alice" connected view={view({ moveCount: 3 })} table={table()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Sound off' }))
+    expect(playGoSounds).not.toHaveBeenCalled()
+    rerender(<GoTable playerId="alice" connected view={view({ moveCount: 4 })} table={table()} />)
+    expect(playGoSounds).toHaveBeenCalledTimes(1)
+    expect(playGoSounds).toHaveBeenCalledWith([{ kind: 'place' }])
+  })
+
+  it('without storage, sound starts on and mute holds for the visit', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('denied')
+    })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('denied')
+    })
+    render(<GoTable playerId="alice" connected view={view()} table={table()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Sound on' }))
+    expect(screen.getByRole('button', { name: 'Sound off' })).toBeTruthy()
+  })
+
+  it('a key or a touch at the table readies audio', () => {
+    mount()
+    fireEvent.keyDown(board().getByRole('button', { name: 'Play C9' }), { key: 'ArrowRight' })
+    expect(unlockGoSounds).toHaveBeenCalledTimes(1)
+    fireEvent.pointerDown(screen.getByTestId('go-status'))
+    expect(unlockGoSounds).toHaveBeenCalledTimes(2)
   })
 })
