@@ -57,6 +57,26 @@ afterEach(() => {
 })
 
 describe('GoTable', () => {
+  it('opens beginner tips from the ? button and closes them on Escape, scrim, or Close', () => {
+    mount()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    const open = () => fireEvent.click(screen.getByRole('button', { name: 'Tips for beginners' }))
+    open()
+    const dialog = screen.getByRole('dialog', { name: 'Tips for beginners' })
+    expect(within(dialog).getAllByRole('listitem').length).toBeGreaterThan(3)
+    expect(within(dialog).getByRole('button', { name: 'Close' })).toHaveFocus()
+    fireEvent.click(dialog)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    open()
+    fireEvent.click(screen.getByRole('dialog').parentElement!)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    open()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   it('draws the stones, the last move, captures and clocks', () => {
     mount()
     expect(document.querySelectorAll('[data-color="black"][r="0.47"]')).toHaveLength(1)

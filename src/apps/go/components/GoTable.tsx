@@ -43,6 +43,44 @@ const starPoints = (size: number): Array<[number, number]> => {
 
 const TICK_MS = 100
 
+// A first game's worth of shape, not a curriculum.
+const TIPS = [
+  'Corners first, then sides, then the center: walls on two edges make territory cheapest.',
+  'Count liberties. A group with one left (atari) is captured on the next move unless it runs or gets help.',
+  'A group lives with two separate eyes. Make them early when a group is under attack.',
+  'Keep your stones connected; cut your opponent’s apart.',
+  'Don’t chase captures for their own sake. Territory and strong groups win.',
+  'Reply to atari, but ask first whether the stones are worth saving.',
+  'When nothing is urgent, play the biggest open area. When something is, play there.'
+]
+
+const Tips = ({ onClose }: { onClose: () => void }) => {
+  const close = useRef<HTMLButtonElement>(null)
+  useEffect(() => close.current?.focus(), [])
+  return (
+    <div className={styles.scrim} onClick={onClose}>
+      <div
+        className={styles.tips}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Tips for beginners"
+        onClick={event => event.stopPropagation()}
+        onKeyDown={event => event.key === 'Escape' && onClose()}
+      >
+        <h2>Tips for beginners</h2>
+        <ul>
+          {TIPS.map(tip => (
+            <li key={tip}>{tip}</li>
+          ))}
+        </ul>
+        <button ref={close} type="button" className={felt.link} onClick={onClose}>
+          Close
+        </button>
+      </div>
+    </div>
+  )
+}
+
 const colorName = (color: GoColor) => (color === 'black' ? 'Black' : 'White')
 
 function describeResult(result: GoResult, playerId: string): string {
@@ -162,6 +200,7 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
   const [clock, setClock] = useState(Object.keys(CLOCKS)[0])
   // Held for one view: any move answered puts the question away.
   const [confirmResign, setConfirmResign] = useState<GoView | null>(null)
+  const [showTips, setShowTips] = useState(false)
   const boardSize = view.size ?? 19
   const center = Math.floor(boardSize / 2)
   const [cursor, setCursor] = useState<[number, number]>([center, center])
@@ -228,6 +267,7 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
 
   return (
     <div className={styles.table} data-phase={view.phase} onPointerDownCapture={unlockGoSounds} onKeyDownCapture={unlockGoSounds}>
+      {showTips && <Tips onClose={() => setShowTips(false)} />}
       <h1 className={felt.title}>
         {watching ? 'Watching go' : 'Go'} {view.gameId}
         {view.size !== undefined && ` · ${view.size}×${view.size}`}
@@ -239,6 +279,9 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
         </p>
         <button type="button" className={felt.link} onClick={toggleMuted}>
           {muted ? 'Sound off' : 'Sound on'}
+        </button>
+        <button type="button" className={styles.help} onClick={() => setShowTips(true)} aria-label="Tips for beginners">
+          ?
         </button>
         {watching ? (
           <button type="button" className={felt.link} onClick={table.leaveTable}>
