@@ -2,12 +2,14 @@ import type { GoView } from './wire'
 
 // The table's sounds, read off the views rather than the viewer's own
 // clicks, so an opponent's move sounds the same as yours. A first view
-// (arriving, watching mid-game) or another game's says nothing.
+// (arriving, watching mid-game) or another game's says nothing, and so
+// does a jump of more than one move: lastMove names only the latest, so
+// the moves between, and whose captures were whose, are unknown.
 
 export type GoSoundEvent = { kind: 'place' } | { kind: 'pass' } | { kind: 'capture'; stones: number }
 
 export function goSoundEvents(prev: GoView | undefined, next: GoView): GoSoundEvent[] {
-  if (prev === undefined || prev.gameId !== next.gameId || next.moveCount <= prev.moveCount) return []
+  if (prev === undefined || prev.gameId !== next.gameId || next.moveCount !== prev.moveCount + 1) return []
   const events: GoSoundEvent[] = [{ kind: next.lastMove?.pass === true ? 'pass' : 'place' }]
   const taken = (view: GoView) => (view.captures?.black ?? 0) + (view.captures?.white ?? 0)
   const stones = taken(next) - taken(prev)

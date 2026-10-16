@@ -39,4 +39,13 @@ describe('goSoundEvents', () => {
   it('another game’s view says nothing', () => {
     expect(goSoundEvents(view({ moveCount: 1 }), view({ gameId: 'G02', moveCount: 3 }))).toEqual([])
   })
+
+  it('a jump of more than one move says nothing, captures and all', () => {
+    const next = view({ moveCount: 7, lastMove: { color: 'black', pass: true }, captures: { black: 4, white: 0 } })
+    expect(goSoundEvents(view(), next)).toEqual([])
+  })
+
+  it('a move with no lastMove still places', () => {
+    expect(goSoundEvents(view(), view({ moveCount: 5 }))).toEqual([{ kind: 'place' }])
+  })
 })

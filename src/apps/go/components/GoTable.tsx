@@ -227,7 +227,7 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
   )
 
   return (
-    <div className={styles.table} data-phase={view.phase} onPointerDown={unlockGoSounds}>
+    <div className={styles.table} data-phase={view.phase} onPointerDownCapture={unlockGoSounds} onKeyDownCapture={unlockGoSounds}>
       <h1 className={felt.title}>
         {watching ? 'Watching go' : 'Go'} {view.gameId}
         {view.size !== undefined && ` · ${view.size}×${view.size}`}
@@ -237,8 +237,8 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
         <p className={felt.hint} role="status" data-testid="go-status">
           {status}
         </p>
-        <button type="button" className={felt.link} onClick={toggleMuted} aria-pressed={!muted}>
-          Sound
+        <button type="button" className={felt.link} onClick={toggleMuted}>
+          {muted ? 'Sound off' : 'Sound on'}
         </button>
         {watching ? (
           <button type="button" className={felt.link} onClick={table.leaveTable}>
