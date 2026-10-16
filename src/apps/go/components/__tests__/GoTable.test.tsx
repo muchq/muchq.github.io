@@ -64,6 +64,7 @@ describe('GoTable', () => {
     open()
     const dialog = screen.getByRole('dialog', { name: 'Tips for beginners' })
     expect(within(dialog).getAllByRole('listitem').length).toBeGreaterThan(3)
+    expect(within(dialog).getByRole('link', { name: /tutorial/ })).toHaveAttribute('href', 'https://online-go.com/learn-to-play-go')
     expect(within(dialog).getByRole('button', { name: 'Close' })).toHaveFocus()
     fireEvent.click(dialog)
     expect(screen.getByRole('dialog')).toBeInTheDocument()

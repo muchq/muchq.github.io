@@ -73,6 +73,13 @@ const Tips = ({ onClose }: { onClose: () => void }) => {
             <li key={tip}>{tip}</li>
           ))}
         </ul>
+        <p>
+          Learn the rules hands-on with{' '}
+          <a href="https://online-go.com/learn-to-play-go" target="_blank" rel="noreferrer">
+            OGS’s interactive tutorial
+          </a>
+          .
+        </p>
         <button ref={close} type="button" className={felt.link} onClick={onClose}>
           Close
         </button>

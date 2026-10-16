@@ -217,6 +217,14 @@
   line-height: 1.45;
 }
 
+.tips p {
+  margin: 0 0 1rem;
+}
+
+.tips a {
+  color: #f5d48a;
+}
+
 .tips li + li {
   margin-top: 0.4rem;
 }
