@@ -60,7 +60,11 @@ describe('GoTable', () => {
   it('opens beginner tips from the ? button and closes them on Escape, scrim, or Close', () => {
     mount()
     expect(screen.queryByRole('dialog')).toBeNull()
-    const open = () => fireEvent.click(screen.getByRole('button', { name: 'Tips for beginners' }))
+    const help = screen.getByRole('button', { name: 'Tips for beginners' })
+    const open = () => {
+      help.focus()
+      fireEvent.click(help)
+    }
     open()
     const dialog = screen.getByRole('dialog', { name: 'Tips for beginners' })
     expect(within(dialog).getAllByRole('listitem').length).toBeGreaterThan(3)
@@ -68,13 +72,38 @@ describe('GoTable', () => {
     expect(within(dialog).getByRole('button', { name: 'Close' })).toHaveFocus()
     fireEvent.click(dialog)
     expect(screen.getByRole('dialog')).toBeInTheDocument()
-    fireEvent.keyDown(dialog, { key: 'Escape' })
+    // Escape is consumed, so the lobby's command-menu hotkey leaves it be.
+    expect(fireEvent.keyDown(dialog, { key: 'Escape' })).toBe(false)
     expect(screen.queryByRole('dialog')).toBeNull()
+    expect(help).toHaveFocus()
     open()
     fireEvent.click(screen.getByRole('dialog').parentElement!)
     expect(screen.queryByRole('dialog')).toBeNull()
+    expect(help).toHaveFocus()
     open()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(help).toHaveFocus()
+  })
+
+  it('keeps Tab inside the tips', () => {
+    mount()
+    fireEvent.click(screen.getByRole('button', { name: 'Tips for beginners' }))
+    const dialog = screen.getByRole('dialog')
+    const link = within(dialog).getByRole('link')
+    const close = within(dialog).getByRole('button', { name: 'Close' })
+    expect(fireEvent.keyDown(close, { key: 'Tab' })).toBe(false)
+    expect(link).toHaveFocus()
+    expect(fireEvent.keyDown(link, { key: 'Tab', shiftKey: true })).toBe(false)
+    expect(close).toHaveFocus()
+  })
+
+  it('puts the tips away when the phase changes', () => {
+    const held = table()
+    const { rerender } = render(<GoTable playerId="alice" connected view={view()} table={held} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Tips for beginners' }))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    rerender(<GoTable playerId="alice" connected view={view({ phase: 'ended' })} table={held} />)
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
