@@ -14,6 +14,9 @@ export interface GoTableActions {
   playAgain: (size?: GoBoardSize) => void
   play: (x: number, y: number) => void
   pass: () => void
+  // In the scoring: toggle the group at a point dead, and accept the marks.
+  markDead: (x: number, y: number) => void
+  accept: () => void
   // A move sent and not yet answered: the next view, or a refusal, lets it go.
   sent: boolean
   resign: () => void
@@ -120,6 +123,17 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
     setSent(true)
     move('pass')
   }, [move])
+  const markDead = useCallback(
+    (x: number, y: number) => {
+      setSent(true)
+      move('markDead', { x, y })
+    },
+    [move]
+  )
+  const accept = useCallback(() => {
+    setSent(true)
+    move('accept')
+  }, [move])
   const resign = useCallback(() => move('resign'), [move])
 
   return {
@@ -137,6 +151,8 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
     playAgain,
     play,
     pass,
+    markDead,
+    accept,
     resign
   }
 }

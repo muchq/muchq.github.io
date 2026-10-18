@@ -12,7 +12,9 @@ import styles from './GoTable.module.css'
 
 // The board as the hub sends it, black's side nowhere in particular: go
 // has no orientation. On your turn a tap on an empty point plays it; the
-// hub refuses anything illegal in band. The viewer's clock sits under the
+// hub refuses anything illegal in band. Once both pass, a seated tap on a
+// stone marks its group dead or alive again, and the seat on turn may
+// still play on. The viewer's clock sits under the
 // board; a watcher, in no seat, sees Black's there and touches nothing.
 // The chrome is the felt's.
 
@@ -131,7 +133,7 @@ const Clock = ({ view, color, name }: { view: GoView; color: GoColor; name: stri
   const [arrived, setArrived] = useState(() => ({ view, at: Date.now() }))
   const [now, setNow] = useState(() => Date.now())
   if (arrived.view !== view) setArrived({ view, at: Date.now() })
-  const running = view.phase === 'playing' && view.sideToMove === color
+  const running = (view.phase === 'playing' || view.phase === 'scoring') && view.sideToMove === color
   useEffect(() => {
     if (!running) return
     const timer = window.setInterval(() => setNow(Date.now()), TICK_MS)
@@ -155,11 +157,14 @@ const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRigh
 const Board = ({
   view,
   onPlay,
+  onMark,
   cursor,
   boardRef
 }: {
   view: GoView
   onPlay?: (x: number, y: number) => void
+  // In the scoring: a tap on a stone toggles its group.
+  onMark?: (x: number, y: number) => void
   cursor: [number, number]
   boardRef: RefObject<SVGSVGElement | null>
 }) => {
@@ -167,6 +172,7 @@ const Board = ({
   const rows = view.board ?? []
   const edge = size - 1
   const last = view.lastMove
+  const dead = new Set((view.dead ?? []).map(({ x, y }) => `${x}-${y}`))
   const focusPoint = (x: number, y: number) => boardRef.current?.querySelector<SVGElement>(`[data-point="${x}-${y}"]`)?.focus()
   return (
     <svg ref={boardRef} className={styles.board} viewBox={`-1 -1 ${size + 1} ${size + 1}`} role="group" aria-label="board">
@@ -183,7 +189,15 @@ const Board = ({
       {rows.flatMap((row, y) =>
         [...row].map((point, x) =>
           point === 'b' || point === 'w' ? (
-            <circle key={`${x}-${y}`} cx={x} cy={y} r={0.47} className={styles.stone} data-color={point === 'b' ? 'black' : 'white'} />
+            <circle
+              key={`${x}-${y}`}
+              cx={x}
+              cy={y}
+              r={0.47}
+              className={styles.stone}
+              data-color={point === 'b' ? 'black' : 'white'}
+              data-dead={dead.has(`${x}-${y}`) ? 'true' : undefined}
+            />
           ) : null
         )
       )}
@@ -194,7 +208,11 @@ const Board = ({
         [...row].map((point, x) => {
           const name = pointName(x, y, size)
           const stone = point === 'b' ? 'black' : point === 'w' ? 'white' : undefined
-          const playable = stone === undefined && onPlay !== undefined
+          const isDead = dead.has(`${x}-${y}`)
+          const act = stone === undefined ? onPlay : onMark
+          const playable = act !== undefined
+          const marking = onMark === undefined ? '' : isDead ? ': mark alive' : ': mark dead'
+          const label = stone === undefined ? (playable ? `Play ${name}` : name) : `${name}, ${stone} stone${isDead ? ', dead' : ''}${marking}`
           return (
             <rect
               key={`${x}-${y}`}
@@ -207,8 +225,8 @@ const Board = ({
               data-playable={playable ? 'true' : undefined}
               role={playable ? 'button' : 'img'}
               tabIndex={cursor[0] === x && cursor[1] === y ? 0 : -1}
-              aria-label={stone !== undefined ? `${name}, ${stone} stone` : playable ? `Play ${name}` : name}
-              onClick={playable ? () => onPlay(x, y) : undefined}
+              aria-label={label}
+              onClick={playable ? () => act(x, y) : undefined}
               onKeyDown={event => {
                 const step = ARROWS[event.key]
                 if (step !== undefined) {
@@ -216,7 +234,7 @@ const Board = ({
                   focusPoint(Math.min(edge, Math.max(0, x + step[0])), Math.min(edge, Math.max(0, y + step[1])))
                 } else if (playable && (event.key === 'Enter' || event.key === ' ')) {
                   event.preventDefault()
-                  onPlay(x, y)
+                  act(x, y)
                 }
               }}
             />
@@ -264,8 +282,11 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
   const theirs: GoColor = mine === 'black' ? 'white' : 'black'
   // A cursor off a smaller board comes back to its center.
   const shownCursor: [number, number] = cursor[0] < boardSize && cursor[1] < boardSize ? cursor : [center, center]
-  const myTurn = view.phase === 'playing' && view.currentPlayerId === playerId
+  const scoring = view.phase === 'scoring'
+  const myTurn = (view.phase === 'playing' || scoring) && view.currentPlayerId === playerId
   const canPlay = myTurn && connected && !table.sent
+  const canMark = scoring && !watching && connected && !table.sent
+  const accepted = view.scoring?.acceptedBy.includes(playerId) ?? false
   const nameOf = (color: GoColor) => {
     const seat = view.players.find(player => player.color === color)
     return seat === undefined ? colorName(color) : seat.playerId === playerId ? `${seat.playerId} (you)` : seat.playerId
@@ -278,6 +299,11 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
     }
     if (view.phase === 'ended' || view.result !== undefined) return view.result === undefined ? '' : describeResult(view.result, playerId)
     if (view.phase === 'closed') return watching ? 'The table closed.' : 'Your opponent left the table.'
+    if (scoring) {
+      const count = view.scoring === undefined ? '' : ` Black ${view.scoring.score.black}, White ${view.scoring.score.white}.`
+      const accepts = (view.scoring?.acceptedBy ?? []).map(id => (id === playerId ? ' You accept.' : ` ${id} accepts.`)).join('')
+      return `Mark the dead stones, then accept.${count}${accepts}`
+    }
     // The board only shows the last move; say it.
     const last = view.lastMove
     const said =
@@ -366,24 +392,36 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
               if (point?.length === 2) setCursor([point[0], point[1]])
             }}
           >
-            <Board view={view} onPlay={canPlay ? table.play : undefined} cursor={shownCursor} boardRef={boardRef} />
+            <Board
+              view={view}
+              onPlay={canPlay ? table.play : undefined}
+              onMark={canMark ? table.markDead : undefined}
+              cursor={shownCursor}
+              boardRef={boardRef}
+            />
           </div>
           <Clock view={view} color={mine} name={nameOf(mine)} />
           <div className={styles.foot}>
-            {view.phase === 'playing' && me !== undefined && (
+            {(view.phase === 'playing' || scoring) && me !== undefined && (
               <div className={styles.actions}>
-                <button
-                  type="button"
-                  className={felt.secondary}
-                  onClick={() => {
-                    // Pass is disabled until the hub answers: focus waits on the board.
-                    boardRef.current?.querySelector<SVGElement>('[tabindex="0"]')?.focus()
-                    table.pass()
-                  }}
-                  disabled={!canPlay}
-                >
-                  Pass
-                </button>
+                {scoring ? (
+                  <button type="button" className={felt.primary} onClick={table.accept} disabled={!connected || table.sent || accepted}>
+                    Accept
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className={felt.secondary}
+                    onClick={() => {
+                      // Pass is disabled until the hub answers: focus waits on the board.
+                      boardRef.current?.querySelector<SVGElement>('[tabindex="0"]')?.focus()
+                      table.pass()
+                    }}
+                    disabled={!canPlay}
+                  >
+                    Pass
+                  </button>
+                )}
                 {confirmResign === view ? (
                   <>
                     <button ref={confirmRef} type="button" className={styles.danger} onClick={table.resign} disabled={!connected}>

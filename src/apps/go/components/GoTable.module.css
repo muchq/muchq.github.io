@@ -66,6 +66,11 @@
   stroke-width: 0.03;
 }
 
+/* Marked dead in the scoring: still on the board, counted as empty. */
+.stone[data-dead='true'] {
+  opacity: 0.35;
+}
+
 .lastMove {
   fill: none;
   stroke-width: 0.08;

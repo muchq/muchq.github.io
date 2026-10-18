@@ -37,8 +37,20 @@ const table = (over: Partial<GoTableProps['table']> = {}): GoTableProps['table']
   play: vi.fn(),
   pass: vi.fn(),
   resign: vi.fn(),
+  markDead: vi.fn(),
+  accept: vi.fn(),
   ...over
 })
+
+// Both passed: alice's stone at A9 and bob's at B8, bob's marked dead.
+const scoring = (over: Partial<GoView> = {}) =>
+  view({
+    phase: 'scoring',
+    dead: [{ x: 1, y: 1 }],
+    scoring: { acceptedBy: ['bob'], score: { black: 81, white: 6.5 } },
+    lastMove: { color: 'white', pass: true },
+    ...over
+  })
 
 const mount = (props: Partial<GoTableProps> = {}) => {
   const held = props.table ?? table()
@@ -215,6 +227,39 @@ describe('GoTable', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Keep playing' }))
     expect(held.resign).not.toHaveBeenCalled()
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Resign' }))
+  })
+
+  it('in the scoring a tap on a stone marks its group, and the count and acceptances are said', () => {
+    const held = mount({ view: scoring() })
+    expect(screen.getByTestId('go-status')).toHaveTextContent('Mark the dead stones, then accept. Black 81, White 6.5. bob accepts.')
+    expect(board().getByRole('button', { name: 'B8, white stone, dead: mark alive' })).toBeInTheDocument()
+    fireEvent.click(board().getByRole('button', { name: 'A9, black stone: mark dead' }))
+    expect(held.markDead).toHaveBeenCalledWith(0, 0)
+    expect(screen.queryByRole('button', { name: 'Pass' })).toBeNull()
+  })
+
+  it('accepts the marks, once', () => {
+    const held = mount({ view: scoring() })
+    fireEvent.click(screen.getByRole('button', { name: 'Accept' }))
+    expect(held.accept).toHaveBeenCalled()
+    cleanup()
+    mount({ view: scoring({ scoring: { acceptedBy: ['alice'], score: { black: 81, white: 6.5 } } }) })
+    expect(screen.getByRole('button', { name: 'Accept' })).toBeDisabled()
+  })
+
+  it('in the scoring the seat on turn may play on; the other may not', () => {
+    const held = mount({ view: scoring() })
+    fireEvent.click(board().getByRole('button', { name: 'Play C9' }))
+    expect(held.play).toHaveBeenCalledWith(2, 0)
+    cleanup()
+    mount({ playerId: 'bob', view: scoring() })
+    expect(board().queryByRole('button', { name: 'Play C9' })).toBeNull()
+  })
+
+  it('a watcher of the scoring marks nothing', () => {
+    mount({ playerId: 'carol', view: scoring() })
+    expect(board().queryByRole('button', { name: /mark/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Accept' })).toBeNull()
   })
 
   it('offline, nothing can be played', () => {

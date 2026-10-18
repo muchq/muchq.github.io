@@ -3,9 +3,10 @@
 
 export type GoColor = 'black' | 'white'
 
-// ended: a game is over and the table waits on the next; closed: a seat
-// left the table.
-export type GoPhase = 'waiting' | 'playing' | 'ended' | 'closed'
+// scoring: both passed, and the seats mark dead stones and accept; ended:
+// a game is over and the table waits on the next; closed: a seat left
+// the table.
+export type GoPhase = 'waiting' | 'playing' | 'scoring' | 'ended' | 'closed'
 
 export type GoEnding = 'score' | 'resignation' | 'timeout' | 'abandoned'
 
@@ -39,7 +40,19 @@ export interface GoLastMove {
   y?: number
 }
 
-// Scores include komi; present when the game was counted.
+export interface GoPoint {
+  x: number
+  y: number
+}
+
+// The count if the marks were accepted now, and who accepts them.
+export interface GoScoring {
+  acceptedBy: string[]
+  score: GoCount
+}
+
+// Scores include komi and count dead stones as empty; present when the
+// game was counted.
 export interface GoResult {
   winner?: string
   winnerColor?: GoColor
@@ -68,6 +81,10 @@ export interface GoView {
   lastMove?: GoLastMove
   komi?: number
   result?: GoResult
+  // Stones marked dead; absent when none are.
+  dead?: GoPoint[]
+  // Present only while scoring.
+  scoring?: GoScoring
   moveCount: number
   scoreSheet: GoScoreLine[]
 }
@@ -94,6 +111,10 @@ export interface GoMovePayloads {
   pass: undefined
   resign: undefined
   watch: { gameId: string }
+  // In the scoring, either seat: the group at the point dead, or alive
+  // again. Withdraws both acceptances.
+  markDead: { x: number; y: number }
+  accept: undefined
 }
 
 export type GoMoveName = keyof GoMovePayloads
