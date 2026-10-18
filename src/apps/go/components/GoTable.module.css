@@ -71,6 +71,13 @@
   opacity: 0.35;
 }
 
+.deadMark {
+  stroke: #b22;
+  stroke-width: 0.08;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
 .lastMove {
   fill: none;
   stroke-width: 0.08;

@@ -55,6 +55,7 @@ describe('useGoTable', () => {
     expect(move).toHaveBeenCalledWith('markDead', { x: 4, y: 5 })
     expect(hook.result.current.sent).toBe(true)
     act(() => hook.result.current.handleUpdate({ gameState: { view: view({ phase: 'scoring' }) } }))
+    expect(hook.result.current.sent).toBe(false)
     act(() => hook.result.current.accept())
     expect(move).toHaveBeenCalledWith('accept')
     expect(hook.result.current.sent).toBe(true)

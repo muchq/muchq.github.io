@@ -201,6 +201,10 @@ const Board = ({
           ) : null
         )
       )}
+      {(view.dead ?? []).map(({ x, y }) => (
+        // A cross as well as the fade: a faded white stone is near the wood's colour.
+        <path key={`dead-${x}-${y}`} d={`M${x - 0.25} ${y - 0.25}L${x + 0.25} ${y + 0.25}M${x + 0.25} ${y - 0.25}L${x - 0.25} ${y + 0.25}`} className={styles.deadMark} data-testid={`go-dead-${x}-${y}`} />
+      ))}
       {last?.x !== undefined && last.y !== undefined && (
         <circle cx={last.x} cy={last.y} r={0.2} className={styles.lastMove} data-color={last.color} data-testid="go-last-move" />
       )}
@@ -302,7 +306,8 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
     if (scoring) {
       const count = view.scoring === undefined ? '' : ` Black ${view.scoring.score.black}, White ${view.scoring.score.white}.`
       const accepts = (view.scoring?.acceptedBy ?? []).map(id => (id === playerId ? ' You accept.' : ` ${id} accepts.`)).join('')
-      return `Mark the dead stones, then accept.${count}${accepts}`
+      if (watching) return `Scoring: the players mark dead stones.${count}${accepts}`
+      return `Mark the dead stones, then accept${myTurn ? ', or play on' : ''}.${count}${accepts}`
     }
     // The board only shows the last move; say it.
     const last = view.lastMove
@@ -405,7 +410,16 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
             {(view.phase === 'playing' || scoring) && me !== undefined && (
               <div className={styles.actions}>
                 {scoring ? (
-                  <button type="button" className={felt.primary} onClick={table.accept} disabled={!connected || table.sent || accepted}>
+                  <button
+                    type="button"
+                    className={felt.primary}
+                    onClick={() => {
+                      // Accept is disabled until the hub answers: focus waits on the board.
+                      boardRef.current?.querySelector<SVGElement>('[tabindex="0"]')?.focus()
+                      table.accept()
+                    }}
+                    disabled={!connected || table.sent || accepted}
+                  >
                     Accept
                   </button>
                 ) : (

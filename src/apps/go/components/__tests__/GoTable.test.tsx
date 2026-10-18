@@ -231,20 +231,47 @@ describe('GoTable', () => {
 
   it('in the scoring a tap on a stone marks its group, and the count and acceptances are said', () => {
     const held = mount({ view: scoring() })
-    expect(screen.getByTestId('go-status')).toHaveTextContent('Mark the dead stones, then accept. Black 81, White 6.5. bob accepts.')
+    expect(screen.getByTestId('go-status')).toHaveTextContent(
+      'Mark the dead stones, then accept, or play on. Black 81, White 6.5. bob accepts.'
+    )
     expect(board().getByRole('button', { name: 'B8, white stone, dead: mark alive' })).toBeInTheDocument()
+    expect(screen.getByTestId('go-dead-1-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('go-dead-0-0')).toBeNull()
     fireEvent.click(board().getByRole('button', { name: 'A9, black stone: mark dead' }))
     expect(held.markDead).toHaveBeenCalledWith(0, 0)
     expect(screen.queryByRole('button', { name: 'Pass' })).toBeNull()
   })
 
-  it('accepts the marks, once', () => {
+  it('accepts the marks, once, and hands focus back to the board', () => {
     const held = mount({ view: scoring() })
-    fireEvent.click(screen.getByRole('button', { name: 'Accept' }))
+    const accept = screen.getByRole('button', { name: 'Accept' })
+    accept.focus()
+    fireEvent.click(accept)
     expect(held.accept).toHaveBeenCalled()
+    expect(board().getByRole('button', { name: 'Play E5' })).toHaveFocus()
     cleanup()
     mount({ view: scoring({ scoring: { acceptedBy: ['alice'], score: { black: 81, white: 6.5 } } }) })
     expect(screen.getByRole('button', { name: 'Accept' })).toBeDisabled()
+    expect(screen.getByTestId('go-status')).toHaveTextContent('You accept.')
+  })
+
+  it('the seat off turn marks too, and is not told to play on', () => {
+    const held = mount({ playerId: 'bob', view: scoring() })
+    expect(screen.getByTestId('go-status')).toHaveTextContent(/^Mark the dead stones, then accept\. Black/)
+    fireEvent.click(board().getByRole('button', { name: 'A9, black stone: mark dead' }))
+    expect(held.markDead).toHaveBeenCalledWith(0, 0)
+  })
+
+  it('a move unanswered holds the scoring', () => {
+    mount({ view: scoring(), table: table({ sent: true }) })
+    expect(screen.getByRole('button', { name: 'Accept' })).toBeDisabled()
+    expect(board().queryByRole('button', { name: /mark/ })).toBeNull()
+  })
+
+  it('the clock on turn runs through the scoring', () => {
+    mount({ view: scoring() })
+    expect(screen.getByTestId('go-seat-black')).toHaveAttribute('data-running', 'true')
+    expect(screen.getByTestId('go-seat-white')).toHaveAttribute('data-running', 'false')
   })
 
   it('in the scoring the seat on turn may play on; the other may not', () => {
@@ -256,8 +283,9 @@ describe('GoTable', () => {
     expect(board().queryByRole('button', { name: 'Play C9' })).toBeNull()
   })
 
-  it('a watcher of the scoring marks nothing', () => {
+  it('a watcher of the scoring marks nothing and is told what is happening', () => {
     mount({ playerId: 'carol', view: scoring() })
+    expect(screen.getByTestId('go-status')).toHaveTextContent('Scoring: the players mark dead stones. Black 81, White 6.5. bob accepts.')
     expect(board().queryByRole('button', { name: /mark/ })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Accept' })).toBeNull()
   })
