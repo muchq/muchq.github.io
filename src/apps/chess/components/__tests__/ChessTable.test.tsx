@@ -315,7 +315,7 @@ describe('ChessTable', () => {
   })
 
   describe('premoving', () => {
-    const offTurn = () => view({ sideToMove: 'black', currentPlayerId: 'bob', legalMoves: ['h8g7', 'h8g8'] })
+    const offTurn = (over: Partial<ChessView> = {}) => view({ sideToMove: 'black', currentPlayerId: 'bob', legalMoves: ['h8g7', 'h8g8'], ...over })
 
     it('queues one move off turn and sends it when the hub says it is legal', () => {
       const { t, rerender } = mountWith(offTurn())
@@ -412,6 +412,50 @@ describe('ChessTable', () => {
       expect(square('e7')).toHaveAttribute('aria-pressed', 'true')
       expect(screen.queryByRole('button', { name: 'Cancel premove' })).toBeNull()
       expect(t.play).not.toHaveBeenCalled()
+    })
+
+    it('queues a capture of the opponent’s piece', () => {
+      // Black Nf7 beside White Kg6, bob on turn.
+      const { t, rerender } = mountWith(offTurn({ fen: '7k/4Pn2/6K1/8/8/8/8/8 b - - 0 1' }))
+      fireEvent.click(square('g6'))
+      fireEvent.click(square('f7'))
+      expect(status()).toHaveTextContent('Premove queued: g6 to f7.')
+      rerender(view({ fen: '6k1/4Pn2/6K1/8/8/8/8/8 w - - 0 1', legalMoves: ['g6f7'] }))
+      expect(t.play).toHaveBeenCalledWith('g6f7')
+    })
+
+    // A recapture: off turn the square still holds the viewer's own piece,
+    // the one the opponent is about to take. A piece that reaches it queues
+    // there; one that cannot picks the other piece up instead.
+    it('queues a recapture onto a square the viewer’s own piece stands on', () => {
+      // White Kg6, Pe7, Pf7 against Kh8.
+      const recapture = offTurn({ fen: '7k/4PP2/6K1/8/8/8/8/8 b - - 0 1' })
+      const { t, rerender } = mountWith(recapture)
+      fireEvent.click(square('g6'))
+      fireEvent.click(square('f7'))
+      expect(status()).toHaveTextContent('Premove queued: g6 to f7.')
+      expect(square('f7')).toHaveAttribute('data-premove', 'to')
+      rerender(view({ fen: '8/4Pk2/6K1/8/8/8/8/8 w - - 0 1', legalMoves: ['g6f7'] }))
+      expect(t.play).toHaveBeenCalledWith('g6f7')
+    })
+
+    it('queues a recapture by drag', () => {
+      mountWith(offTurn({ fen: '7k/4PP2/6K1/8/8/8/8/8 b - - 0 1' }))
+      document.elementFromPoint = () => square('f7')
+      fireEvent.pointerDown(square('g6'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerMove(square('g6'), { pointerId: 1, clientX: 40, clientY: 40 })
+      fireEvent.pointerUp(square('g6'), { pointerId: 1, clientX: 40, clientY: 40 })
+      expect(status()).toHaveTextContent('Premove queued: g6 to f7.')
+    })
+
+    it('picks up an own piece dropped on that the dragged one cannot reach', () => {
+      mountWith(offTurn())
+      document.elementFromPoint = () => square('e7')
+      fireEvent.pointerDown(square('g6'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerMove(square('g6'), { pointerId: 1, clientX: 40, clientY: 40 })
+      fireEvent.pointerUp(square('g6'), { pointerId: 1, clientX: 40, clientY: 40 })
+      expect(square('e7')).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.queryByRole('button', { name: 'Cancel premove' })).toBeNull()
     })
 
     it('cannot queue a premove after the game has ended', () => {

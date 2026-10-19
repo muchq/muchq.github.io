@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import type { ChessTableActions } from '@/hooks/useChessTable'
 import felt from '@/apps/cards/felt.module.css'
 import type { ChessColor, ChessView } from '../wire'
-import { CLOCKS, applyMove, clockLabel, describeMove, describeResult, describeExtras, formatClock, imbalance, lastMoveSquares, materialBalance, movesTo, nameOf, pieceImage, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
+import { CLOCKS, applyMove, clockLabel, covers, describeMove, describeResult, describeExtras, formatClock, imbalance, lastMoveSquares, materialBalance, movesTo, nameOf, pieceImage, pieceName, readBoard, squaresFor, targetsFrom } from '../rules'
 import styles from './ChessTable.module.css'
 import ScoreSheet from './ScoreSheet'
 import AboutGame from '@/apps/lobby/components/AboutGame'
@@ -273,9 +273,9 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     const piece = board.get(square)
     const movable =
       piece !== undefined && colorOfPiece(piece) === myColor && (!myTurn || targetsFrom(view.legalMoves, square).length > 0)
-    // Off turn, another own piece changes the intended mover instead of
-    // queueing a self-capture that the hub could never accept.
-    if (from !== null && !myTurn && movable) {
+    // Off turn, another own piece changes the intended mover — unless the
+    // one picked up covers it, which is a recapture queued.
+    if (from !== null && !myTurn && movable && !covers(board.get(from) ?? '', from, square)) {
       setPicked(square === from ? null : { view, square })
       return
     }
@@ -336,7 +336,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     dragged.current = true
     const square = squareAt(event.clientX, event.clientY)
     const piece = square === null ? undefined : board.get(square)
-    if (!myTurn && square !== null && piece !== undefined && colorOfPiece(piece) === myColor) {
+    if (!myTurn && square !== null && piece !== undefined && colorOfPiece(piece) === myColor && !covers(board.get(held.square) ?? '', held.square, square)) {
       setPicked({ view, square })
       return
     }

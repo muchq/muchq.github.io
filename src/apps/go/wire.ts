@@ -65,10 +65,20 @@ export interface GoScoreLine {
   ending: GoEnding
 }
 
+// A challenge's terms, the hub's defaults filled in.
+export interface GoTerms {
+  size: GoBoardSize
+  komi: number
+  initialSeconds: number
+  incrementSeconds: number
+}
+
 export interface GoView {
   gameId: string
   phase: GoPhase
   players: GoPlayer[]
+  // The posted challenge, while the table waits on it.
+  terms?: GoTerms
   // Absent while waiting.
   size?: GoBoardSize
   // One string per row from the top, one character per point: '.', 'b' or 'w'.
@@ -115,6 +125,9 @@ export interface GoMovePayloads {
   // again. Withdraws both acceptances.
   markDead: { x: number; y: number }
   accept: undefined
+  // A lone seat's terms for whoever joins to start on; posting again
+  // replaces them.
+  challenge: GoMovePayloads['startGame']
 }
 
 export type GoMoveName = keyof GoMovePayloads

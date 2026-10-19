@@ -3,6 +3,7 @@ import {
   imbalance,
   materialBalance,
   applyMove,
+  covers,
   analysisUrl,
   moveRows,
   nameOf,
@@ -68,6 +69,34 @@ describe('moves from the legal list', () => {
     expect(movesTo(legal, 'g6', 'f7')).toEqual(['g6f7'])
     expect(movesTo(legal, 'e7', 'e8')).toEqual(['e7e8b', 'e7e8n', 'e7e8q', 'e7e8r'])
     expect(movesTo(legal, 'e7', 'e6')).toEqual([])
+  })
+})
+
+// What a premove onto the viewer's own piece may recapture: each piece's
+// reach on an empty board, and nothing it does not reach.
+describe('covers', () => {
+  it('each piece takes where it moves, a pawn only forward diagonally', () => {
+    expect(covers('P', 'e4', 'd5')).toBe(true)
+    expect(covers('P', 'e4', 'f5')).toBe(true)
+    expect(covers('P', 'e4', 'e5')).toBe(false)
+    expect(covers('P', 'e4', 'd3')).toBe(false)
+    expect(covers('p', 'e5', 'd4')).toBe(true)
+    expect(covers('p', 'e5', 'd6')).toBe(false)
+    expect(covers('N', 'g1', 'f3')).toBe(true)
+    expect(covers('N', 'g1', 'g3')).toBe(false)
+    expect(covers('b', 'c8', 'h3')).toBe(true)
+    expect(covers('b', 'c8', 'c3')).toBe(false)
+    expect(covers('R', 'a1', 'a8')).toBe(true)
+    expect(covers('R', 'a1', 'b2')).toBe(false)
+    expect(covers('Q', 'd1', 'h5')).toBe(true)
+    expect(covers('Q', 'd1', 'd8')).toBe(true)
+    expect(covers('Q', 'd1', 'e3')).toBe(false)
+    expect(covers('K', 'g6', 'f7')).toBe(true)
+    expect(covers('K', 'g6', 'e7')).toBe(false)
+  })
+
+  it('nothing covers its own square', () => {
+    expect(covers('Q', 'd1', 'd1')).toBe(false)
   })
 })
 
