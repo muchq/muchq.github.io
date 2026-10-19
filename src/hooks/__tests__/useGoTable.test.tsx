@@ -109,6 +109,12 @@ describe('useGoTable', () => {
     expect(onLeft).toHaveBeenCalledTimes(1)
   })
 
+  it('posts a challenge’s terms for whoever joins to start on', () => {
+    const { hook, move } = setup()
+    act(() => hook.result.current.postChallenge({ size: 13, initialSeconds: 300, incrementSeconds: 3 }))
+    expect(move).toHaveBeenCalledWith('challenge', { size: 13, initialSeconds: 300, incrementSeconds: 3 })
+  })
+
   it('watches a table by its id', () => {
     const { hook, move } = setup()
     act(() => hook.result.current.watchTable('G07'))
