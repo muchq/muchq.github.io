@@ -49,6 +49,18 @@ describe('useGoTable', () => {
     expect(hook.result.current.sent).toBe(false)
   })
 
+  it('a mark and an acceptance are sent and held until the next view', () => {
+    const { hook, move } = setup()
+    act(() => hook.result.current.markDead(4, 5))
+    expect(move).toHaveBeenCalledWith('markDead', { x: 4, y: 5 })
+    expect(hook.result.current.sent).toBe(true)
+    act(() => hook.result.current.handleUpdate({ gameState: { view: view({ phase: 'scoring' }) } }))
+    expect(hook.result.current.sent).toBe(false)
+    act(() => hook.result.current.accept())
+    expect(move).toHaveBeenCalledWith('accept')
+    expect(hook.result.current.sent).toBe(true)
+  })
+
   it('a refusal lets a pass go', () => {
     const { hook, move } = setup()
     act(() => hook.result.current.pass())
