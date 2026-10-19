@@ -8,6 +8,8 @@ import type { GoBoardSize, GoMoveName, GoMovePayloads, GoUpdate, GoView } from '
 export interface GoTableActions {
   // Board size, komi and clock; absent fields use the hub's defaults.
   startTable: (terms?: GoMovePayloads['startGame']) => void
+  // Alone at the table: the terms whoever joins starts on.
+  postChallenge: (terms: GoMovePayloads['challenge']) => void
   leaveTable: () => void
   // Another game: the table's next, on its clock and komi, while it is
   // open; a new table once it has closed.
@@ -87,6 +89,7 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
   )
   const watchTable = useCallback((gameId: string) => move('watch', { gameId }), [move])
   const startTable = useCallback((terms: GoMovePayloads['startGame'] = {}) => move('startGame', terms), [move])
+  const postChallenge = useCallback((terms: GoMovePayloads['challenge']) => move('challenge', terms), [move])
   const playAgain = useCallback(
     (size?: GoBoardSize) => {
       setOpening(true)
@@ -147,6 +150,7 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
     joinTable,
     watchTable,
     startTable,
+    postChallenge,
     leaveTable,
     playAgain,
     play,
