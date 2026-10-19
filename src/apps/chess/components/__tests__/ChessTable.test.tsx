@@ -502,6 +502,45 @@ describe('ChessTable', () => {
     })
   })
 
+  // A right click marks a square for the viewer alone, as on lichess: a
+  // second one unmarks it, a left press on the board clears them all. It
+  // sends nothing and picks nothing up.
+  describe('marking squares', () => {
+    const marked = () =>
+      within(screen.getByRole('group', { name: 'board' }))
+        .getAllByRole('button')
+        .filter(cell => cell.getAttribute('data-marked') === 'true')
+        .map(cell => cell.dataset.square)
+
+    it('toggles a square on right click, without the browser menu or a move', () => {
+      const { t } = mountWith(view())
+      expect(fireEvent.contextMenu(square('d4'))).toBe(false)
+      fireEvent.contextMenu(square('g6'))
+      expect(marked()).toEqual(['g6', 'd4'])
+      expect(square('g6')).toHaveAttribute('aria-pressed', 'false')
+      fireEvent.contextMenu(square('d4'))
+      expect(marked()).toEqual(['g6'])
+      expect(t.play).not.toHaveBeenCalled()
+    })
+
+    it('a left press on the board clears the marks; a right press does not', () => {
+      mountWith(view())
+      fireEvent.contextMenu(square('d4'))
+      fireEvent.pointerDown(square('a1'), { pointerId: 1, button: 2 })
+      expect(marked()).toEqual(['d4'])
+      fireEvent.pointerDown(square('a1'), { pointerId: 1, button: 0 })
+      expect(marked()).toEqual([])
+    })
+
+    it('marks off turn, and for a watcher, but not into a new game', () => {
+      const { rerender } = mountWith(view({ sideToMove: 'black', currentPlayerId: 'bob' }), {}, 'carol')
+      fireEvent.contextMenu(square('d4'))
+      expect(marked()).toEqual(['d4'])
+      rerender(view({ gameId: 'G2' }))
+      expect(marked()).toEqual([])
+    })
+  })
+
   // A drag is a press that moves: the piece follows the pointer, the
   // squares it reaches show, and letting go on one plays it. Mouse and touch
   // alike are pointer events; where it lands is the square under the

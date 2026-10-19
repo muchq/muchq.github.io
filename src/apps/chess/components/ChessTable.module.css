@@ -143,6 +143,11 @@
   box-shadow: inset 0 0 0 100vmax rgba(215, 72, 72, 0.42);
 }
 
+/* A square the viewer marked with a right click: over the other tints. */
+.square[data-marked='true'] {
+  box-shadow: inset 0 0 0 100vmax rgba(235, 97, 80, 0.8);
+}
+
 /* The premove's arrow, over the pieces and under the promotion picker. */
 .arrows {
   position: absolute;
