@@ -60,6 +60,33 @@ export function movesTo(legal: string[], from: string, to: string): string[] {
   return legal.filter(uci => uci.slice(0, 2) === from && uci.slice(2, 4) === to)
 }
 
+// Whether the piece on `from` could take on `to`, on an otherwise empty
+// board: what a premove onto the viewer's own piece needs, since that
+// square is a recapture only once the opponent takes there. Nothing
+// blocks a slider; the hub decides when the turn comes.
+export function covers(piece: string, from: string, to: string): boolean {
+  const df = to.charCodeAt(0) - from.charCodeAt(0)
+  const dr = Number(to[1]) - Number(from[1])
+  const [x, y] = [Math.abs(df), Math.abs(dr)]
+  if (x === 0 && y === 0) return false
+  switch (piece.toLowerCase()) {
+    case 'p':
+      return x === 1 && dr === (piece === 'P' ? 1 : -1)
+    case 'n':
+      return x * y === 2
+    case 'b':
+      return x === y
+    case 'r':
+      return x === 0 || y === 0
+    case 'q':
+      return x === y || x === 0 || y === 0
+    case 'k':
+      return x <= 1 && y <= 1
+    default:
+      return false
+  }
+}
+
 // The board once `uci` lands, for drawing a move the hub has not yet
 // answered: its rook too when a king castles, the pawn beside when one
 // takes en passant. The hub's next view is the truth; this only bridges.
