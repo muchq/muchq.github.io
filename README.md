@@ -75,8 +75,8 @@ the hub lists it when the turn arrives (the client holds no rules), a server-own
 score notepad as the table plays on: Next game starts another there, sides swapped. Any chess table can be
 watched from the lobby by a member at none: the same board from White's side, read-only, until Stop watching,
 a seat taken, a reconnect, or the hub's `gameLeft` for a table gone before it started (MoonBase#1633). Alone at a
-waiting table, the seat posts a challenge (position and clock) where two seats would press Start; the lobby lists its
-terms and **Accept** joins and starts on them. A room keeps its finished chess games (MoonBase#1637): the lobby's Chess
+waiting chess or go table, the seat posts a challenge (chess: position and clock; go: board, komi and clock) where two
+seats would press Start; the lobby lists its terms and **Accept** joins and starts on them. A room keeps its finished chess games (MoonBase#1637): the lobby's Chess
 games section lists them, and Review game at a table's end or Review in the list opens `GameReview` over everything, the
 hub's positions stepped through by button, arrow key or move list, with the hub's PGN to download and the position shown
 on lichess's analysis board. Every room's games are published: on arriving in a room the lobby asks for its chess

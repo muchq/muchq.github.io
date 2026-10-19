@@ -258,12 +258,26 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
   // against; otherwise the picker shows the table's.
   const [sizeChoice, setSizeChoice] = useState<{ against?: GoBoardSize; size: GoBoardSize } | null>(null)
   const size = sizeChoice !== null && sizeChoice.against === view.size ? sizeChoice.size : (view.size ?? view.terms?.size ?? 19)
-  // A posted challenge's clock shows until another is picked.
+  // The offered clocks, and a posted challenge's among them even when it
+  // is none of those, so updating the challenge never quietly changes it.
   const [clockChoice, setClock] = useState<string | null>(null)
-  const postedClock = Object.keys(CLOCKS).find(
-    name => CLOCKS[name].initialSeconds === view.terms?.initialSeconds && CLOCKS[name].incrementSeconds === view.terms?.incrementSeconds
-  )
-  const clock = clockChoice ?? postedClock ?? Object.keys(CLOCKS)[0]
+  const clocks =
+    view.terms === undefined
+      ? CLOCKS
+      : {
+          ...CLOCKS,
+          [clockLine(view.terms.initialSeconds, view.terms.incrementSeconds)]: {
+            initialSeconds: view.terms.initialSeconds,
+            incrementSeconds: view.terms.incrementSeconds
+          }
+        }
+  // A choice no longer offered (its terms gone) falls back.
+  const clock =
+    clockChoice !== null && clockChoice in clocks
+      ? clockChoice
+      : view.terms === undefined
+        ? Object.keys(CLOCKS)[0]
+        : clockLine(view.terms.initialSeconds, view.terms.incrementSeconds)
   // Held for one view: any move answered puts the question away.
   const [confirmResign, setConfirmResign] = useState<GoView | null>(null)
   // Held for one phase: the game ending or starting puts them away.
@@ -308,12 +322,12 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
 
   const status = (() => {
     if (view.phase === 'waiting') {
-      const terms = view.terms
-      if (terms !== undefined) {
-        return `Challenge posted: ${terms.size}×${terms.size}, komi ${terms.komi}, ${clockLine(terms.initialSeconds, terms.incrementSeconds)}. Whoever joins starts on it.`
+      if (view.terms !== undefined) {
+        const posted = `Challenge posted: ${view.terms.size}×${view.terms.size}, komi ${view.terms.komi}, ${clockLine(view.terms.initialSeconds, view.terms.incrementSeconds)}.`
+        return watching || !alone ? posted : `${posted} Whoever joins starts on it.`
       }
       if (watching) return 'Waiting for the players to start.'
-      return view.players.length < 2 ? 'Post a challenge, or wait for a second seat.' : 'Pick a board and clock, then start.'
+      return alone ? 'Post a challenge, or wait for a second seat.' : 'Pick a board and clock, then start.'
     }
     if (view.phase === 'ended' || view.result !== undefined) return view.result === undefined ? '' : describeResult(view.result, playerId)
     if (view.phase === 'closed') return watching ? 'The table closed.' : 'Your opponent left the table.'
@@ -389,7 +403,7 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
             <div className={styles.actions}>
               {sizePicker('Board size')}
               <select aria-label="Clock" value={clock} onChange={event => setClock(event.target.value)}>
-                {Object.keys(CLOCKS).map(name => (
+                {Object.keys(clocks).map(name => (
                   <option key={name} value={name}>
                     {name}
                   </option>
@@ -400,7 +414,7 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
               <button
                 type="button"
                 className={felt.primary}
-                onClick={() => (alone ? table.postChallenge : table.startTable)({ size, ...CLOCKS[clock] })}
+                onClick={() => (alone ? table.postChallenge : table.startTable)({ size, ...clocks[clock] })}
                 disabled={!connected}
               >
                 {!alone ? 'Start' : view.terms === undefined ? 'Post challenge' : 'Update challenge'}

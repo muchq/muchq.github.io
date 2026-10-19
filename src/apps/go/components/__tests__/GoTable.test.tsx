@@ -186,10 +186,31 @@ describe('GoTable', () => {
     expect(held.postChallenge).toHaveBeenCalledWith({ size: 9, initialSeconds: 300, incrementSeconds: 3 })
   })
 
+  // A start that failed leaves two seats at a table still showing terms:
+  // Start, on them — and the status no longer waits for a joiner.
+  it('with two seats, starts on the posted terms and no longer waits for a joiner', () => {
+    const terms = { size: 13 as const, komi: 6.5, initialSeconds: 300, incrementSeconds: 3 }
+    const held = mount({ view: view({ phase: 'waiting', size: undefined, board: undefined, terms }) })
+    expect(screen.getByTestId('go-status').textContent).toBe('Challenge posted: 13×13, komi 6.5, 5+3.')
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    expect(held.startTable).toHaveBeenCalledWith({ size: 13, initialSeconds: 300, incrementSeconds: 3 })
+  })
+
+  // A posted clock outside the local presets stays in the picker, so
+  // Update never quietly rewrites it.
+  it('keeps a posted clock the presets do not offer', () => {
+    const terms = { size: 9 as const, komi: 5.5, initialSeconds: 60, incrementSeconds: 0 }
+    const held = mount({ view: view({ phase: 'waiting', players: [{ playerId: 'alice' }], size: undefined, board: undefined, terms }) })
+    expect(screen.getByTestId('go-status').textContent).toBe('Challenge posted: 9×9, komi 5.5, 1+0. Whoever joins starts on it.')
+    expect((screen.getByRole('combobox', { name: 'Clock' }) as HTMLSelectElement).value).toBe('1+0')
+    fireEvent.click(screen.getByRole('button', { name: 'Update challenge' }))
+    expect(held.postChallenge).toHaveBeenCalledWith({ size: 9, initialSeconds: 60, incrementSeconds: 0 })
+  })
+
   it('a watcher of a challenge is told its terms and posts nothing', () => {
     const terms = { size: 9 as const, komi: 6.5, initialSeconds: 600, incrementSeconds: 5 }
     mount({ playerId: 'carol', view: view({ phase: 'waiting', players: [{ playerId: 'alice' }], size: undefined, board: undefined, terms }) })
-    expect(screen.getByTestId('go-status').textContent).toBe('Challenge posted: 9×9, komi 6.5, 10+5. Whoever joins starts on it.')
+    expect(screen.getByTestId('go-status').textContent).toBe('Challenge posted: 9×9, komi 6.5, 10+5.')
     expect(screen.queryByRole('button', { name: /challenge/ })).toBeNull()
   })
 
