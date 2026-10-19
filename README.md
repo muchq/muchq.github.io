@@ -71,7 +71,7 @@ rummy) or Chess (`catalog.ts`), and each game says what it is at its own table w
 those rather than naming games. The card games share the felt, the card faces and the seating
 (`apps/cards/`). `ChessTable` and `useChessTable`
 are chess's: two seats, the board from the viewer's side (tap a piece then its square, or drag it), one cancellable premove that is sent only if
-the hub lists it when the turn arrives (the client holds no rules), a server-owned starting-position picker before each game, the clocks counted down from each view, and a
+the hub lists it when the turn arrives (the client holds no rules; piece geometry only tells a recapture premove onto its own piece from picking that piece up), a server-owned starting-position picker before each game, the clocks counted down from each view, and a
 score notepad as the table plays on: Next game starts another there, sides swapped. Any chess table can be
 watched from the lobby by a member at none: the same board from White's side, read-only, until Stop watching,
 a seat taken, a reconnect, or the hub's `gameLeft` for a table gone before it started (MoonBase#1633). Alone at a
