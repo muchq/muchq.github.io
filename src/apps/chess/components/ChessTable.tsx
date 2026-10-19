@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import type { PointerEvent as ReactPointerEvent } from 'react'
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import type { ChessTableActions } from '@/hooks/useChessTable'
 import felt from '@/apps/cards/felt.module.css'
@@ -168,6 +168,8 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const [picked, setPicked] = useState<{ view: ChessView; square: string } | null>(null)
   const [promoting, setPromoting] = useState<{ view: ChessView; from: string; to: string; moves: string[] } | null>(null)
   const [premove, setPremove] = useState<{ gameId: string; from: string; to: string } | null>(null)
+  // Squares the viewer marked with a right click, for this game only.
+  const [marks, setMarks] = useState<{ gameId: string; squares: string[] }>({ gameId: view.gameId, squares: [] })
   const [premoveDispatch, setPremoveDispatch] = useState<{ to: string; move?: string } | null>(null)
   const [confirmResign, setConfirmResign] = useState<ChessView | null>(null)
   const [clockChoice, setClockChoice] = useState<string | null>(null)
@@ -205,6 +207,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const inert = watching || !connected || view.phase !== 'playing' || sent !== null
   const from = picked?.view === view ? picked.square : null
   const queuedPremove = premove?.gameId === view.gameId ? premove : null
+  const marked = marks.gameId === view.gameId ? marks.squares : []
   const pendingPromotion = promoting?.view === view ? promoting : null
   const targets = !myTurn || from === null ? [] : targetsFrom(view.legalMoves, from)
   const board = readBoard(view.fen)
@@ -295,11 +298,17 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
 
   const onPointerDown = (event: ReactPointerEvent, square: string) => {
     dragged.current = false
+    if (event.button === 0 && marked.length > 0) setMarks({ gameId: view.gameId, squares: [] })
     if (inert || event.button !== 0) return
     const piece = board.get(square)
     if (piece === undefined || colorOfPiece(piece) !== myColor) return
     if (myTurn && targetsFrom(view.legalMoves, square).length === 0) return
     press.current = { id: event.pointerId, square, x: event.clientX, y: event.clientY, moving: false }
+  }
+  const toggleMark = (event: ReactMouseEvent, square: string) => {
+    event.preventDefault()
+    const squares = marked.includes(square) ? marked.filter(other => other !== square) : [...marked, square]
+    setMarks({ gameId: view.gameId, squares })
   }
   const onPointerMove = (event: ReactPointerEvent) => {
     const held = press.current
@@ -523,10 +532,12 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                     data-check={piece !== undefined && piece === checkedKing ? 'true' : undefined}
                     data-grab={grab ? 'true' : undefined}
                     data-premove={premoveMark}
+                    data-marked={marked.includes(square) ? 'true' : undefined}
                     // Under the picker's scrim, out of reach of the keyboard as of the pointer.
                     inert={pendingPromotion !== null}
                     onPointerDown={event => onPointerDown(event, square)}
                     onClick={() => tap(square)}
+                    onContextMenu={event => toggleMark(event, square)}
                   >
                     {index % 8 === 0 && (
                       <span className={styles.rank} aria-hidden="true" data-testid="coordinate">
