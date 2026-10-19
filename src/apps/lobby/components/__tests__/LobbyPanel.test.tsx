@@ -473,14 +473,14 @@ describe('LobbyPanel', () => {
     it('shows a pair’s round robin, however small the room', () => {
       const pair = roundRobinRoom({ players: roundRobinRoom().players.slice(0, 2) })
       render(<LobbyPanel lobby={lobby({ room: pair, chess: chess(null, [roundRobin()]) })} />)
-      expect(section().getByRole('heading', { name: 'Round robin E1 by alice' })).toBeTruthy()
+      expect(section().getByRole('heading', { name: 'Chess round robin E1 by alice' })).toBeTruthy()
     })
 
     it('shows each one’s creator, terms, standings and pairings', () => {
       const withdrawn = roundRobin({ withdrawn: ['carol'] })
       withdrawn.standings[2].withdrawn = true
       render(<LobbyPanel lobby={lobby({ playerId: 'dave', room: roundRobinRoom(), chess: chess(null, [withdrawn]) })} />)
-      const entry = within(section().getByRole('listitem', { name: 'Round robin E1 by alice' }))
+      const entry = within(section().getByRole('listitem', { name: 'Chess round robin E1 by alice' }))
       expect(entry.getByText('5+3 · Standard starting position · 1 of 3 decided')).toBeTruthy()
       expect(entry.queryByRole('list', { name: 'Standings' })).toBeNull()
       expect(entry.getByRole('button', { name: /^Details/ })).toHaveAttribute('aria-expanded', 'false')
@@ -627,12 +627,12 @@ describe('LobbyPanel', () => {
         standings: []
       }
       render(<LobbyPanel lobby={lobby({ room: roundRobinRoom(), chess: chess(null, [roundRobin()]), pong: pong(null) })} />)
-      expect(section().getByRole('heading', { name: 'Round robin E1 by alice' })).toBeTruthy()
+      expect(section().getByRole('heading', { name: 'Chess round robin E1 by alice' })).toBeTruthy()
       cleanup()
       const hook = lobby({ room: roundRobinRoom(), chess: chess(null, [roundRobin()]), pong: pong([held]) })
       render(<LobbyPanel lobby={hook} />)
-      expect(section().getAllByRole('heading', { level: 3 }).map(heading => heading.textContent)).toEqual(['Round robin E1 by alice', 'Round robin E2 by alice'])
-      const entry = within(section().getByRole('listitem', { name: 'Round robin E2 by alice' }))
+      expect(section().getAllByRole('heading', { level: 3 }).map(heading => heading.textContent)).toEqual(['Chess round robin E1 by alice', 'Pong round robin E2 by alice'])
+      const entry = within(section().getByRole('listitem', { name: 'Pong round robin E2 by alice' }))
       expect(entry.getByText('Pong · 3D · 1 of 3 decided')).toBeTruthy()
       fireEvent.click(entry.getByRole('button', { name: 'Play bob' }))
       expect(hook.pong.playRoundRobin).toHaveBeenCalledWith('E2', 'bob')
@@ -713,7 +713,7 @@ describe('LobbyPanel', () => {
       }
       const hook = lobby({ room: roundRobinRoom(), chess: chess(null, []), go: goHook([held]) })
       render(<LobbyPanel lobby={hook} />)
-      const entry = within(section().getByRole('listitem', { name: 'Round robin G2 by alice' }))
+      const entry = within(section().getByRole('listitem', { name: 'Go round robin G2 by alice' }))
       expect(entry.getByText('Go · 9×9 · komi 6.5 · 10+5 · 1 of 3 decided')).toBeTruthy()
       fireEvent.click(entry.getByRole('button', { name: 'Play bob' }))
       expect(hook.go.playRoundRobin).toHaveBeenCalledWith('G2', 'bob')
@@ -728,7 +728,7 @@ describe('LobbyPanel', () => {
       newOne()
       expect(button('New round robin')).toHaveAttribute('aria-expanded', 'true')
       const form = section().getByRole('group', { name: 'Entrants' })
-      const listed = section().getByRole('heading', { name: 'Round robin E1 by alice' })
+      const listed = section().getByRole('heading', { name: 'Chess round robin E1 by alice' })
       expect(form.compareDocumentPosition(listed) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })
 

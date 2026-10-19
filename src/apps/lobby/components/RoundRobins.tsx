@@ -20,9 +20,13 @@ interface Props {
   busy: boolean
 }
 
+// Named in each entry's heading: a player may be paired with the same
+// opponent in more than one game's.
+const GAME_NAMES = { chess: 'Chess', pong: 'Pong', go: 'Go' } as const
+
 const Entry = ({ lobby, roundRobin, disabled, busy }: Props & { roundRobin: HeldRoundRobin }) => {
   // Each game's round robins are moved in its own envelope.
-  const table = roundRobin.game === 'pong' ? lobby.pong : roundRobin.game === 'go' ? lobby.go : lobby.chess
+  const table = lobby[roundRobin.game]
   const { playerId, room } = lobby
   const headingId = useId()
   // Standings, pairings and moderation fold away: the entry's first job
@@ -40,7 +44,7 @@ const Entry = ({ lobby, roundRobin, disabled, busy }: Props & { roundRobin: Held
   return (
     <li className={styles.entry} aria-labelledby={headingId}>
       <h3 id={headingId}>
-        Round robin {roundRobin.roundRobinId} by {roundRobin.creator}
+        {GAME_NAMES[roundRobin.game]} round robin {roundRobin.roundRobinId} by {roundRobin.creator}
       </h3>
       <p className={styles.muted}>
         {roundRobin.terms} · {decided} of {counted.length} decided

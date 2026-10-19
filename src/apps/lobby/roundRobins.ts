@@ -14,7 +14,7 @@ export interface HeldPairing {
   // Chess's white, pong's end 0, go's black.
   first: string
   second: string
-  // Absent until decided: chess's score, or pong's winner.
+  // Absent until decided: chess's score, or pong's or go's winner.
   score?: string
   forfeit: boolean
   voided: boolean
@@ -53,10 +53,8 @@ export const fromPong = (roundRobin: PongRoundRobin): HeldRoundRobin => ({
   pairings: roundRobin.pairings.map(({ winner, ...pairing }) => ({ ...pairing, ...(winner === undefined ? {} : { score: `${winner} won` }) }))
 })
 
-// Black moves first in go, so it is named first and its score reads from
-// Black's side.
-const GO_SCORE = { black: '1-0', white: '0-1', draw: '½-½' } as const
-
+// Black moves first in go, so it is named first. A result names its
+// winner, as pong's does: a score reads as chess's.
 export const fromGo = (roundRobin: GoRoundRobin): HeldRoundRobin => ({
   ...roundRobin,
   game: 'go',
@@ -65,7 +63,7 @@ export const fromGo = (roundRobin: GoRoundRobin): HeldRoundRobin => ({
     ...pairing,
     first: black,
     second: white,
-    ...(result === undefined ? {} : { score: GO_SCORE[result] })
+    ...(result === undefined ? {} : { score: result === 'draw' ? 'draw' : `${result === 'black' ? black : white} won` })
   }))
 })
 
@@ -74,7 +72,7 @@ export const fromGo = (roundRobin: GoRoundRobin): HeldRoundRobin => ({
 export const roomRoundRobins = (
   chess: ChessRoundRobin[] | null,
   pong: PongRoundRobin[] | null,
-  go: GoRoundRobin[] | null = null
+  go: GoRoundRobin[] | null
 ): HeldRoundRobin[] | null =>
   chess === null && pong === null && go === null
     ? null

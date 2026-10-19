@@ -321,8 +321,9 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
           terms === undefined
             ? 'Round robin pairing.'
             : `Round robin pairing: ${terms.size}×${terms.size}, komi ${terms.komi}, ${clockLine(terms.initialSeconds, terms.incrementSeconds)}.`
-        if (watching) return alone ? `${said} It starts when both players sit.` : said
-        return alone ? `${said} It starts when your opponent sits.` : `${said} Start it on those terms.`
+        // The hub starts it as the second seat fills.
+        if (!alone) return said
+        return watching ? `${said} It starts when both players sit.` : `${said} It starts when your opponent sits.`
       }
       if (terms !== undefined) {
         const posted = `Challenge posted: ${terms.size}×${terms.size}, komi ${terms.komi}, ${clockLine(terms.initialSeconds, terms.incrementSeconds)}.`
@@ -401,13 +402,6 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
               <li key={player.playerId}>{player.playerId === playerId ? `${player.playerId} (you)` : player.playerId}</li>
             ))}
           </ul>
-          {!watching && pairing && !alone && (
-            <div className={styles.actions}>
-              <button type="button" className={felt.primary} onClick={() => table.startTable()} disabled={!connected}>
-                Start
-              </button>
-            </div>
-          )}
           {!watching && !pairing && (
             <div className={styles.actions}>
               {sizePicker('Board size')}

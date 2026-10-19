@@ -131,9 +131,9 @@ describe('round robins', () => {
     expect(read.pairings.map(pairingLine)).toEqual(['alice – bob · bob won'])
   })
 
-  // Black moves first in go, so it is named first, and a score reads from
-  // Black's side.
-  it('reads a go round robin: black first, its result as a score from black’s side, its terms the board, komi and clock', () => {
+  // Black moves first in go, so it is named first; a result names its
+  // winner, as pong's does, since a score reads as chess's.
+  it('reads a go round robin: black first, its winner named, its terms the board, komi and clock', () => {
     const read = fromGo(
       go({
         pairings: [
@@ -145,16 +145,16 @@ describe('round robins', () => {
     )
     expect(read.game).toBe('go')
     expect(read.terms).toBe('Go · 13×13 · komi 6.5 · 5+3')
-    expect(read.pairings.map(pairingLine)).toEqual(['bob – alice · 1-0', 'carol – bob · ½-½', 'alice – carol · 0-1'])
+    expect(read.pairings.map(pairingLine)).toEqual(['bob – alice · bob won', 'carol – bob · draw', 'alice – carol · carol won'])
   })
 
   // One list for the room, chess first: each game's as soon as it answers,
   // so one game's silence hides nothing of the other's.
   it('lists the room’s round robins of each game that has answered', () => {
-    expect(roomRoundRobins(null, null)).toBeNull()
-    expect(roomRoundRobins(null, [pong()])?.map(entry => entry.roundRobinId)).toEqual(['P1'])
-    expect(roomRoundRobins([chess()], null)?.map(entry => entry.roundRobinId)).toEqual(['E1'])
-    expect(roomRoundRobins([chess()], [pong()])?.map(entry => [entry.game, entry.roundRobinId])).toEqual([
+    expect(roomRoundRobins(null, null, null)).toBeNull()
+    expect(roomRoundRobins(null, [pong()], null)?.map(entry => entry.roundRobinId)).toEqual(['P1'])
+    expect(roomRoundRobins([chess()], null, null)?.map(entry => entry.roundRobinId)).toEqual(['E1'])
+    expect(roomRoundRobins([chess()], [pong()], null)?.map(entry => [entry.game, entry.roundRobinId])).toEqual([
       ['chess', 'E1'],
       ['pong', 'P1']
     ])
