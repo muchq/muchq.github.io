@@ -7,6 +7,7 @@ import AboutGame from '@/apps/lobby/components/AboutGame'
 import { formatClock } from '@/apps/chess/rules'
 import type { GoBoardSize, GoColor, GoResult, GoView } from '../wire'
 import { unlockGoSounds } from '../sounds'
+import { CLOCKS, SIZES, clockLine } from '../terms'
 import { useGoSounds } from '../useGoSounds'
 import styles from './GoTable.module.css'
 
@@ -24,18 +25,6 @@ export interface GoTableProps {
   view: GoView
   table: GoTableActions & { opening: boolean }
 }
-
-const SIZES: GoBoardSize[] = [9, 13, 19]
-
-const CLOCKS: Record<string, { initialSeconds: number; incrementSeconds: number }> = {
-  '10+5': { initialSeconds: 600, incrementSeconds: 5 },
-  '5+3': { initialSeconds: 300, incrementSeconds: 3 },
-  '20+10': { initialSeconds: 1200, incrementSeconds: 10 }
-}
-
-// A clock as the lobby says it: whole minutes in minutes, else seconds.
-const clockLine = (initialSeconds: number, incrementSeconds: number) =>
-  `${initialSeconds % 60 === 0 ? initialSeconds / 60 : `${initialSeconds}s`}+${incrementSeconds}`
 
 // Columns are lettered without I, as go boards are.
 const COLUMNS = 'ABCDEFGHJKLMNOPQRST'
@@ -307,6 +296,9 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
   const me = view.players.find(player => player.playerId === playerId)
   const watching = me === undefined
   const alone = view.players.length < 2
+  // A round robin pairing's table plays its one game on the round robin's
+  // terms: nothing to pick, post or play next.
+  const pairing = view.roundRobinId !== undefined
   const mine: GoColor = me?.color ?? 'black'
   const theirs: GoColor = mine === 'black' ? 'white' : 'black'
   // A cursor off a smaller board comes back to its center.
@@ -324,6 +316,14 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
   const status = (() => {
     if (view.phase === 'waiting') {
       const terms = view.terms
+      if (pairing) {
+        const said =
+          terms === undefined
+            ? 'Round robin pairing.'
+            : `Round robin pairing: ${terms.size}×${terms.size}, komi ${terms.komi}, ${clockLine(terms.initialSeconds, terms.incrementSeconds)}.`
+        if (watching) return alone ? `${said} It starts when both players sit.` : said
+        return alone ? `${said} It starts when your opponent sits.` : `${said} Start it on those terms.`
+      }
       if (terms !== undefined) {
         const posted = `Challenge posted: ${terms.size}×${terms.size}, komi ${terms.komi}, ${clockLine(terms.initialSeconds, terms.incrementSeconds)}.`
         return watching || view.players.length > 1 ? posted : `${posted} Whoever joins starts on it.`
@@ -401,7 +401,14 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
               <li key={player.playerId}>{player.playerId === playerId ? `${player.playerId} (you)` : player.playerId}</li>
             ))}
           </ul>
-          {!watching && (
+          {!watching && pairing && !alone && (
+            <div className={styles.actions}>
+              <button type="button" className={felt.primary} onClick={() => table.startTable()} disabled={!connected}>
+                Start
+              </button>
+            </div>
+          )}
+          {!watching && !pairing && (
             <div className={styles.actions}>
               {sizePicker('Board size')}
               <select aria-label="Clock" value={clock} onChange={event => setClock(event.target.value)}>
@@ -507,17 +514,20 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
             )}
             {(view.phase === 'ended' || view.phase === 'closed') && me !== undefined && (
               <div className={styles.actions}>
-                {view.phase === 'ended' && sizePicker('Next board size')}
-                <button
-                  ref={playAgainRef}
-                  type="button"
-                  className={felt.primary}
-                  onClick={() => table.playAgain(view.phase === 'ended' ? size : undefined)}
-                  disabled={!connected || table.opening}
-                >
-                  {table.opening ? 'Opening…' : view.phase === 'ended' ? 'Next game' : 'Play again'}
-                </button>
-                <button type="button" className={felt.secondary} onClick={table.leaveTable}>
+                {view.phase === 'ended' && !pairing && sizePicker('Next board size')}
+                {!pairing && (
+                  <button
+                    ref={playAgainRef}
+                    type="button"
+                    className={felt.primary}
+                    onClick={() => table.playAgain(view.phase === 'ended' ? size : undefined)}
+                    disabled={!connected || table.opening}
+                  >
+                    {table.opening ? 'Opening…' : view.phase === 'ended' ? 'Next game' : 'Play again'}
+                  </button>
+                )}
+                {/* A pairing's table has no next game: focus lands on leaving. */}
+                <button type="button" ref={pairing ? playAgainRef : undefined} className={felt.secondary} onClick={table.leaveTable}>
                   {view.phase === 'ended' ? 'Leave table' : 'Back to the room'}
                 </button>
               </div>

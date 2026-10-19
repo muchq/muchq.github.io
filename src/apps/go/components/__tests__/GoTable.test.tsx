@@ -209,6 +209,23 @@ describe('GoTable', () => {
     expect(held.startTable).toHaveBeenCalledWith({ size: 13, initialSeconds: 300, incrementSeconds: 3 })
   })
 
+  // A pairing's table plays its one game on the round robin's terms: it
+  // offers no picker, challenge or next game.
+  it('a pairing’s waiting table says its terms and offers nothing to choose', () => {
+    const terms = { size: 9 as const, komi: 6.5, initialSeconds: 600, incrementSeconds: 5 }
+    mount({ view: view({ phase: 'waiting', players: [{ playerId: 'alice' }], size: undefined, board: undefined, terms, roundRobinId: 'E1' }) })
+    expect(screen.getByTestId('go-status').textContent).toBe('Round robin pairing: 9×9, komi 6.5, 10+5. It starts when your opponent sits.')
+    expect(screen.queryByRole('combobox', { name: 'Board size' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /challenge|Start/ })).toBeNull()
+  })
+
+  it('a pairing’s ended game offers no next one, and focus lands on leaving', () => {
+    mount({ view: view({ phase: 'ended', roundRobinId: 'E1', result: { ending: 'resignation', winner: 'bob' } }) })
+    expect(screen.queryByRole('button', { name: 'Next game' })).toBeNull()
+    expect(screen.queryByRole('combobox', { name: 'Next board size' })).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Leave table' }))
+  })
+
   it('says the result, and offers the next game on the size picked', () => {
     const result = { ending: 'score' as const, winner: 'bob', winnerColor: 'white' as const, score: { black: 40, white: 45.5 } }
     const held = mount({ view: view({ phase: 'ended', result }) })

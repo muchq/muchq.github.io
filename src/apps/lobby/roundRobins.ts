@@ -1,15 +1,17 @@
 import type { ChessRoundRobin, ChessStanding } from '@/apps/chess/wire'
 import { clockLabel } from '@/apps/chess/rules'
+import type { GoRoundRobin } from '@/apps/go/wire'
+import { termsLine } from '@/apps/go/terms'
 import type { PongRoundRobin } from '@/apps/pong/wire'
 import { variantLabel } from '@/apps/pong/wire'
 
-// Round robins (MoonBase#1647) as the lobby reads them, chess's and
-// pong's in one shape: what a player has still to play, who may moderate,
+// Round robins (MoonBase#1647) as the lobby reads them, chess's, pong's
+// and go's in one shape: what a player has still to play, who may moderate,
 // and each pairing in a line.
 
 export interface HeldPairing {
   round: number
-  // Chess's white, pong's end 0.
+  // Chess's white, pong's end 0, go's black.
   first: string
   second: string
   // Absent until decided: chess's score, or pong's winner.
@@ -20,7 +22,7 @@ export interface HeldPairing {
 }
 
 export interface HeldRoundRobin {
-  game: 'chess' | 'pong'
+  game: 'chess' | 'pong' | 'go'
   roundRobinId: string
   creator: string
   entrants: string[]
@@ -51,10 +53,32 @@ export const fromPong = (roundRobin: PongRoundRobin): HeldRoundRobin => ({
   pairings: roundRobin.pairings.map(({ winner, ...pairing }) => ({ ...pairing, ...(winner === undefined ? {} : { score: `${winner} won` }) }))
 })
 
+// Black moves first in go, so it is named first and its score reads from
+// Black's side.
+const GO_SCORE = { black: '1-0', white: '0-1', draw: '½-½' } as const
+
+export const fromGo = (roundRobin: GoRoundRobin): HeldRoundRobin => ({
+  ...roundRobin,
+  game: 'go',
+  terms: `Go · ${termsLine(roundRobin.terms)}`,
+  pairings: roundRobin.pairings.map(({ white, black, result, ...pairing }) => ({
+    ...pairing,
+    first: black,
+    second: white,
+    ...(result === undefined ? {} : { score: GO_SCORE[result] })
+  }))
+})
+
 // The room's, chess's first: each game's once it has answered, so one
-// game's silence hides nothing of the other's. Unknown until either has.
-export const roomRoundRobins = (chess: ChessRoundRobin[] | null, pong: PongRoundRobin[] | null): HeldRoundRobin[] | null =>
-  chess === null && pong === null ? null : [...(chess ?? []).map(fromChess), ...(pong ?? []).map(fromPong)]
+// game's silence hides nothing of another's. Unknown until any has.
+export const roomRoundRobins = (
+  chess: ChessRoundRobin[] | null,
+  pong: PongRoundRobin[] | null,
+  go: GoRoundRobin[] | null = null
+): HeldRoundRobin[] | null =>
+  chess === null && pong === null && go === null
+    ? null
+    : [...(chess ?? []).map(fromChess), ...(pong ?? []).map(fromPong), ...(go ?? []).map(fromGo)]
 
 export const stillToPlay = (pairing: HeldPairing): boolean => pairing.score === undefined && !pairing.voided
 

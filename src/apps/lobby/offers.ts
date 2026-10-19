@@ -15,11 +15,11 @@ export function tableOffer(table: HubGameSummary): { label: string; open: boolea
   return { label: table.terms === undefined ? 'Join' : 'Accept', open: true }
 }
 
-// The pair a chess or pong table's round robin pairing seats, as far as
+// The pair a chess, pong or go table's round robin pairing seats, as far as
 // the lobby knows (MoonBase#1647). Unknown round robins are none: an
 // ordinary table stays anyone's, and the hub turns away all but a pairing
 // table's pair.
-export function pairingAt(lobby: Pick<UseLobby, 'chess' | 'pong'>, table: HubGameSummary): readonly [string, string] | undefined {
+export function pairingAt(lobby: Pick<UseLobby, 'chess' | 'pong' | 'go'>, table: HubGameSummary): readonly [string, string] | undefined {
   if (table.game === 'chess') {
     for (const roundRobin of lobby.chess.roundRobins ?? []) {
       const pairing = roundRobin.pairings.find(candidate => candidate.gameId === table.gameId)
@@ -32,11 +32,17 @@ export function pairingAt(lobby: Pick<UseLobby, 'chess' | 'pong'>, table: HubGam
       if (pairing !== undefined) return [pairing.first, pairing.second]
     }
   }
+  if (table.game === 'go') {
+    for (const roundRobin of lobby.go.roundRobins ?? []) {
+      const pairing = roundRobin.pairings.find(candidate => candidate.gameId === table.gameId)
+      if (pairing !== undefined) return [pairing.black, pairing.white]
+    }
+  }
   return undefined
 }
 
 // How a table reads for this player: a pairing's table is open to its pair alone.
-export function offerFor(lobby: Pick<UseLobby, 'chess' | 'pong' | 'playerId'>, table: HubGameSummary): { label: string; open: boolean } {
+export function offerFor(lobby: Pick<UseLobby, 'chess' | 'pong' | 'go' | 'playerId'>, table: HubGameSummary): { label: string; open: boolean } {
   const offer = tableOffer(table)
   const pair = pairingAt(lobby, table)
   if (pair === undefined || pair.includes(lobby.playerId)) return offer

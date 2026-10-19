@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { useGoTable } from '../useGoTable'
-import type { GoView } from '@/apps/go/wire'
+import type { GoRoundRobin, GoView } from '@/apps/go/wire'
 
 const view = (over: Partial<GoView> = {}): GoView => ({
   gameId: 'G01',
@@ -30,7 +30,48 @@ const setup = () => {
   return { hook, move, showNotice, onLeft }
 }
 
+const roundRobin = (over: Partial<GoRoundRobin> = {}): GoRoundRobin => ({
+  roundRobinId: 'E1',
+  creator: 'alice',
+  entrants: ['alice', 'bob', 'carol'],
+  terms: { size: 9, komi: 6.5, initialSeconds: 600, incrementSeconds: 5 },
+  pairings: [],
+  withdrawn: [],
+  standings: [],
+  ...over
+})
+
 describe('useGoTable', () => {
+  // Unknown until asked for, then kept current by each one heard.
+  it('asks for the round robins once one is heard, and keeps them current', () => {
+    const { hook, move } = setup()
+    expect(hook.result.current.roundRobins).toBeNull()
+    act(() => hook.result.current.handleUpdate({ roundRobin: roundRobin() }))
+    expect(move).toHaveBeenLastCalledWith('roundRobins')
+    act(() => hook.result.current.handleUpdate({ roundRobins: { roundRobins: [roundRobin()] } }))
+    expect(hook.result.current.roundRobins).toHaveLength(1)
+    act(() => hook.result.current.handleUpdate({ roundRobin: roundRobin({ roundRobinId: 'E2' }) }))
+    act(() => hook.result.current.handleUpdate({ roundRobin: roundRobin({ withdrawn: ['carol'] }) }))
+    expect(hook.result.current.roundRobins?.map(held => held.roundRobinId)).toEqual(['E1', 'E2'])
+    expect(hook.result.current.roundRobins?.[0].withdrawn).toEqual(['carol'])
+  })
+
+  it('creates, plays and moderates round robins', () => {
+    const { hook, move } = setup()
+    act(() => hook.result.current.createRoundRobin(['alice', 'bob', 'carol'], { size: 13, initialSeconds: 300, incrementSeconds: 3 }))
+    expect(move).toHaveBeenLastCalledWith('createRoundRobin', {
+      entrants: ['alice', 'bob', 'carol'],
+      terms: { size: 13, initialSeconds: 300, incrementSeconds: 3 }
+    })
+    act(() => hook.result.current.playRoundRobin('E1', 'bob'))
+    expect(move).toHaveBeenLastCalledWith('playRoundRobin', { roundRobinId: 'E1', opponent: 'bob' })
+    expect(hook.result.current.opening).toBe(true)
+    act(() => hook.result.current.forfeit('E1', 'bob', 'carol'))
+    expect(move).toHaveBeenLastCalledWith('forfeit', { roundRobinId: 'E1', winner: 'bob', loser: 'carol' })
+    act(() => hook.result.current.withdraw('E1', 'carol'))
+    expect(move).toHaveBeenLastCalledWith('withdraw', { roundRobinId: 'E1', playerId: 'carol' })
+  })
+
   it('holds the view a gameJoined or gameState brings', () => {
     const { hook } = setup()
     act(() => hook.result.current.handleUpdate({ gameJoined: { view: view() } }))
