@@ -446,9 +446,10 @@ describe('LobbyPanel', () => {
     })
 
     it('does not ask while offline', () => {
-      const hook = lobby({ connected: false, room: roundRobinRoom(), chess: chess(null, null) })
+      const hook = lobby({ connected: false, room: roundRobinRoom(), chess: chess(null, null), go: goHook(null) })
       render(<LobbyPanel lobby={hook} />)
       expect(hook.chess.loadRoundRobins).not.toHaveBeenCalled()
+      expect(hook.go.loadRoundRobins).not.toHaveBeenCalled()
     })
 
     // A room too small for one, with none, shows no section at all; one
@@ -715,6 +716,11 @@ describe('LobbyPanel', () => {
       render(<LobbyPanel lobby={hook} />)
       const entry = within(section().getByRole('listitem', { name: 'Go round robin G2 by alice' }))
       expect(entry.getByText('Go · 9×9 · komi 6.5 · 10+5 · 1 of 3 decided')).toBeTruthy()
+      // The same opponent may be paired in more than one game's: each
+      // control says whose it is.
+      expect(entry.getByRole('button', { name: 'Play bob' })).toHaveAccessibleDescription('Go round robin G2 by alice')
+      expect(entry.getByRole('button', { name: 'Join carol at O4' })).toHaveAccessibleDescription('Go round robin G2 by alice')
+      expect(entry.getByRole('button', { name: 'Details of Go round robin G2' })).toBeTruthy()
       fireEvent.click(entry.getByRole('button', { name: 'Play bob' }))
       expect(hook.go.playRoundRobin).toHaveBeenCalledWith('G2', 'bob')
       expect(hook.chess.playRoundRobin).not.toHaveBeenCalled()

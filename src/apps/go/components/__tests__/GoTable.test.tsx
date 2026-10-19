@@ -219,6 +219,16 @@ describe('GoTable', () => {
     expect(screen.queryByRole('button', { name: /challenge|Start/ })).toBeNull()
   })
 
+  it('a pairing’s waiting table tells a watcher it starts when both sit, and says the pairing without terms', () => {
+    const terms = { size: 9 as const, komi: 6.5, initialSeconds: 600, incrementSeconds: 5 }
+    const waiting = view({ phase: 'waiting', players: [{ playerId: 'bob' }], size: undefined, board: undefined, roundRobinId: 'E1' })
+    mount({ view: { ...waiting, terms }, playerId: 'carol' })
+    expect(screen.getByTestId('go-status').textContent).toBe('Round robin pairing: 9×9, komi 6.5, 10+5. It starts when both players sit.')
+    cleanup()
+    mount({ view: { ...waiting, players: [{ playerId: 'alice' }] } })
+    expect(screen.getByTestId('go-status').textContent).toBe('Round robin pairing. It starts when your opponent sits.')
+  })
+
   // The hub starts a pairing's game as its second seat fills: nobody
   // presses Start.
   it('a pairing’s table with both seats offers nothing to press', () => {

@@ -20,8 +20,8 @@ interface Props {
   busy: boolean
 }
 
-// Named in each entry's heading: a player may be paired with the same
-// opponent in more than one game's.
+// Named in each entry's heading, which describes its Play and Join: a
+// player may be paired with the same opponent in more than one game's.
 const GAME_NAMES = { chess: 'Chess', pong: 'Pong', go: 'Go' } as const
 
 const Entry = ({ lobby, roundRobin, disabled, busy }: Props & { roundRobin: HeldRoundRobin }) => {
@@ -53,11 +53,11 @@ const Entry = ({ lobby, roundRobin, disabled, busy }: Props & { roundRobin: Held
         <div className={styles.wrap}>
           {mine.map(({ pairing, opponent }) =>
             pairing.gameId === undefined ? (
-              <button key={opponent} type="button" className={styles.primary} onClick={() => table.playRoundRobin(id, opponent)} disabled={seating}>
+              <button key={opponent} type="button" className={styles.primary} onClick={() => table.playRoundRobin(id, opponent)} disabled={seating} aria-describedby={headingId}>
                 Play {opponent}
               </button>
             ) : (
-              <button key={opponent} type="button" className={styles.primary} onClick={() => table.joinTable(pairing.gameId as string)} disabled={seating}>
+              <button key={opponent} type="button" className={styles.primary} onClick={() => table.joinTable(pairing.gameId as string)} disabled={seating} aria-describedby={headingId}>
                 Join {opponent} at {pairing.gameId}
               </button>
             )
@@ -68,7 +68,7 @@ const Entry = ({ lobby, roundRobin, disabled, busy }: Props & { roundRobin: Held
         type="button"
         className={styles.link}
         aria-expanded={open}
-        aria-label={`Details of round robin ${roundRobin.roundRobinId}`}
+        aria-label={`Details of ${GAME_NAMES[roundRobin.game]} round robin ${roundRobin.roundRobinId}`}
         onClick={() => setOpen(held => !held)}
       >
         Details
