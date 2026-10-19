@@ -133,6 +133,17 @@ describe('useGoTable', () => {
     expect(onLeft).toHaveBeenCalledTimes(1)
   })
 
+  // A game left is the table's end, not the room's: its round robins stay.
+  it('keeps the round robins on leaving a table, and forgets them on clear', () => {
+    const { hook } = setup()
+    act(() => hook.result.current.handleUpdate({ roundRobins: { roundRobins: [roundRobin()] } }))
+    act(() => hook.result.current.handleUpdate({ gameJoined: { view: view() } }))
+    act(() => hook.result.current.handleUpdate({ gameLeft: { gameId: 'G01' } }))
+    expect(hook.result.current.roundRobins).toHaveLength(1)
+    act(() => hook.result.current.clear())
+    expect(hook.result.current.roundRobins).toBeNull()
+  })
+
   it('announces another player’s table, not one’s own', () => {
     const { hook, showNotice } = setup()
     act(() => hook.result.current.handleUpdate({ gameCreated: { gameId: 'G02', createdBy: 'alice' } }))

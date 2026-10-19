@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
+import { useRoundRobinList } from './useRoundRobinList'
 import type { GoBoardSize, GoMoveName, GoMovePayloads, GoRoundRobin, GoUpdate, GoView } from '@/apps/go/wire'
 
 // A go table as the wire sends it, over the lobby's stream (useLobby).
@@ -56,16 +57,8 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
   const [view, setView] = useState<GoView | null>(null)
   const [opening, setOpening] = useState(false)
   const [sent, setSent] = useState(false)
-  const [roundRobins, setRoundRobins] = useState<GoRoundRobin[] | null>(null)
-  const roundRobinsRef = useRef(roundRobins)
-  roundRobinsRef.current = roundRobins
-  const listAsked = useRef(false)
-  const listStale = useRef(false)
-  const askList = useCallback(() => {
-    listAsked.current = true
-    listStale.current = false
-    move('roundRobins')
-  }, [move])
+  const askList = useCallback(() => move('roundRobins'), [move])
+  const { roundRobins, load: loadRoundRobins, heardList, heardOne, reset: resetRoundRobins } = useRoundRobinList<GoRoundRobin>(askList)
 
   const settle = useCallback(() => {
     setOpening(false)
@@ -77,10 +70,8 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
   }, [settle])
   const clear = useCallback(() => {
     clearTable()
-    setRoundRobins(null)
-    listAsked.current = false
-    listStale.current = false
-  }, [clearTable])
+    resetRoundRobins()
+  }, [clearTable, resetRoundRobins])
 
   const handleUpdate = useCallback(
     (update: GoUpdate) => {
@@ -100,27 +91,13 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
         return
       }
       if (update.roundRobins) {
-        setRoundRobins(update.roundRobins.roundRobins)
-        listAsked.current = false
-        if (listStale.current) askList()
+        heardList(update.roundRobins.roundRobins)
         return
       }
-      if (update.roundRobin) {
-        const heard = update.roundRobin
-        if (listAsked.current) listStale.current = true
-        if (roundRobinsRef.current === null) {
-          if (!listAsked.current) askList()
-          return
-        }
-        setRoundRobins(held => {
-          if (held === null) return held
-          const at = held.findIndex(roundRobin => roundRobin.roundRobinId === heard.roundRobinId)
-          return at === -1 ? [...held, heard] : held.map((roundRobin, i) => (i === at ? heard : roundRobin))
-        })
-      }
+      if (update.roundRobin) heardOne(update.roundRobin)
       // gameStarted, turnChanged and gameEnded: the view says it all.
     },
-    [askList, clearTable, onLeft, playerId, settle, showNotice]
+    [clearTable, heardList, heardOne, onLeft, playerId, settle, showNotice]
   )
 
   const createRoundRobin = useCallback(
@@ -217,7 +194,7 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
     accept,
     resign,
     roundRobins,
-    loadRoundRobins: askList,
+    loadRoundRobins,
     createRoundRobin,
     playRoundRobin,
     forfeit,
