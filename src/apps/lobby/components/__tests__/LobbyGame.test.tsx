@@ -391,6 +391,26 @@ describe('LobbyGame', () => {
       expect(state.go.loadHistory).toHaveBeenCalledTimes(1)
     })
 
+    // A go game's end shows in the room's tables, which every member
+    // hears: the history is asked for again on each change to them.
+    it('asks for go history again as the room\'s go tables change', () => {
+      const withGo = (status: string) =>
+        ({ roomId: 'ROOM01', players: [], games: [{ gameId: 'G9', game: 'go', status, playerCount: 2 }] }) as unknown as UseLobby['room']
+      state.room = withGo('playing')
+      state.go.history = []
+      const { rerender } = render(<LobbyGame />)
+      expect(state.go.loadHistory).not.toHaveBeenCalled()
+      state.room = withGo('ended')
+      rerender(<LobbyGame />)
+      expect(state.go.loadHistory).toHaveBeenCalledTimes(1)
+      state.go.history = []
+      rerender(<LobbyGame />)
+      expect(state.go.loadHistory).toHaveBeenCalledTimes(1)
+      state.room = { roomId: 'ROOM01', players: [], games: [] } as unknown as UseLobby['room']
+      rerender(<LobbyGame />)
+      expect(state.go.loadHistory).toHaveBeenCalledTimes(2)
+    })
+
     it('asks on a narrow screen where the panel starts folded', () => {
       const width = window.innerWidth
       window.innerWidth = 500

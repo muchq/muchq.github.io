@@ -82,8 +82,8 @@ hub's positions stepped through by button, arrow key or move list, with the hub'
 on lichess's analysis board. Every room's games are published: on arriving in a room the lobby asks for its chess
 history and publishes it when that answer says it isn't, so games that end afterward join the hub's public feed
 (`/games/v2/chess.pgn`) for 30 days. Go's finished games (MoonBase#1686) are the lobby's Go games section, shown
-once the room has played go or has a go table: each a line of sides, board and result, and its SGF to download. Go's
-history is asked for on arriving and again when a game ends, and is never published. The Round robins section (MoonBase#1647) starts one among 3 to 8 of
+once the room has played go: each a line of sides, board and result, and its SGF to download. Go's history is asked
+for on arriving and again whenever the room's go tables change, which every member hears, and is never published. The Round robins section (MoonBase#1647) starts one among 3 to 8 of
 the room's members at chess on a clock, pong on a court or go on a board and clock (behind **New round robin**), and is absent from a room of fewer than 3 with none. Each
 one shows its progress and the player's **Play** (a table for one of their pairings, which only its opponent can fill)
 or **Join** (one the opponent opened); its standings, pairings and moderation fold under **Details**. The Tables list

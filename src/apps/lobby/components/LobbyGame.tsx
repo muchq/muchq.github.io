@@ -113,11 +113,25 @@ const LobbyGame = (props: UseLobbyProps) => {
     if (room === null || !connected || chessHistory !== null) return
     loadChessHistory()
   }, [room, connected, chessHistory, loadChessHistory])
-  // Go's too: its section shows only once the room has played go.
+  // Go's too: its section shows only once the room has played go. A
+  // game's end shows in the room's go tables, which every member hears,
+  // seated or not, so each change to them asks again.
   useEffect(() => {
     if (room === null || !connected || goHistory !== null) return
     loadGoHistory()
   }, [room, connected, goHistory, loadGoHistory])
+  const goTables =
+    room?.games
+      .filter(game => game.game === 'go')
+      .map(game => `${game.gameId}:${game.status}`)
+      .sort()
+      .join(' ') ?? ''
+  const heardGoTables = useRef(goTables)
+  useEffect(() => {
+    if (heardGoTables.current === goTables) return
+    heardGoTables.current = goTables
+    if (connected && goHistory !== null) loadGoHistory()
+  }, [goTables, connected, goHistory, loadGoHistory])
 
   return (
     <>
