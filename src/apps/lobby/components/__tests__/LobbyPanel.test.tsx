@@ -5,7 +5,7 @@ import type { UseLobby } from '@/hooks/useLobby'
 import type { HubRoom } from '@/utils/hubStream'
 import { fakeVoiceMesh } from '@/test/fakeVoice'
 import type { ChessGameSummary, ChessHistory, ChessPairing, ChessRoundRobin } from '@/apps/chess/wire'
-import type { GoRoundRobin } from '@/apps/go/wire'
+import type { GoGameSummary, GoRoundRobin } from '@/apps/go/wire'
 import type { PongRoundRobin } from '@/apps/pong/wire'
 
 // The panel over a fake hook: what it offers in the plaza and in a room,
@@ -99,8 +99,10 @@ const pong = (roundRobins: PongRoundRobin[] | null = []) =>
     withdraw: vi.fn()
   }) as unknown as UseLobby['pong']
 
-const goHook = (roundRobins: GoRoundRobin[] | null = []) =>
+const goHook = (roundRobins: GoRoundRobin[] | null = [], history: GoGameSummary[] | null = null) =>
   ({
+    history,
+    loadHistory: vi.fn(),
     createTable: vi.fn(),
     joinTable: vi.fn(),
     watchTable: vi.fn(),
@@ -860,6 +862,63 @@ describe('LobbyPanel', () => {
       const section = within(screen.getByRole('region', { name: 'Chess games' }))
       expect(section.getAllByRole('button').map(button => button.textContent)).toEqual(['Refresh'])
       expect(section.queryByText(/1d4/)).toBeNull()
+    })
+  })
+
+  // The room's finished go games (MoonBase#1686), each with its SGF to
+  // download; a room that has played none shows nothing.
+  describe('go games', () => {
+    const goGame = (over: Partial<GoGameSummary> = {}): GoGameSummary => ({
+      archiveId: 3,
+      gameId: 'G01',
+      ordinal: 2,
+      black: 'alice',
+      white: 'gnugo@4',
+      size: 9,
+      komi: 6.5,
+      result: { ending: 'score', winner: 'alice', winnerColor: 'black', score: { black: 40, white: 34.5 } },
+      endedAtMs: 1_800_000_000_000,
+      sgf: '(;FF[4]SZ[9]PB[alice];B[cc])',
+      ...over
+    })
+
+    it('shows nothing until the room has played a go game', () => {
+      const { rerender } = render(<LobbyPanel lobby={lobby({ room: room(), go: goHook([], null) })} />)
+      expect(screen.queryByRole('region', { name: 'Go games' })).toBeNull()
+      rerender(<LobbyPanel lobby={lobby({ room: room(), go: goHook([], []) })} />)
+      expect(screen.queryByRole('region', { name: 'Go games' })).toBeNull()
+    })
+
+    it('lists each game with its sides, board and result, its SGF a download', () => {
+      const hook = lobby({
+        room: room(),
+        go: goHook([], [goGame(), goGame({ archiveId: 2, ordinal: 1, size: 19, result: { ending: 'resignation', winner: 'gnugo@4', winnerColor: 'white' } })])
+      })
+      render(<LobbyPanel lobby={hook} />)
+      const section = within(screen.getByRole('region', { name: 'Go games' }))
+      expect(section.getByText('alice vs GNU Go 4 · 9×9 · B+5.5')).toBeTruthy()
+      expect(section.getByText('alice vs GNU Go 4 · 19×19 · W+R')).toBeTruthy()
+      const sgf = section.getByRole('link', { name: 'SGF of G01 game 2' })
+      expect(sgf).toHaveAttribute('download', 'G01-2.sgf')
+      expect(sgf).toHaveAttribute('href', `data:application/x-go-sgf;charset=utf-8,${encodeURIComponent('(;FF[4]SZ[9]PB[alice];B[cc])')}`)
+      fireEvent.click(section.getByRole('button', { name: 'Refresh go games' }))
+      expect(hook.go.loadHistory).toHaveBeenCalledTimes(1)
+    })
+
+    it('spells a draw, a timeout and an abandonment', () => {
+      const hook = lobby({
+        room: room(),
+        go: goHook([], [
+          goGame({ archiveId: 3, result: { ending: 'score', score: { black: 40, white: 40 } } }),
+          goGame({ archiveId: 2, result: { ending: 'timeout', winner: 'alice', winnerColor: 'black' } }),
+          goGame({ archiveId: 1, result: { ending: 'abandoned', winner: 'gnugo@4', winnerColor: 'white' } })
+        ])
+      })
+      render(<LobbyPanel lobby={hook} />)
+      const section = within(screen.getByRole('region', { name: 'Go games' }))
+      expect(section.getByText('alice vs GNU Go 4 · 9×9 · draw')).toBeTruthy()
+      expect(section.getByText('alice vs GNU Go 4 · 9×9 · B+T')).toBeTruthy()
+      expect(section.getByText('alice vs GNU Go 4 · 9×9 · W+F')).toBeTruthy()
     })
   })
 })

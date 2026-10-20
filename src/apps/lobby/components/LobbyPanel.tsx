@@ -4,6 +4,8 @@ import type { UseLobby } from '@/hooks/useLobby'
 import { lobbyRoomPath } from '@/hooks/useLobby'
 import type { HubGameName, HubRoomPlayer } from '@/utils/hubStream'
 import type { ChessGameSummary } from '@/apps/chess/wire'
+import type { GoGameSummary } from '@/apps/go/wire'
+import { nameOf as goNameOf } from '@/apps/go/terms'
 import { nameOf } from '@/apps/chess/rules'
 import RoundRobins from './RoundRobins'
 import type { VoiceMesh, VoiceView } from '@/utils/voiceMesh'
@@ -78,6 +80,49 @@ const ChessGames = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean })
           </button>
         </>
       )}
+    </section>
+  )
+}
+
+// A finished go game as one line: sides, board and result as SGF writes
+// it (B+5.5, W+R; T a timeout, F an abandonment).
+const GO_ENDING_MARK = { resignation: 'R', timeout: 'T', abandoned: 'F' } as const
+const goResult = ({ result }: GoGameSummary): string => {
+  if (result.winnerColor === undefined) return 'draw'
+  const winner = result.winnerColor === 'black' ? 'B' : 'W'
+  if (result.ending !== 'score') return `${winner}+${GO_ENDING_MARK[result.ending]}`
+  const score = result.score ?? { black: 0, white: 0 }
+  return `${winner}+${Math.abs(score.black - score.white)}`
+}
+const goLine = (game: GoGameSummary): string =>
+  `${goNameOf(game.black)} vs ${goNameOf(game.white)} · ${game.size}×${game.size} · ${goResult(game)}`
+
+// The room's finished go games (MoonBase#1686), each one's SGF a
+// download. History is asked for on room arrival in LobbyGame; a room
+// that has played none shows nothing.
+const GoGames = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean }) => {
+  const { history } = lobby.go
+  if (history === null || history.length === 0) return null
+  return (
+    <section className={styles.section} aria-labelledby="lobby-go-games">
+      <h2 id="lobby-go-games">Go games</h2>
+      <ul className={styles.list}>
+        {history.map(game => (
+          <li key={game.archiveId} className={styles.row}>
+            <span>{goLine(game)}</span>
+            <a
+              href={`data:application/x-go-sgf;charset=utf-8,${encodeURIComponent(game.sgf)}`}
+              download={`${game.gameId}-${game.ordinal}.sgf`}
+              aria-label={`SGF of ${game.gameId} game ${game.ordinal}`}
+            >
+              SGF
+            </a>
+          </li>
+        ))}
+      </ul>
+      <button type="button" className={styles.link} onClick={lobby.go.loadHistory} disabled={disabled} aria-label="Refresh go games">
+        Refresh
+      </button>
     </section>
   )
 }
@@ -319,6 +364,7 @@ const LobbyPanel = ({ lobby, roomCodeRef, onOpenChat }: LobbyPanelProps) => {
       </section>
       <RoundRobins lobby={lobby} disabled={!connected} busy={busy} />
       <ChessGames lobby={lobby} disabled={!connected} />
+      <GoGames lobby={lobby} disabled={!connected} />
       {COMMAND_HINT}
     </aside>
   )

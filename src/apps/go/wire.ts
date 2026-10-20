@@ -129,6 +129,24 @@ export interface GoUpdate {
   gameLeft?: { gameId: string }
   roundRobin?: GoRoundRobin
   roundRobins?: { roundRobins: GoRoundRobin[] }
+  history?: { games: GoGameSummary[] }
+}
+
+// One finished game of the room's history, newest first, with its whole
+// record.
+export interface GoGameSummary {
+  archiveId: number
+  gameId: string
+  // Its line on its table's score sheet, from 1.
+  ordinal: number
+  black: string
+  white: string
+  size: GoBoardSize
+  komi: number
+  result: GoResult
+  endedAtMs: number
+  // FF[4].
+  sgf: string
 }
 
 export interface GoMovePayloads {
@@ -157,6 +175,8 @@ export interface GoMovePayloads {
   playRoundRobin: { roundRobinId: string; opponent: string }
   // GNU Go to a lone seat's table not yet started, at a level 1 to 10.
   addBot: { level: number }
+  // The room's finished games, answered with a history.
+  history: undefined
 }
 
 export type GoMoveName = keyof GoMovePayloads

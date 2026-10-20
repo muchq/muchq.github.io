@@ -43,7 +43,7 @@ const state = {
   chess: { view: null as ChessView | null, opening: false, history: null, review: null as ChessReview | null, closeReview: vi.fn(), loadHistory: vi.fn(), roundRobins: [], loadRoundRobins: vi.fn() },
   pong: { view: null as PongView | null, opening: false, roundRobins: [], loadRoundRobins: vi.fn(), latestFrame: () => null },
   spades: { view: null as SpadesView | null, opening: false },
-  go: { view: null as GoView | null, opening: false }
+  go: { view: null as GoView | null, opening: false, history: null, loadHistory: vi.fn() }
 } as unknown as UseLobby
 
 vi.mock('@/hooks/useLobby', async importOriginal => ({
@@ -359,9 +359,10 @@ describe('LobbyGame', () => {
     }
   })
 
-  // Chess history is asked for on room arrival so unpublished rooms get
-  // published even when the lobby panel stays folded.
-  describe('chess history on room arrival', () => {
+  // Chess and go history are asked for on room arrival, so unpublished
+  // rooms get published, and go's section knows whether to show, even
+  // when the lobby panel stays folded.
+  describe('history on room arrival', () => {
     it('asks while the panel is hidden, and not before a room is in hand', () => {
       const { rerender } = render(<LobbyGame />)
       fireEvent.click(screen.getByRole('button', { name: 'Hide lobby' }))
@@ -369,6 +370,7 @@ describe('LobbyGame', () => {
       state.room = { roomId: 'ROOM01', players: [], games: [] } as unknown as UseLobby['room']
       rerender(<LobbyGame />)
       expect(state.chess.loadHistory).toHaveBeenCalledTimes(1)
+      expect(state.go.loadHistory).toHaveBeenCalledTimes(1)
     })
 
     it('asks on a narrow screen where the panel starts folded', () => {

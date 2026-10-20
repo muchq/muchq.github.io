@@ -33,6 +33,7 @@ const LobbyGame = (props: UseLobbyProps) => {
   const lobby = useLobby(props)
   const { chess, chat, connected, playerId, notice, room } = lobby
   const { history: chessHistory, loadHistory: loadChessHistory } = chess
+  const { history: goHistory, loadHistory: loadGoHistory } = lobby.go
   // A chess review (MoonBase#1637) takes the screen as a table does.
   const atTable = HUB_GAMES.some(game => lobby[game].view !== null) || chess.review !== null
   const tableContext: TableContext = {
@@ -112,6 +113,11 @@ const LobbyGame = (props: UseLobbyProps) => {
     if (room === null || !connected || chessHistory !== null) return
     loadChessHistory()
   }, [room, connected, chessHistory, loadChessHistory])
+  // Go's too: its section shows only once the room has played go.
+  useEffect(() => {
+    if (room === null || !connected || goHistory !== null) return
+    loadGoHistory()
+  }, [room, connected, goHistory, loadGoHistory])
 
   return (
     <>
