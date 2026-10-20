@@ -411,6 +411,32 @@ describe('LobbyGame', () => {
       expect(state.go.loadHistory).toHaveBeenCalledTimes(2)
     })
 
+    const goRoom = (roomId: string, status: string) =>
+      ({ roomId, players: [], games: [{ gameId: 'G9', game: 'go', status, playerCount: 2 }] }) as unknown as UseLobby['room']
+
+    // The room's first state is arrival, which asks once; its tables
+    // changing after that asks again, answered or not.
+    it('asks once arriving in a room with a go table, and again on a change before the answer', () => {
+      const { rerender } = render(<LobbyGame />)
+      state.room = goRoom('ROOM01', 'playing')
+      rerender(<LobbyGame />)
+      expect(state.go.loadHistory).toHaveBeenCalledTimes(1)
+      state.room = goRoom('ROOM01', 'ended')
+      rerender(<LobbyGame />)
+      expect(state.go.loadHistory).toHaveBeenCalledTimes(2)
+    })
+
+    // Another room is arrival again, not a change.
+    it('treats moving to another room as arriving', () => {
+      state.room = goRoom('ROOM01', 'playing')
+      state.go.history = []
+      const { rerender } = render(<LobbyGame />)
+      state.room = goRoom('ROOM02', 'ended')
+      state.go.history = null
+      rerender(<LobbyGame />)
+      expect(state.go.loadHistory).toHaveBeenCalledTimes(1)
+    })
+
     it('asks on a narrow screen where the panel starts folded', () => {
       const width = window.innerWidth
       window.innerWidth = 500
