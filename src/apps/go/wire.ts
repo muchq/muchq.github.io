@@ -1,3 +1,5 @@
+import type { ChessPairing, ChessStanding } from '@/apps/chess/wire'
+
 // Go's vocabulary on the room stream, following chess's envelope. Go
 // hides nothing, so every seat gets the same view.
 
@@ -77,8 +79,11 @@ export interface GoView {
   gameId: string
   phase: GoPhase
   players: GoPlayer[]
-  // The posted challenge, while the table waits on it.
+  // The posted challenge, or the round robin's at its pairing's table,
+  // while the table waits on it.
   terms?: GoTerms
+  // The round robin whose pairing this table plays: one game on its terms.
+  roundRobinId?: string
   // Absent while waiting.
   size?: GoBoardSize
   // One string per row from the top, one character per point: '.', 'b' or 'w'.
@@ -99,6 +104,18 @@ export interface GoView {
   scoreSheet: GoScoreLine[]
 }
 
+// Chess's round robin on go's terms: each pairing's white and black are
+// its colours, and its result is white, black or a draw.
+export interface GoRoundRobin {
+  roundRobinId: string
+  creator: string
+  entrants: string[]
+  terms: GoTerms
+  pairings: ChessPairing[]
+  withdrawn: string[]
+  standings: ChessStanding[]
+}
+
 // The go update union's JSON encoding: exactly one member present.
 export interface GoUpdate {
   gameJoined?: { view: GoView }
@@ -108,6 +125,8 @@ export interface GoUpdate {
   turnChanged?: { playerId: string }
   gameEnded?: { result: GoResult }
   gameLeft?: { gameId: string }
+  roundRobin?: GoRoundRobin
+  roundRobins?: { roundRobins: GoRoundRobin[] }
 }
 
 export interface GoMovePayloads {
@@ -128,6 +147,12 @@ export interface GoMovePayloads {
   // A lone seat's terms for whoever joins to start on; posting again
   // replaces them.
   challenge: GoMovePayloads['startGame']
+  // Chess's round robin moves, on go's round robins.
+  createRoundRobin: { entrants: string[]; terms?: GoMovePayloads['startGame'] }
+  withdraw: { roundRobinId: string; playerId: string }
+  forfeit: { roundRobinId: string; winner: string; loser: string }
+  roundRobins: undefined
+  playRoundRobin: { roundRobinId: string; opponent: string }
 }
 
 export type GoMoveName = keyof GoMovePayloads

@@ -5,6 +5,7 @@ import type { UseLobby } from '@/hooks/useLobby'
 import type { HubRoom } from '@/utils/hubStream'
 import { fakeVoiceMesh } from '@/test/fakeVoice'
 import type { ChessGameSummary, ChessHistory, ChessPairing, ChessRoundRobin } from '@/apps/chess/wire'
+import type { GoRoundRobin } from '@/apps/go/wire'
 import type { PongRoundRobin } from '@/apps/pong/wire'
 
 // The panel over a fake hook: what it offers in the plaza and in a room,
@@ -49,7 +50,7 @@ const lobby = (over: Partial<UseLobby> = {}): UseLobby =>
     rummy: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['rummy'],
     spades: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['spades'],
     chess: { createTable: vi.fn(), joinTable: vi.fn(), watchTable: vi.fn(), history: null, loadHistory: vi.fn(), roundRobins: [], loadRoundRobins: vi.fn() } as unknown as UseLobby['chess'],
-    go: { createTable: vi.fn(), joinTable: vi.fn(), watchTable: vi.fn() } as unknown as UseLobby['go'],
+    go: goHook(),
     pong: pong(),
     ...over
   }) as UseLobby
@@ -97,6 +98,19 @@ const pong = (roundRobins: PongRoundRobin[] | null = []) =>
     forfeit: vi.fn(),
     withdraw: vi.fn()
   }) as unknown as UseLobby['pong']
+
+const goHook = (roundRobins: GoRoundRobin[] | null = []) =>
+  ({
+    createTable: vi.fn(),
+    joinTable: vi.fn(),
+    watchTable: vi.fn(),
+    roundRobins,
+    loadRoundRobins: vi.fn(),
+    createRoundRobin: vi.fn(),
+    playRoundRobin: vi.fn(),
+    forfeit: vi.fn(),
+    withdraw: vi.fn()
+  }) as unknown as UseLobby['go']
 
 const pairing = (over: Partial<ChessPairing> = {}): ChessPairing => ({ round: 1, white: 'alice', black: 'bob', forfeit: false, voided: false, ...over })
 
@@ -420,19 +434,22 @@ describe('LobbyPanel', () => {
     const newOne = () => fireEvent.click(button('New round robin'))
 
     it('asks the hub for them on arriving in a room, once, and again on Refresh', () => {
-      const hook = lobby({ room: roundRobinRoom(), chess: chess(null, null), pong: pong(null) })
+      const hook = lobby({ room: roundRobinRoom(), chess: chess(null, null), pong: pong(null), go: goHook(null) })
       const { rerender } = render(<LobbyPanel lobby={hook} />)
       rerender(<LobbyPanel lobby={hook} />)
       expect(hook.chess.loadRoundRobins).toHaveBeenCalledTimes(1)
+      expect(hook.go.loadRoundRobins).toHaveBeenCalledTimes(1)
       expect(section().getByText('Loading round robins…')).toBeTruthy()
       fireEvent.click(button('Refresh round robins'))
       expect(hook.chess.loadRoundRobins).toHaveBeenCalledTimes(2)
+      expect(hook.go.loadRoundRobins).toHaveBeenCalledTimes(2)
     })
 
     it('does not ask while offline', () => {
-      const hook = lobby({ connected: false, room: roundRobinRoom(), chess: chess(null, null) })
+      const hook = lobby({ connected: false, room: roundRobinRoom(), chess: chess(null, null), go: goHook(null) })
       render(<LobbyPanel lobby={hook} />)
       expect(hook.chess.loadRoundRobins).not.toHaveBeenCalled()
+      expect(hook.go.loadRoundRobins).not.toHaveBeenCalled()
     })
 
     // A room too small for one, with none, shows no section at all; one
@@ -457,14 +474,14 @@ describe('LobbyPanel', () => {
     it('shows a pair’s round robin, however small the room', () => {
       const pair = roundRobinRoom({ players: roundRobinRoom().players.slice(0, 2) })
       render(<LobbyPanel lobby={lobby({ room: pair, chess: chess(null, [roundRobin()]) })} />)
-      expect(section().getByRole('heading', { name: 'Round robin E1 by alice' })).toBeTruthy()
+      expect(section().getByRole('heading', { name: 'Chess round robin E1 by alice' })).toBeTruthy()
     })
 
     it('shows each one’s creator, terms, standings and pairings', () => {
       const withdrawn = roundRobin({ withdrawn: ['carol'] })
       withdrawn.standings[2].withdrawn = true
       render(<LobbyPanel lobby={lobby({ playerId: 'dave', room: roundRobinRoom(), chess: chess(null, [withdrawn]) })} />)
-      const entry = within(section().getByRole('listitem', { name: 'Round robin E1 by alice' }))
+      const entry = within(section().getByRole('listitem', { name: 'Chess round robin E1 by alice' }))
       expect(entry.getByText('5+3 · Standard starting position · 1 of 3 decided')).toBeTruthy()
       expect(entry.queryByRole('list', { name: 'Standings' })).toBeNull()
       expect(entry.getByRole('button', { name: /^Details/ })).toHaveAttribute('aria-expanded', 'false')
@@ -611,12 +628,12 @@ describe('LobbyPanel', () => {
         standings: []
       }
       render(<LobbyPanel lobby={lobby({ room: roundRobinRoom(), chess: chess(null, [roundRobin()]), pong: pong(null) })} />)
-      expect(section().getByRole('heading', { name: 'Round robin E1 by alice' })).toBeTruthy()
+      expect(section().getByRole('heading', { name: 'Chess round robin E1 by alice' })).toBeTruthy()
       cleanup()
       const hook = lobby({ room: roundRobinRoom(), chess: chess(null, [roundRobin()]), pong: pong([held]) })
       render(<LobbyPanel lobby={hook} />)
-      expect(section().getAllByRole('heading', { level: 3 }).map(heading => heading.textContent)).toEqual(['Round robin E1 by alice', 'Round robin E2 by alice'])
-      const entry = within(section().getByRole('listitem', { name: 'Round robin E2 by alice' }))
+      expect(section().getAllByRole('heading', { level: 3 }).map(heading => heading.textContent)).toEqual(['Chess round robin E1 by alice', 'Pong round robin E2 by alice'])
+      const entry = within(section().getByRole('listitem', { name: 'Pong round robin E2 by alice' }))
       expect(entry.getByText('Pong · 3D · 1 of 3 decided')).toBeTruthy()
       fireEvent.click(entry.getByRole('button', { name: 'Play bob' }))
       expect(hook.pong.playRoundRobin).toHaveBeenCalledWith('E2', 'bob')
@@ -669,13 +686,55 @@ describe('LobbyPanel', () => {
       expect(hook.chess.createRoundRobin).not.toHaveBeenCalled()
     })
 
+    it('starts a go one on the board and clock picked', () => {
+      const hook = lobby({ room: roundRobinRoom(), chess: chess(null, []) })
+      render(<LobbyPanel lobby={hook} />)
+      newOne()
+      fireEvent.change(section().getByRole('combobox', { name: 'Round robin game' }), { target: { value: 'go' } })
+      fireEvent.change(section().getByRole('combobox', { name: 'Round robin board' }), { target: { value: '13' } })
+      fireEvent.change(section().getByRole('combobox', { name: 'Round robin clock' }), { target: { value: '5+3' } })
+      fireEvent.click(button('Start a round robin'))
+      expect(hook.go.createRoundRobin).toHaveBeenCalledWith(['alice', 'bob', 'carol', 'dave'], { size: 13, initialSeconds: 300, incrementSeconds: 3 })
+      expect(hook.chess.createRoundRobin).not.toHaveBeenCalled()
+    })
+
+    it('lists a go one and plays its pairings in go’s envelope', () => {
+      const held: GoRoundRobin = {
+        roundRobinId: 'G2',
+        creator: 'alice',
+        entrants: ['alice', 'bob', 'carol'],
+        terms: { size: 9, komi: 6.5, initialSeconds: 600, incrementSeconds: 5 },
+        pairings: [
+          { round: 1, white: 'bob', black: 'carol', result: 'black', forfeit: false, voided: false },
+          { round: 2, white: 'alice', black: 'bob', forfeit: false, voided: false },
+          { round: 3, white: 'carol', black: 'alice', forfeit: false, voided: false, gameId: 'O4' }
+        ],
+        withdrawn: [],
+        standings: []
+      }
+      const hook = lobby({ room: roundRobinRoom(), chess: chess(null, []), go: goHook([held]) })
+      render(<LobbyPanel lobby={hook} />)
+      const entry = within(section().getByRole('listitem', { name: 'Go round robin G2 by alice' }))
+      expect(entry.getByText('Go · 9×9 · komi 6.5 · 10+5 · 1 of 3 decided')).toBeTruthy()
+      // The same opponent may be paired in more than one game's: each
+      // control says whose it is.
+      expect(entry.getByRole('button', { name: 'Play bob' })).toHaveAccessibleDescription('Go round robin G2 by alice')
+      expect(entry.getByRole('button', { name: 'Join carol at O4' })).toHaveAccessibleDescription('Go round robin G2 by alice')
+      expect(entry.getByRole('button', { name: 'Details of Go round robin G2' })).toBeTruthy()
+      fireEvent.click(entry.getByRole('button', { name: 'Play bob' }))
+      expect(hook.go.playRoundRobin).toHaveBeenCalledWith('G2', 'bob')
+      expect(hook.chess.playRoundRobin).not.toHaveBeenCalled()
+      fireEvent.click(entry.getByRole('button', { name: 'Join carol at O4' }))
+      expect(hook.go.joinTable).toHaveBeenCalledWith('O4')
+    })
+
     // The form opens under its button, ahead of the round robins listed.
     it('opens the form under its button, before the list', () => {
       render(<LobbyPanel lobby={lobby({ room: roundRobinRoom(), chess: chess(null, [roundRobin()]) })} />)
       newOne()
       expect(button('New round robin')).toHaveAttribute('aria-expanded', 'true')
       const form = section().getByRole('group', { name: 'Entrants' })
-      const listed = section().getByRole('heading', { name: 'Round robin E1 by alice' })
+      const listed = section().getByRole('heading', { name: 'Chess round robin E1 by alice' })
       expect(form.compareDocumentPosition(listed) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })
 

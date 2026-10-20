@@ -1,11 +1,13 @@
 import { useEffect, useId, useState } from 'react'
 import type { UseLobby } from '@/hooks/useLobby'
 import { CLOCKS } from '@/apps/chess/rules'
+import { CLOCKS as GO_CLOCKS, SIZES as GO_SIZES } from '@/apps/go/terms'
+import type { GoBoardSize } from '@/apps/go/wire'
 import { VARIANTS, type PongVariant } from '@/apps/pong/wire'
 import { mayModerate, myOpenPairings, pairingLine, roomRoundRobins, stillToPlay, type HeldRoundRobin } from '../roundRobins'
 import styles from './LobbyPanel.module.css'
 
-// The room's round robins (MoonBase#1647), chess's and pong's, in the lobby panel: each
+// The room's round robins (MoonBase#1647), chess's, pong's and go's, in the lobby panel: each
 // one's standings and pairings, the player's own pairings to play, the
 // moderator's forfeits and withdrawals, and a new one. The hub decides
 // every action; this only offers.
@@ -18,9 +20,13 @@ interface Props {
   busy: boolean
 }
 
+// Named in each entry's heading, which describes its Play and Join: a
+// player may be paired with the same opponent in more than one game's.
+const GAME_NAMES = { chess: 'Chess', pong: 'Pong', go: 'Go' } as const
+
 const Entry = ({ lobby, roundRobin, disabled, busy }: Props & { roundRobin: HeldRoundRobin }) => {
   // Each game's round robins are moved in its own envelope.
-  const table = roundRobin.game === 'pong' ? lobby.pong : lobby.chess
+  const table = lobby[roundRobin.game]
   const { playerId, room } = lobby
   const headingId = useId()
   // Standings, pairings and moderation fold away: the entry's first job
@@ -38,7 +44,7 @@ const Entry = ({ lobby, roundRobin, disabled, busy }: Props & { roundRobin: Held
   return (
     <li className={styles.entry} aria-labelledby={headingId}>
       <h3 id={headingId}>
-        Round robin {roundRobin.roundRobinId} by {roundRobin.creator}
+        {GAME_NAMES[roundRobin.game]} round robin {roundRobin.roundRobinId} by {roundRobin.creator}
       </h3>
       <p className={styles.muted}>
         {roundRobin.terms} · {decided} of {counted.length} decided
@@ -47,11 +53,11 @@ const Entry = ({ lobby, roundRobin, disabled, busy }: Props & { roundRobin: Held
         <div className={styles.wrap}>
           {mine.map(({ pairing, opponent }) =>
             pairing.gameId === undefined ? (
-              <button key={opponent} type="button" className={styles.primary} onClick={() => table.playRoundRobin(id, opponent)} disabled={seating}>
+              <button key={opponent} type="button" className={styles.primary} onClick={() => table.playRoundRobin(id, opponent)} disabled={seating} aria-describedby={headingId}>
                 Play {opponent}
               </button>
             ) : (
-              <button key={opponent} type="button" className={styles.primary} onClick={() => table.joinTable(pairing.gameId as string)} disabled={seating}>
+              <button key={opponent} type="button" className={styles.primary} onClick={() => table.joinTable(pairing.gameId as string)} disabled={seating} aria-describedby={headingId}>
                 Join {opponent} at {pairing.gameId}
               </button>
             )
@@ -62,7 +68,7 @@ const Entry = ({ lobby, roundRobin, disabled, busy }: Props & { roundRobin: Held
         type="button"
         className={styles.link}
         aria-expanded={open}
-        aria-label={`Details of round robin ${roundRobin.roundRobinId}`}
+        aria-label={`Details of ${GAME_NAMES[roundRobin.game]} round robin ${roundRobin.roundRobinId}`}
         onClick={() => setOpen(held => !held)}
       >
         Details
@@ -122,14 +128,17 @@ const Entry = ({ lobby, roundRobin, disabled, busy }: Props & { roundRobin: Held
 }
 
 // 3 to 8 of the room's members, entered in the room's order, at chess on
-// a picked clock or at pong on a picked variant. Those here start picked and those away not; a pick made holds
+// a picked clock, at pong on a picked variant or at go on a picked board
+// and clock. Those here start picked and those away not; a pick made holds
 // whoever comes or goes.
 const NewRoundRobin = ({ lobby, disabled, onStarted }: Pick<Props, 'lobby' | 'disabled'> & { onStarted: () => void }) => {
   const players = lobby.room?.players ?? []
   const [picks, setPicks] = useState<ReadonlyMap<string, boolean>>(new Map())
-  const [game, setGame] = useState<'chess' | 'pong'>('chess')
+  const [game, setGame] = useState<'chess' | 'pong' | 'go'>('chess')
   const [clock, setClock] = useState('3+2')
   const [variant, setVariant] = useState<PongVariant>('smallcat')
+  const [board, setBoard] = useState<GoBoardSize>(19)
+  const [goClock, setGoClock] = useState(Object.keys(GO_CLOCKS)[0])
   const picked = (player: (typeof players)[number]) => picks.get(player.playerId) ?? player.connected
   const entrants = players.filter(picked).map(player => player.playerId)
   const sized = entrants.length >= 3 && entrants.length <= 8
@@ -150,12 +159,37 @@ const NewRoundRobin = ({ lobby, disabled, onStarted }: Pick<Props, 'lobby' | 'di
       <div className={`${styles.picker} ${styles.pickerWrap}`}>
         <label className={styles.pick}>
           Game
-          <select aria-label="Round robin game" value={game} onChange={event => setGame(event.target.value as 'chess' | 'pong')} disabled={disabled}>
+          <select aria-label="Round robin game" value={game} onChange={event => setGame(event.target.value as 'chess' | 'pong' | 'go')} disabled={disabled}>
             <option value="chess">Chess</option>
             <option value="pong">Pong</option>
+            <option value="go">Go</option>
           </select>
         </label>
-        {game === 'chess' ? (
+        {game === 'go' && (
+          <>
+            <label className={styles.pick}>
+              Board
+              <select aria-label="Round robin board" value={board} onChange={event => setBoard(Number(event.target.value) as GoBoardSize)} disabled={disabled}>
+                {GO_SIZES.map(size => (
+                  <option key={size} value={size}>
+                    {size}×{size}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.pick}>
+              Clock
+              <select aria-label="Round robin clock" value={goClock} onChange={event => setGoClock(event.target.value)} disabled={disabled}>
+                {Object.keys(GO_CLOCKS).map(label => (
+                  <option key={label} value={label}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
+        {game === 'chess' && (
           <label className={styles.pick}>
             Clock
             <select aria-label="Round robin clock" value={clock} onChange={event => setClock(event.target.value)} disabled={disabled}>
@@ -166,7 +200,8 @@ const NewRoundRobin = ({ lobby, disabled, onStarted }: Pick<Props, 'lobby' | 'di
               ))}
             </select>
           </label>
-        ) : (
+        )}
+        {game === 'pong' && (
           <label className={styles.pick}>
             Court
             <select aria-label="Round robin variant" value={variant} onChange={event => setVariant(event.target.value as PongVariant)} disabled={disabled}>
@@ -183,7 +218,8 @@ const NewRoundRobin = ({ lobby, disabled, onStarted }: Pick<Props, 'lobby' | 'di
           className={styles.primary}
           onClick={() => {
             if (game === 'chess') lobby.chess.createRoundRobin(entrants, CLOCKS[clock])
-            else lobby.pong.createRoundRobin(entrants, variant)
+            else if (game === 'pong') lobby.pong.createRoundRobin(entrants, variant)
+            else lobby.go.createRoundRobin(entrants, { size: board, ...GO_CLOCKS[goClock] })
             onStarted()
           }}
           disabled={disabled || !sized}
@@ -201,11 +237,13 @@ const NewRoundRobin = ({ lobby, disabled, onStarted }: Pick<Props, 'lobby' | 'di
 // A room with none and too few for one shows nothing; the form waits
 // behind its button.
 const RoundRobins = ({ lobby, disabled, busy }: Props) => {
-  const roundRobins = roomRoundRobins(lobby.chess.roundRobins, lobby.pong.roundRobins)
+  const roundRobins = roomRoundRobins(lobby.chess.roundRobins, lobby.pong.roundRobins, lobby.go.roundRobins)
   const chessUnknown = lobby.chess.roundRobins === null
   const pongUnknown = lobby.pong.roundRobins === null
+  const goUnknown = lobby.go.roundRobins === null
   const loadChess = lobby.chess.loadRoundRobins
   const loadPong = lobby.pong.loadRoundRobins
+  const loadGo = lobby.go.loadRoundRobins
   const [creating, setCreating] = useState(false)
   useEffect(() => {
     if (chessUnknown && !disabled) loadChess()
@@ -213,9 +251,13 @@ const RoundRobins = ({ lobby, disabled, busy }: Props) => {
   useEffect(() => {
     if (pongUnknown && !disabled) loadPong()
   }, [pongUnknown, disabled, loadPong])
+  useEffect(() => {
+    if (goUnknown && !disabled) loadGo()
+  }, [goUnknown, disabled, loadGo])
   const loadRoundRobins = () => {
     loadChess()
     loadPong()
+    loadGo()
   }
   const held = roundRobins ?? []
   if (held.length === 0 && (lobby.room?.players.length ?? 0) < 3) return null

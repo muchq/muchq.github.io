@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRoundRobinList } from './useRoundRobinList'
 import type { PongFrame, PongMoveName, PongMovePayloads, PongRoundRobin, PongUpdate, PongVariant, PongView } from '@/apps/pong/wire'
 
 // A pong table as the wire sends it, over the lobby's stream (useLobby).
@@ -60,19 +61,11 @@ export const usePongTable = ({ playerId, move, showNotice, onLeft }: UsePongTabl
   const [view, setView] = useState<PongView | null>(null)
   const [opening, setOpening] = useState(false)
   const [seating, setSeating] = useState(false)
-  const [roundRobins, setRoundRobins] = useState<PongRoundRobin[] | null>(null)
   const frameRef = useRef<HeldFrame | null>(null)
   const viewRef = useRef(view)
   viewRef.current = view
-  const roundRobinsRef = useRef(roundRobins)
-  roundRobinsRef.current = roundRobins
-  const listAsked = useRef(false)
-  const listStale = useRef(false)
-  const askList = useCallback(() => {
-    listAsked.current = true
-    listStale.current = false
-    move('roundRobins')
-  }, [move])
+  const askList = useCallback(() => move('roundRobins'), [move])
+  const { roundRobins, load: loadRoundRobins, heardList, heardOne, reset: resetRoundRobins } = useRoundRobinList<PongRoundRobin>(askList)
 
   // The pointer's throttle: the aim folded while it waits, and its timer.
   const aimTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -106,10 +99,8 @@ export const usePongTable = ({ playerId, move, showNotice, onLeft }: UsePongTabl
   }, [settle, stopAiming])
   const clear = useCallback(() => {
     clearTable()
-    setRoundRobins(null)
-    listAsked.current = false
-    listStale.current = false
-  }, [clearTable])
+    resetRoundRobins()
+  }, [clearTable, resetRoundRobins])
 
   const handleUpdate = useCallback(
     (update: PongUpdate) => {
@@ -140,27 +131,15 @@ export const usePongTable = ({ playerId, move, showNotice, onLeft }: UsePongTabl
         return
       }
       if (update.roundRobins) {
-        setRoundRobins(update.roundRobins.roundRobins)
-        listAsked.current = false
-        if (listStale.current) askList()
+        heardList(update.roundRobins.roundRobins)
         return
       }
       if (update.roundRobin) {
-        const heard = update.roundRobin
-        if (listAsked.current) listStale.current = true
-        if (roundRobinsRef.current === null) {
-          if (!listAsked.current) askList()
-          return
-        }
-        setRoundRobins(held => {
-          if (held === null) return held
-          const at = held.findIndex(roundRobin => roundRobin.roundRobinId === heard.roundRobinId)
-          return at === -1 ? [...held, heard] : held.map((roundRobin, i) => (i === at ? heard : roundRobin))
-        })
+        heardOne(update.roundRobin)
       }
       // gameStarted and gameEnded: the view says it all.
     },
-    [askList, clearTable, onLeft, playerId, showNotice, showView]
+    [clearTable, heardList, heardOne, onLeft, playerId, showNotice, showView]
   )
 
   const latestFrame = useCallback(() => frameRef.current, [])
@@ -262,7 +241,7 @@ export const usePongTable = ({ playerId, move, showNotice, onLeft }: UsePongTabl
     aim,
     aimNow,
     roundRobins,
-    loadRoundRobins: askList,
+    loadRoundRobins,
     createRoundRobin,
     playRoundRobin,
     forfeit,

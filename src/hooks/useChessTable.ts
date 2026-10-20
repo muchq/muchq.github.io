@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
+import { useRoundRobinList } from './useRoundRobinList'
 import type { ChessHistory, ChessMoveName, ChessMovePayloads, ChessReview, ChessRoundRobin, ChessUpdate, ChessView } from '@/apps/chess/wire'
 
 // A chess table as the wire sends it, over the lobby's stream (useLobby).
@@ -77,19 +78,8 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
   const [sent, setSent] = useState<string | null>(null)
   const [history, setHistory] = useState<ChessHistory | null>(null)
   const [review, setReview] = useState<ChessReview | null>(null)
-  const [roundRobins, setRoundRobins] = useState<ChessRoundRobin[] | null>(null)
-  const roundRobinsRef = useRef(roundRobins)
-  roundRobinsRef.current = roundRobins
-  // An answer to the list is built before it arrives, so a change heard
-  // while it is asked for may be newer than it: the list is asked for
-  // again once it lands.
-  const listAsked = useRef(false)
-  const listStale = useRef(false)
-  const askList = useCallback(() => {
-    listAsked.current = true
-    listStale.current = false
-    move('roundRobins')
-  }, [move])
+  const askList = useCallback(() => move('roundRobins'), [move])
+  const { roundRobins, load: loadRoundRobins, heardList, heardOne, reset: resetRoundRobins } = useRoundRobinList<ChessRoundRobin>(askList)
 
   // Held until the hub answers with a view, or refuses.
   const settle = useCallback(() => {
@@ -105,10 +95,8 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
     clearTable()
     setHistory(null)
     setReview(null)
-    setRoundRobins(null)
-    listAsked.current = false
-    listStale.current = false
-  }, [clearTable])
+    resetRoundRobins()
+  }, [clearTable, resetRoundRobins])
 
   const handleUpdate = useCallback(
     (update: ChessUpdate) => {
@@ -142,24 +130,11 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
         return
       }
       if (update.roundRobins) {
-        setRoundRobins(update.roundRobins.roundRobins)
-        listAsked.current = false
-        // A change heard while it was asked for may postdate it.
-        if (listStale.current) askList()
+        heardList(update.roundRobins.roundRobins)
         return
       }
       if (update.roundRobin) {
-        const heard = update.roundRobin
-        if (listAsked.current) listStale.current = true
-        if (roundRobinsRef.current === null) {
-          if (!listAsked.current) askList()
-          return
-        }
-        setRoundRobins(held => {
-          if (held === null) return held
-          const at = held.findIndex(roundRobin => roundRobin.roundRobinId === heard.roundRobinId)
-          return at === -1 ? [...held, heard] : held.map((roundRobin, i) => (i === at ? heard : roundRobin))
-        })
+        heardOne(update.roundRobin)
         return
       }
       if (update.published) {
@@ -170,7 +145,7 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
       }
       // gameStarted, turnChanged and gameEnded: the view says it all.
     },
-    [askList, clearTable, move, onLeft, playerId, settle, showNotice]
+    [clearTable, heardList, heardOne, move, onLeft, playerId, settle, showNotice]
   )
 
   const createTable = useCallback(() => move('createGame'), [move])
@@ -229,7 +204,6 @@ export const useChessTable = ({ playerId, move, showNotice, onLeft }: UseChessTa
   const reviewGame = useCallback((gameId: string, ordinal: number) => move('review', { gameId, ordinal }), [move])
   const reviewArchived = useCallback((archiveId: number) => move('review', { archiveId }), [move])
   const closeReview = useCallback(() => setReview(null), [])
-  const loadRoundRobins = askList
   const createRoundRobin = useCallback(
     (entrants: string[], terms: ChessMovePayloads['challenge']) => move('createRoundRobin', { entrants, terms }),
     [move]

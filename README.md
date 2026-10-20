@@ -82,11 +82,11 @@ hub's positions stepped through by button, arrow key or move list, with the hub'
 on lichess's analysis board. Every room's games are published: on arriving in a room the lobby asks for its chess
 history and publishes it when that answer says it isn't, so games that end afterward join the hub's public feed
 (`/games/v2/chess.pgn`) for 30 days. The Round robins section (MoonBase#1647) starts one among 3 to 8 of
-the room's members on a clock (behind **New round robin**), and is absent from a room of fewer than 3 with none. Each
+the room's members at chess on a clock, pong on a court or go on a board and clock (behind **New round robin**), and is absent from a room of fewer than 3 with none. Each
 one shows its progress and the player's **Play** (a table for one of their pairings, which only its opponent can fill)
 or **Join** (one the opponent opened); its standings, pairings and moderation fold under **Details**. The Tables list
-and the command menu offer a pairing's table to no one else (`offerFor`), and the table itself, named by
-`ChessView.roundRobinId`, offers no bot, challenge, starting position or next game. Its creator, or while they are
+and the command menu offer a pairing's table to no one else (`offerFor`), and the table itself, named by its
+view's `roundRobinId`, offers no bot, challenge, starting position, board or next game. Its creator, or while they are
 away any entrant on what isn't theirs, forfeits pairings still to play and withdraws entrants. Share links are
 `/games/room/:roomId` and `/games/room/:roomId/table/:gameId`; the old `/golf` and `/castle`
 links redirect to them, and `/thoughts` to `/games`. Hiding the panel is how the bare world

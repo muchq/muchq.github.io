@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
-import type { GoBoardSize, GoMoveName, GoMovePayloads, GoUpdate, GoView } from '@/apps/go/wire'
+import { useRoundRobinList } from './useRoundRobinList'
+import type { GoBoardSize, GoMoveName, GoMovePayloads, GoRoundRobin, GoUpdate, GoView } from '@/apps/go/wire'
 
 // A go table as the wire sends it, over the lobby's stream (useLobby).
 // The owner feeds handleUpdate every go update and clears the table on a
@@ -35,6 +36,14 @@ export interface UseGoTable extends GoTableActions {
   handleUpdate: (update: GoUpdate) => void
   handleRejected: () => void
   clear: () => void
+  // The room's go round robins: unknown until asked for, then kept
+  // current by each one heard.
+  roundRobins: GoRoundRobin[] | null
+  loadRoundRobins: () => void
+  createRoundRobin: (entrants: string[], terms: GoMovePayloads['startGame']) => void
+  playRoundRobin: (roundRobinId: string, opponent: string) => void
+  forfeit: (roundRobinId: string, winner: string, loser: string) => void
+  withdraw: (roundRobinId: string, playerId: string) => void
 }
 
 export interface UseGoTableProps {
@@ -48,15 +57,21 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
   const [view, setView] = useState<GoView | null>(null)
   const [opening, setOpening] = useState(false)
   const [sent, setSent] = useState(false)
+  const askList = useCallback(() => move('roundRobins'), [move])
+  const { roundRobins, load: loadRoundRobins, heardList, heardOne, reset: resetRoundRobins } = useRoundRobinList<GoRoundRobin>(askList)
 
   const settle = useCallback(() => {
     setOpening(false)
     setSent(false)
   }, [])
-  const clear = useCallback(() => {
+  const clearTable = useCallback(() => {
     setView(null)
     settle()
   }, [settle])
+  const clear = useCallback(() => {
+    clearTable()
+    resetRoundRobins()
+  }, [clearTable, resetRoundRobins])
 
   const handleUpdate = useCallback(
     (update: GoUpdate) => {
@@ -71,13 +86,33 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
         return
       }
       if (update.gameLeft) {
-        clear()
+        clearTable()
         onLeft?.()
+        return
       }
+      if (update.roundRobins) {
+        heardList(update.roundRobins.roundRobins)
+        return
+      }
+      if (update.roundRobin) heardOne(update.roundRobin)
       // gameStarted, turnChanged and gameEnded: the view says it all.
     },
-    [clear, onLeft, playerId, settle, showNotice]
+    [clearTable, heardList, heardOne, onLeft, playerId, settle, showNotice]
   )
+
+  const createRoundRobin = useCallback(
+    (entrants: string[], terms: GoMovePayloads['startGame']) => move('createRoundRobin', { entrants, terms }),
+    [move]
+  )
+  const playRoundRobin = useCallback(
+    (roundRobinId: string, opponent: string) => {
+      setOpening(true)
+      move('playRoundRobin', { roundRobinId, opponent })
+    },
+    [move]
+  )
+  const forfeit = useCallback((roundRobinId: string, winner: string, loser: string) => move('forfeit', { roundRobinId, winner, loser }), [move])
+  const withdraw = useCallback((roundRobinId: string, playerId: string) => move('withdraw', { roundRobinId, playerId }), [move])
 
   const createTable = useCallback(() => move('createGame'), [move])
   const joinTable = useCallback(
@@ -112,9 +147,9 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
       return
     }
     // A closed table is already gone from the hub: only the view lingers.
-    clear()
+    clearTable()
     onLeft?.()
-  }, [clear, move, onLeft, view])
+  }, [clearTable, move, onLeft, view])
   const play = useCallback(
     (x: number, y: number) => {
       setSent(true)
@@ -157,6 +192,12 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
     pass,
     markDead,
     accept,
-    resign
+    resign,
+    roundRobins,
+    loadRoundRobins,
+    createRoundRobin,
+    playRoundRobin,
+    forfeit,
+    withdraw
   }
 }
