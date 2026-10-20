@@ -268,8 +268,8 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
       : view.terms === undefined
         ? Object.keys(CLOCKS)[0]
         : clockLine(view.terms.initialSeconds, view.terms.incrementSeconds)
-  // Held for one view: any move answered puts the question away.
   const [botLevel, setBotLevel] = useState(BOT_LEVELS[1].level)
+  // Held for one view: any move answered puts the question away.
   const [confirmResign, setConfirmResign] = useState<GoView | null>(null)
   // Held for one phase: the game ending or starting puts them away.
   const [tipsPhase, setTipsPhase] = useState<GoView['phase'] | null>(null)
@@ -337,7 +337,7 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
     if (view.phase === 'closed') return watching ? 'The table closed.' : 'Your opponent left the table.'
     if (scoring) {
       const count = view.scoring === undefined ? '' : ` Black ${view.scoring.score.black}, White ${view.scoring.score.white}.`
-      const accepts = (view.scoring?.acceptedBy ?? []).map(id => (id === playerId ? ' You accept.' : ` ${id} accepts.`)).join('')
+      const accepts = (view.scoring?.acceptedBy ?? []).map(id => (id === playerId ? ' You accept.' : ` ${seatName(id)} accepts.`)).join('')
       if (watching) return `Scoring: the players mark dead stones.${count}${accepts}`
       return `Mark the dead stones, then accept${myTurn ? ', or play on' : ''}.${count}${accepts}`
     }
@@ -351,7 +351,7 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
           : last.x !== undefined && last.y !== undefined
             ? `${colorName(last.color)} played ${pointName(last.x, last.y, boardSize)}. `
             : ''
-    return myTurn ? `${said}Your move.` : `${said}${view.currentPlayerId ?? ''} to move.`
+    return myTurn ? `${said}Your move.` : `${said}${seatName(view.currentPlayerId ?? '')} to move.`
   })()
 
   const sizePicker = (label: string) => (

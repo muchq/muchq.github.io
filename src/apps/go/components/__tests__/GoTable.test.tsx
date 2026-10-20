@@ -502,8 +502,15 @@ describe('GoTable', () => {
     mount({ view: alone({ players: [{ playerId: 'alice' }, { playerId: 'gnugo@4', bot: true }] }) })
     expect(screen.getByText('GNU Go 4')).toBeTruthy()
     cleanup()
-    mount({ view: view({ players: [{ playerId: 'alice', color: 'black' }, { playerId: 'gnugo@4', color: 'white', bot: true }], currentPlayerId: 'gnugo@4' }) })
-    expect(screen.getAllByText('GNU Go 4').length).toBeGreaterThan(0)
+    const players = [
+      { playerId: 'alice', color: 'black' as const },
+      { playerId: 'gnugo@4', color: 'white' as const, bot: true }
+    ]
+    mount({ view: view({ players, currentPlayerId: 'gnugo@4', sideToMove: 'white', lastMove: undefined }) })
+    expect(screen.getByTestId('go-status').textContent).toBe('GNU Go 4 to move.')
+    cleanup()
+    mount({ view: scoring({ players, scoring: { acceptedBy: ['gnugo@4'], score: { black: 81, white: 6.5 } } }) })
+    expect(screen.getByTestId('go-status').textContent).toContain(' GNU Go 4 accepts.')
     cleanup()
     mount({
       view: view({

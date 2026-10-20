@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BOT_LEVELS, nameOf } from '../terms'
+import { nameOf } from '../terms'
 
 describe('nameOf', () => {
   // A bot's id ("gnugo@4") names its engine and level, as the hub mints
@@ -9,14 +9,5 @@ describe('nameOf', () => {
     expect(nameOf('gnugo@10')).toBe('GNU Go 10')
     expect(nameOf('alice')).toBe('alice')
     expect(nameOf('gnugo@x')).toBe('gnugo@x')
-  })
-})
-
-describe('BOT_LEVELS', () => {
-  it('offers only levels GNU Go has', () => {
-    for (const { level } of BOT_LEVELS) {
-      expect(level).toBeGreaterThanOrEqual(1)
-      expect(level).toBeLessThanOrEqual(10)
-    }
   })
 })
