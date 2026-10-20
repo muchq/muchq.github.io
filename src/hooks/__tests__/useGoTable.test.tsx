@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { useGoTable } from '../useGoTable'
-import type { GoRoundRobin, GoView } from '@/apps/go/wire'
+import type { GoGameSummary, GoRoundRobin, GoView } from '@/apps/go/wire'
 
 const view = (over: Partial<GoView> = {}): GoView => ({
   gameId: 'G01',
@@ -38,6 +38,20 @@ const roundRobin = (over: Partial<GoRoundRobin> = {}): GoRoundRobin => ({
   pairings: [],
   withdrawn: [],
   standings: [],
+  ...over
+})
+
+const summary = (over: Partial<GoGameSummary> = {}): GoGameSummary => ({
+  archiveId: 1,
+  gameId: 'G01',
+  ordinal: 1,
+  black: 'alice',
+  white: 'bob',
+  size: 9,
+  komi: 6.5,
+  result: { ending: 'resignation', winner: 'alice', winnerColor: 'black' },
+  endedAtMs: 1_800_000_000_000,
+  sgf: '(;FF[4]SZ[9];B[cc])',
   ...over
 })
 
@@ -180,6 +194,28 @@ describe('useGoTable', () => {
     expect(move).toHaveBeenCalledWith('leaveGame')
     expect(hook.result.current.view).not.toBeNull()
     expect(onLeft).not.toHaveBeenCalled()
+  })
+
+  // The room's finished games: unknown until asked for, then the latest
+  // answer; a room left forgets them.
+  it('asks for the history and holds the answer until clear', () => {
+    const { hook, move } = setup()
+    expect(hook.result.current.history).toBeNull()
+    act(() => hook.result.current.loadHistory())
+    expect(move).toHaveBeenLastCalledWith('history')
+    const games = [summary()]
+    act(() => hook.result.current.handleUpdate({ history: { games } }))
+    expect(hook.result.current.history).toEqual(games)
+    act(() => hook.result.current.clear())
+    expect(hook.result.current.history).toBeNull()
+  })
+
+  // A game just finished is the history's newest: asked for again, so a
+  // room's first game shows without a refresh.
+  it('asks for the history again when a game ends', () => {
+    const { hook, move } = setup()
+    act(() => hook.result.current.handleUpdate({ gameEnded: { result: { ending: 'resignation', winner: 'alice', winnerColor: 'black' } } }))
+    expect(move).toHaveBeenLastCalledWith('history')
   })
 
   // A bot seated is held as a seat taken: the next view, or a refusal,

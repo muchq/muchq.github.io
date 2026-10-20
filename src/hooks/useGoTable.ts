@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { useRoundRobinList } from './useRoundRobinList'
-import type { GoBoardSize, GoMoveName, GoMovePayloads, GoRoundRobin, GoUpdate, GoView } from '@/apps/go/wire'
+import type { GoBoardSize, GoGameSummary, GoMoveName, GoMovePayloads, GoRoundRobin, GoUpdate, GoView } from '@/apps/go/wire'
 
 // A go table as the wire sends it, over the lobby's stream (useLobby).
 // The owner feeds handleUpdate every go update and clears the table on a
@@ -48,6 +48,10 @@ export interface UseGoTable extends GoTableActions {
   playRoundRobin: (roundRobinId: string, opponent: string) => void
   forfeit: (roundRobinId: string, winner: string, loser: string) => void
   withdraw: (roundRobinId: string, playerId: string) => void
+  // The room's finished go games, newest first: unknown until asked for,
+  // then the latest answer.
+  history: GoGameSummary[] | null
+  loadHistory: () => void
 }
 
 export interface UseGoTableProps {
@@ -62,6 +66,8 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
   const [opening, setOpening] = useState(false)
   const [sent, setSent] = useState(false)
   const [seating, setSeating] = useState(false)
+  const [history, setHistory] = useState<GoGameSummary[] | null>(null)
+  const loadHistory = useCallback(() => move('history'), [move])
   const askList = useCallback(() => move('roundRobins'), [move])
   const { roundRobins, load: loadRoundRobins, heardList, heardOne, reset: resetRoundRobins } = useRoundRobinList<GoRoundRobin>(askList)
 
@@ -77,6 +83,7 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
   const clear = useCallback(() => {
     clearTable()
     resetRoundRobins()
+    setHistory(null)
   }, [clearTable, resetRoundRobins])
 
   const handleUpdate = useCallback(
@@ -100,10 +107,19 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
         heardList(update.roundRobins.roundRobins)
         return
       }
+      if (update.history) {
+        setHistory(update.history.games)
+        return
+      }
+      // A finished game is the history's newest.
+      if (update.gameEnded) {
+        loadHistory()
+        return
+      }
       if (update.roundRobin) heardOne(update.roundRobin)
-      // gameStarted, turnChanged and gameEnded: the view says it all.
+      // gameStarted and turnChanged: the view says it all.
     },
-    [clearTable, heardList, heardOne, onLeft, playerId, settle, showNotice]
+    [clearTable, heardList, heardOne, loadHistory, onLeft, playerId, settle, showNotice]
   )
 
   const createRoundRobin = useCallback(
@@ -208,6 +224,8 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
     resign,
     addBot,
     seating,
+    history,
+    loadHistory,
     roundRobins,
     loadRoundRobins,
     createRoundRobin,
