@@ -23,6 +23,10 @@ export interface GoTableActions {
   // A move sent and not yet answered: the next view, or a refusal, lets it go.
   sent: boolean
   resign: () => void
+  // GNU Go to the other chair, at a level; held as `seating` until the hub
+  // answers.
+  addBot: (level: number) => void
+  seating: boolean
 }
 
 export interface UseGoTable extends GoTableActions {
@@ -57,12 +61,14 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
   const [view, setView] = useState<GoView | null>(null)
   const [opening, setOpening] = useState(false)
   const [sent, setSent] = useState(false)
+  const [seating, setSeating] = useState(false)
   const askList = useCallback(() => move('roundRobins'), [move])
   const { roundRobins, load: loadRoundRobins, heardList, heardOne, reset: resetRoundRobins } = useRoundRobinList<GoRoundRobin>(askList)
 
   const settle = useCallback(() => {
     setOpening(false)
     setSent(false)
+    setSeating(false)
   }, [])
   const clearTable = useCallback(() => {
     setView(null)
@@ -173,6 +179,13 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
     move('accept')
   }, [move])
   const resign = useCallback(() => move('resign'), [move])
+  const addBot = useCallback(
+    (level: number) => {
+      setSeating(true)
+      move('addBot', { level })
+    },
+    [move]
+  )
 
   return {
     view,
@@ -193,6 +206,8 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
     markDead,
     accept,
     resign,
+    addBot,
+    seating,
     roundRobins,
     loadRoundRobins,
     createRoundRobin,

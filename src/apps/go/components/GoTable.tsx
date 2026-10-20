@@ -7,7 +7,7 @@ import AboutGame from '@/apps/lobby/components/AboutGame'
 import { formatClock } from '@/apps/chess/rules'
 import type { GoBoardSize, GoColor, GoResult, GoView } from '../wire'
 import { unlockGoSounds } from '../sounds'
-import { CLOCKS, SIZES, clockLine } from '../terms'
+import { BOT_LEVELS, CLOCKS, SIZES, clockLine, nameOf as seatName } from '../terms'
 import { useGoSounds } from '../useGoSounds'
 import styles from './GoTable.module.css'
 
@@ -115,7 +115,7 @@ const colorName = (color: GoColor) => (color === 'black' ? 'Black' : 'White')
 
 function describeResult(result: GoResult, playerId: string): string {
   const scores = result.score === undefined ? '' : ` Black ${result.score.black}, White ${result.score.white}.`
-  const winner = result.winner === undefined ? 'Nobody' : result.winner === playerId ? 'You' : result.winner
+  const winner = result.winner === undefined ? 'Nobody' : result.winner === playerId ? 'You' : seatName(result.winner)
   const color = result.winnerColor === undefined ? '' : ` (${colorName(result.winnerColor)})`
   const how = { score: 'on points', resignation: 'by resignation', timeout: 'on time', abandoned: 'by abandonment' }[result.ending]
   return `${winner}${color} won ${how}.${scores}`
@@ -269,6 +269,7 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
         ? Object.keys(CLOCKS)[0]
         : clockLine(view.terms.initialSeconds, view.terms.incrementSeconds)
   // Held for one view: any move answered puts the question away.
+  const [botLevel, setBotLevel] = useState(BOT_LEVELS[1].level)
   const [confirmResign, setConfirmResign] = useState<GoView | null>(null)
   // Held for one phase: the game ending or starting puts them away.
   const [tipsPhase, setTipsPhase] = useState<GoView['phase'] | null>(null)
@@ -310,7 +311,7 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
   const accepted = view.scoring?.acceptedBy.includes(playerId) ?? false
   const nameOf = (color: GoColor) => {
     const seat = view.players.find(player => player.color === color)
-    return seat === undefined ? colorName(color) : seat.playerId === playerId ? `${seat.playerId} (you)` : seat.playerId
+    return seat === undefined ? colorName(color) : seat.playerId === playerId ? `${seat.playerId} (you)` : seatName(seat.playerId)
   }
 
   const status = (() => {
@@ -399,9 +400,24 @@ const GoTable = ({ playerId, connected, view, table }: GoTableProps) => {
           <AboutGame game="go" className={felt.hint} />
           <ul>
             {view.players.map(player => (
-              <li key={player.playerId}>{player.playerId === playerId ? `${player.playerId} (you)` : player.playerId}</li>
+              <li key={player.playerId}>{player.playerId === playerId ? `${player.playerId} (you)` : seatName(player.playerId)}</li>
             ))}
           </ul>
+          {/* Alone at the table, a bot can take the other chair. */}
+          {!watching && !pairing && alone && (
+            <div className={styles.actions}>
+              <select aria-label="Bot strength" value={botLevel} onChange={event => setBotLevel(Number(event.target.value))}>
+                {BOT_LEVELS.map(({ level, name }) => (
+                  <option key={level} value={level}>
+                    {name} (level {level})
+                  </option>
+                ))}
+              </select>
+              <button type="button" className={felt.secondary} onClick={() => table.addBot(botLevel)} disabled={!connected || table.seating}>
+                Add a bot
+              </button>
+            </div>
+          )}
           {!watching && !pairing && (
             <div className={styles.actions}>
               {sizePicker('Board size')}

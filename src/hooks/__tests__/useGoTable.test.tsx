@@ -181,4 +181,18 @@ describe('useGoTable', () => {
     expect(hook.result.current.view).not.toBeNull()
     expect(onLeft).not.toHaveBeenCalled()
   })
+
+  // A bot seated is held as a seat taken: the next view, or a refusal,
+  // lets it go.
+  it('adds a bot at its level, held until the hub answers', () => {
+    const { hook, move } = setup()
+    act(() => hook.result.current.addBot(4))
+    expect(move).toHaveBeenCalledWith('addBot', { level: 4 })
+    expect(hook.result.current.seating).toBe(true)
+    act(() => hook.result.current.handleUpdate({ gameState: { view: view({ phase: 'waiting' }) } }))
+    expect(hook.result.current.seating).toBe(false)
+    act(() => hook.result.current.addBot(4))
+    act(() => hook.result.current.handleRejected())
+    expect(hook.result.current.seating).toBe(false)
+  })
 })

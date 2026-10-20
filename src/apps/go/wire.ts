@@ -18,6 +18,8 @@ export interface GoPlayer {
   playerId: string
   // Absent while waiting.
   color?: GoColor
+  // A bot's seat (GNU Go), its id naming the engine and level ("gnugo@4").
+  bot?: boolean
 }
 
 // Each side's time left as of the moment the hub built the view; the
@@ -153,6 +155,8 @@ export interface GoMovePayloads {
   forfeit: { roundRobinId: string; winner: string; loser: string }
   roundRobins: undefined
   playRoundRobin: { roundRobinId: string; opponent: string }
+  // GNU Go to a lone seat's table not yet started, at a level 1 to 10.
+  addBot: { level: number }
 }
 
 export type GoMoveName = keyof GoMovePayloads
