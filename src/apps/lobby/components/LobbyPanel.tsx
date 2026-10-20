@@ -91,8 +91,8 @@ const goResult = ({ result }: GoGameSummary): string => {
   if (result.winnerColor === undefined) return 'draw'
   const winner = result.winnerColor === 'black' ? 'B' : 'W'
   if (result.ending !== 'score') return `${winner}+${GO_ENDING_MARK[result.ending]}`
-  const score = result.score ?? { black: 0, white: 0 }
-  return `${winner}+${Math.abs(score.black - score.white)}`
+  // A game ended on the score carries its count.
+  return `${winner}+${result.score === undefined ? '?' : Math.abs(result.score.black - result.score.white)}`
 }
 const goLine = (game: GoGameSummary): string =>
   `${goNameOf(game.black)} vs ${goNameOf(game.white)} · ${game.size}×${game.size} · ${goResult(game)}`
@@ -113,6 +113,7 @@ const GoGames = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean }) =>
             <a
               href={`data:application/x-go-sgf;charset=utf-8,${encodeURIComponent(game.sgf)}`}
               download={`${game.gameId}-${game.ordinal}.sgf`}
+              className={styles.secondary}
               aria-label={`SGF of ${game.gameId} game ${game.ordinal}`}
             >
               SGF

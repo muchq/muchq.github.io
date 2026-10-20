@@ -111,10 +111,15 @@ export const useGoTable = ({ playerId, move, showNotice, onLeft }: UseGoTablePro
         setHistory(update.history.games)
         return
       }
+      // A finished game is the history's newest.
+      if (update.gameEnded) {
+        loadHistory()
+        return
+      }
       if (update.roundRobin) heardOne(update.roundRobin)
-      // gameStarted, turnChanged and gameEnded: the view says it all.
+      // gameStarted and turnChanged: the view says it all.
     },
-    [clearTable, heardList, heardOne, onLeft, playerId, settle, showNotice]
+    [clearTable, heardList, heardOne, loadHistory, onLeft, playerId, settle, showNotice]
   )
 
   const createRoundRobin = useCallback(

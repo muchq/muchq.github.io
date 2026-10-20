@@ -129,11 +129,11 @@ export interface GoUpdate {
   gameLeft?: { gameId: string }
   roundRobin?: GoRoundRobin
   roundRobins?: { roundRobins: GoRoundRobin[] }
+  // The room's finished games, newest first.
   history?: { games: GoGameSummary[] }
 }
 
-// One finished game of the room's history, newest first, with its whole
-// record.
+// One finished game of the room's history, with its whole record.
 export interface GoGameSummary {
   archiveId: number
   gameId: string

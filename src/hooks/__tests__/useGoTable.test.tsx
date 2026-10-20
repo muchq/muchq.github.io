@@ -210,6 +210,14 @@ describe('useGoTable', () => {
     expect(hook.result.current.history).toBeNull()
   })
 
+  // A game just finished is the history's newest: asked for again, so a
+  // room's first game shows without a refresh.
+  it('asks for the history again when a game ends', () => {
+    const { hook, move } = setup()
+    act(() => hook.result.current.handleUpdate({ gameEnded: { result: { ending: 'resignation', winner: 'alice', winnerColor: 'black' } } }))
+    expect(move).toHaveBeenLastCalledWith('history')
+  })
+
   // A bot seated is held as a seat taken: the next view, or a refusal,
   // lets it go.
   it('adds a bot at its level, held until the hub answers', () => {

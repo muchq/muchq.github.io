@@ -114,6 +114,8 @@ describe('LobbyGame', () => {
     state.roomLink = null
     state.connected = true
     state.room = null
+    state.chess.history = null
+    state.go.history = null
     localStorage.clear()
     vi.clearAllMocks()
   })
@@ -368,6 +370,22 @@ describe('LobbyGame', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Hide lobby' }))
       expect(state.chess.loadHistory).not.toHaveBeenCalled()
       state.room = { roomId: 'ROOM01', players: [], games: [] } as unknown as UseLobby['room']
+      rerender(<LobbyGame />)
+      expect(state.chess.loadHistory).toHaveBeenCalledTimes(1)
+      expect(state.go.loadHistory).toHaveBeenCalledTimes(1)
+    })
+
+    // Once answered, not again: each answer is a new list.
+    it('asks once, and not while disconnected', () => {
+      state.connected = false
+      state.room = { roomId: 'ROOM01', players: [], games: [] } as unknown as UseLobby['room']
+      const { rerender } = render(<LobbyGame />)
+      expect(state.chess.loadHistory).not.toHaveBeenCalled()
+      expect(state.go.loadHistory).not.toHaveBeenCalled()
+      state.connected = true
+      rerender(<LobbyGame />)
+      state.chess.history = { published: true, games: [] } as unknown as UseLobby['chess']['history']
+      state.go.history = []
       rerender(<LobbyGame />)
       expect(state.chess.loadHistory).toHaveBeenCalledTimes(1)
       expect(state.go.loadHistory).toHaveBeenCalledTimes(1)

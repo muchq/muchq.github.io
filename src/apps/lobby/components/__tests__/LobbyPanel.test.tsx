@@ -920,5 +920,16 @@ describe('LobbyPanel', () => {
       expect(section.getByText('alice vs GNU Go 4 · 9×9 · B+T')).toBeTruthy()
       expect(section.getByText('alice vs GNU Go 4 · 9×9 · W+F')).toBeTruthy()
     })
+
+    it('counts a win for white on the score by its margin', () => {
+      const won = goGame({ result: { ending: 'score', winner: 'gnugo@4', winnerColor: 'white', score: { black: 30, white: 51.5 } } })
+      render(<LobbyPanel lobby={lobby({ room: room(), go: goHook([], [won]) })} />)
+      expect(within(screen.getByRole('region', { name: 'Go games' })).getByText('alice vs GNU Go 4 · 9×9 · W+21.5')).toBeTruthy()
+    })
+
+    it('refreshes only while connected', () => {
+      render(<LobbyPanel lobby={lobby({ connected: false, room: room(), go: goHook([], [goGame()]) })} />)
+      expect((within(screen.getByRole('region', { name: 'Go games' })).getByRole('button', { name: 'Refresh go games' }) as HTMLButtonElement).disabled).toBe(true)
+    })
   })
 })
