@@ -399,6 +399,7 @@ describe('LobbyGame', () => {
         render(<LobbyGame />)
         expect(screen.queryByRole('complementary', { name: 'lobby' })).toBeNull()
         expect(state.chess.loadHistory).toHaveBeenCalledTimes(1)
+        expect(state.go.loadHistory).toHaveBeenCalledTimes(1)
       } finally {
         window.innerWidth = width
       }

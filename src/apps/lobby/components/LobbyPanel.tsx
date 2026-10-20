@@ -98,29 +98,36 @@ const goLine = (game: GoGameSummary): string =>
   `${goNameOf(game.black)} vs ${goNameOf(game.white)} · ${game.size}×${game.size} · ${goResult(game)}`
 
 // The room's finished go games (MoonBase#1686), each one's SGF a
-// download. History is asked for on room arrival in LobbyGame; a room
-// that has played none shows nothing.
+// download. History is asked for on room arrival in LobbyGame, and again
+// by whoever sees a game end; a member at no go table refreshes, so the
+// section stays up while the room has a go table. A room with neither
+// shows nothing.
 const GoGames = ({ lobby, disabled }: { lobby: UseLobby; disabled: boolean }) => {
   const { history } = lobby.go
-  if (history === null || history.length === 0) return null
+  const goTable = lobby.room?.games.some(game => game.game === 'go') ?? false
+  if (history === null || (history.length === 0 && !goTable)) return null
   return (
     <section className={styles.section} aria-labelledby="lobby-go-games">
       <h2 id="lobby-go-games">Go games</h2>
-      <ul className={styles.list}>
-        {history.map(game => (
-          <li key={game.archiveId} className={styles.row}>
-            <span>{goLine(game)}</span>
-            <a
-              href={`data:application/x-go-sgf;charset=utf-8,${encodeURIComponent(game.sgf)}`}
-              download={`${game.gameId}-${game.ordinal}.sgf`}
-              className={styles.secondary}
-              aria-label={`SGF of ${game.gameId} game ${game.ordinal}`}
-            >
-              SGF
-            </a>
-          </li>
-        ))}
-      </ul>
+      {history.length === 0 ? (
+        <p className={styles.muted}>No finished go games yet</p>
+      ) : (
+        <ul className={styles.list}>
+          {history.map(game => (
+            <li key={game.archiveId} className={styles.row}>
+              <span>{goLine(game)}</span>
+              <a
+                href={`data:application/x-go-sgf;charset=utf-8,${encodeURIComponent(game.sgf)}`}
+                download={`${game.gameId}-${game.ordinal}.sgf`}
+                className={styles.secondary}
+                aria-label={`SGF of ${game.gameId} game ${game.ordinal}`}
+              >
+                SGF
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
       <button type="button" className={styles.link} onClick={lobby.go.loadHistory} disabled={disabled} aria-label="Refresh go games">
         Refresh
       </button>
