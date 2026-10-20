@@ -31,6 +31,8 @@ const view = (over: Partial<GoView> = {}): GoView => ({
 const table = (over: Partial<GoTableProps['table']> = {}): GoTableProps['table'] => ({
   opening: false,
   sent: false,
+  seating: false,
+  addBot: vi.fn(),
   startTable: vi.fn(),
   postChallenge: vi.fn(),
   leaveTable: vi.fn(),
@@ -52,6 +54,9 @@ const scoring = (over: Partial<GoView> = {}) =>
     lastMove: { color: 'white', pass: true },
     ...over
   })
+
+const alone = (over: Partial<GoView> = {}) =>
+  view({ phase: 'waiting', players: [{ playerId: 'alice' }], size: undefined, board: undefined, ...over })
 
 const mount = (props: Partial<GoTableProps> = {}) => {
   const held = props.table ?? table()
@@ -459,5 +464,61 @@ describe('GoTable', () => {
     expect(unlockGoSounds).toHaveBeenCalledTimes(1)
     fireEvent.pointerDown(screen.getByTestId('go-status'))
     expect(unlockGoSounds).toHaveBeenCalledTimes(2)
+  })
+
+  // Alone at a table, a bot can take the other chair, at a level GNU Go has.
+  it('a lone seat adds a bot at the level picked', () => {
+    const held = mount({ view: alone() })
+    const levels = screen.getByRole('combobox', { name: 'Bot strength' })
+    expect(within(levels).getAllByRole('option').map(option => option.textContent)).toEqual([
+      'Beginner (level 1)',
+      'Casual (level 4)',
+      'Club (level 7)',
+      'Strongest (level 10)'
+    ])
+    fireEvent.change(levels, { target: { value: '7' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add a bot' }))
+    expect(held.addBot).toHaveBeenCalledWith(7)
+  })
+
+  it('a bot is added only to a lone seat’s own ordinary table, once at a time', () => {
+    mount({ view: alone({ players: [{ playerId: 'alice' }, { playerId: 'bob' }] }) })
+    expect(screen.queryByRole('button', { name: 'Add a bot' })).toBeNull()
+    cleanup()
+    mount({ view: alone({ roundRobinId: 'E1' }) })
+    expect(screen.queryByRole('button', { name: 'Add a bot' })).toBeNull()
+    cleanup()
+    mount({ view: alone({ players: [{ playerId: 'bob' }] }) })
+    expect(screen.queryByRole('button', { name: 'Add a bot' })).toBeNull()
+    cleanup()
+    mount({ view: alone(), table: table({ seating: true }) })
+    expect((screen.getByRole('button', { name: 'Add a bot' }) as HTMLButtonElement).disabled).toBe(true)
+    cleanup()
+    mount({ view: alone(), connected: false })
+    expect((screen.getByRole('button', { name: 'Add a bot' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('a bot is named by its engine and level wherever a seat is named', () => {
+    mount({ view: alone({ players: [{ playerId: 'alice' }, { playerId: 'gnugo@4', bot: true }] }) })
+    expect(screen.getByText('GNU Go 4')).toBeTruthy()
+    cleanup()
+    const players = [
+      { playerId: 'alice', color: 'black' as const },
+      { playerId: 'gnugo@4', color: 'white' as const, bot: true }
+    ]
+    mount({ view: view({ players, currentPlayerId: 'gnugo@4', sideToMove: 'white', lastMove: undefined }) })
+    expect(screen.getByTestId('go-status').textContent).toBe('GNU Go 4 to move.')
+    cleanup()
+    mount({ view: scoring({ players, scoring: { acceptedBy: ['gnugo@4'], score: { black: 81, white: 6.5 } } }) })
+    expect(screen.getByTestId('go-status').textContent).toContain(' GNU Go 4 accepts.')
+    cleanup()
+    mount({
+      view: view({
+        phase: 'ended',
+        players: [{ playerId: 'alice', color: 'black' }, { playerId: 'gnugo@4', color: 'white', bot: true }],
+        result: { ending: 'resignation', winner: 'gnugo@4', winnerColor: 'white' }
+      })
+    })
+    expect(screen.getByTestId('go-status').textContent).toBe('GNU Go 4 (White) won by resignation.')
   })
 })
