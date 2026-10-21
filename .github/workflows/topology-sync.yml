@@ -1,0 +1,26 @@
+name: Topology sync
+
+# src/apps/topology/topology.mmd copies the diagram in MoonBase's
+# docs/DEPLOYMENT.md. Each PR checks it still matches, and so does a daily
+# run, since the source changes in another repository.
+on:
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '17 9 * * *'
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Diagram matches MoonBase docs/DEPLOYMENT.md
+        run: node scripts/topology-sync.mjs --check

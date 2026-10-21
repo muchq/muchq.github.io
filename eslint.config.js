@@ -14,6 +14,14 @@ export default [
     ignores: ['dist/**', 'node_modules/**', '.eslintrc.cjs', 'backup/**', 'playwright-report/**', 'test-results/**'],
   },
   
+  // Node scripts, run by CI as well as by hand
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
+
   // TypeScript and React configuration
   {
     files: ['**/*.{ts,tsx}'],
