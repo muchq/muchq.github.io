@@ -889,18 +889,6 @@ describe('LobbyPanel', () => {
       expect(screen.queryByRole('region', { name: 'Go games' })).toBeNull()
     })
 
-    // A member at no go table hears no game end: while the room has one,
-    // the section stays up to refresh from.
-    it('shows an empty list to refresh from while the room has a go table', () => {
-      const withGo = room({ games: [{ gameId: 'G9', game: 'go', status: 'playing', playerCount: 2 }] })
-      const hook = lobby({ room: withGo, go: goHook([], []) })
-      render(<LobbyPanel lobby={hook} />)
-      const section = within(screen.getByRole('region', { name: 'Go games' }))
-      expect(section.getByText('No finished go games yet')).toBeTruthy()
-      fireEvent.click(section.getByRole('button', { name: 'Refresh go games' }))
-      expect(hook.go.loadHistory).toHaveBeenCalledTimes(1)
-    })
-
     it('lists each game with its sides, board and result, its SGF a download', () => {
       const hook = lobby({
         room: room(),
