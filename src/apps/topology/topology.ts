@@ -1,6 +1,7 @@
 // The deployment diagram, as data. The source is MoonBase's
-// docs/DEPLOYMENT.md, copied here as topology.mmd — mermaid's flowchart
-// syntax, parsed rather than rendered: this page draws its own SVG.
+// docs/DEPLOYMENT.md, copied here as topology.mmd by
+// scripts/topology-sync.mjs, which CI runs to check the copy — mermaid's
+// flowchart syntax, parsed rather than rendered: this page draws its own SVG.
 
 export type Edge = { from: string; to: string; kind: string }
 export type Node = { id: string; label: string; group: string }
