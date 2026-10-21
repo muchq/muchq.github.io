@@ -426,6 +426,23 @@ describe('LobbyGame', () => {
       expect(state.go.loadHistory).toHaveBeenCalledTimes(2)
     })
 
+    // Only the go tables count: a chess table opening asks nothing.
+    it('does not ask again when only other games change', () => {
+      state.room = goRoom('ROOM01', 'playing')
+      state.go.history = []
+      const { rerender } = render(<LobbyGame />)
+      state.room = {
+        roomId: 'ROOM01',
+        players: [],
+        games: [
+          { gameId: 'G9', game: 'go', status: 'playing', playerCount: 2 },
+          { gameId: 'C1', game: 'chess', status: 'waiting', playerCount: 1 }
+        ]
+      } as unknown as UseLobby['room']
+      rerender(<LobbyGame />)
+      expect(state.go.loadHistory).not.toHaveBeenCalled()
+    })
+
     // Another room is arrival again, not a change.
     it('treats moving to another room as arriving', () => {
       state.room = goRoom('ROOM01', 'playing')
