@@ -35,6 +35,10 @@ npm run preview
 
 # Deploy (Cloudflare Workers via wrangler)
 npm run deploy
+
+# /topology's diagram against MoonBase's docs/DEPLOYMENT.md (CI checks it on
+# each PR and daily); without --check, rewrites src/apps/topology/topology.mmd
+node scripts/topology-sync.mjs --check
 ```
 
 ## 🕹️ What's Here
@@ -54,18 +58,19 @@ npm run deploy
 | `/resilience` | Distributed-systems game |
 | `/smallcat` | Pong, moved from smallcat.dog |
 | `/groups`, `/sets`, `/top` | Math learning modules (permutation groups, sets, Topology Quest) |
+| `/topology` | The deployment diagram, from MoonBase's `docs/DEPLOYMENT.md`: services and their links by kind (http, sql, logs, metrics), with each container's live status |
 
 The nav's **Hmm** menu links to apps hosted off muchq.com (see the
 `hmm` group in `src/shared/components/Navigation.tsx` for the current
 list). Those are external links, not routes — their code lives in their own
 repos, not here.
 
-### The lobby, golf, castle, rummy, chess, and thoughts
+### The lobby, its card games, chess, go, and thoughts
 
 `/games` is the lobby (MoonBase#1490): the thoughts world with a panel for the room, its
 players and their tables, and the room's chat, all on one stream. Sharing the room and its
-voice sit in one row at the panel's top. A new table is picked as Cards (then castle, golf or
-rummy) or Chess (`catalog.ts`), and each game says what it is at its own table while that waits
+voice sit in one row at the panel's top. A new table is picked as Cards (then castle, golf, rummy or
+spades), Board (chess or go) or Arcade (pong) (`catalog.ts`), and each game says what it is at its own table while that waits
 (`AboutGame`). A table of any game opens over the world (MoonBase#1502). Each game is one entry in
 `apps/lobby/games.tsx` (its table hook and its table) and one in `catalog.ts`; the lobby reads
 those rather than naming games. The card games share the felt, the card faces and the seating
@@ -81,7 +86,11 @@ games section lists them, and Review game at a table's end or Review in the list
 hub's positions stepped through by button, arrow key or move list, with the hub's PGN to download and the position shown
 on lichess's analysis board. Every room's games are published: on arriving in a room the lobby asks for its chess
 history and publishes it when that answer says it isn't, so games that end afterward join the hub's public feed
-(`/games/v2/chess.pgn`) for 30 days. Go's finished games (MoonBase#1686) are the lobby's Go games section, shown
+(`/games/v2/chess.pgn`) for 30 days. A go table (`GoTable`, `useGoTable`; MoonBase#1668) plays on a 9, 13 or 19 board with komi and a clock: tap a
+point to play, Pass, or Resign after a confirm. Two passes open the scoring, where either seat taps groups dead and
+both Accept; the hub counts by area. A waiting table picks the board and clock: two seats Start, a lone seat
+Posts a challenge, or seats GNU Go at Beginner, Casual, Club or Strongest, and an ended game offers the next on a size picked.
+Tips for beginners explain each phase. Go's finished games (MoonBase#1686) are the lobby's Go games section, shown
 once the room has played go: each a line of sides, board and result, and its SGF to download. Go's history is asked
 for on arriving and again whenever the room's go tables change, which every member hears, and is never published. The Round robins section (MoonBase#1647) starts one among 3 to 8 of
 the room's members at chess on a clock, pong on a court or go on a board and clock (behind **New round robin**), and is absent from a room of fewer than 3 with none. Each
