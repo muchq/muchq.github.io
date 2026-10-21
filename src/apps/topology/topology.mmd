@@ -42,6 +42,7 @@ flowchart LR
     portrait["portrait"]
     mithril["mithril"]
     chess_engine["chess_engine"]
+    go_engine["go_engine"]
     posterize["posterize"]
     microgpt-serve["microgpt-serve"]
     iili["iili"]
@@ -115,6 +116,7 @@ flowchart LR
   games_hub -->|http| microgpt-serve
   games_hub -->|http| mithril
   games_hub -->|http| chess_engine
+  games_hub -->|http| go_engine
   games_hub -->|http| one_d4
   one_d4 -->|sql| shared_postgres
   one_d4_worker -->|sql| shared_postgres
