@@ -33,33 +33,6 @@ const HubTab = ({ hub, events: hubEvents, days }: Props) => (
           </>
         )}
       </p>
-      <div className={styles.tableScroll}>
-        <table className={styles.containerTable} data-testid="hub-days">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Rooms made</th>
-              <th>Tables dealt</th>
-              <th>Messages</th>
-            </tr>
-          </thead>
-          <tbody>
-            {hub.days.map((day) => (
-              <tr key={day.date}>
-                <td>{day.date}</td>
-                <td>{n(day.rooms)}</td>
-                <td>{n(day.games)}</td>
-                <td>{n(day.messages)}</td>
-              </tr>
-            ))}
-            {hub.days.length === 0 && (
-              <tr>
-                <td colSpan={4}>{emptyText(hubEvents, 'Nobody has opened a room yet.')}</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
     </div>
 
     <div className={styles.sectionGrid}>
@@ -160,6 +133,37 @@ const HubTab = ({ hub, events: hubEvents, days }: Props) => (
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <div className={styles.section}>
+      <h2 className={styles.sectionTitle}>By day</h2>
+      <div className={styles.tableScroll}>
+        <table className={styles.containerTable} data-testid="hub-days">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Rooms made</th>
+              <th>Tables dealt</th>
+              <th>Messages</th>
+            </tr>
+          </thead>
+          <tbody>
+            {hub.days.map((day) => (
+              <tr key={day.date}>
+                <td>{day.date}</td>
+                <td>{n(day.rooms)}</td>
+                <td>{n(day.games)}</td>
+                <td>{n(day.messages)}</td>
+              </tr>
+            ))}
+            {hub.days.length === 0 && (
+              <tr>
+                <td colSpan={4}>{emptyText(hubEvents, 'Nobody has opened a room yet.')}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   </>
