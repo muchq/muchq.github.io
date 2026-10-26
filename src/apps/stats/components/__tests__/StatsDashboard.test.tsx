@@ -140,6 +140,10 @@ const openTab = async (label: string) => {
   fireEvent.click(await screen.findByRole('button', { name: label }))
 }
 
+// Document order, which is reading order on the page.
+const precedes = (a: Node, b: Node) =>
+  (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
@@ -444,6 +448,30 @@ describe('StatsDashboard', () => {
     // Rooms made and closed do not have to match: the difference over the
     // window is the rooms still open.
     expect(screen.getByText(/3 rooms made, 3 closed, 4 joins, 5 reshapes, 11 messages/)).toBeInTheDocument()
+  })
+
+  // The breakdowns are what a visit is for; the day-by-day ledger is
+  // reference, so it sits under them rather than above the fold.
+  it('puts the hub breakdowns above the day-by-day table', async () => {
+    mockFetch(everything)
+    render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
+
+    await openTab('Hub')
+    const window = screen.getByRole('heading', { name: /Hub — last 14 days/ })
+    const variants = screen.getByTestId('hub-variants')
+    const days = screen.getByTestId('hub-days')
+    expect(precedes(window, variants)).toBe(true)
+    expect(precedes(variants, days)).toBe(true)
+  })
+
+  it('puts what one_d4 gets asked for above the per-entry table', async () => {
+    mockFetch(everything)
+    render(<StatsDashboard onConnectionStateChange={vi.fn()} />)
+
+    await openTab('one_d4')
+    expect(precedes(screen.getByTestId('one-d4-terms'), screen.getByTestId('one-d4-queries'))).toBe(
+      true
+    )
   })
 
   // Each section names the window its own endpoint answered with, not the
