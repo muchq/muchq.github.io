@@ -11,6 +11,8 @@ import {
   writingBlock,
   canRestart,
   normalize,
+  attemptLength,
+  nextDue,
   type Action,
   type ProblemState,
 } from '../gate'
@@ -335,5 +337,25 @@ describe('normalize', () => {
   it('restores the due date a grade owes, from when it was graded', () => {
     expect(normalize(prove, { ...graded, grade: 'gap', redoAt: null }).redoAt).toBe(50 + 3 * DAY)
     expect(normalize(prove, { ...graded, grade: 'complete', redoAt: null }).redoAt).toBeNull()
+  })
+})
+
+describe('attemptLength', () => {
+  it('counts what the gate counts: words, not runs of whitespace', () => {
+    expect(attemptLength(run(prove, [{ type: 'edit', text: '  a   b\n\n c  ' }]))).toBe(5)
+    expect(attemptLength(freshState())).toBe(0)
+  })
+})
+
+describe('nextDue', () => {
+  const owed = (redoAt: number | null) => ({ ...freshState(), redoAt })
+
+  it('is the earliest redo still in the future', () => {
+    expect(nextDue([owed(50), owed(30), owed(10), owed(null)], 20)).toBe(30)
+  })
+
+  it('is null when nothing is owed later', () => {
+    expect(nextDue([owed(10), owed(null)], 20)).toBeNull()
+    expect(nextDue([], 0)).toBeNull()
   })
 })

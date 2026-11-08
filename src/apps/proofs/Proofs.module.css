@@ -353,6 +353,15 @@
   width: 1.2rem;
 }
 
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .lineText {
   flex: 1;
   min-width: 0;

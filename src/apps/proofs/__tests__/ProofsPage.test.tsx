@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from '@/App'
 import { problemById, UNITS } from '../content'
 import { freshState, MIN_ATTEMPT } from '../gate'
-import { exportProgress, loadProgress, saveProgress, STORAGE_KEY } from '../store'
+import { exportProgress, loadProgress, saveProgress, saveState, storageKey } from '../store'
 
 // Through the real router and the lazy route, as a visitor arrives.
 const at = async (path: string) => {
@@ -169,28 +169,60 @@ describe('a prove problem', () => {
     expect(preview).toHaveTextContent('<img src=x onerror="alert(1)">')
   })
 
-  it('adopts what another tab saved, so its next save keeps that work', async () => {
+  // Two tabs opened from the same snapshot, each working on a different
+  // problem, saving before either hears of the other.
+  it('keeps both tabs\' work when they save different problems at once', async () => {
+    saveProgress({ '0.2': { ...freshState(), attempt: 'both tabs saw this' } })
     await at('/proofs/craft/0-4')
+    const theirs = { ...freshState(), attempt: 'the other tab, on 0.2' }
     write(long('this tab'))
-    // Another tab writes its own problem, then the browser tells this one.
-    const theirs = { ...freshState(), attempt: 'other tab' }
-    saveProgress({ ...loadProgress(), '0.2': theirs })
-    act(() => {
-      window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY }))
-    })
+    saveState('0.2', theirs) // the other tab saves; its event has not arrived
     write(long('this tab, more'))
     expect(loadProgress()['0.2']).toEqual(theirs)
     expect(loadProgress()['0.4'].attempt).toBe(long('this tab, more'))
   })
 
+  it('adopts another tab\'s save of a problem when the browser reports it', async () => {
+    saveProgress({ '0.4': { ...freshState(), attempt: long('old') } })
+    await at('/proofs/craft/0-4')
+    saveState('0.4', { ...freshState(), attempt: long('from the other tab') })
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: storageKey('0.4') }))
+    })
+    expect(screen.getByLabelText('Your attempt')).toHaveValue(long('from the other tab'))
+  })
+
   it('ignores storage events about other keys', async () => {
     await at('/proofs/craft/0-4')
     write(long('this tab'))
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({}))
+    localStorage.setItem('something.else', 'x')
     act(() => {
       window.dispatchEvent(new StorageEvent('storage', { key: 'something.else' }))
     })
     expect(screen.getByLabelText('Your attempt')).toHaveValue(long('this tab'))
+  })
+
+  it('counts the attempt the way the gate does, ignoring runs of spaces', async () => {
+    await at('/proofs/craft/0-4')
+    write('x' + ' '.repeat(50) + 'y')
+    expect(screen.getByRole('status')).toHaveTextContent(`Write ${MIN_ATTEMPT - 3} more characters`)
+  })
+
+  it('opens the blank page when a redo comes due on an open page, without a reload', async () => {
+    await at('/proofs/craft/0-4')
+    write(long('first'))
+    fireEvent.click(button('Show reference proof'))
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    try {
+      fireEvent.click(button(/^Wrong/))
+      expect(screen.queryByRole('button', { name: 'Start over from a blank page' })).toBeNull()
+      act(() => {
+        vi.advanceTimersByTime(24 * 60 * 60 * 1000 + 1000)
+      })
+      expect(button('Start over from a blank page')).toBeEnabled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('does not honour a stored confirmation the pick does not earn', async () => {
@@ -250,15 +282,17 @@ describe('a find-the-flaw problem', () => {
   it('confirms only the flawed line', async () => {
     await at('/proofs/craft/0-8')
     write(long('diagnosis'))
-    fireEvent.click(button('Line 2'))
+    // Each line is read out with its text, not just its number.
+    expect(button(/^Line 4: ?Then .* because .* undoes/)).toBeDefined()
+    fireEvent.click(button(/^Line 2:/))
     fireEvent.click(button('Check line'))
     expect(screen.getByText(/That line holds up/)).toBeDefined()
-    fireEvent.click(button('Line 4'))
+    fireEvent.click(button(/^Line 4:/))
     expect(button('Check line')).toBeDisabled()
     write(long('diagnosis, revised'))
     fireEvent.click(button('Check line'))
     expect(screen.getByText(/That is the line/)).toBeDefined()
-    expect(button('Line 1')).toBeDisabled()
+    expect(button(/^Line 1:/)).toBeDisabled()
   })
 })
 
@@ -289,7 +323,7 @@ describe('the overview', () => {
     const file = new File([exportProgress({ '0.2': theirs })], 'p.json', { type: 'application/json' })
     await userEvent.upload(screen.getByLabelText('Progress file'), file)
     await screen.findByRole('group', { name: 'Confirm import' })
-    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)['0.2'].attempt).toBe('mine')
+    expect(loadProgress()['0.2'].attempt).toBe('mine')
     fireEvent.click(button('Replace'))
     expect(loadProgress()).toEqual({ '0.1': mine, '0.2': theirs })
   })

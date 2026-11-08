@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { problemById } from './content'
 import { freshState, normalize, step, type Action, type ProblemState } from './gate'
-import { loadProgress, saveProgress, STORAGE_KEY, type Progress } from './store'
+import { idOfKey, loadProgress, loadState, saveState, type Progress } from './store'
 import type { Problem } from './types'
 
 export interface ProgressApi {
@@ -12,13 +12,15 @@ export interface ProgressApi {
   merge: (incoming: Progress) => void
 }
 
-/** Every stored state checked against its problem's current rules. */
+/** A stored state checked against its problem's current rules. */
+const checked = (id: string, s: ProblemState) => {
+  const entry = problemById(id)
+  return entry ? normalize(entry.problem, s) : s
+}
+
 function normalized(progress: Progress): Progress {
   const out: Progress = {}
-  for (const [id, s] of Object.entries(progress)) {
-    const entry = problemById(id)
-    out[id] = entry ? normalize(entry.problem, s) : s
-  }
+  for (const [id, s] of Object.entries(progress)) out[id] = checked(id, s)
   return out
 }
 
@@ -27,13 +29,26 @@ const load = () => normalized(loadProgress())
 export function useProgress(): ProgressApi {
   const [progress, setProgress] = useState<Progress>(load)
 
-  useEffect(() => saveProgress(progress), [progress])
+  // Save only the problems whose state changed since the last save.
+  const saved = useRef(progress)
+  useEffect(() => {
+    for (const [id, s] of Object.entries(progress)) if (saved.current[id] !== s) saveState(id, s)
+    saved.current = progress
+  }, [progress])
 
-  // Another tab saved: adopt its copy, so the next save here does not write
-  // over its work. Every change is saved at once, so the copies agree.
+  // Another tab saved a problem: adopt it. A null key means storage was cleared.
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) setProgress(load())
+      if (e.key === null) return setProgress(load())
+      const id = idOfKey(e.key)
+      if (id === null) return
+      const s = loadState(id)
+      setProgress(prev => {
+        const next = { ...prev }
+        if (s) next[id] = checked(id, s)
+        else delete next[id]
+        return next
+      })
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)

@@ -1,4 +1,6 @@
-// Progress lives only in this browser. localStorage can be missing or throw
+// Progress lives only in this browser, one localStorage key per problem, so a
+// tab writes only the problems it changed and two tabs working on different
+// problems cannot overwrite each other. localStorage can be missing or throw
 // (private windows, blocked storage); every touch is wrapped and the page
 // works without it. Anything read back — from storage or an imported file —
 // is rebuilt field by field, so a hand-edited blob cannot put a wrong type in
@@ -7,7 +9,10 @@ import { freshState, type Grade, type PastAttempt, type ProblemState } from './g
 
 export type Progress = Record<string, ProblemState>
 
-export const STORAGE_KEY = 'proofs.progress.v1'
+const PREFIX = 'proofs.v1.'
+export const storageKey = (id: string) => PREFIX + id
+/** The problem id a storage key belongs to, or null if it is not one of ours. */
+export const idOfKey = (key: string) => (key.startsWith(PREFIX) ? key.slice(PREFIX.length) : null)
 const EXPORT_VERSION = 1
 
 const GRADES: readonly Grade[] = ['complete', 'gap', 'wrong']
@@ -55,21 +60,43 @@ export function sanitizeProgress(v: unknown): Progress {
   return out
 }
 
-export function loadProgress(): Progress {
+export function loadState(id: string): ProblemState | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? sanitizeProgress(JSON.parse(raw)) : {}
+    const raw = localStorage.getItem(storageKey(id))
+    return raw ? sanitizeState(JSON.parse(raw)) : null
   } catch {
-    return {}
+    return null
+  }
+}
+
+export function loadProgress(): Progress {
+  const out: Progress = {}
+  try {
+    const ids: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const id = idOfKey(localStorage.key(i) ?? '')
+      if (id !== null) ids.push(id)
+    }
+    for (const id of ids) {
+      const s = loadState(id)
+      if (s) out[id] = s
+    }
+  } catch {
+    // storage unavailable
+  }
+  return out
+}
+
+export function saveState(id: string, s: ProblemState): void {
+  try {
+    localStorage.setItem(storageKey(id), JSON.stringify(s))
+  } catch {
+    // storage unavailable; the session keeps working in memory
   }
 }
 
 export function saveProgress(progress: Progress): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress))
-  } catch {
-    // storage unavailable; the session keeps working in memory
-  }
+  for (const [id, s] of Object.entries(progress)) saveState(id, s)
 }
 
 export function exportProgress(progress: Progress): string {

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { canCheck, canHint, canRestart, canReveal, MIN_ATTEMPT, status, writingBlock, type Grade, type ProblemState } from '../gate'
+import { attemptLength, canCheck, canHint, canRestart, canReveal, MIN_ATTEMPT, status, writingBlock, type Grade, type ProblemState } from '../gate'
 import { problemById, problemSlug } from '../content'
 import Markup, { MarkupInline } from '../markup'
 import { REFEREE_QUESTIONS, refereePrompt } from '../referee'
@@ -21,7 +21,7 @@ function gateMessage(p: Problem, s: ProblemState): string | null {
   if (s.solution) return null
   const block = writingBlock(s)
   if (block === 'short') {
-    const left = MIN_ATTEMPT - s.attempt.trim().length
+    const left = MIN_ATTEMPT - attemptLength(s)
     return `Write ${left} more character${left === 1 ? '' : 's'} before asking for anything. Stuck? Write down where, and why.`
   }
   if (block === 'unrevised') return 'Revise your attempt to ask for more: each hint, check or reveal costs one revision.'
@@ -105,11 +105,14 @@ export default function ProblemView({ unit, problem: p, state: s, act, now }: Pr
                   type="button"
                   className={`${styles.bogusLine} ${picked ? styles.picked : ''} ${picked && s.confirmed ? styles.confirmed : ''}`}
                   aria-pressed={picked}
-                  aria-label={`Line ${n}`}
                   disabled={s.confirmed || s.solution}
                   onClick={() => act(p, { type: 'pickLine', line: n })}
                 >
-                  <span className={styles.lineNo}>{n}</span>
+                  {/* Named "Line n: …" for screen readers, with the line's own text. */}
+                  <span className={styles.srOnly}>{`Line ${n}: `}</span>
+                  <span className={styles.lineNo} aria-hidden="true">
+                    {n}
+                  </span>
                   <span className={styles.lineText}>
                     <MarkupInline text={line} />
                   </span>

@@ -1,9 +1,10 @@
 // /proofs — a proof-first path through algebra and topology. Deliberately
 // unlisted: no nav entry, and the page asks search engines not to index it.
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigationType, useParams } from 'react-router-dom'
 import Navigation from '@/shared/components/Navigation'
 import { problemBySlug, unitById } from '../content'
+import { nextDue } from '../gate'
 import Overview from '../components/Overview'
 import ProblemView from '../components/ProblemView'
 import UnitView from '../components/UnitView'
@@ -30,6 +31,17 @@ export default function ProofsPage() {
   const { unitId, problemId } = useParams()
   const { progress, stateOf, act, merge } = useProgress()
   const now = Date.now()
+
+  // Redo dates are days out. A page left open must still notice one passing,
+  // so wake at the next due time (setTimeout caps a delay at about 24.8 days;
+  // an early wake just schedules the next).
+  const [wake, setWake] = useState(0)
+  const due = nextDue(Object.values(progress), now)
+  useEffect(() => {
+    if (due === null) return
+    const id = window.setTimeout(() => setWake(w => w + 1), Math.min(due - Date.now(), 2 ** 31 - 1))
+    return () => window.clearTimeout(id)
+  }, [due, wake])
 
   // A unit or problem opened by a link starts at its top, not wherever the last
   // one was left. Back and Forward (POP) leave the scroll to the browser.

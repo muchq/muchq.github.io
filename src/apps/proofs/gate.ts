@@ -59,8 +59,11 @@ export type WritingBlock = 'short' | 'unrevised'
 
 const words = (text: string) => text.replace(/\s+/g, ' ').trim()
 
+/** The length the gate measures — what the page counts down from, too. */
+export const attemptLength = (s: ProblemState) => words(s.attempt).length
+
 export function writingBlock(s: ProblemState): WritingBlock | null {
-  if (words(s.attempt).length < MIN_ATTEMPT) return 'short'
+  if (attemptLength(s) < MIN_ATTEMPT) return 'short'
   if (s.spentOn !== null && words(s.attempt) === words(s.spentOn)) return 'unrevised'
   return null
 }
@@ -150,6 +153,13 @@ export function step(p: Problem, s: ProblemState, a: Action): ProblemState {
     case 'restart':
       return canRestart(s, a.now) ? { ...freshState(s.history), redoAt: s.redoAt } : s
   }
+}
+
+/** The earliest redo that comes due after `now`, so an open page can wake for it. */
+export function nextDue(states: Iterable<ProblemState>, now: number): number | null {
+  let next: number | null = null
+  for (const s of states) if (s.redoAt !== null && s.redoAt > now && (next === null || s.redoAt < next)) next = s.redoAt
+  return next
 }
 
 export type Status = 'new' | 'working' | 'solved' | 'shaky' | 'due'

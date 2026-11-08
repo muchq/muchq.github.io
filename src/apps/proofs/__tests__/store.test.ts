@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { freshState, type ProblemState } from '../gate'
-import { exportProgress, importProgress, loadProgress, sanitizeState, saveProgress, STORAGE_KEY } from '../store'
+import { exportProgress, importProgress, loadProgress, sanitizeState, saveProgress, saveState, storageKey } from '../store'
 
 const graded: ProblemState = {
   ...freshState(),
@@ -26,9 +26,9 @@ describe('progress storage', () => {
 
   it('starts empty on missing or corrupt storage', () => {
     expect(loadProgress()).toEqual({})
-    localStorage.setItem(STORAGE_KEY, '{not json')
+    localStorage.setItem(storageKey('2.1'), '{not json')
     expect(loadProgress()).toEqual({})
-    localStorage.setItem(STORAGE_KEY, '[1,2]')
+    localStorage.setItem(storageKey('2.1'), '[1,2]')
     expect(loadProgress()).toEqual({})
   })
 
@@ -41,6 +41,20 @@ describe('progress storage', () => {
     })
     expect(loadProgress()).toEqual({})
     expect(() => saveProgress({ '2.1': graded })).not.toThrow()
+  })
+})
+
+describe('one key per problem', () => {
+  it('writes a problem without touching any other', () => {
+    saveProgress({ '2.1': graded, '2.2': graded })
+    saveState('2.2', freshState())
+    expect(loadProgress()).toEqual({ '2.1': graded, '2.2': freshState() })
+  })
+
+  it('reads only its own keys', () => {
+    saveState('2.1', graded)
+    localStorage.setItem('iili.recent', '[]')
+    expect(loadProgress()).toEqual({ '2.1': graded })
   })
 })
 
