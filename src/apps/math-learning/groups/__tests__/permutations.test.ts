@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   allPerms,
+  asPermutation,
+  collisions,
   compose,
   cycleType,
   cycles,
@@ -53,6 +55,20 @@ describe('permutations', () => {
     expect(formatCycles(parseImages('2 3 1')!)).toBe('(1 2 3)')
     expect(formatCycles(parseImages('3 4 5 2 1')!)).toBe('(1 3 5)(2 4)')
     for (const bad of ['', '1 1 2', '2 4 1 3 9', '0 1', 'x']) expect(parseImages(bad), bad).toBeNull()
+  })
+
+  it('asPermutation accepts exactly the bijections of {0, …, n − 1}', () => {
+    expect(asPermutation([1, 2, 0])).toEqual([1, 2, 0])
+    for (const bad of [[], [0, 0], [1, 2], [0, 1.5], [-1, 0]]) expect(asPermutation(bad), JSON.stringify(bad)).toBeNull()
+  })
+
+  it('collisions lists each target hit more than once, 1-based, in order first hit', () => {
+    expect(collisions([2, 1, 2, 1])).toEqual([
+      { target: 3, sources: [1, 3] },
+      { target: 2, sources: [2, 4] },
+    ])
+    // The control: a bijection has none.
+    expect(collisions([1, 0, 2])).toEqual([])
   })
 
   it('cycle decomposition reassembles the permutation', () => {

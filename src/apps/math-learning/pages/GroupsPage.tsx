@@ -6,6 +6,7 @@ import CourseNav from '../groups/components/CourseNav'
 import GroupLab from '../groups/components/GroupLab'
 import GroupsProgressProvider from '../groups/components/GroupsProgressProvider'
 import Overview from '../groups/components/Overview'
+import PageTitle from '../groups/components/PageTitle'
 import styles from '../groups/components/Groups.module.css'
 
 /** /groups is the overview, /groups/lab the lab, /groups/<slug> a chapter. */
@@ -25,7 +26,7 @@ const GroupsPage = () => {
             <ChapterView chapter={chapter} />
           ) : slug === 'lab' ? (
             <article className={styles.card}>
-              <h1>The group lab</h1>
+              <PageTitle>The group lab</PageTitle>
               <p className={styles.chapterSummary}>
                 Pick a group. Pick a subgroup to see its cosets, whether it is normal, and the quotient.
               </p>

@@ -1,6 +1,6 @@
-import PermutationVisualizer from '../../components/PermutationVisualizer'
 import { Definition, Example, Proof, Remark, Section, Theorem } from '../components/Blocks'
 import PermutationCalculator from '../components/PermutationCalculator'
+import PermutationVisualizer from '../components/PermutationVisualizer'
 
 const Body = () => (
   <>

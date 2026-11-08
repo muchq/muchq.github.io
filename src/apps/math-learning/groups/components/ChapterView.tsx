@@ -3,6 +3,7 @@ import { CHAPTERS } from '../chapters'
 import { useGroupsProgress } from '../progress'
 import type { Chapter } from '../problems/types'
 import DrillCard from './DrillCard'
+import PageTitle from './PageTitle'
 import ProblemCard from './ProblemCard'
 import styles from './Groups.module.css'
 
@@ -16,7 +17,7 @@ const ChapterView = ({ chapter }: { chapter: Chapter }) => {
   return (
     <article className={styles.card}>
       <p className={styles.chapterSummary}>Chapter {number}</p>
-      <h1>{chapter.title}</h1>
+      <PageTitle>{chapter.title}</PageTitle>
       <p className={styles.chapterSummary}>{chapter.summary}</p>
 
       <Body />

@@ -61,6 +61,11 @@
   margin: 0 0 4px;
 }
 
+/* Focused by script on navigation, never by the user: no ring. */
+.pageTitle:focus {
+  outline: none;
+}
+
 .chapterSummary {
   color: #5a6c7d;
   margin-top: 0;

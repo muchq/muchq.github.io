@@ -1,9 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import PermutationVisualizer from '../../components/PermutationVisualizer'
+import PermutationVisualizer from '../components/PermutationVisualizer'
 
-// The drag-to-build widget in Chapter 3. Pinned before its port from
-// utils/permutation-builder to the course engine.
+// The drag-to-build widget in Chapter 3. These tests were written against
+// the version built on utils/permutation-builder and carried over to the
+// port onto the course engine unchanged, except that the identity now
+// reads "e", as it does everywhere else in the course.
 
 const dataTransfer = () => ({ effectAllowed: '', dropEffect: '' })
 
@@ -31,7 +33,7 @@ describe('PermutationVisualizer', () => {
   it('starts at the identity', () => {
     const { mapsTo, cycle } = setup()
     expect(mapsTo()).toBe('1234')
-    expect(cycle()).toBe('Identity')
+    expect(cycle()).toBe('e')
   })
 
   it('a drag that breaks injectivity names the collision instead of a cycle', () => {
@@ -40,6 +42,13 @@ describe('PermutationVisualizer', () => {
     expect(mapsTo()).toBe('3234')
     expect(cycle()).toBeNull()
     expect(screen.getByText('Multiple mappings to same target: 1, 3 → 3')).toBeInTheDocument()
+  })
+
+  it('names every collision when there are several', () => {
+    const { drag } = setup()
+    drag(0, 1)
+    drag(2, 3)
+    expect(screen.getByText('Multiple mappings to same target: 1, 2 → 2; 3, 4 → 4')).toBeInTheDocument()
   })
 
   it('completing the swap gives a bijection and its cycles', () => {
@@ -55,7 +64,7 @@ describe('PermutationVisualizer', () => {
     drag(0, 2)
     fireEvent.click(screen.getByRole('button', { name: 'Clear mapping for 1' }))
     expect(mapsTo()).toBe('1234')
-    expect(cycle()).toBe('Identity')
+    expect(cycle()).toBe('e')
     // Only moved points get a clear button.
     expect(screen.queryByRole('button', { name: /Clear mapping/ })).toBeNull()
   })

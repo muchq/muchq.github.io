@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { CHAPTERS } from '../chapters'
 import { useGroupsProgress } from '../progress'
+import PageTitle from './PageTitle'
 import styles from './Groups.module.css'
 
 const Overview = () => {
@@ -10,7 +11,7 @@ const Overview = () => {
 
   return (
     <article className={styles.card}>
-      <h1>Group theory</h1>
+      <PageTitle>Group theory</PageTitle>
       <p className={styles.chapterSummary}>A first course, with proofs, problems, and a lab</p>
       <p>
         This is a one-semester undergraduate course in group theory: from the axioms through Lagrange, quotients and the

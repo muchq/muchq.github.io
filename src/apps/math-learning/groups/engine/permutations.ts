@@ -105,12 +105,30 @@ export const parseCycles = (input: string, n: number): Perm | null => {
   return result
 }
 
+/** The images as a permutation of {0, …, n − 1}, or null if they don't form a bijection. */
+export const asPermutation = (images: readonly number[]): Perm | null =>
+  images.length > 0 &&
+  images.every(x => Number.isInteger(x) && x >= 0 && x < images.length) &&
+  new Set(images).size === images.length
+    ? images
+    : null
+
+/**
+ * Where a map {1, …, n} → {1, …, n} fails to be injective: each target hit
+ * more than once, with the points that hit it — all 1-based, targets in the
+ * order first hit. `images` is 0-based, as for a Perm.
+ */
+export const collisions = (images: readonly number[]): Array<{ target: number; sources: number[] }> => {
+  const byTarget = new Map<number, number[]>()
+  images.forEach((target, source) => byTarget.set(target, [...(byTarget.get(target) ?? []), source + 1]))
+  return [...byTarget]
+    .filter(([, sources]) => sources.length > 1)
+    .map(([target, sources]) => ({ target: target + 1, sources }))
+}
+
 /** Parses the bottom row of two-line notation, "2 3 1", into a permutation. */
 export const parseImages = (input: string): Perm | null => {
   const tokens = input.trim().split(/[\s,]+/).filter(Boolean)
   if (tokens.length === 0 || !tokens.every(t => /^\d+$/.test(t))) return null
-  const images = tokens.map(t => Number(t) - 1)
-  const n = images.length
-  if (images.some(x => x < 0 || x >= n) || new Set(images).size !== n) return null
-  return images
+  return asPermutation(tokens.map(t => Number(t) - 1))
 }

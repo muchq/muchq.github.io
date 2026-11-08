@@ -44,6 +44,26 @@ describe('/groups', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Group theory' })).toBeInTheDocument()
   })
 
+  it('a fresh load leaves focus alone', () => {
+    at('/groups/sylow')
+    expect(screen.getByRole('heading', { level: 1, name: 'The Sylow theorems' })).not.toHaveFocus()
+    expect(document.body).toHaveFocus()
+  })
+
+  it('navigating moves focus to the new page title', async () => {
+    at('/groups')
+    await userEvent.click(screen.getByRole('link', { name: '3 · Permutations' }))
+    expect(screen.getByRole('heading', { level: 1, name: 'Permutation groups' })).toHaveFocus()
+    // Chapter to chapter, through the pager.
+    await userEvent.click(screen.getByRole('link', { name: '4. Isomorphisms →' }))
+    expect(screen.getByRole('heading', { level: 1, name: 'Isomorphisms' })).toHaveFocus()
+    // And to the lab and back to the overview.
+    await userEvent.click(screen.getByRole('link', { name: 'Lab' }))
+    expect(screen.getByRole('heading', { level: 1, name: 'The group lab' })).toHaveFocus()
+    await userEvent.click(screen.getByRole('link', { name: 'Overview' }))
+    expect(screen.getByRole('heading', { level: 1, name: 'Group theory' })).toHaveFocus()
+  })
+
   it('solving a problem is remembered and counted on the overview', async () => {
     at('/groups/groups')
     const first = CHAPTERS[0].problems[0]
