@@ -141,19 +141,20 @@
 }
 
 /*
- * The link to the proofs course: π₁(S¹) ≅ ℤ orbiting the center once per
- * cycle, counterclockwise, at a fixed radius, while the notation stays
- * upright. It arrives as a speck at the center and spins away, spiraling
- * twice around as it grows out to its circle. Where it crosses the group theory link it
- * passes underneath. Without motion it rests left of center, across from the
- * group theory link.
+ * The link to the proofs course: π₁(S¹) ≅ ℤ spiraling counterclockwise while
+ * the notation stays upright. It arrives as a speck at the center and spins
+ * away, then keeps sweeping its radius in and out. Where it crosses the group
+ * theory link it passes underneath. Without motion it rests left of center,
+ * across from the group theory link.
  */
 .orbit {
+  --orbit-min: 6vmin;
+  --orbit-max: min(30vmin, 220px, calc(50vw - 100px));
   z-index: 1;
 }
 
 .orbitArm {
-  transform: translateX(calc(-1 * min(24vmin, 190px)));
+  transform: translateX(calc(-1 * var(--orbit-max)));
   /* The box is the pill's height, but orbit-arrive must turn and scale about the center. */
   transform-origin: 0 0;
 }
@@ -177,11 +178,9 @@
 @media (max-aspect-ratio: 3/4) {
   .orbit {
     --orbit-r: max(0px, min(11vmin, calc((50svh - var(--spiral-max) - 150px) / 2)));
+    --orbit-min: min(4vmin, var(--orbit-r));
+    --orbit-max: var(--orbit-r);
     top: calc(90px + var(--orbit-r));
-  }
-
-  .orbitArm {
-    transform: translateX(calc(-1 * var(--orbit-r)));
   }
 }
 
@@ -195,7 +194,9 @@
   }
 
   .groupsLink {
-    animation: spiral-upright 36s linear infinite;
+    animation:
+      spiral-upright 36s linear infinite,
+      course-resize 20s ease-in-out infinite;
   }
 
   .orbit {
@@ -203,13 +204,16 @@
   }
 
   .orbitArm {
-    animation: orbit-arrive 2.4s cubic-bezier(0.2, 0.8, 0.3, 1);
+    animation:
+      orbit-radius 24s ease-in-out infinite,
+      orbit-arrive 2.4s cubic-bezier(0.2, 0.8, 0.3, 1);
   }
 
   .proofsLink {
     animation:
       orbit-upright 24s linear infinite,
-      orbit-arrive-upright 2.4s cubic-bezier(0.2, 0.8, 0.3, 1);
+      orbit-arrive-upright 2.4s cubic-bezier(0.2, 0.8, 0.3, 1),
+      course-resize 20s -10s ease-in-out infinite;
   }
 
   .courses:is(:hover, :focus-within) * {
@@ -227,6 +231,16 @@
 @keyframes orbit-upright {
   to {
     rotate: 360deg;
+  }
+}
+
+@keyframes orbit-radius {
+  0%,
+  100% {
+    transform: translateX(calc(-1 * var(--orbit-min)));
+  }
+  50% {
+    transform: translateX(calc(-1 * var(--orbit-max)));
   }
 }
 
@@ -269,5 +283,16 @@
 @keyframes spiral-upright {
   to {
     rotate: -1080deg;
+  }
+}
+
+/* Match 1/π's perpetual zoom while keeping each linked formula legible. */
+@keyframes course-resize {
+  0%,
+  100% {
+    scale: 0.8;
+  }
+  50% {
+    scale: 1.45;
   }
 }
