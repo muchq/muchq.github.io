@@ -164,6 +164,15 @@ const PermutationVisualizer = () => {
                       e.stopPropagation()
                       send(position, position)
                     }}
+                    // A tap must not reach the number's own touch handler, which would
+                    // cancel the click and select the number instead. Clear here, and
+                    // prevent the click the browser would synthesize after the tap.
+                    onTouchStart={e => e.stopPropagation()}
+                    onTouchEnd={e => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      send(position, position)
+                    }}
                     aria-label={`Clear mapping for ${position + 1}`}
                   >
                     ×

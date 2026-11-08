@@ -90,6 +90,21 @@ describe('PermutationVisualizer', () => {
     expect(screen.queryByText(/Now tap where/)).toBeNull()
   })
 
+  it('on a touch screen, tapping × clears that point instead of selecting it', () => {
+    Object.defineProperty(window, 'ontouchstart', { value: null, configurable: true, writable: true })
+    const { elements, mapsTo } = setup()
+    fireEvent.touchEnd(elements()[1])
+    fireEvent.touchEnd(elements()[3])
+    expect(mapsTo()).toBe('1434')
+    const clear = screen.getByRole('button', { name: 'Clear mapping for 2' })
+    fireEvent.touchStart(clear)
+    // The tap's touchend must not reach the number underneath, which would cancel the click and select 2.
+    const end = fireEvent.touchEnd(clear)
+    expect(mapsTo()).toBe('1234')
+    expect(screen.queryByText(/Now tap where/)).toBeNull()
+    expect(end).toBe(false) // default prevented: no second, synthesized click follows
+  })
+
   it('on a touch screen, tapping the same number twice cancels', () => {
     Object.defineProperty(window, 'ontouchstart', { value: null, configurable: true, writable: true })
     const { elements, mapsTo } = setup()
