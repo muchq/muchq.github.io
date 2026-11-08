@@ -87,7 +87,7 @@ export const problems: Problem[] = [
     prompt: <p>Prove that G/Z(G) ≅ Inn(G).</p>,
     solution: (
       <p>
-        g ↦ φ_g, where φ_g(x) = gxg⁻¹, is a homomorphism G → Inn(G) because φ_g ∘ φ_h = φ_gh (§4.5). It is onto by
+        g ↦ φ<sub>g</sub>, where φ<sub>g</sub>(x) = gxg⁻¹, is a homomorphism G → Inn(G) because φ<sub>g</sub> ∘ φ<sub>h</sub> = φ<sub>gh</sub> (§4.5). It is onto by
         definition of Inn(G). Its kernel is {'{'}g : gxg⁻¹ = x for all x{'}'} = Z(G). Apply the First Isomorphism Theorem.
       </p>
     ),

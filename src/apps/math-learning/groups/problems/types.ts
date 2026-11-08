@@ -42,6 +42,8 @@ export interface Chapter {
   readonly slug: string
   readonly number: number
   readonly title: string
+  /** For the course navigation. */
+  readonly short: string
   readonly summary: string
   readonly Body: ComponentType
   readonly problems: readonly Problem[]

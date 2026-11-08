@@ -57,7 +57,7 @@ node scripts/topology-sync.mjs --check
 | `/deja` | The anomaly detector over the access-log token stream, live: its tape, learning curve, and a way to ask it |
 | `/resilience` | Distributed-systems game |
 | `/smallcat` | Pong, moved from smallcat.dog |
-| `/groups`, `/sets`, `/top` | Math learning modules (permutation groups, sets, Topology Quest) |
+| `/groups`, `/sets`, `/top` | Math learning modules: a one-semester group theory course with problems, drills, and a group lab (`/groups/<chapter>`, `/groups/lab`); sets; Topology Quest |
 | `/topology` | The deployment diagram, from MoonBase's `docs/DEPLOYMENT.md`: services and their links by kind (http, sql, logs, metrics), with each container's live status |
 
 The nav's **Hmm** menu links to apps hosted off muchq.com (see the

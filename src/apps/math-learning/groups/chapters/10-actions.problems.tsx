@@ -144,8 +144,8 @@ export const problems: Problem[] = [
     hint: <p>Use Cayley's embedding G → S₂ₙ and look at the sign of the image of an element of order 2.</p>,
     solution: (
       <p>
-        G has an element t of order 2 (even order). Under λ: G → Sym(G) ≅ S₂ₙ, λ_t(x) = tx has no fixed points (tx = x ⇒ t
-        = e) and λ_t² = e, so λ_t is a product of n disjoint transpositions: an odd permutation, since n is odd. So sgn ∘ λ:
+        G has an element t of order 2 (even order). Under λ: G → Sym(G) ≅ S₂ₙ, λ<sub>t</sub>(x) = tx has no fixed points (tx = x ⇒ t
+        = e) and λ<sub>t</sub>² = e, so λ<sub>t</sub> is a product of n disjoint transpositions: an odd permutation, since n is odd. So sgn ∘ λ:
         G → {'{'}±1{'}'} is onto, and its kernel is a normal subgroup of index 2.
       </p>
     ),

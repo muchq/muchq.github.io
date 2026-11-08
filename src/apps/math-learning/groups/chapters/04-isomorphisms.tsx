@@ -89,15 +89,15 @@ const Body = () => (
       </Theorem>
       <Proof>
         <p>
-          For g ∈ G let λ_g: G → G be left multiplication, λ_g(x) = gx. It is a bijection, with inverse λ_g⁻¹. Moreover
-          λ_g(λ_h(x)) = ghx = λ_gh(x), so λ_g ∘ λ_h = λ_gh. Hence {'{'}λ_g : g ∈ G{'}'} is closed under composition and
-          inverses — a subgroup of Sym(G) — and g ↦ λ_g is a bijection onto it (it is injective since λ_g(e) = g) that
+          For g ∈ G let λ<sub>g</sub>: G → G be left multiplication, λ<sub>g</sub>(x) = gx. It is a bijection, with inverse λ<sub>g⁻¹</sub>. Moreover
+          λ<sub>g</sub>(λ<sub>h</sub>(x)) = ghx = λ<sub>gh</sub>(x), so λ<sub>g</sub> ∘ λ<sub>h</sub> = λ<sub>gh</sub>. Hence {'{'}λ<sub>g</sub> : g ∈ G{'}'} is closed under composition and
+          inverses — a subgroup of Sym(G) — and g ↦ λ<sub>g</sub> is a bijection onto it (it is injective since λ<sub>g</sub>(e) = g) that
           respects products.
         </p>
       </Proof>
       <Example>
         <p>
-          For ℤ₃ = {'{'}0, 1, 2{'}'}: λ₀ = e, λ₁ = (0 1 2), λ₂ = (0 2 1). In general the permutation λ_g is the row of g in the
+          For ℤ₃ = {'{'}0, 1, 2{'}'}: λ₀ = e, λ₁ = (0 1 2), λ₂ = (0 2 1). In general the permutation λ<sub>g</sub> is the row of g in the
           Cayley table, read as a rearrangement of the column headings.
         </p>
       </Example>
@@ -113,20 +113,20 @@ const Body = () => (
       <Definition name="automorphism">
         <p>
           An <em>automorphism</em> of G is an isomorphism G → G. Under composition the automorphisms form a group Aut(G).
-          For g ∈ G, <em>conjugation</em> φ_g(x) = gxg⁻¹ is an automorphism, called <em>inner</em>; the inner automorphisms
+          For g ∈ G, <em>conjugation</em> φ<sub>g</sub>(x) = gxg⁻¹ is an automorphism, called <em>inner</em>; the inner automorphisms
           form Inn(G).
         </p>
       </Definition>
       <Theorem>
         <p>
-          φ_g ∘ φ_h = φ_gh, so Inn(G) is a subgroup of Aut(G). Moreover φ_g = φ_h if and only if h⁻¹g ∈ Z(G); for finite G,
+          φ<sub>g</sub> ∘ φ<sub>h</sub> = φ<sub>gh</sub>, so Inn(G) is a subgroup of Aut(G). Moreover φ<sub>g</sub> = φ<sub>h</sub> if and only if h⁻¹g ∈ Z(G); for finite G,
           |Inn(G)| = |G| / |Z(G)|.
         </p>
       </Theorem>
       <Proof>
         <p>
-          φ_g is a homomorphism since gxyg⁻¹ = (gxg⁻¹)(gyg⁻¹), and a bijection with inverse φ_g⁻¹. Then φ_g(φ_h(x)) =
-          ghxh⁻¹g⁻¹ = (gh)x(gh)⁻¹. Next, φ_g = φ_h ⟺ gxg⁻¹ = hxh⁻¹ for all x ⟺ (h⁻¹g)x = x(h⁻¹g) for all x ⟺ h⁻¹g ∈ Z(G).
+          φ<sub>g</sub> is a homomorphism since gxyg⁻¹ = (gxg⁻¹)(gyg⁻¹), and a bijection with inverse φ<sub>g⁻¹</sub>. Then φ<sub>g</sub>(φ<sub>h</sub>(x)) =
+          ghxh⁻¹g⁻¹ = (gh)x(gh)⁻¹. Next, φ<sub>g</sub> = φ<sub>h</sub> ⟺ gxg⁻¹ = hxh⁻¹ for all x ⟺ (h⁻¹g)x = x(h⁻¹g) for all x ⟺ h⁻¹g ∈ Z(G).
           So the g giving the same inner automorphism as h are exactly those in hZ(G) = {'{'}hz : z ∈ Z(G){'}'}, a set of
           |Z(G)| elements, and the |G| elements of G fall into |G|/|Z(G)| such sets.
         </p>
@@ -138,7 +138,7 @@ const Body = () => (
         <p>
           An automorphism α of ℤₙ satisfies α(k) = kα(1), so it is determined by a = α(1), which must have order n, i.e. a ∈
           U(n). Conversely, for a ∈ U(n), αₐ(x) = ax is a homomorphism, and a bijection because a is invertible mod n. Since
-          αₐ ∘ α_b = α_ab, the map a ↦ αₐ is an isomorphism U(n) → Aut(ℤₙ).
+          αₐ ∘ α<sub>b</sub> = α<sub>ab</sub>, the map a ↦ αₐ is an isomorphism U(n) → Aut(ℤₙ).
         </p>
       </Proof>
       <Example>

@@ -133,7 +133,7 @@ const Body = () => (
       </Theorem>
       <Proof>
         <p>
-          Count the pairs (g, x) with g·x = x in two ways: Σ_g |Xᵍ| = Σ_x |Stab(x)| = Σ_x |G| / |Orb(x)|. Within one orbit O
+          Count the pairs (g, x) with g·x = x in two ways: Σ<sub>g</sub> |Xᵍ| = Σ<sub>x</sub> |Stab(x)| = Σ<sub>x</sub> |G| / |Orb(x)|. Within one orbit O
           the terms |G|/|O| add up to |G|, so the total is |G| times the number of orbits.
         </p>
       </Proof>

@@ -82,7 +82,7 @@ const Body = () => (
           <li>Sₙ/Aₙ ≅ {'{'}±1{'}'} ≅ ℤ₂, from sgn (n ≥ 2).</li>
           <li>GLₙ(ℝ)/SLₙ(ℝ) ≅ ℝ*, from det.</li>
           <li>ℝ/ℤ is isomorphic to the circle group, from x ↦ e<sup>2πix</sup>.</li>
-          <li>G/Z(G) ≅ Inn(G), from g ↦ φ_g (a problem below).</li>
+          <li>G/Z(G) ≅ Inn(G), from g ↦ φ<sub>g</sub> (a problem below).</li>
         </ul>
       </Example>
     </Section>
