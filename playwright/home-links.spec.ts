@@ -148,6 +148,24 @@ test('without motion the proofs link rests clear of the groups link', async ({ p
   }
 })
 
+test('both course formulas use the same scale curve as 1/π', async ({ page }) => {
+  await page.goto('/')
+  await page.locator('a[href="/proofs"]').waitFor()
+  const scalesAt = (t: number) =>
+    page.evaluate(t => {
+      document.getAnimations().forEach(a => {
+        a.pause()
+        a.currentTime = t
+      })
+      const scale = (selector: string) => Number.parseFloat(getComputedStyle(document.querySelector(selector)!).scale)
+      return [scale('p math'), scale('a[href="/groups"] math'), scale('a[href="/proofs"] math')]
+    }, t)
+
+  expect(await scalesAt(0)).toEqual([1, 1, 1])
+  expect(await scalesAt(10_000)).toEqual([5.5, 5.5, 5.5])
+  expect(await scalesAt(20_000)).toEqual([1, 1, 1])
+})
+
 test('the proofs link spirals out upright from a speck at the center, landing full size', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await page.goto('/')

@@ -78,21 +78,24 @@
 }
 /* The course links: a pill that holds its notation upright. */
 .pill {
-  display: block;
-  /* Its containing boxes are 0 wide (they only carry the transforms). */
-  width: max-content;
+  position: relative;
+  display: grid;
+  place-items: center;
+  /* A steady hit target surrounds the formula while the formula itself zooms. */
+  width: 44px;
+  height: 44px;
   translate: -50% -50%;
-  padding: 6px 14px;
+  padding: 0;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.82);
-  font-size: 1.35rem;
+  font-size: 0.25rem;
   white-space: nowrap;
   text-decoration: none;
 }
 
 .pill:hover,
 .pill:focus-visible {
-  background: white;
+  background: rgba(255, 255, 255, 0.82);
   outline: 2px solid currentColor;
   outline-offset: 2px;
 }
@@ -103,13 +106,17 @@
   width: auto;
   height: auto;
   margin: 0;
+  padding: 1px 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
   animation: none;
+  pointer-events: none;
 }
 
 /* The two moving course links below. */
 .courses {
   /* The spiral's widest radius: spiral-radius swings out to it, and a tall screen's orbit fits above it. */
-  --spiral-max: min(36vmin, 280px, calc(50vw - 100px));
+  --spiral-max: min(36vmin, 280px, calc(50vw - 100px), calc(50svh - 90px));
 }
 
 /* Each centers a 0×0 frame on the page; everything inside only carries transforms. */
@@ -136,7 +143,6 @@
 }
 
 .groupsLink {
-  box-shadow: 0 4px 16px rgba(80, 60, 160, 0.25);
   color: #4b2fa6;
 }
 
@@ -149,7 +155,7 @@
  */
 .orbit {
   --orbit-min: 6vmin;
-  --orbit-max: min(30vmin, 220px, calc(50vw - 100px));
+  --orbit-max: min(30vmin, 190px, calc(50vw - 100px), calc(50svh - 90px));
   z-index: 1;
 }
 
@@ -160,8 +166,6 @@
 }
 
 .proofsLink {
-  box-shadow: 0 4px 16px rgba(11, 94, 83, 0.25);
-  /* 5:1 on the pill even with black showing through it. */
   color: #0b5e53;
 }
 
@@ -186,7 +190,7 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .spiral {
-    animation: spiral-turn 36s linear infinite;
+    animation: spiral-turn 72s linear infinite;
   }
 
   .arm {
@@ -194,26 +198,27 @@
   }
 
   .groupsLink {
-    animation:
-      spiral-upright 36s linear infinite,
-      course-resize 20s ease-in-out infinite;
+    animation: spiral-upright 72s linear infinite;
+  }
+
+  .pill math {
+    animation: course-resize 20s ease infinite;
   }
 
   .orbit {
-    animation: orbit-turn 24s linear infinite;
+    animation: orbit-turn 72s linear infinite;
   }
 
   .orbitArm {
     animation:
-      orbit-radius 24s ease-in-out infinite,
+      orbit-radius 24s 2.4s ease-in-out infinite,
       orbit-arrive 2.4s cubic-bezier(0.2, 0.8, 0.3, 1);
   }
 
   .proofsLink {
     animation:
-      orbit-upright 24s linear infinite,
-      orbit-arrive-upright 2.4s cubic-bezier(0.2, 0.8, 0.3, 1),
-      course-resize 20s -10s ease-in-out infinite;
+      orbit-upright 72s linear infinite,
+      orbit-arrive-upright 2.4s cubic-bezier(0.2, 0.8, 0.3, 1);
   }
 
   .courses:is(:hover, :focus-within) * {
@@ -221,26 +226,26 @@
   }
 }
 
-/* Once around, counterclockwise: the generator. */
+/* Three turns counterclockwise per cycle: still a generator, now a wilder one. */
 @keyframes orbit-turn {
   to {
-    transform: rotate(-360deg);
+    transform: rotate(-1080deg);
   }
 }
 
 @keyframes orbit-upright {
   to {
-    rotate: 360deg;
+    rotate: 1080deg;
   }
 }
 
 @keyframes orbit-radius {
   0%,
   100% {
-    transform: translateX(calc(-1 * var(--orbit-min)));
+    transform: translateX(calc(-1 * var(--orbit-max)));
   }
   50% {
-    transform: translateX(calc(-1 * var(--orbit-max)));
+    transform: translateX(calc(-1 * var(--orbit-min)));
   }
 }
 
@@ -263,10 +268,10 @@
   }
 }
 
-/* Three turns per cycle; the radius goes out and back once. */
+/* Six turns per cycle; the radius goes out and back once. */
 @keyframes spiral-turn {
   to {
-    transform: rotate(1080deg);
+    transform: rotate(2160deg);
   }
 }
 
@@ -282,17 +287,17 @@
 
 @keyframes spiral-upright {
   to {
-    rotate: -1080deg;
+    rotate: -2160deg;
   }
 }
 
-/* Match 1/π's perpetual zoom while keeping each linked formula legible. */
+/* Exactly the 1/π formula's perpetual scale curve. */
 @keyframes course-resize {
   0%,
   100% {
-    scale: 0.8;
+    scale: 100%;
   }
   50% {
-    scale: 1.45;
+    scale: 550%;
   }
 }
