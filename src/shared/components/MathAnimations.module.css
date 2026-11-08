@@ -106,14 +106,15 @@
   animation: none;
 }
 
-/*
- * The link to the group theory course. Three nested boxes make the spiral:
- * .spiral turns about the page's center, .arm swings its radius out and back,
- * and the link turns the other way so the notation stays upright. Hovering or
- * focusing it stops everything, so it can be clicked; without motion it rests
- * to the right of center.
- */
-.spiral {
+/* The two moving course links below. */
+.courses {
+  /* The spiral's widest radius: spiral-radius swings out to it, and a tall screen's orbit fits above it. */
+  --spiral-max: min(36vmin, 280px, calc(50vw - 100px));
+}
+
+/* Each centers a 0×0 frame on the page; everything inside only carries transforms. */
+.spiral,
+.orbit {
   position: fixed;
   top: 50%;
   left: 50%;
@@ -121,6 +122,13 @@
   height: 0;
   z-index: 2;
 }
+
+/*
+ * The link to the group theory course. Three nested boxes make the spiral:
+ * .spiral turns about the page's center, .arm swings its radius out and back,
+ * and the link turns the other way so the notation stays upright. Without
+ * motion it rests to the right of center.
+ */
 
 .arm {
   /* Radii stay under half the viewport less half the ~180px pill, so it never leaves a phone screen. */
@@ -135,38 +143,41 @@
 /*
  * The link to the proofs course: π₁(S¹) ≅ ℤ orbiting the center once per
  * cycle, counterclockwise, at a fixed radius, while the notation stays
- * upright. Hover or focus stops it; without motion it rests left of center,
- * across from the group theory link.
+ * upright. It arrives as a speck at the center and spins away, spiraling
+ * twice around as it grows out to its circle. Where it crosses the group theory link it
+ * passes underneath. Without motion it rests left of center, across from the
+ * group theory link.
  */
 .orbit {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  z-index: 2;
+  z-index: 1;
 }
 
 .orbitArm {
   transform: translateX(calc(-1 * min(24vmin, 190px)));
+  /* The box is the pill's height, but orbit-arrive must turn and scale about the center. */
+  transform-origin: 0 0;
 }
 
 .proofsLink {
-  box-shadow: 0 4px 16px rgba(15, 107, 95, 0.25);
-  color: #0f6b5f;
+  box-shadow: 0 4px 16px rgba(11, 94, 83, 0.25);
+  /* 5:1 on the pill even with black showing through it. */
+  color: #0b5e53;
 }
 
 /*
  * On a narrow screen the spiral sweeps the whole width, so a circle around the
- * center would keep running into it. A tall screen has room above the spiral:
- * orbit there instead, below the nav, on a circle no wider than the gap between
- * the nav and the spiral's highest point (its widest radius, from spiral-radius
- * below) less both pills' heights.
+ * center would keep running into it. A tall screen (3:4 or taller) has room
+ * above the spiral: orbit there instead. The circle's center sits 90px + r
+ * down, so the ~47px pill at its top clears the 61px nav by 5px. Its diameter
+ * fits what is left above the spiral's highest point (50svh − spiral-max; svh
+ * because the spiral centers on the visible page, toolbars out): 90px above,
+ * a pill's height where the two would meet, and 13px to spare, 150px in all.
+ * From 3:4 that leaves r ≥ 0 on any screen over 300px wide.
  */
-@media (orientation: portrait) {
+@media (max-aspect-ratio: 3/4) {
   .orbit {
-    --orbit-r: max(0px, min(11vmin, calc((50vh - min(36vmin, 280px, calc(50vw - 100px)) - 140px) / 2)));
-    top: calc(84px + var(--orbit-r));
+    --orbit-r: max(0px, min(11vmin, calc((50svh - var(--spiral-max) - 150px) / 2)));
+    top: calc(90px + var(--orbit-r));
   }
 
   .orbitArm {
@@ -187,22 +198,21 @@
     animation: spiral-upright 36s linear infinite;
   }
 
-  .spiral:is(:hover, :focus-within),
-  .spiral:is(:hover, :focus-within) * {
-    animation-play-state: paused;
+  .orbit {
+    animation: orbit-turn 24s linear infinite;
   }
 
-  /* A quarter turn in at load: below center, clear of the spiral, which starts just right of it. */
-  .orbit {
-    animation: orbit-turn 24s linear -6s infinite;
+  .orbitArm {
+    animation: orbit-arrive 2.4s cubic-bezier(0.2, 0.8, 0.3, 1);
   }
 
   .proofsLink {
-    animation: orbit-upright 24s linear -6s infinite;
+    animation:
+      orbit-upright 24s linear infinite,
+      orbit-arrive-upright 2.4s cubic-bezier(0.2, 0.8, 0.3, 1);
   }
 
-  .orbit:is(:hover, :focus-within),
-  .orbit:is(:hover, :focus-within) * {
+  .courses:is(:hover, :focus-within) * {
     animation-play-state: paused;
   }
 }
@@ -220,6 +230,25 @@
   }
 }
 
+/*
+ * Scaling the arm shrinks its radius along with the pill, so the pill starts
+ * at the center and spirals out as the arm turns. The link turns back by as
+ * much, in step (same duration and easing), so the notation stays upright.
+ */
+@keyframes orbit-arrive {
+  from {
+    rotate: 720deg;
+    scale: 0.05;
+  }
+}
+
+/* On transform: the link's rotate is taken by orbit-upright. */
+@keyframes orbit-arrive-upright {
+  from {
+    transform: rotate(-720deg);
+  }
+}
+
 /* Three turns per cycle; the radius goes out and back once. */
 @keyframes spiral-turn {
   to {
@@ -233,7 +262,7 @@
     transform: translateX(6vmin);
   }
   50% {
-    transform: translateX(min(36vmin, 280px, calc(50vw - 100px)));
+    transform: translateX(var(--spiral-max));
   }
 }
 

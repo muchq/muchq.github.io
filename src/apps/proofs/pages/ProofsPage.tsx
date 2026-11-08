@@ -1,5 +1,6 @@
-// /proofs — a proof-first path through algebra and topology. Deliberately
-// unlisted: no nav entry, and the page asks search engines not to index it.
+// /proofs — a proof-first path through algebra and topology. No nav entry: the
+// one way in is the homepage's π₁(S¹) ≅ ℤ link, and the page asks search
+// engines not to index it.
 import { useEffect, useState } from 'react'
 import { Link, useNavigationType, useParams } from 'react-router-dom'
 import Navigation from '@/shared/components/Navigation'

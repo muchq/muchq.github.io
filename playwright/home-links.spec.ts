@@ -3,11 +3,13 @@ import { expect, test, type Page } from '@playwright/test'
 // The two moving course links on the homepage: π₁(S¹) ≅ ℤ orbiting toward
 // /proofs and the First Isomorphism Theorem spiraling toward /groups. Both
 // cycles are scrubbed by hand over their joint period (72 s), so the checks
-// cover every position either pill takes, not just the frame at load.
+// cover every position either pill takes, the proofs pill's entrance
+// included, not just the frame at load.
 
 const PERIOD_MS = 72_000
 const STEP_MS = 250
-const NAV_PX = 60
+// The nav bar: 60px and a 1px border.
+const NAV_PX = 61
 
 interface Box {
   left: number
@@ -17,8 +19,13 @@ interface Box {
 }
 
 interface Sweep {
-  atLoad: boolean
-  overlapShare: number
+  /** Lowest bottom edge of the proofs pill, and highest top edge of the groups pill, over the whole sweep. */
+  proofsLowest: number
+  groupsHighest: number
+  /** Overlapping steps where both pills are drawn at the middle of the overlap. */
+  stacked: number
+  /** Of those, the steps where the proofs pill is the one on top. */
+  proofsOnTop: number
   offscreen: Box | null
 }
 
@@ -34,88 +41,201 @@ async function sweep(page: Page): Promise<Sweep> {
       const hit = (a: Box, b: Box) => !(a.right < b.left || b.right < a.left || a.bottom < b.top || b.bottom < a.top)
       const anims = document.getAnimations()
       anims.forEach(a => a.pause())
-      let atLoad = false
-      let hits = 0
-      let n = 0
+      let stacked = 0
+      let proofsOnTop = 0
+      let proofsLowest = -Infinity
+      let groupsHighest = Infinity
       let offscreen: Box | null = null
-      for (let t = 0; t < period; t += step, n++) {
+      for (let t = 0; t < period; t += step) {
         anims.forEach(a => (a.currentTime = t))
         const p = box('/proofs')
         const g = box('/groups')
+        proofsLowest = Math.max(proofsLowest, p.bottom)
+        groupsHighest = Math.min(groupsHighest, g.top)
         if (hit(p, g)) {
-          hits++
-          if (t === 0) atLoad = true
+          // Boxes, not pills: a crossing of rounded ends can leave the middle
+          // of the overlap on just one of them, so look at what is drawn there.
+          const x = (Math.max(p.left, g.left) + Math.min(p.right, g.right)) / 2
+          const y = (Math.max(p.top, g.top) + Math.min(p.bottom, g.bottom)) / 2
+          const stack = document.elementsFromPoint(x, y)
+          const pi = stack.findIndex(el => el.closest('a[href="/proofs"]'))
+          const gi = stack.findIndex(el => el.closest('a[href="/groups"]'))
+          if (pi >= 0 && gi >= 0) {
+            stacked++
+            if (pi < gi) proofsOnTop++
+          }
         }
         if (!offscreen && (p.left < 0 || p.top < nav || p.right > innerWidth || p.bottom > innerHeight)) offscreen = p
       }
-      return { atLoad, overlapShare: hits / n, offscreen }
+      return { proofsLowest, groupsHighest, stacked, proofsOnTop, offscreen }
     },
     { period: PERIOD_MS, step: STEP_MS, nav: NAV_PX },
   )
 }
 
-const portrait = [
+/** Whatever the pointer is over, wait out the proofs pill's entrance. */
+async function landed(page: Page) {
+  await page.goto('/')
+  await page.locator('a[href="/proofs"]').waitFor()
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter(a => a.effect?.getComputedTiming().iterations !== Infinity)
+        .map(a => a.finished),
+    ),
+  )
+}
+
+const boxOf = async (page: Page, href: string) => (await page.locator(`a[href="${href}"]`).boundingBox())!
+const moved = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
+
+// 3:4 or taller: the proofs pill orbits above the spiral and never meets it.
+const tall = [
   { width: 320, height: 568 },
   { width: 390, height: 844 },
+  { width: 500, height: 667 },
   { width: 768, height: 1024 },
   { width: 1024, height: 1366 },
 ] as const
 
-const landscape = [
+// Anything wider, near-square portrait windows included: both circle the
+// page's center, so they cross now and then, the proofs pill underneath.
+const wide = [
+  { width: 500, height: 600 },
+  { width: 600, height: 640 },
+  { width: 800, height: 820 },
   { width: 844, height: 390 },
   { width: 1280, height: 800 },
   { width: 1920, height: 1080 },
 ] as const
 
-for (const { width, height } of portrait) {
+for (const { width, height } of tall) {
   test(`proofs link orbits on screen and clear of the groups link at ${width}×${height}`, async ({ page }) => {
     await page.setViewportSize({ width, height })
     const s = await sweep(page)
     expect(s.offscreen, `pill left the screen at ${JSON.stringify(s.offscreen)}`).toBeNull()
-    expect(s.overlapShare).toBe(0)
+    // Bands, not frames: the two can't meet whatever their phases.
+    expect(s.proofsLowest).toBeLessThan(s.groupsHighest)
   })
 }
 
-for (const { width, height } of landscape) {
-  // Here both circle the same center, so they cross now and then; only the
-  // first frame has to be clean, so neither covers the other at load.
-  test(`proofs link orbits on screen and starts clear at ${width}×${height}`, async ({ page }) => {
+for (const { width, height } of wide) {
+  test(`proofs link orbits on screen, under the groups link, at ${width}×${height}`, async ({ page }) => {
     await page.setViewportSize({ width, height })
     const s = await sweep(page)
     expect(s.offscreen, `pill left the screen at ${JSON.stringify(s.offscreen)}`).toBeNull()
-    expect(s.atLoad).toBe(false)
+    expect(s.stacked, 'never crossed, so the stacking check saw nothing').toBeGreaterThan(0)
+    expect(s.proofsOnTop, 'proofs pill covered the groups pill').toBe(0)
   })
 }
 
 test('without motion the proofs link rests clear of the groups link', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  for (const { width, height } of [...portrait, ...landscape]) {
+  for (const { width, height } of [...tall, ...wide]) {
     await page.setViewportSize({ width, height })
     await page.goto('/')
     await page.locator('a[href="/proofs"]').waitFor()
-    const moving = await page.evaluate(() => {
-      const link = document.querySelector('a[href="/proofs"]')!
-      return [link, link.parentElement!, link.parentElement!.parentElement!].some(el => el.getAnimations().length > 0)
-    })
+    const moving = await page.evaluate(
+      // The orbit frame and everything in it, the formula included.
+      () => document.querySelector('a[href="/proofs"]')!.parentElement!.parentElement!.getAnimations({ subtree: true }).length > 0,
+    )
     expect(moving, `${width}×${height}`).toBe(false)
-    const p = (await page.locator('a[href="/proofs"]').boundingBox())!
-    const g = (await page.locator('a[href="/groups"]').boundingBox())!
+    const p = await boxOf(page, '/proofs')
+    const g = await boxOf(page, '/groups')
     const apart = p.x + p.width < g.x || g.x + g.width < p.x || p.y + p.height < g.y || g.y + g.height < p.y
     expect(apart, `${width}×${height}`).toBe(true)
   }
 })
 
-test('hovering the proofs link stops it, and it goes to /proofs', async ({ page }) => {
+test('the proofs link spirals out upright from a speck at the center, landing full size', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await page.goto('/')
-  const link = page.locator('a[href="/proofs"]')
-  await link.waitFor()
-  const b = (await link.boundingBox())!
-  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2)
-  const before = (await link.boundingBox())!
+  await page.locator('a[href="/proofs"]').waitFor()
+  const at = (t: number) =>
+    page.evaluate(t => {
+      document.getAnimations().forEach(a => {
+        a.pause()
+        a.currentTime = t
+      })
+      const link = document.querySelector<HTMLElement>('a[href="/proofs"]')!
+      const r = link.getBoundingClientRect()
+      return {
+        shown: r.width,
+        laidOut: link.offsetWidth,
+        shownAspect: r.height / r.width,
+        laidOutAspect: link.offsetHeight / link.offsetWidth,
+        fromCenter: Math.hypot((r.left + r.right) / 2 - innerWidth / 2, (r.top + r.bottom) / 2 - innerHeight / 2),
+        turn: getComputedStyle(link.parentElement!).rotate,
+      }
+    }, t)
+  const start = await at(0)
+  expect(start.shown).toBeLessThan(start.laidOut * 0.1)
+  expect(start.fromCenter).toBeLessThan(15)
+  expect(start.turn).toBe('720deg')
+  // Mid-spiral, and partway through a turn: a tilted pill's box would be squarer.
+  for (const t of [300, 700, 1100]) {
+    const mid = await at(t)
+    expect(mid.shownAspect, `tilted at ${t} ms`).toBeCloseTo(mid.laidOutAspect, 2)
+  }
+  const done = await at(2400)
+  expect(Math.abs(done.shown - done.laidOut)).toBeLessThan(1)
+  expect(done.fromCenter).toBeCloseTo(190, -1)
+  expect(done.turn).toBe('none')
+})
+
+for (const href of ['/proofs', '/groups']) {
+  test(`hovering ${href} stops both course links`, async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await landed(page)
+    const b = await boxOf(page, href)
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2)
+    const before = [await boxOf(page, '/proofs'), await boxOf(page, '/groups')]
+    await page.waitForTimeout(500)
+    const after = [await boxOf(page, '/proofs'), await boxOf(page, '/groups')]
+    expect(moved(before[0], after[0]), '/proofs moved').toBeLessThan(1)
+    expect(moved(before[1], after[1]), '/groups moved').toBeLessThan(1)
+  })
+}
+
+test('with the pointer elsewhere both course links keep moving', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await landed(page)
+  await page.mouse.move(5, 795)
+  const before = [await boxOf(page, '/proofs'), await boxOf(page, '/groups')]
   await page.waitForTimeout(500)
-  const after = (await link.boundingBox())!
-  expect(Math.abs(after.x - before.x) + Math.abs(after.y - before.y)).toBeLessThan(1)
+  const after = [await boxOf(page, '/proofs'), await boxOf(page, '/groups')]
+  expect(moved(before[0], after[0]), '/proofs stood still').toBeGreaterThan(5)
+  expect(moved(before[1], after[1]), '/groups stood still').toBeGreaterThan(5)
+})
+
+test('both pills are readable with black showing through them', async ({ page }) => {
+  await page.goto('/')
+  for (const href of ['/proofs', '/groups']) {
+    const ratio = await page.locator(`a[href="${href}"]`).evaluate(el => {
+      const rgba = (c: string) => c.match(/[\d.]+/g)!.map(Number)
+      const [r, g, b] = rgba(getComputedStyle(el).color)
+      const [br, bg, bb, ba = 1] = rgba(getComputedStyle(el).backgroundColor)
+      const lum = (rgb: number[]) => {
+        const [R, G, B] = rgb.map(c => {
+          c /= 255
+          return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+        })
+        return 0.2126 * R + 0.7152 * G + 0.0722 * B
+      }
+      const text = lum([r, g, b])
+      const pill = lum([br * ba, bg * ba, bb * ba])
+      return (Math.max(text, pill) + 0.05) / (Math.min(text, pill) + 0.05)
+    })
+    expect(ratio, href).toBeGreaterThanOrEqual(4.5)
+  }
+})
+
+test('clicking the stopped proofs link goes to /proofs', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await landed(page)
+  const b = await boxOf(page, '/proofs')
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2)
   await page.mouse.down()
   await page.mouse.up()
   await expect(page).toHaveURL(/\/proofs$/)

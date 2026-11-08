@@ -23,7 +23,7 @@ import SmallcatPage from './apps/smallcat/pages/SmallcatPage'
 import NotFoundPage from './core/pages/NotFoundPage'
 import LoadBoundary from './shared/components/LoadBoundary'
 
-// Unlisted, and the only page that needs KaTeX: split out of the main bundle.
+// Off the nav, and the only page that needs KaTeX: split out of the main bundle.
 const ProofsPage = lazy(() => import('./apps/proofs/pages/ProofsPage'))
 const proofs = (
   <LoadBoundary>
