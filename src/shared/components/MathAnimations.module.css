@@ -76,6 +76,36 @@
     scale: 100%;
   }
 }
+/* The course links: a pill that holds its notation upright. */
+.pill {
+  display: block;
+  /* Its containing boxes are 0 wide (they only carry the transforms). */
+  width: max-content;
+  translate: -50% -50%;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  font-size: 1.35rem;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.pill:hover,
+.pill:focus-visible {
+  background: white;
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* Undo the page-wide rule above that floats and spins every <math>. */
+.pill math {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  animation: none;
+}
+
 /*
  * The link to the group theory course. Three nested boxes make the spiral:
  * .spiral turns about the page's center, .arm swings its radius out and back,
@@ -98,34 +128,50 @@
 }
 
 .groupsLink {
-  display: block;
-  /* Its containing boxes are 0 wide (they only carry the transforms). */
-  width: max-content;
-  translate: -50% -50%;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.82);
   box-shadow: 0 4px 16px rgba(80, 60, 160, 0.25);
   color: #4b2fa6;
-  font-size: 1.35rem;
-  white-space: nowrap;
-  text-decoration: none;
 }
 
-.groupsLink:hover,
-.groupsLink:focus-visible {
-  background: white;
-  outline: 2px solid #4b2fa6;
-  outline-offset: 2px;
+/*
+ * The link to the proofs course: π₁(S¹) ≅ ℤ orbiting the center once per
+ * cycle, counterclockwise, at a fixed radius, while the notation stays
+ * upright. Hover or focus stops it; without motion it rests left of center,
+ * across from the group theory link.
+ */
+.orbit {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  z-index: 2;
 }
 
-/* Undo the page-wide rule above that floats and spins every <math>. */
-.groupsLink math {
-  position: static;
-  width: auto;
-  height: auto;
-  margin: 0;
-  animation: none;
+.orbitArm {
+  transform: translateX(calc(-1 * min(24vmin, 190px)));
+}
+
+.proofsLink {
+  box-shadow: 0 4px 16px rgba(15, 107, 95, 0.25);
+  color: #0f6b5f;
+}
+
+/*
+ * On a narrow screen the spiral sweeps the whole width, so a circle around the
+ * center would keep running into it. A tall screen has room above the spiral:
+ * orbit there instead, below the nav, on a circle no wider than the gap between
+ * the nav and the spiral's highest point (its widest radius, from spiral-radius
+ * below) less both pills' heights.
+ */
+@media (orientation: portrait) {
+  .orbit {
+    --orbit-r: max(0px, min(11vmin, calc((50vh - min(36vmin, 280px, calc(50vw - 100px)) - 140px) / 2)));
+    top: calc(84px + var(--orbit-r));
+  }
+
+  .orbitArm {
+    transform: translateX(calc(-1 * var(--orbit-r)));
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -144,6 +190,33 @@
   .spiral:is(:hover, :focus-within),
   .spiral:is(:hover, :focus-within) * {
     animation-play-state: paused;
+  }
+
+  /* A quarter turn in at load: below center, clear of the spiral, which starts just right of it. */
+  .orbit {
+    animation: orbit-turn 24s linear -6s infinite;
+  }
+
+  .proofsLink {
+    animation: orbit-upright 24s linear -6s infinite;
+  }
+
+  .orbit:is(:hover, :focus-within),
+  .orbit:is(:hover, :focus-within) * {
+    animation-play-state: paused;
+  }
+}
+
+/* Once around, counterclockwise: the generator. */
+@keyframes orbit-turn {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes orbit-upright {
+  to {
+    rotate: 360deg;
   }
 }
 

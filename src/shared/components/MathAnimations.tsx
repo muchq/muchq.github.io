@@ -53,7 +53,12 @@ const MathAnimations = () => {
       {/* The First Isomorphism Theorem, spiraling around the page: the way into the group theory course. */}
       <div className={styles.spiral}>
         <div className={styles.arm}>
-          <Link to="/groups" className={styles.groupsLink} aria-label="Group theory course" title="Group theory: a first course">
+          <Link
+            to="/groups"
+            className={`${styles.pill} ${styles.groupsLink}`}
+            aria-label="Group theory course"
+            title="Group theory: a first course"
+          >
             <math>
               <mi>G</mi>
               <mo>/</mo>
@@ -68,6 +73,36 @@ const MathAnimations = () => {
                 <mo rspace="0.2em">⁡</mo>
                 <mi>φ</mi>
               </mrow>
+            </math>
+          </Link>
+        </div>
+      </div>
+
+      {/*
+        π₁(S¹) ≅ ℤ going once around the circle, counterclockwise: a loop that
+        generates the very group it names. The way into the proofs course.
+      */}
+      <div className={styles.orbit}>
+        <div className={styles.orbitArm}>
+          <Link
+            to="/proofs"
+            className={`${styles.pill} ${styles.proofsLink}`}
+            aria-label="Algebra and topology, by proof"
+            title="Algebra and topology, by proof"
+          >
+            <math>
+              <msub>
+                <mi>π</mi>
+                <mn>1</mn>
+              </msub>
+              <mo>(</mo>
+              <msup>
+                <mi>S</mi>
+                <mn>1</mn>
+              </msup>
+              <mo>)</mo>
+              <mo>≅</mo>
+              <mi>ℤ</mi>
             </math>
           </Link>
         </div>
