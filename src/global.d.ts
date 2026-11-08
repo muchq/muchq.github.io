@@ -8,7 +8,7 @@ declare module 'react/jsx-runtime' {
       mfrac: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
       mn: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
       mi: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
-      mo: DetailedHTMLProps<HTMLAttributes<HTMLElement> & { stretchy?: string }, HTMLElement>
+      mo: DetailedHTMLProps<HTMLAttributes<HTMLElement> & { stretchy?: string; lspace?: string; rspace?: string }, HTMLElement>
       mspace: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
       semantics: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
       mrow: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>

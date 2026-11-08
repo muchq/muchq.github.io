@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import styles from './MathAnimations.module.css'
 
 const MathAnimations = () => {
@@ -48,6 +49,29 @@ const MathAnimations = () => {
           </mrow>
         </semantics>
       </math>
+
+      {/* The First Isomorphism Theorem, spiraling around the page: the way into the group theory course. */}
+      <div className={styles.spiral}>
+        <div className={styles.arm}>
+          <Link to="/groups" className={styles.groupsLink} aria-label="Group theory course" title="Group theory: a first course">
+            <math>
+              <mi>G</mi>
+              <mo>/</mo>
+              <mrow>
+                <mi>ker</mi>
+                <mo rspace="0.2em">⁡</mo>
+                <mi>φ</mi>
+              </mrow>
+              <mo>≅</mo>
+              <mrow>
+                <mi>im</mi>
+                <mo rspace="0.2em">⁡</mo>
+                <mi>φ</mi>
+              </mrow>
+            </math>
+          </Link>
+        </div>
+      </div>
     </>
   )
 }

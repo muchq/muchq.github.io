@@ -38,6 +38,7 @@ function App() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/groups" element={<GroupsPage />} />
+      <Route path="/groups/:chapter" element={<GroupsPage />} />
       <Route path="/sets" element={<SetsPage />} />
       <Route path="/games" element={<LobbyPage />} />
       <Route path="/games/room/:roomId" element={<LobbyPage />} />
