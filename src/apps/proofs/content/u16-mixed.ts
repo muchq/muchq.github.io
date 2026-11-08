@@ -4,17 +4,17 @@ import { md } from './md'
 // No `uses` here on purpose: nothing on the page says which tools apply.
 const unit: Unit = {
   id: 'mixed',
-  n: 15,
+  n: 16,
   title: 'Mixed problems',
   track: 'Mixed',
-  prereqs: [14],
+  prereqs: [15, 13, 5, 4],
   why: md`No topic, and no list of results to cite: problems from across the course in no particular order,
     several asking you to *determine* the answer rather than prove one you are given. Deciding which tools
     apply is the problem.`,
   definitions: [],
   problems: [
     {
-      id: '15.1',
+      id: '16.1',
       kind: 'prove',
       challenge: true,
       title: 'Groups of order six',
@@ -54,7 +54,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '15.2',
+      id: '16.2',
       kind: 'decide',
       title: 'The circle in the line',
       statement: md`**Prove or disprove:** there is a continuous injective map $S^1 \to \R$.`,
@@ -75,7 +75,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '15.3',
+      id: '16.3',
       kind: 'prove',
       title: 'Five spaces',
       statement: md`Sort $[0, 1)$, $(0, 1)$, $[0, 1]$, $\R$ and $S^1$ into homeomorphism classes, and prove your
@@ -110,7 +110,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '15.4',
+      id: '16.4',
       kind: 'decide',
       title: 'Normal subgroups inside a subgroup',
       statement: md`**Prove or disprove:** if $H$ is a subgroup of finite index in a group $G$, then $H$ contains a
@@ -132,7 +132,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '15.5',
+      id: '16.5',
       kind: 'prove',
       title: 'Maps that miss a point',
       statement: md`Prove that a continuous map $f\colon S^1 \to S^1$ that is not surjective has degree 0. Deduce
@@ -141,10 +141,10 @@ const unit: Unit = {
         md`Suppose $f$ misses $p(a)$. Where can a lift of $s \mapsto f(p(s))$ take its values?`,
         md`Those values lie in a disjoint union of open intervals of length 1. Can the lift jump between them?`,
       ],
-      solution: md`Suppose $f$ misses $p(a)$ and let $\ell$ lift $s \mapsto f(p(s))$ on $[0, 1]$ (14.3). Its values
-        lie in $p^{-1}(S^1 \setminus \{p(a)\}) = \bigcup_n (a + n, a + n + 1)$ (14.1). $\ell([0, 1])$ is connected
+      solution: md`Suppose $f$ misses $p(a)$ and let $\ell$ lift $s \mapsto f(p(s))$ on $[0, 1]$ (15.3). Its values
+        lie in $p^{-1}(S^1 \setminus \{p(a)\}) = \bigcup_n (a + n, a + n + 1)$ (15.1). $\ell([0, 1])$ is connected
         (9.2, 9.3), so it lies in one of these disjoint open intervals — otherwise they would separate it. So
-        $|\ell(1) - \ell(0)| < 1$, and the integer $\deg f = \ell(1) - \ell(0)$ (14.7) is $0$. The map
+        $|\ell(1) - \ell(0)| < 1$, and the integer $\deg f = \ell(1) - \ell(0)$ (15.7) is $0$. The map
         $z \mapsto z^n$ has degree $n$ (lift $s \mapsto ns$), so for $n \ne 0$ it is onto.`,
       checks: [
         md`A lift is taken and its values located in the preimage of the complement of the missed point.`,
@@ -153,7 +153,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '15.6',
+      id: '16.6',
       kind: 'decide',
       title: 'Antipodes',
       statement: md`**Prove or disprove:** every continuous $f\colon S^1 \to \R$ takes the same value at some pair
@@ -174,7 +174,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '15.7',
+      id: '16.7',
       kind: 'prove',
       title: 'Unions of conjugates',
       statement: md`Let $H$ be a proper subgroup of a finite group $G$. Prove that $G$ is not the union of the
@@ -195,7 +195,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '15.8',
+      id: '16.8',
       kind: 'flaw',
       title: 'A true claim, a wrong proof',
       statement: md`**Claim** (true). A continuous bijection $f\colon [0, 1] \to [0, 1]$ is a homeomorphism. Find the
@@ -223,16 +223,16 @@ const unit: Unit = {
       ],
     },
     {
-      id: '15.9',
+      id: '16.9',
       kind: 'prove',
       title: 'The torus',
       statement: md`Prove that the torus $T = S^1 \times S^1$ is homeomorphic neither to $S^1$ nor to $D^2$.`,
       hints: [md`Find an invariant you can compute for all three.`, md`Is $\Z \times \Z$ cyclic?`],
       solution: md`$T$ is path-connected: paths in the two factors combine into a path in the product (7.10). So
-        its fundamental group does not depend on the basepoint up to isomorphism (13.7), and the same holds for
-        $S^1$ and $D^2$; a homeomorphism would induce an isomorphism (13.8). Now
-        $\pi_1(T) \cong \Z \times \Z$ (13.10, 14.6), $\pi_1(S^1) \cong \Z$ (14.6), and $\pi_1(D^2)$ is trivial
-        (13.5). $\Z \times \Z$ is not trivial, and not cyclic: if $(a, b)$ generated it, then $(1, 0) = k(a, b)$
+        its fundamental group does not depend on the basepoint up to isomorphism (14.7), and the same holds for
+        $S^1$ and $D^2$; a homeomorphism would induce an isomorphism (14.8). Now
+        $\pi_1(T) \cong \Z \times \Z$ (14.10, 15.6), $\pi_1(S^1) \cong \Z$ (15.6), and $\pi_1(D^2)$ is trivial
+        (14.5). $\Z \times \Z$ is not trivial, and not cyclic: if $(a, b)$ generated it, then $(1, 0) = k(a, b)$
         and $(0, 1) = l(a, b)$; $ka = 1$ forces $k \ne 0$, so $kb = 0$ gives $b = 0$, contradicting $lb = 1$.`,
       checks: [
         md`Basepoint independence and functoriality are cited.`,
@@ -241,24 +241,27 @@ const unit: Unit = {
       ],
     },
     {
-      id: '15.10',
+      id: '16.10',
       kind: 'prove',
-      title: 'Functions on compact spaces',
-      statement: md`Let $X$ be a compact Hausdorff space and $x \ne y$ points of $X$. Prove there is a continuous
-        $f\colon X \to \R$ with $f(x) \ne f(y)$.`,
+      title: 'Connected compact spaces are big',
+      statement: md`Prove that a connected compact Hausdorff space with at least two points is uncountable.`,
       hints: [
-        md`Open sets separate $x$ from $y$. What turns separating open sets into a function?`,
-        md`What do you know about compact Hausdorff spaces that a function-building theorem needs?`,
+        md`Can you map the space continuously onto something you know is uncountable?`,
+        md`A continuous real function that takes two values on a connected space takes every value in between.`,
       ],
-      solution: md`$X$ is normal (11.3), and $\{x\}$, $\{y\}$ are disjoint closed sets, points being closed (11.1).
-        Urysohn's lemma (11.7) gives a continuous $f\colon X \to [0, 1]$ with $f(x) = 0$ and $f(y) = 1$.`,
+      solution: md`Let $x \ne y$. $X$ is normal (11.3) and its points are closed (11.1), so Urysohn (11.7) gives a
+        continuous $f\colon X \to [0, 1]$ with $f(x) = 0$, $f(y) = 1$. $f(X)$ is connected (9.3) and contains 0 and 1,
+        so it contains every point between them — otherwise the parts below and above a missed point would separate
+        it, as in 9.3(b). So $f(X) = [0, 1]$, which is uncountable (13.3). If $X$ were countable, choosing one
+        preimage of each point of $[0, 1]$ would inject $[0, 1]$ into $X$, making $[0, 1]$ countable.`,
       checks: [
-        md`Normality of compact Hausdorff spaces is invoked.`,
-        md`Points are shown to be closed before Urysohn is applied.`,
+        md`Urysohn is applied after normality and closed points are established.`,
+        md`The image is shown to be all of $[0, 1]$ by connectedness.`,
+        md`Countability of $X$ is shown to pass to $[0, 1]$.`,
       ],
     },
     {
-      id: '15.11',
+      id: '16.11',
       kind: 'decide',
       title: 'Maximal ideals of ℤ/n',
       statement: md`**Prove or disprove:** for every $n \ge 2$, the number of maximal ideals of $\Z/n$ equals the number of
@@ -270,16 +273,75 @@ const unit: Unit = {
       ],
       solution: md`**True.** Let $\pi\colon \Z \to \Z/n$. For an ideal $M$ of $\Z/n$, $\pi^{-1}(M)$ is an ideal of $\Z$ containing
         $n\Z$ (preimages of ideals under ring homomorphisms are ideals, directly from the definitions), and
-        $\pi(\pi^{-1}(M)) = M$ since $\pi$ is onto. For an ideal $J \supseteq n\Z$ of $\Z$, $\pi(J)$ is an ideal
-        ($\pi$ is onto; 5.3) and $\pi^{-1}(\pi(J)) = J + n\Z = J$. So $M \mapsto \pi^{-1}(M)$ is a bijection, preserving
-        inclusion both ways, from ideals of $\Z/n$ to ideals of $\Z$ containing $n\Z$; $M$ is proper iff
-        $1 \notin \pi^{-1}(M)$, so maximal ideals correspond to maximal ideals. The ideals containing $n\Z$ are
-        $d\Z$ with $d \ge 1$, $d \mid n$ (5.7), and $d\Z$ is maximal iff $d$ is prime (5.7, 5.5). So the maximal
-        ideals of $\Z/n$ match the prime divisors of $n$.`,
+        $\pi(\pi^{-1}(M)) = M$ since $\pi$ is onto. For an ideal $J \supseteq n\Z$ of $\Z$, $\pi(J)$ is an ideal, as
+        $\pi$ is onto: $\pi(r)\pi(a) = \pi(ra)$. And $\pi^{-1}(\pi(J)) = J + n\Z = J$. So $M \mapsto \pi^{-1}(M)$ is a
+        bijection, preserving inclusion both ways, from ideals of $\Z/n$ to ideals of $\Z$ containing $n\Z$; $M$ is
+        proper iff $1 \notin \pi^{-1}(M)$. So $M$ is maximal iff $\pi^{-1}(M)$ is maximal among ideals containing
+        $n\Z$ — which is maximality in $\Z$, since any ideal containing $\pi^{-1}(M)$ contains $n\Z$. The ideals
+        containing $n\Z$ are the $d\Z$ with $d \ge 1$, $d \mid n$, distinct for distinct $d$, and $d\Z$ is maximal
+        iff $d$ is prime (5.7). So the maximal ideals of $\Z/n$ match the prime divisors of $n$.`,
       checks: [
         md`The correspondence of ideals is proved, in both directions, with inclusion preserved.`,
         md`Properness, hence maximality, is shown to correspond.`,
         md`Maximal ideals of $\Z$ are identified with primes.`,
+      ],
+    },
+    {
+      id: '16.12',
+      kind: 'decide',
+      title: 'A big product, locally',
+      statement: md`**Prove or disprove:** $\R^{\N}$, with the product topology, is locally compact.`,
+      verdict: false,
+      hints: [
+        md`What does a basic neighborhood of a point look like in most coordinates?`,
+        md`Project a compact set to one coordinate.`,
+      ],
+      solution: md`**False.** Suppose a compact $C$ contains a neighborhood of $0$, hence a basic set $\prod_n U_n$ with
+        $U_n = \R$ for $n$ outside a finite set $F$. For $m \notin F$, $\pi_m(C) \supseteq \pi_m(\prod_n U_n) = \R$, and
+        $\pi_m(C)$ is compact (10.1, 12.1). So $\R$ would be compact — but $(-k, k)$, $k \ge 1$, cover it with no finite
+        subcover.`,
+      checks: [
+        md`A basic neighborhood is shown to be unrestricted in some coordinate.`,
+        md`Projection and continuous images of compact sets give the contradiction.`,
+      ],
+    },
+    {
+      id: '16.13',
+      kind: 'decide',
+      title: 'Non-units',
+      statement: md`**Prove or disprove:** in every ring with $1 \ne 0$, the set of non-units is the union of the maximal
+        ideals.`,
+      verdict: true,
+      hints: [md`What ideal does a single non-unit generate?`, md`Can a maximal ideal contain a unit?`],
+      solution: md`**True.** If $a$ is a non-unit, $(a) = Ra$ does not contain 1 (else $ra = 1$), so it is proper and lies
+        in a maximal ideal by Krull's theorem (5.12); hence $a$ lies in a maximal ideal. Conversely, a maximal ideal
+        contains no unit: $u \in M$ would give $1 = u^{-1}u \in M$, so $M = R$.`,
+      checks: [
+        md`A non-unit is shown to generate a proper ideal.`,
+        md`Krull's theorem places it in a maximal ideal.`,
+        md`Maximal ideals are shown to contain no units.`,
+      ],
+    },
+    {
+      id: '16.14',
+      kind: 'decide',
+      title: 'Order twenty-one',
+      statement: md`**Prove or disprove:** every group of order 21 is abelian.`,
+      verdict: false,
+      hints: [
+        md`Order 15 forced commuting elements. What is different about $3$ and $7$?`,
+        md`Look among the maps $x \mapsto ax + b$ of $\Z/7$.`,
+      ],
+      solution: md`**False.** Let $G$ be the set of maps $\Z/7 \to \Z/7$ of the form $x \mapsto ax + b$ with $a \in \{1, 2, 4\}$
+        and $b \in \Z/7$. Composition gives $a(cx + d) + b = acx + (ad + b)$, and $\{1, 2, 4\}$ is closed under
+        multiplication mod 7 ($2 \cdot 2 = 4$, $2 \cdot 4 \equiv 1$, $4 \cdot 4 \equiv 2$) and contains inverses, so
+        $G$ is a subgroup of $\mathrm{Sym}(\Z/7)$ (the maps are bijections, with inverses of the same form). Its 21
+        elements are distinct, since $b = f(0)$ and $a = f(1) - f(0)$. It is not abelian: for $f(x) = 2x$ and
+        $g(x) = x + 1$, $f(g(x)) = 2x + 2$ but $g(f(x)) = 2x + 1$.`,
+      checks: [
+        md`Closure under composition and inverses is checked.`,
+        md`The 21 elements are shown distinct.`,
+        md`Two explicit non-commuting elements are given.`,
       ],
     },
   ],

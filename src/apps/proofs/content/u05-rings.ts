@@ -23,7 +23,8 @@ const unit: Unit = {
       term: 'Ideal, quotient ring',
       body: md`An **ideal** is an additive subgroup $I \subseteq R$ with $ra \in I$ for all $r \in R$, $a \in I$. It
         is **proper** if $I \ne R$. $(a) = Ra$ is the **principal** ideal of $a$. The **quotient ring** $R/I$ is the
-        set of cosets $a + I$ with $(a + I) + (b + I) = (a + b) + I$ and $(a + I)(b + I) = ab + I$.`,
+        set of cosets $a + I$ with $(a + I) + (b + I) = (a + b) + I$ and $(a + I)(b + I) = ab + I$. For ideals
+        $I, J$, the sum $I + J = \{a + b : a \in I,\ b \in J\}$ is an ideal.`,
     },
     {
       term: 'Ring homomorphism',
@@ -40,8 +41,15 @@ const unit: Unit = {
       term: 'Polynomials over a field',
       body: md`For a field $F$, $F[x]$ is the ring of polynomials. Assumed: $\deg(fg) = \deg f + \deg g$ for nonzero
         $f, g$, and division with remainder — for $g \ne 0$, every $f$ is $qg + r$ with $r = 0$ or
-        $\deg r < \deg g$. A polynomial $p$ of degree at least 1 is **irreducible** if $p = ab$ forces $a$ or $b$
-        to be constant.`,
+        $\deg r < \deg g$; and evaluation — if $F$ is a subring of a ring $S$ and $c \in S$, then $f \mapsto f(c)$ is a
+        ring homomorphism $F[x] \to S$. A polynomial $p$ of degree at least 1 is **irreducible** if $p = ab$ forces
+        $a$ or $b$ to be constant.`,
+    },
+    {
+      term: 'Divisibility in a domain',
+      body: md`In an integral domain, $a \mid b$ if $b = ac$ for some $c$. A nonzero non-unit $p$ is **irreducible** if
+        $p = bc$ forces $b$ or $c$ to be a unit, and **prime** if $p \mid bc$ forces $p \mid b$ or $p \mid c$. A
+        **principal ideal domain** (PID) is an integral domain in which every ideal is principal.`,
     },
   ],
   problems: [
@@ -79,9 +87,9 @@ const unit: Unit = {
       statement: md`Let $\varphi\colon R \to S$ be a ring homomorphism with kernel $K$. Prove that $\varphi(R)$ is a
         ring under the operations of $S$ and that $a + K \mapsto \varphi(a)$ is a ring isomorphism
         $R/K \cong \varphi(R)$.`,
-      uses: ['3.7', '5.1'],
+      uses: ['3.1', '3.7', '5.1'],
       hints: [md`The additive group isomorphism exists already. What is left to check?`],
-      solution: md`$\varphi(R)$ is an additive subgroup of $S$ (3.1(d)), contains $1 = \varphi(1)$, and is closed under
+      solution: md`$K$ is an ideal (5.1), so $R/K$ is a ring. $\varphi(R)$ is an additive subgroup of $S$ (3.1(d)), contains $1 = \varphi(1)$, and is closed under
         products since $\varphi(a)\varphi(b) = \varphi(ab)$; so it is a ring. By 3.7 applied to the additive
         groups, $\bar\varphi(a + K) = \varphi(a)$ is a well-defined bijective additive homomorphism
         $R/K \to \varphi(R)$. It preserves products — $\bar\varphi((a + K)(b + K)) = \varphi(ab) =
@@ -96,7 +104,8 @@ const unit: Unit = {
       id: '5.3',
       kind: 'decide',
       title: 'Images of ideals',
-      statement: md`**Prove or disprove:** the image of an ideal under a ring homomorphism is an ideal.`,
+      statement: md`**Prove or disprove:** the image of an ideal under a ring homomorphism $R \to S$ is an ideal of
+        $S$.`,
       verdict: false,
       hints: [
         md`Absorption must hold for every element of the *target*. What if the homomorphism misses most of it?`,
@@ -208,21 +217,22 @@ const unit: Unit = {
         then $F[x]/(p)$ is a field.`,
       uses: ['5.5'],
       hints: [
-        md`In a nonzero ideal, take a nonzero element of least degree. Divide.`,
+        md`Compare 2.7: which element of the ideal should generate it?`,
+        md`In a nonzero ideal, take a nonzero element of least degree, and divide by it.`,
         md`If $(p) \subseteq (g)$, then $p = hg$. What does irreducibility say about $h$ and $g$?`,
       ],
       solution: md`Let $I \ne \{0\}$ (else $I = (0)$) and take $g \in I$ nonzero of least degree. For $f \in I$, write
         $f = qg + r$ with $r = 0$ or $\deg r < \deg g$; $r = f - qg \in I$, so $r = 0$ by minimality. So
         $I = (g)$.
 
-        The units of $F[x]$ are the nonzero constants: if $fg = 1$, degrees add to 0. Let $p$ be irreducible.
+        Nonzero constants are units of $F[x]$, with inverses in $F$. Let $p$ be irreducible.
         $(p)$ is proper: its nonzero elements have degree at least $\deg p \ge 1$, so $1 \notin (p)$. Let
         $(p) \subseteq J$ with $J$ an ideal; then $J = (g)$ and $p = hg$. If $g$ is constant, it is a nonzero
         constant — $g = 0$ would force $p = 0$ — hence a unit, and $J = F[x]$. Otherwise $h$ is a nonzero
         constant, $g = h^{-1}p \in (p)$, and $J = (p)$. So $(p)$ is maximal, and $F[x]/(p)$ is a field by 5.5.`,
       checks: [
         md`An element of least degree generates the ideal, via division with remainder.`,
-        md`Units of $F[x]$ are identified using degrees.`,
+        md`Nonzero constants are recognized as units, with inverses in $F$.`,
         md`Both outcomes of irreducibility are followed to the end.`,
       ],
     },
@@ -231,16 +241,18 @@ const unit: Unit = {
       kind: 'prove',
       title: 'The complex numbers, constructed',
       statement: md`Prove that $\R[x]/(x^2 + 1) \cong \C$ as rings.`,
-      uses: ['5.2', '5.8'],
+      uses: ['5.2', '5.5', '5.8'],
       hints: [
         md`Find a surjective ring homomorphism $\R[x] \to \C$ that kills $x^2 + 1$.`,
         md`Its kernel is an ideal containing $x^2 + 1$. Why can it not be bigger than $(x^2 + 1)$?`,
       ],
-      solution: md`Evaluation $\varepsilon(f) = f(i)$ is a ring homomorphism $\R[x] \to \C$ (polynomial arithmetic is
-        arithmetic of values), onto since $a + bx \mapsto a + bi$. Its kernel $K$ contains $x^2 + 1$, so
-        $(x^2 + 1) \subseteq K$, and $K \ne \R[x]$ since $\varepsilon(1) = 1$. $x^2 + 1$ is irreducible: a
-        factorization into two factors of degree 1 would give a real root $r$ with $r^2 + 1 = 0$. So
-        $(x^2 + 1)$ is maximal (5.8), forcing $K = (x^2 + 1)$, and $\R[x]/(x^2 + 1) \cong \C$ by 5.2.`,
+      solution: md`Evaluation $\varepsilon(f) = f(i)$ is a ring homomorphism $\R[x] \to \C$ (assumed background, $\R$
+        being a subring of $\C$), onto since $a + bx \mapsto a + bi$. Its kernel $K$ contains $x^2 + 1$, so
+        $(x^2 + 1) \subseteq K$, and $K \ne \R[x]$ since $\varepsilon(1) = 1$. $x^2 + 1$ is irreducible: if
+        $x^2 + 1 = ab$ with neither factor constant, the degrees add to 2, so both are linear; a linear factor
+        $\alpha x + \beta$ vanishes at $r = -\beta/\alpha \in \R$, and evaluating at $r$ (a homomorphism) gives
+        $r^2 + 1 = 0$, impossible. So $\R[x]/(x^2 + 1)$ is a field (5.8), $(x^2 + 1)$ is maximal (5.5), forcing
+        $K = (x^2 + 1)$, and $\R[x]/(x^2 + 1) \cong \C$ by 5.2.`,
       checks: [
         md`An explicit surjective homomorphism is given.`,
         md`The kernel is pinned down by maximality, not guessed.`,
@@ -261,6 +273,7 @@ const unit: Unit = {
         md`So $R/I$ is an integral domain. $\blacksquare$`,
       ],
       flawLine: 2,
+      uses: ['5.5'],
       hints: [md`What does "integral domain" say about products — and about which ideal?`, md`Try $\Z$ and $4\Z$.`],
       solution: md`**Line 2.** Being a domain says $ab = 0 \Rightarrow a = 0$ or $b = 0$: it is a statement about the ideal
         $\{0\}$. Line 2 needs $I$ to be *prime*. In $\Z$ with $I = 4\Z$: $2 \cdot 2 \in 4\Z$ but $2 \notin 4\Z$, so
@@ -276,7 +289,7 @@ const unit: Unit = {
       title: 'Maximal subgroups',
       statement: md`**Claim.** In an abelian group $G$, every proper subgroup $H$ lies in a maximal proper subgroup.
         Find the first line that is wrong or does not follow.`,
-      uses: ['2.10'],
+      uses: ['2.10', '3.5'],
       lines: [
         md`Let $\mathcal P$ be the set of proper subgroups of $G$ containing $H$, ordered by $\subseteq$. The empty
           chain has $H$ as an upper bound.`,
@@ -286,16 +299,16 @@ const unit: Unit = {
         md`So every chain in $\mathcal P$ has an upper bound, and Zorn's lemma gives a maximal element. $\blacksquare$`,
       ],
       flawLine: 4,
-      hints: [md`Can a union of proper subgroups be everything?`, md`Look inside $(\Q, +)$.`],
+      hints: [md`Which properties of the members of $\mathcal C$ survive taking the union?`, md`Look inside $(\Q, +)$.`],
       solution: md`**Line 4.** A union of proper subgroups can be all of $G$. In $(\Q, +)$ the subgroups
-        $\frac{1}{n!}\Z$ form a chain, each proper — $\frac{1}{n!}\Z$ is cyclic, and a cyclic $\langle q \rangle$
-        with $q \ne 0$ misses $q/2$ — and their union is $\Q$.
+        $\frac{1}{n!}\Z$ form a chain, as $\frac1{n!} = (n + 1) \cdot \frac1{(n+1)!}$; each is proper, being cyclic,
+        while a cyclic $\langle q \rangle$ with $q \ne 0$ misses $q/2$; and their union is $\Q$, as
+        $\frac ab = a(b - 1)! \cdot \frac1{b!}$ for $b \ge 1$.
 
         The claim is false: $\Q$ has **no** maximal proper subgroup. If $M$ were one, every subgroup of $\Q/M$
         would pull back to a subgroup between $M$ and $\Q$, so $\Q/M$ would have no subgroups but the trivial one
         and itself; by 2.10 it is cyclic of prime order $p$. Then $p(q + M) = M$, i.e. $pq \in M$, for every $q$;
-        but every rational is $p \cdot \frac qp$, so $\Q \subseteq M$. Contrast 5.12: for ideals, "proper" means
-        "does not contain 1", which a union cannot acquire.`,
+        but every rational is $p \cdot \frac qp$, so $\Q \subseteq M$. Compare 5.12.`,
       checks: [
         md`Line 4 is identified: properness is not preserved by unions.`,
         md`A chain of proper subgroups with union $G$ is exhibited.`,
@@ -309,9 +322,8 @@ const unit: Unit = {
       title: "Krull's theorem",
       statement: md`Prove that every proper ideal of a ring lies in a maximal ideal. Deduce that every ring with
         $1 \ne 0$ has a maximal ideal.`,
-      uses: ['5.11'],
       hints: [
-        md`Zorn's lemma, on the proper ideals containing $I$. What is an upper bound for a chain?`,
+        md`Zorn's lemma — on which partially ordered set?`,
         md`Why is the union of a chain of proper ideals still proper? Compare 5.11.`,
       ],
       solution: md`Let $I$ be proper and $\mathcal P$ the set of proper ideals containing $I$, ordered by inclusion; the
@@ -349,6 +361,62 @@ const unit: Unit = {
         md`The kernel is computed as $I \cap J$.`,
         md`A preimage of an arbitrary pair is written down and checked in both coordinates.`,
         md`The example verifies both $I + J = R$ and $I \cap J$.`,
+      ],
+    },
+    {
+      id: '5.14',
+      kind: 'prove',
+      title: 'Irreducible and prime',
+      statement: md`In an integral domain, prove that every prime element is irreducible. In a PID, prove that an
+        irreducible $p$ generates a maximal ideal, and deduce that it is prime.`,
+      uses: ['5.5'],
+      hints: [
+        md`Prime ⇒ irreducible: if $p = bc$, then $p$ divides one factor. Cancel.`,
+        md`In a PID an ideal containing $(p)$ is $(a)$, and $p \in (a)$ means $p = ab$.`,
+      ],
+      solution: md`*Prime ⇒ irreducible.* If $p = bc$, then $p \mid bc$, so say $p \mid b$: $b = pd$. Then $p = pdc$, and
+        cancelling $p \ne 0$ in the domain gives $dc = 1$: $c$ is a unit.
+
+        *Irreducible ⇒ maximal, in a PID.* $(p)$ is proper: $1 \in (p)$ would make $p$ a unit. If $(p) \subseteq J$,
+        then $J = (a)$ and $p = ab$. If $a$ is a unit, $J = R$. Otherwise $b$ is a unit and $a = pb^{-1} \in (p)$, so
+        $J = (p)$. So $(p)$ is maximal, hence prime (5.5): $p \mid bc$ means $bc \in (p)$, so $b \in (p)$ or
+        $c \in (p)$.`,
+      checks: [
+        md`Cancellation in a domain is used, with $p \ne 0$.`,
+        md`Both outcomes of $p = ab$ are followed.`,
+        md`Maximal ⇒ prime ideal ⇒ prime element is spelled out.`,
+      ],
+    },
+    {
+      id: '5.15',
+      kind: 'prove',
+      challenge: true,
+      title: 'Unique factorization in F[x]',
+      statement: md`Let $F$ be a field. Prove that every polynomial of degree at least 1 in $F[x]$ is a product of
+        irreducible polynomials, and that this product is unique up to the order of the factors and multiplication
+        of the factors by nonzero constants.`,
+      uses: ['5.8', '5.14'],
+      hints: [
+        md`Existence: strong induction on the degree.`,
+        md`Uniqueness: an irreducible factor of one side divides the other side. Why does it divide one of its
+          factors?`,
+      ],
+      solution: md`$F[x]$ is an integral domain (degrees add, so a product of nonzero polynomials is nonzero) and a PID
+        (5.8), so irreducible polynomials are prime (5.14). The units are the nonzero constants.
+
+        *Existence*, by strong induction on $\deg f \ge 1$. If $f$ is irreducible, done. Otherwise $f = ab$ with
+        neither constant, so $1 \le \deg a, \deg b < \deg f$; each is a product of irreducibles by induction.
+
+        *Uniqueness*, by induction on the number $r$ of factors in one product. Suppose
+        $p_1 \cdots p_r = q_1 \cdots q_s$ with all factors irreducible. $p_1$ is prime and divides the right side, so
+        (by induction on the number of factors) it divides some $q_j$; reorder so $j = 1$. Then $q_1 = p_1u$, and as
+        $q_1$ is irreducible and $p_1$ is not a unit, $u$ is a nonzero constant. Cancelling $p_1$:
+        $p_2 \cdots p_r = (uq_2) \cdots q_s$. If $r = 1$ the left side is $1$, so $s = 1$ (a product of irreducibles
+        has positive degree). Otherwise induction matches the remaining factors up to order and constants.`,
+      checks: [
+        md`$F[x]$ is shown to be a domain and a PID, so irreducibles are prime.`,
+        md`Existence uses that a nontrivial factorization lowers both degrees.`,
+        md`Uniqueness cancels a common prime factor and inducts, handling the base case.`,
       ],
     },
   ],

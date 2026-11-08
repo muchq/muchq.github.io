@@ -9,7 +9,8 @@ const unit: Unit = {
   prereqs: [0],
   why: md`Quotients are the one construction behind $\Z/n$, $G/N$ and the circle as $\R/\Z$. The skill to
     master here is *well-definedness*: a rule on equivalence classes is a function only if it ignores the
-    choice of representative.`,
+    choice of representative. Size and Zorn's lemma close the unit; Zorn returns for maximal ideals and for
+    Tychonoff's theorem.`,
   definitions: [
     {
       term: 'Equivalence relation',

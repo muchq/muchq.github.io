@@ -276,7 +276,7 @@ const unit: Unit = {
         the group of even permutations of $\{1, 2, 3, 4\}$: the identity, the three products of two disjoint
         transpositions, and the eight 3-cycles (each is even, as $(a\,b\,c) = (a\,c)(a\,b)$) — 12 elements.`,
       verdict: false,
-      uses: ['3.3', '3.5', '3.6'],
+      uses: ['2.12', '3.3', '3.5', '3.6'],
       hints: [
         md`List the elements of $A_4$ by cycle type. How many 3-cycles?`,
         md`A subgroup of order 6 has index 2. What does that force about $g^2$ for every $g \in A_4$?`,
@@ -291,6 +291,62 @@ const unit: Unit = {
         md`The size of $H$ is contradicted by counting the 3-cycles it must contain.`,
         md`"Index 2 ⇒ normal ⇒ all squares lie in $H$" is justified step by step.`,
         md`Each 3-cycle is exhibited as a square of an element of $A_4$.`,
+      ],
+    },
+    {
+      id: '3.12',
+      kind: 'prove',
+      title: 'The correspondence theorem',
+      statement: md`Let $N \trianglelefteq G$ and $\pi\colon G \to G/N$. Prove that $K \mapsto \pi(K)$ is an inclusion-preserving
+        bijection from the subgroups of $G$ containing $N$ to the subgroups of $G/N$, with inverse
+        $\bar K \mapsto \pi^{-1}(\bar K)$; that $K \trianglelefteq G$ iff $\pi(K) \trianglelefteq G/N$; and that, for finite $G$,
+        $|\pi^{-1}(\bar K)| = |\bar K|\,|N|$.`,
+      uses: ['2.4', '3.2', '3.5'],
+      hints: [
+        md`Images and preimages of subgroups under a homomorphism are subgroups. Which composite is the identity
+          for free, and which needs $N \subseteq K$?`,
+        md`$\pi^{-1}(\pi(K)) = KN$.`,
+      ],
+      solution: md`Images and preimages of subgroups under the homomorphism $\pi$ are subgroups (2.4: they contain the
+        identity, and $\pi(a)\pi(b)^{-1} = \pi(ab^{-1})$), and $\pi^{-1}(\bar K) \supseteq \pi^{-1}(\{N\}) = N$.
+        $\pi(\pi^{-1}(\bar K)) = \bar K$ because $\pi$ is onto. And $x \in \pi^{-1}(\pi(K))$ iff $xN = kN$ for some
+        $k \in K$ iff $x \in kN \subseteq K$ — using $N \subseteq K$ — so $\pi^{-1}(\pi(K)) = K$. Both maps clearly
+        preserve inclusion.
+
+        *Normality.* If $K \trianglelefteq G$, then $(gN)(kN)(gN)^{-1} = gkg^{-1}N \in \pi(K)$. Conversely, if $\pi(K)$ is
+        normal, then $\pi(gkg^{-1}) \in \pi(K)$, so $gkg^{-1} \in \pi^{-1}(\pi(K)) = K$.
+
+        *Size.* $\pi^{-1}(\bar K)$ is the union of the $|\bar K|$ cosets of $N$ that are elements of $\bar K$; they are
+        disjoint and each has $|N|$ elements (3.2).`,
+      checks: [
+        md`Both composites are shown to be the identity, with $N \subseteq K$ used where it is needed.`,
+        md`Normality is transferred in both directions.`,
+        md`The size count uses disjoint cosets.`,
+      ],
+    },
+    {
+      id: '3.13',
+      kind: 'prove',
+      title: 'The second and third isomorphism theorems',
+      statement: md`(a) Let $H \le G$ and $N \trianglelefteq G$. Prove that $HN = \{hn\}$ is a subgroup, that $H \cap N
+        \trianglelefteq H$, and that $H/(H \cap N) \cong HN/N$. (b) Let $N \subseteq K$ be normal subgroups of $G$. Prove
+        that $K/N \trianglelefteq G/N$ and $(G/N)/(K/N) \cong G/K$.`,
+      uses: ['2.4', '3.1', '3.7'],
+      hints: [
+        md`Each isomorphism is a first isomorphism theorem in disguise. Find the homomorphism.`,
+        md`(a) $h \mapsto hN$. (b) $gN \mapsto gK$ — check it is well defined.`,
+      ],
+      solution: md`(a) $HN$ is nonempty, and $(hn)(h'n')^{-1} = hh'^{-1} \cdot (h'nn'^{-1}h'^{-1}) \in HN$ by normality of $N$; so
+        it is a subgroup (2.4), and it contains $N$, which is normal in it. $\varphi\colon H \to HN/N$, $h \mapsto hN$,
+        is a homomorphism, onto since $hnN = hN$, with kernel $H \cap N$. So $H \cap N \trianglelefteq H$ (3.1) and
+        $H/(H \cap N) \cong HN/N$ (3.7).
+
+        (b) $\psi\colon G/N \to G/K$, $gN \mapsto gK$, is well defined: $gN = g'N$ gives $g^{-1}g' \in N \subseteq K$.
+        It is a homomorphism, onto, with kernel $\{gN : g \in K\} = K/N$. So $K/N \trianglelefteq G/N$ (3.1) and
+        $(G/N)/(K/N) \cong G/K$ (3.7).`,
+      checks: [
+        md`$HN$ is shown to be a subgroup using normality of $N$.`,
+        md`Each homomorphism is checked to be well defined and onto, and its kernel computed.`,
       ],
     },
   ],

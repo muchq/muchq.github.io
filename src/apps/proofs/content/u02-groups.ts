@@ -35,6 +35,14 @@ const unit: Unit = {
         composition, and $S_n = \mathrm{Sym}(\{1, \dots, n\})$, composed right to left:
         $(\sigma\tau)(i) = \sigma(\tau(i))$; $\{1, -1\}$ under multiplication.`,
     },
+    {
+      term: 'Cycles and sign',
+      body: md`For distinct $a_1, \dots, a_k$, the **cycle** $(a_1\,a_2\,\cdots\,a_k)$ sends $a_1 \mapsto a_2 \mapsto \cdots \mapsto
+        a_k \mapsto a_1$ and fixes every other point; a **transposition** is a 2-cycle. Cycles are **disjoint** if no
+        point is moved by two of them. The **sign** of $\sigma \in S_n$ is
+        $\operatorname{sgn}\sigma = \prod_{1 \le i < j \le n} \frac{\sigma(j) - \sigma(i)}{j - i}$; $\sigma$ is **even** if
+        $\operatorname{sgn}\sigma = 1$, and $A_n$ is the set of even permutations.`,
+    },
   ],
   problems: [
     {
@@ -251,6 +259,73 @@ const unit: Unit = {
         md`Both cases — infinite order and composite order — are eliminated by an explicit subgroup.`,
         md`That subgroup is shown to be both proper and nontrivial.`,
         md`The size of $G$ is obtained from the order–count relation.`,
+      ],
+    },
+    {
+      id: '2.11',
+      kind: 'prove',
+      title: 'Cycles',
+      statement: md`Prove that every permutation of $\{1, \dots, n\}$ is a product of disjoint cycles, and that every
+        cycle is a product of transpositions: $(a_1\,\cdots\,a_k) = (a_1\,a_k)(a_1\,a_{k-1})\cdots(a_1\,a_2)$.`,
+      uses: ['1.1', '2.6'],
+      hints: [
+        md`Follow a point: $i, \sigma(i), \sigma^2(i), \dots$. Must it come back?`,
+        md`"$j = \sigma^m(i)$ for some $m \in \Z$" is an equivalence relation. What does $\sigma$ do on one class?`,
+      ],
+      solution: md`**Disjoint cycles.** Put $i \sim j$ iff $j = \sigma^m(i)$ for some $m \in \Z$; this is an equivalence
+        relation ($\sigma^0$, $\sigma^{-m}$, $\sigma^{m+m'}$), so its classes partition $\{1, \dots, n\}$ (1.1). $\sigma$ has
+        finite order in the finite group $S_n$, so some $m \ge 1$ has $\sigma^m(i) = i$; let $k$ be the least. As in 2.6,
+        $i, \sigma(i), \dots, \sigma^{k-1}(i)$ are distinct and every $\sigma^m(i)$ is one of them. So on the class $C$
+        of $i$, $\sigma$ acts as the cycle $(i\,\sigma(i)\,\cdots\,\sigma^{k-1}(i))$, and the cycles of different classes
+        are disjoint. Their product is $\sigma$: a point $x$ is moved only by the cycle of its own class, which sends it
+        to $\sigma(x)$.
+
+        **Transpositions** (composing right to left). $a_1 \mapsto a_2$ under $(a_1\,a_2)$, and the later factors all
+        fix $a_2$. For $2 \le j < k$: the factors before $(a_1\,a_j)$ fix $a_j$; $(a_1\,a_j)$ sends it to $a_1$;
+        $(a_1\,a_{j+1})$ sends $a_1$ to $a_{j+1}$, and the remaining factors fix $a_{j+1}$. And $a_k$ is fixed until the
+        last factor sends it to $a_1$. Points outside $\{a_1, \dots, a_k\}$ are fixed throughout.`,
+      checks: [
+        md`The orbits of $\sigma$ are obtained from an equivalence relation, and their sizes from minimality.`,
+        md`The product of the cycles is checked to equal $\sigma$ point by point.`,
+        md`The transposition identity is checked for $a_1$, for $a_j$ with $1 < j < k$, and for $a_k$.`,
+      ],
+    },
+    {
+      id: '2.12',
+      kind: 'prove',
+      challenge: true,
+      title: 'The sign of a permutation',
+      statement: md`Prove that $\operatorname{sgn}\sigma \in \{1, -1\}$, that $\operatorname{sgn}(\sigma\tau) =
+        \operatorname{sgn}\sigma\,\operatorname{sgn}\tau$, and that every transposition has sign $-1$. Deduce that no
+        permutation is both a product of an even number and of an odd number of transpositions, and that $A_n$ is
+        a subgroup of $S_n$.`,
+      uses: ['2.4', '2.11'],
+      hints: [
+        md`The numerator and the denominator multiply the same differences, up to sign. Why?`,
+        md`For $\operatorname{sgn}(\sigma\tau)$, multiply and divide by $\prod_{i<j}(\tau(j) - \tau(i))$. The factor
+          $\frac{\sigma(b) - \sigma(a)}{b - a}$ does not care which of $a, b$ is larger.`,
+        md`For $(a\,b)$ with $a < b$, count the pairs $i < j$ whose factor is negative.`,
+      ],
+      solution: md`**$\pm 1$.** $\sigma$ permutes the two-element subsets $\{i, j\}$, so the numerator is a product of the
+        differences $\pm(l - k)$ over all pairs $k < l$, each once: the same numbers as the denominator, up to sign.
+
+        **Multiplicative.** Write $f(a, b) = \frac{\sigma(b) - \sigma(a)}{b - a}$, which is symmetric in $a, b$. Then
+        $$\operatorname{sgn}(\sigma\tau) = \prod_{i<j} f(\tau(i), \tau(j)) \cdot \prod_{i<j} \frac{\tau(j) - \tau(i)}{j - i}.$$
+        As $\{i, j\}$ runs over all pairs, so does $\{\tau(i), \tau(j)\}$, each once, and $f$ ignores order; so the
+        first product is $\operatorname{sgn}\sigma$, and the second is $\operatorname{sgn}\tau$.
+
+        **Transpositions.** Let $a < b$. For $\sigma = (a\,b)$, the factor of $i < j$ is negative exactly when the
+        pair is $(a, b)$, or $(a, k)$ or $(k, b)$ with $a < k < b$: one plus twice $b - a - 1$, an odd number. So
+        $\operatorname{sgn}(a\,b) = -1$.
+
+        **Deductions.** A product of $m$ transpositions has sign $(-1)^m$, which fixes the parity of $m$. And $A_n$
+        contains the identity, and $\sigma, \tau \in A_n$ give $\operatorname{sgn}(\sigma\tau^{-1}) =
+        \operatorname{sgn}\sigma\,(\operatorname{sgn}\tau)^{-1} = 1$, since $\operatorname{sgn}\tau\,\operatorname{sgn}\tau^{-1} =
+        \operatorname{sgn}(\mathrm{id}) = 1$; so $A_n$ is a subgroup (2.4).`,
+      checks: [
+        md`The numerator is matched with the denominator through the action on pairs.`,
+        md`Multiplicativity reindexes the pairs by $\tau$ and uses the symmetry of $f$.`,
+        md`The negative factors of a transposition are counted, and the count is odd.`,
       ],
     },
   ],

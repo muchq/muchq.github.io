@@ -55,6 +55,31 @@ describe('the curriculum', () => {
     for (const unit of UNITS) for (const n of unit.prereqs) expect(n).toBeLessThan(unit.n)
   })
 
+  // "after Unit 9" on the page is advice a student acts on; it must lead to
+  // everything the unit's problems use.
+  it('recommends, through prerequisites, every earlier unit a problem cites', () => {
+    const byN = new Map(UNITS.map(u => [u.n, u]))
+    const reach = (n: number, seen = new Set<number>()): Set<number> => {
+      for (const p of byN.get(n)!.prereqs) if (!seen.has(p)) reach(p, seen.add(p))
+      return seen
+    }
+    const missing: string[] = []
+    for (const unit of UNITS) {
+      const ok = reach(unit.n)
+      for (const p of unit.problems) {
+        const prose = [p.statement, p.solution, ...p.hints, ...p.checks, ...(p.lines ?? [])]
+          .join(' ')
+          .replace(/\$\$[\s\S]*?\$\$|\$[^$]*\$/g, '')
+        const cited = [...(p.uses ?? []), ...[...prose.matchAll(/\b(\d{1,2})\.\d{1,2}\b/g)].map(m => m[0])]
+        for (const id of cited) {
+          const n = Number(id.split('.')[0])
+          if (n < unit.n && !ok.has(n)) missing.push(`${p.id} cites ${id}, but Unit ${n} is not a prerequisite of Unit ${unit.n}`)
+        }
+      }
+    }
+    expect(missing).toEqual([])
+  })
+
   it('only lets a problem cite problems that come before it', () => {
     const order = new Map(ALL_PROBLEMS.map((e, i) => [e.problem.id, i]))
     for (const [i, { problem }] of ALL_PROBLEMS.entries()) {

@@ -7,7 +7,7 @@ const unit: Unit = {
   title: 'Compactness',
   track: 'Topology',
   prereqs: [8],
-  why: md`Compactness turns local information into global: finitely many pieces suffice. Unit 14 uses it in
+  why: md`Compactness turns local information into global: finitely many pieces suffice. Unit 15 uses it in
     one precise form — the Lebesgue number lemma — to lift paths. Watch where Hausdorff is needed, and where
     it is not.`,
   definitions: [
@@ -291,6 +291,66 @@ const unit: Unit = {
         md`Injectivity of the induced map is checked against exactly the identifications made.`,
         md`Compactness of the quotient and Hausdorffness of $S^1$ are both justified.`,
         md`For $\R/\Z$, the inverse is written as a composite of maps known to be continuous.`,
+      ],
+    },
+    {
+      id: '10.12',
+      kind: 'prove',
+      title: 'Heine–Borel',
+      statement: md`Prove that a subset of $\R^n$ is compact if and only if it is closed and bounded.`,
+      uses: ['6.6', '7.12', '10.1', '10.3', '10.5', '10.8'],
+      hints: [
+        md`One direction holds in every metric space. Which?`,
+        md`A bounded set lies in a cube $[-R, R]^n$. Why is the cube compact?`,
+      ],
+      solution: md`(⇒) A compact $K$ is closed, $\R^n$ being Hausdorff (10.3, 7.12). It is bounded: the balls $B(0, k)$
+        cover it, finitely many do, and it lies in the largest.
+
+        (⇐) A bounded set lies in some $B(0, R) \subseteq [-R, R]^n$. The Euclidean metric and
+        $d_\infty(u, v) = \max_i |u_i - v_i|$ satisfy $d_\infty \le d \le \sqrt n\,d_\infty$, so they have the same open
+        sets (6.6), and $d_\infty$-balls are products of intervals; so the topology of $\R^n$ is the product topology of
+        $\R^{n-1} \times \R$. $[-R, R]$ is compact (10.5 and a homeomorphism), so $[-R, R]^n$ is compact by induction
+        with 10.8. A closed subset of it is compact (10.1).`,
+      checks: [
+        md`Compact ⇒ closed uses Hausdorff; compact ⇒ bounded uses a finite subcover.`,
+        md`The Euclidean topology is identified with the product topology.`,
+        md`The cube is shown compact by induction on $n$.`,
+      ],
+    },
+    {
+      id: '10.13',
+      kind: 'prove',
+      challenge: true,
+      title: 'Sequentially compact metric spaces are compact',
+      statement: md`Prove that a sequentially compact metric space is compact. (With 10.10: for metric spaces, compact
+        and sequentially compact agree.)`,
+      hints: [
+        md`Step 1: every open cover has a Lebesgue number. Suppose not, and pick a bad set of diameter below
+          $\frac1n$ for each $n$.`,
+        md`Step 2: for every $\varepsilon$, finitely many $\varepsilon$-balls cover. If not, build a sequence whose
+          points are pairwise $\varepsilon$ apart.`,
+        md`Step 3: combine.`,
+      ],
+      solution: md`Let $X$ be sequentially compact and $\mathcal U$ an open cover.
+
+        *Lebesgue number.* If none exists, for each $n$ there is $A_n$ with $\operatorname{diam} A_n < \frac1n$ lying in
+        no member of $\mathcal U$; $A_n \ne \emptyset$, as $\emptyset$ lies in any member. Pick $x_n \in A_n$ and a
+        subsequence $x_{n_k} \to x$. Some $U \in \mathcal U$ has $B(x, \varepsilon) \subseteq U$. Take $k$ with
+        $d(x_{n_k}, x) < \frac\varepsilon2$ and $\frac1{n_k} < \frac\varepsilon2$; then every point of $A_{n_k}$ is within
+        $\varepsilon$ of $x$, so $A_{n_k} \subseteq U$ — a contradiction.
+
+        *Finitely many balls.* Fix $\varepsilon > 0$. If no finitely many $\varepsilon$-balls cover $X$, choose
+        $x_1$, and inductively $x_{n+1}$ outside $B(x_1, \varepsilon) \cup \dots \cup B(x_n, \varepsilon)$. Then
+        $d(x_i, x_j) \ge \varepsilon$ for $i \ne j$, so no subsequence is Cauchy, and none converges — a
+        contradiction.
+
+        *Finite subcover.* With a Lebesgue number $\delta$, cover $X$ by finitely many balls of radius $\frac\delta3$;
+        each has diameter at most $\frac{2\delta}3 < \delta$, so lies in a member of $\mathcal U$. Those finitely many
+        members cover $X$. (If $X = \emptyset$ there is nothing to do.)`,
+      checks: [
+        md`The Lebesgue number is obtained by contradiction through a convergent subsequence.`,
+        md`Total boundedness is obtained by contradiction through an $\varepsilon$-separated sequence.`,
+        md`The two are combined with explicit radii.`,
       ],
     },
   ],

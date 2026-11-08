@@ -8,7 +8,7 @@ const unit: Unit = {
   track: 'Topology',
   prereqs: [8],
   why: md`The first invariant that does real work: it proves the intermediate value theorem, tells $\R$ from
-    $\R^2$, and in Unit 14 makes lifts unique. The technique is nearly always the same — a continuous map to
+    $\R^2$, and in Unit 15 makes lifts unique. The technique is nearly always the same — a continuous map to
     $\{0, 1\}$ must be constant. The least upper bound property of $\R$ is assumed.`,
   definitions: [
     {

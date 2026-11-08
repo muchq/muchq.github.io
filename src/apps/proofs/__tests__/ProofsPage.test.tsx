@@ -273,7 +273,7 @@ describe('the overview', () => {
     await at('/proofs')
     const due = screen.getByRole('region', { name: 'Due for a redo' })
     expect(within(due).getAllByRole('link').map(a => a.textContent)).toEqual(['2.5 When a union is a subgroup'])
-    expect(screen.getByRole('link', { name: 'Unit 2: Groups, 1 of 10 solved' })).toBeDefined()
+    expect(screen.getByRole('link', { name: 'Unit 2: Groups, 1 of 12 solved' })).toBeDefined()
   })
 
   it('has no due list when nothing is due', async () => {

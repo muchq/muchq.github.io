@@ -12,9 +12,10 @@ import connected from './u09-connected'
 import compact from './u10-compact'
 import separation from './u11-separation'
 import products from './u12-products'
-import homotopy from './u13-homotopy'
-import circle from './u14-circle'
-import mixed from './u15-mixed'
+import countability from './u13-countability'
+import homotopy from './u14-homotopy'
+import circle from './u15-circle'
+import mixed from './u16-mixed'
 
 /** In order. Problem ids are "unit.n" and are the storage keys for progress. */
 export const UNITS: Unit[] = [
@@ -31,6 +32,7 @@ export const UNITS: Unit[] = [
   compact,
   separation,
   products,
+  countability,
   homotopy,
   circle,
   mixed,
@@ -45,7 +47,7 @@ export const CONVENTIONS: string[] = [
   'Groups are written multiplicatively with identity e; permutations compose right to left.',
   'Rings are commutative with 1, and ring homomorphisms send 1 to 1.',
   'Choice is used freely: picking points from nonempty sets, and Zorn’s lemma (Unit 1).',
-  'Assumed background: arithmetic of ℤ and ℝ, the division algorithm, unique prime factorization, the least upper bound property and completeness of ℝ, the Cauchy–Schwarz inequality, and continuity of polynomials, |·|, √, sin, cos, e^{it}, and quotients with nonvanishing denominators.',
+  'Assumed background: arithmetic of ℤ and ℝ, the division algorithm, unique prime factorization, the least upper bound property and completeness of ℝ, the Cauchy–Schwarz inequality, continuity of polynomials, |·|, √, sin, cos and e^{it}, and that sums, products and quotients (with nonvanishing denominator) of continuous real- or complex-valued functions on any space are continuous.',
   'Any earlier problem may be cited by number.',
 ]
 

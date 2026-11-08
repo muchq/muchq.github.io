@@ -6,11 +6,11 @@ const unit: Unit = {
   n: 12,
   title: 'Products and Tychonoff',
   track: 'Topology',
-  prereqs: [11, 1],
+  prereqs: [11, 9, 1],
   why: md`Infinite products need a choice of topology, and the right one is decided by what you want to be true:
     continuous maps into a product should be continuous coordinatewise, and products of compact spaces should be
     compact. Proving the second is Tychonoff's theorem, and it costs Zorn's lemma. With Urysohn it puts every
-    compact Hausdorff space inside a cube.`,
+    compact Hausdorff space inside a cube; and a single added point makes a locally compact space compact.`,
   definitions: [
     {
       term: 'Products',
@@ -101,15 +101,17 @@ const unit: Unit = {
       title: 'Connected products',
       statement: md`**Prove or disprove:** an arbitrary product of connected spaces is connected.`,
       verdict: true,
-      uses: ['9.4', '9.5', '12.1'],
+      uses: ['7.2', '9.4', '12.1', '12.3'],
       hints: [
-        md`Fix a point $a$. Points that differ from $a$ in only finitely many coordinates — what do they form?`,
-        md`Is that set dense?`,
+        md`Fix a point $a$. Start with the points that differ from $a$ in a single coordinate.`,
+        md`Points differing from $a$ in finitely many coordinates: do they form a connected set? A dense one?`,
       ],
       solution: md`**True.** If a factor is empty, so is the product; otherwise fix a point $a$. For a finite set
-        $F \subseteq J$, let $Y_F$ be the points agreeing with $a$ outside $F$. $Y_F$ is homeomorphic to
-        $\prod_{\alpha \in F} X_\alpha$ (as in 12.3, with 12.1 for continuity both ways), which is connected by 9.5 and
-        induction. All $Y_F$ contain $a$, so $Y = \bigcup_F Y_F$ is connected (9.4(a)). $Y$ is dense: a nonempty
+        $F \subseteq J$, let $Y_F$ be the points agreeing with $a$ outside $F$. $Y_F$ is connected, by induction on
+        $|F|$: $Y_\emptyset = \{a\}$, and for $\beta \notin F$, each $y \in Y_F$ lies on the $\beta$-slice through $y$,
+        which is homeomorphic to $X_\beta$ (12.3), hence connected; $Y_F$ and that slice share $y$, so their union
+        is connected (9.4(a)); all these unions contain $a$, and together they make $Y_{F \cup \{\beta\}}$, which is
+        therefore connected (9.4(a)). All $Y_F$ contain $a$, so $Y = \bigcup_F Y_F$ is connected (9.4(a)). $Y$ is dense: a nonempty
         basis set $\prod U_\alpha$, with $U_\alpha = X_\alpha$ outside a finite $F$, contains the point that agrees with
         a chosen point of $U_\alpha$ for $\alpha \in F$ and with $a$ elsewhere — a point of $Y_F$. By 9.4(b), the
         closure of $Y$, which is the whole product, is connected.`,
@@ -166,7 +168,8 @@ const unit: Unit = {
       statement: md`**Claim.** A product of compact spaces is compact. Find the first line of this proof that is wrong or
         does not follow.`,
       lines: [
-        md`Let $\mathcal U$ be an open cover of $X = \prod_\alpha X_\alpha$; we may take its members to be basis sets.`,
+        md`If some $X_\alpha$ is empty, $X$ is empty and compact; so let every $X_\alpha$ be nonempty, and let
+          $\mathcal U$ be an open cover of $X = \prod_\alpha X_\alpha$, whose members we may take to be basis sets.`,
         md`For each $\alpha$, the sets $\pi_\alpha(B)$, $B \in \mathcal U$, are open and cover $X_\alpha$.`,
         md`By compactness of $X_\alpha$, finitely many of them, $\pi_\alpha(B_{\alpha,1}), \dots, \pi_\alpha(B_{\alpha,n_\alpha})$,
           cover $X_\alpha$.`,

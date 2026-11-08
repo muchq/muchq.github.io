@@ -8,7 +8,7 @@ const unit: Unit = {
   track: 'Algebra',
   prereqs: [3],
   why: md`Groups matter because they act. One counting principle — orbit–stabilizer — and one congruence
-    about $p$-groups yield every structure theorem in this unit. The same pattern returns in Unit 14, where
+    about $p$-groups yield every structure theorem in this unit. The same pattern returns in Unit 15, where
     $\Z$ acts on $\R$ and the orbit space is the circle.`,
   definitions: [
     {
@@ -28,6 +28,12 @@ const unit: Unit = {
     {
       term: 'p-group',
       body: md`For a prime $p$, a $p$-group is a finite group of order $p^k$ for some $k \ge 0$.`,
+    },
+    {
+      term: 'Sylow subgroups, normalizers, centralizers',
+      body: md`If $|G| = p^km$ with $p$ prime and $p \nmid m$, a **Sylow $p$-subgroup** is a subgroup of order $p^k$. The
+        **normalizer** of $H \le G$ is $N_G(H) = \{g : gHg^{-1} = H\}$ and the **centralizer** of $x$ is
+        $C_G(x) = \{g : gx = xg\}$ — the stabilizers of $H$ and of $x$ under conjugation.`,
     },
   ],
   problems: [
@@ -238,6 +244,92 @@ const unit: Unit = {
         md`Rotation is shown to preserve $X$ and to define an action of $\Z/p$.`,
         md`The fixed tuples are identified as $(g, \dots, g)$ with $g^p = e$.`,
         md`The count of fixed tuples — at least $p$ — produces an element $g \ne e$.`,
+      ],
+    },
+    {
+      id: '4.10',
+      kind: 'prove',
+      challenge: true,
+      title: 'Sylow subgroups exist',
+      statement: md`Let $|G| = p^km$ with $p$ prime and $p \nmid m$. Prove that $G$ has a subgroup of order $p^k$.`,
+      uses: ['3.2', '3.12', '4.1', '4.2', '4.9'],
+      hints: [
+        md`Strong induction on $|G|$. Where can you find a smaller group whose order is still divisible by a large
+          power of $p$?`,
+        md`If $p$ divides $|Z(G)|$, quotient by a central subgroup of order $p$. If not, look at the conjugacy
+          classes.`,
+        md`The class equation: $|G| = |Z(G)| + \sum |C|$ over the conjugacy classes $C$ with more than one element,
+          and $|C| = [G : C_G(x)]$ for $x \in C$.`,
+      ],
+      solution: md`Strong induction on $|G|$. If $k = 0$, take $\{e\}$; let $k \ge 1$.
+
+        *Case $p \mid |Z(G)|$.* Cauchy (4.9) gives $z \in Z(G)$ of order $p$; $N = \langle z \rangle$ is normal, since $z$
+        is central. $|G/N| = p^{k-1}m < |G|$, so $G/N$ has a subgroup $\bar K$ of order $p^{k-1}$, and
+        $K = \pi^{-1}(\bar K)$ is a subgroup of order $p^{k-1} \cdot p = p^k$ (3.12).
+
+        *Case $p \nmid |Z(G)|$.* Conjugacy classes partition $G$ (4.1), and the one-element classes are the elements
+        of $Z(G)$; so $|G| = |Z(G)| + \sum |C|$ over the other classes. As $p \mid |G|$ and $p \nmid |Z(G)|$, some
+        class $C$ with $|C| > 1$ has $p \nmid |C|$. For $x \in C$, $|C| = [G : C_G(x)]$ (4.2), so
+        $|C_G(x)| = p^k m/|C|$ is divisible by $p^k$ — the prime factorization of $|C|$ has no $p$ — and is less than
+        $|G|$. By induction $C_G(x)$, hence $G$, has a subgroup of order $p^k$.`,
+      checks: [
+        md`The induction is on $|G|$ and covers $k = 0$.`,
+        md`The central case lifts a subgroup through the correspondence, with its order computed.`,
+        md`The non-central case finds a class of size prime to $p$ via the class equation.`,
+      ],
+    },
+    {
+      id: '4.11',
+      kind: 'prove',
+      challenge: true,
+      title: "Sylow's second and third theorems",
+      statement: md`Let $|G| = p^km$ with $p \nmid m$, and let $P$ be a Sylow $p$-subgroup. Prove: (a) every subgroup $Q$ of
+        $p$-power order lies in some conjugate $gPg^{-1}$; so all Sylow $p$-subgroups are conjugate; (b) the number
+        $n_p$ of Sylow $p$-subgroups divides $m$, and $n_p \equiv 1 \pmod p$.`,
+      uses: ['3.2', '4.2', '4.4'],
+      hints: [
+        md`(a) Let $Q$ act on the left cosets of $P$. How many are there, and what does 4.4 say?`,
+        md`(b) Let $G$, and then $P$, act on the set of Sylow $p$-subgroups by conjugation.`,
+        md`If $P$ normalizes a Sylow subgroup $Q$, then $P$ and $Q$ are Sylow subgroups of $N_G(Q)$, where $Q$ is
+          normal.`,
+      ],
+      solution: md`(a) $Q$ acts on the $m$ left cosets of $P$ by $q \cdot gP = qgP$. As $p \nmid m$, 4.4 gives a fixed coset
+        $gP$: $QgP = gP$, so $g^{-1}Qg \subseteq P$ and $Q \subseteq gPg^{-1}$. If $Q$ is a Sylow subgroup, the
+        orders agree, so $Q = gPg^{-1}$.
+
+        (b) $G$ acts on the set $S$ of Sylow $p$-subgroups by conjugation, transitively by (a), with stabilizer
+        $N_G(P) \supseteq P$. So $n_p = [G : N_G(P)]$ (4.2), which divides $[G : P] = m$ because
+        $[G : P] = [G : N_G(P)]\,[N_G(P) : P]$ (Lagrange, 3.2). Now let $P$ act on $S$ by conjugation. $P$ itself is
+        fixed. If $Q$ is fixed, then $P \subseteq N_G(Q)$; $P$ and $Q$ are Sylow $p$-subgroups of $N_G(Q)$ (their order
+        is the largest power of $p$ dividing $|G|$, hence $|N_G(Q)|$), so by (a) in $N_G(Q)$, $P = gQg^{-1}$ with
+        $g \in N_G(Q)$, i.e. $P = Q$. One fixed point, so $n_p \equiv 1 \pmod p$ (4.4).`,
+      checks: [
+        md`(a) uses the fixed-point congruence on cosets, with $p \nmid m$.`,
+        md`$n_p$ is computed as an index and shown to divide $m$.`,
+        md`The only fixed point of $P$'s conjugation action is shown to be $P$.`,
+      ],
+    },
+    {
+      id: '4.12',
+      kind: 'decide',
+      title: 'Order fifteen',
+      statement: md`**Prove or disprove:** every group of order 15 is cyclic.`,
+      verdict: true,
+      uses: ['3.4', '4.11'],
+      hints: [
+        md`How many Sylow 3-subgroups and Sylow 5-subgroups can there be?`,
+        md`Two normal subgroups with trivial intersection: do their elements commute?`,
+      ],
+      solution: md`**True.** $n_3$ divides 5 and is $\equiv 1 \pmod 3$, so $n_3 = 1$; $n_5$ divides 3 and is $\equiv 1 \pmod 5$, so
+        $n_5 = 1$ (4.11). So the Sylow subgroups $H$ (order 3) and $K$ (order 5) are normal — each equals all its
+        conjugates — and $H \cap K = \{e\}$ (3.4). For $h \in H$, $k \in K$: $hkh^{-1}k^{-1}$ lies in $K$ (as
+        $hkh^{-1} \in K$) and in $H$ (as $kh^{-1}k^{-1} \in H$), so it is $e$ and $hk = kh$. Take $h \ne e$, $k \ne e$,
+        of orders 3 and 5. If $(hk)^n = h^nk^n = e$, then $h^n = k^{-n} \in H \cap K = \{e\}$, so $3 \mid n$ and
+        $5 \mid n$. So $hk$ has order 15 and generates $G$.`,
+      checks: [
+        md`Both Sylow counts are pinned to 1.`,
+        md`Elements of the two normal subgroups are shown to commute.`,
+        md`An element of order 15 is exhibited.`,
       ],
     },
   ],

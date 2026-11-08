@@ -41,7 +41,7 @@ const unit: Unit = {
       statement: md`Prove: normal ⇒ regular ⇒ Hausdorff ⇒ T1, and in a T1 space every finite set is closed. Show that
         a T1 space need not be Hausdorff.`,
       uses: ['7.7'],
-      hints: [md`Each step needs the one-point sets closed. Where is that used?`],
+      hints: [md`Normal ⇒ regular and regular ⇒ Hausdorff each use that one-point sets are closed. Where?`],
       solution: md`*Normal ⇒ regular:* a point is a closed set (T1), so a point and a disjoint closed set are two
         disjoint closed sets. *Regular ⇒ Hausdorff:* for $x \ne y$, $\{y\}$ is closed and misses $x$; separate
         them. *Hausdorff ⇒ T1:* for $y \ne x$ take disjoint neighborhoods; the one around $y$ misses $x$, so
@@ -98,14 +98,15 @@ const unit: Unit = {
       statement: md`Prove that every metric space is normal.`,
       uses: ['7.2', '7.12'],
       hints: [
-        md`Show $|d(x, A) - d(y, A)| \le d(x, y)$, and that $d(x, A) = 0$ exactly when $x \in \overline A$.`,
-        md`Compare $d(x, A)$ with $d(x, B)$.`,
+        md`Find a continuous real function that is zero exactly on $A$.`,
+        md`Show $|d(x, A) - d(y, A)| \le d(x, y)$, and that $d(x, A) = 0$ exactly when $x \in \overline A$. Then compare
+          $d(x, A)$ with $d(x, B)$.`,
       ],
       solution: md`$X$ is T1 by 7.12(c) and 11.1. Let $A, B$ be disjoint closed sets; if either is empty, $\emptyset$ and
         $X$ separate them. For $a \in A$, $d(x, A) \le d(x, a) \le d(x, y) + d(y, a)$; taking the infimum over $a$,
         $d(x, A) \le d(x, y) + d(y, A)$, and by symmetry $|d(x, A) - d(y, A)| \le d(x, y)$. So $x \mapsto d(x, A)$
         is continuous. $d(x, A) = 0$ iff every ball around $x$ meets $A$, iff $x \in \overline A = A$ (7.2, balls
-        forming a basis). Put $g(x) = d(x, A) - d(x, B)$, continuous, and $U = g^{-1}((-\infty, 0))$,
+        forming a basis). Put $g(x) = d(x, A) - d(x, B)$; then $|g(x) - g(y)| \le 2d(x, y)$, so $g$ is continuous, and $U = g^{-1}((-\infty, 0))$,
         $V = g^{-1}((0, \infty))$: disjoint and open. For $a \in A$, $g(a) = -d(a, B) < 0$ since $a \notin B$; so
         $A \subseteq U$, and likewise $B \subseteq V$.`,
       checks: [
@@ -117,7 +118,7 @@ const unit: Unit = {
     {
       id: '11.5',
       kind: 'decide',
-      title: 'Hausdorff but not regular?',
+      title: 'The K-topology',
       statement: md`**Prove or disprove:** every Hausdorff space is regular.`,
       verdict: false,
       hints: [
@@ -131,7 +132,7 @@ const unit: Unit = {
         Suppose $U \ni 0$ and $V \supseteq K$ are open. $U$ contains a basis set around $0$, so
         $(a, b) \setminus K \subseteq U$ for some $a < 0 < b$. Pick $n$ with $1/n < b$. $V$ contains a basis set
         around $1/n$; it cannot be of the form $(c, d) \setminus K$, which misses $1/n$, so it is an interval
-        $(c, d) \ni 1/n$. Choose $z$ in $(c, d) \cap (\max(0, \frac1{n+1}), \frac1n)$ — a nonempty interval
+        $(c, d) \ni 1/n$. Choose $z$ in $(c, d) \cap (\frac1{n+1}, \frac1n)$ — a nonempty interval
         containing no point of $K$. Then $z \in U \cap V$. So $0$ and $K$ cannot be separated.`,
       checks: [
         md`$\R_K$ is shown Hausdorff and $K$ closed, explicitly.`,
@@ -149,8 +150,7 @@ const unit: Unit = {
       solution: md`**True.** Let $Y \subseteq X$. Points are closed in $Y$: $\{y\} = \{y\} \cap Y$. Let $y \in Y$ and $B$
         closed in $Y$ with $y \notin B$. Then $B = C \cap Y$ with $C$ closed in $X$, and $y \notin C$ (else
         $y \in C \cap Y = B$). Regularity of $X$ gives disjoint open $U \ni y$, $V \supseteq C$, and $U \cap Y$,
-        $V \cap Y$ separate $y$ from $B$ in $Y$. (Normality, by contrast, is not inherited by subspaces in
-        general.)`,
+        $V \cap Y$ separate $y$ from $B$ in $Y$.`,
       checks: [
         md`The subspace closed set is written as a trace of a closed set of $X$.`,
         md`$y \notin C$ is justified.`,
@@ -165,6 +165,7 @@ const unit: Unit = {
         with $f = 0$ on $A$ and $f = 1$ on $B$.`,
       uses: ['11.2'],
       hints: [
+        md`Before building $f$, describe the sets $\{f < r\}$ it would have. How must they be nested?`,
         md`Build open sets $U_r$, one for each dyadic rational $r \in [0, 1]$, with $A \subseteq U_0$,
           $U_1 = X \setminus B$, and $\overline{U_r} \subseteq U_s$ whenever $r < s$.`,
         md`11.2 does each step: given $\overline{U_r} \subseteq U_s$, it finds $U_t$ with $\overline{U_r} \subseteq U_t$
@@ -250,14 +251,14 @@ const unit: Unit = {
       challenge: true,
       title: "Tietze's extension theorem",
       statement: md`Let $X$ be normal, $A \subseteq X$ closed and $f\colon A \to [-1, 1]$ continuous. Prove that $f$ extends
-        to a continuous $g\colon X \to [-1, 1]$. (Assume: a series of real numbers whose partial sums are Cauchy
-        converges.)`,
-      uses: ['11.7', '11.8'],
+        to a continuous $g\colon X \to [-1, 1]$.`,
+      uses: ['7.8', '11.7', '11.8'],
       hints: [
+        md`Do not aim for $f$ at once. Can you find a continuous function on $X$ with values in $[-\frac13, \frac13]$
+          that is within $\frac23$ of $f$ on $A$?`,
         md`Step lemma: for continuous $h\colon A \to [-r, r]$ there is continuous $u\colon X \to [-\frac r3, \frac r3]$ with
           $|h - u| \le \frac{2r}3$ on $A$. Use Urysohn on $h^{-1}([-r, -\frac r3])$ and $h^{-1}([\frac r3, r])$.`,
-        md`Apply the lemma to $f$, then to $f - u_1$, then to $f - u_1 - u_2$, and so on.`,
-        md`$\sum u_n$ converges uniformly. Why? Then 11.8.`,
+        md`Apply the lemma to $f$, then to $f - u_1$, and so on; $\sum u_n$ converges uniformly. Then 11.8.`,
       ],
       solution: md`**Step lemma.** Let $h\colon A \to [-r, r]$ be continuous. $P = h^{-1}([-r, -\frac r3])$ and
         $Q = h^{-1}([\frac r3, r])$ are disjoint, closed in $A$, hence closed in $X$ ($A$ is closed). Urysohn
@@ -294,14 +295,58 @@ const unit: Unit = {
         md`$U \cap V = \emptyset$, since each $U_a$ misses $V_a \supseteq V$. So $X$ is normal. $\blacksquare$`,
       ],
       flawLine: 5,
-      hints: [md`Which axiom of a topology does line 5 appeal to, and what does it actually say?`, md`Compare 11.3.`],
+      hints: [
+        md`Several lines appeal to an axiom of a topology. Check each appeal against what the axiom says.`,
+        md`Compare 11.3.`,
+      ],
       solution: md`**Line 5.** Only *finite* intersections of open sets need be open, and here there is one set for
         each point of $A$. When $A$ is compact, finitely many $U_a$ cover it and the argument is repaired —
-        that is 11.3. The claim is false: there are regular spaces that are not normal (the standard example is the
-        square of the lower limit line, $\R_\ell \times \R_\ell$; the proof is longer).`,
+        that is 11.3. The claim is false: the square of the lower limit line is regular but not normal (11.12).`,
       checks: [
         md`Line 5 is identified: arbitrary intersections of open sets need not be open.`,
         md`The repair in the compact case is recognized.`,
+      ],
+    },
+    {
+      id: '11.12',
+      kind: 'prove',
+      challenge: true,
+      title: 'Regular but not normal',
+      statement: md`Let $X = \R_\ell \times \R_\ell$, with the topology generated by the sets $[a, b) \times [c, d)$. Prove that $X$
+        is regular but not normal. (Use the antidiagonal $L = \{(t, -t) : t \in \R\}$ and the countable dense set
+        $\Q \times \Q$.)`,
+      uses: ['1.6', '1.7', '7.8', '11.2'],
+      hints: [
+        md`Regular: are the basis sets closed?`,
+        md`Every subset of $L$ is closed in $X$. If $X$ were normal, each $A \subseteq L$ would have an open
+          $U_A \supseteq A$ disjoint from an open $V_A \supseteq L \setminus A$.`,
+        md`Show $A \mapsto U_A \cap (\Q \times \Q)$ is injective, and count: compare with 1.6.`,
+      ],
+      solution: md`Every usual open set of $\R^2$ is open in $X$ (an open box around a point contains a basis set
+        $[a, b) \times [c, d)$ starting at it), so $X$ is Hausdorff, hence T1.
+
+        **Regular.** $B = [a, b) \times [c, d)$ is closed: its complement is $((\R \setminus [a, b)) \times \R) \cup
+        (\R \times (\R \setminus [c, d)))$, and $\R \setminus [a, b) = (-\infty, a) \cup [b, \infty)$ is open in $\R_\ell$.
+        So for $x \in U$ open, a basis set $B$ with $x \in B \subseteq U$ has $\overline B = B \subseteq U$; by 11.2,
+        $X$ is regular.
+
+        **Not normal.** $L$ is closed in $\R^2$, hence in $X$. Each point of $L$ is open in $L$:
+        $[t, t + 1) \times [-t, -t + 1)$ meets $L$ only in $(t, -t)$. So every $A \subseteq L$ is closed in $L$, hence in
+        $X$ (7.8). Suppose $X$ normal, and for each $A \subseteq L$ choose disjoint open $U_A \supseteq A$ and
+        $V_A \supseteq L \setminus A$. Let $D = \Q \times \Q$, which meets every basis set, and
+        $\theta(A) = U_A \cap D$. If $A \ne A'$, say $x \in A \setminus A'$ (or the reverse), then
+        $x \in U_A \cap V_{A'}$, a nonempty open set; it contains some $q \in D$, with $q \in \theta(A)$ but
+        $q \notin U_{A'}$ (as $U_{A'} \cap V_{A'} = \emptyset$), so $\theta(A) \ne \theta(A')$. Thus $\mathcal P(L)$ injects
+        into $\mathcal P(D)$. $D$ injects into $\N$ (1.7), so $\mathcal P(D)$ injects into $\mathcal P(\N)$; and
+        $\mathcal P(\N)$ injects into $\R$ by $S \mapsto \sum_{n \in S} 10^{-n-1}$ (if $S \ne S'$ and $m$ is the least
+        element of one but not the other, the sums differ by at least $10^{-m-1} - \sum_{n > m} 10^{-n-1} > 0$), and
+        $t \mapsto (t, -t)$ is a bijection $\R \to L$. Composing, $\mathcal P(L)$ injects into $L$, which gives a
+        surjection $L \to \mathcal P(L)$ as in 1.6 — contradicting Cantor's theorem.`,
+      checks: [
+        md`Basis sets are shown closed, giving regularity through 11.2.`,
+        md`$L$ is shown closed and discrete, so all its subsets are closed in $X$.`,
+        md`The map $A \mapsto U_A \cap D$ is shown injective using disjointness of $U_{A'}$ and $V_{A'}$.`,
+        md`The chain of injections ends in a contradiction with Cantor's theorem.`,
       ],
     },
   ],
