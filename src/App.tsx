@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import HomePage from './core/pages/HomePage'
 import GroupsPage from './apps/math-learning/pages/GroupsPage'
@@ -20,6 +21,14 @@ import WordchainsPage from './apps/wordchains/pages/WordchainsPage'
 import IiliPage from './apps/iili/pages/IiliPage'
 import SmallcatPage from './apps/smallcat/pages/SmallcatPage'
 import NotFoundPage from './core/pages/NotFoundPage'
+
+// Unlisted, and the only page that needs KaTeX: split out of the main bundle.
+const ProofsPage = lazy(() => import('./apps/proofs/pages/ProofsPage'))
+const proofs = (
+  <Suspense fallback={null}>
+    <ProofsPage />
+  </Suspense>
+)
 
 function App() {
   return (
@@ -54,6 +63,9 @@ function App() {
       <Route path="/resilience/phase1/level1" element={<ResilienceGamePage />} />
       <Route path="/top" element={<Navigate to="/top/sets" replace />} />
       <Route path="/top/:module" element={<LearningPage />} />
+      <Route path="/proofs" element={proofs} />
+      <Route path="/proofs/:unitId" element={proofs} />
+      <Route path="/proofs/:unitId/:problemId" element={proofs} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )

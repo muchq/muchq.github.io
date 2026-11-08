@@ -1,0 +1,525 @@
+/* A workbook: paper, ink, one accent. Serif for the mathematics, the site's
+   Lexend for controls. Light and dark follow the system. */
+.page {
+  --paper: #f7f5ef;
+  --card: #fffdf8;
+  --ink: #23252b;
+  --muted: #646a73;
+  --rule: #e2ddd1;
+  --accent: #2f4f86;
+  --accent-soft: #e6ecf6;
+  --good: #2c7a4b;
+  --good-soft: #e5f2ea;
+  --bad: #a13a35;
+  --bad-soft: #f7e7e5;
+  --warn: #8a5a12;
+  --warn-soft: #f6eedd;
+
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 60px 16px 4rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .page {
+    --paper: #17191d;
+    --card: #1f2227;
+    --ink: #e7e4dc;
+    --muted: #a0a5ad;
+    --rule: #34383f;
+    --accent: #9db8e8;
+    --accent-soft: #263248;
+    --good: #7fcf9c;
+    --good-soft: #1e3227;
+    --bad: #ef9a93;
+    --bad-soft: #3a2422;
+    --warn: #e2b866;
+    --warn-soft: #3a3020;
+  }
+}
+
+.main {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding-top: 1.5rem;
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  font-size: 1.075rem;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+/* The site body is weight 300, where "bolder" lands on a regular 400. */
+.main strong,
+.main dt {
+  font-weight: 700;
+}
+
+.main h2 {
+  font-size: 1.25rem;
+  margin: 2.25rem 0 0.5rem;
+}
+
+.main h3 {
+  font-size: 1.05rem;
+  margin: 1.5rem 0 0.4rem;
+}
+
+.main a {
+  color: var(--accent);
+}
+
+.main button {
+  font-family: 'Lexend Deca', system-ui, sans-serif;
+  font-size: 0.9rem;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 0.5rem 0.85rem;
+  cursor: pointer;
+}
+
+.main button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.main button:focus-visible,
+.attempt:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.main button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.main .primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--paper);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.kicker {
+  font-family: 'Lexend Deca', system-ui, sans-serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.crumb {
+  font-family: 'Lexend Deca', system-ui, sans-serif;
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+}
+
+.hero {
+  margin-bottom: 1rem;
+}
+
+.unitTitle {
+  font-size: clamp(1.7rem, 5vw, 2.3rem);
+  line-height: 1.2;
+  margin: 0.3rem 0 0.75rem;
+}
+
+.lede {
+  font-size: 1.15rem;
+}
+
+.lede p {
+  margin: 0;
+}
+
+.method li {
+  margin-bottom: 0.6rem;
+}
+
+.conventions li {
+  margin-bottom: 0.25rem;
+}
+
+/* Overview: units */
+.unitList,
+.problemList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.unitCard,
+.problemRow {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--ink) !important;
+}
+
+.unitCard:hover,
+.problemRow:hover {
+  border-color: var(--accent);
+}
+
+.unitNo {
+  font-family: 'Lexend Deca', system-ui, sans-serif;
+  font-size: 1.3rem;
+  width: 2rem;
+  text-align: center;
+  color: var(--accent);
+  flex: none;
+}
+
+.unitBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.unitName {
+  font-weight: 600;
+}
+
+.unitBody .muted {
+  font-size: 0.85rem;
+}
+
+.unitCount {
+  font-family: 'Lexend Deca', system-ui, sans-serif;
+  font-size: 0.9rem;
+  color: var(--muted);
+  flex: none;
+}
+
+.dueBox {
+  background: var(--warn-soft);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 0.25rem 1rem 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.dueBox h2 {
+  margin-top: 0.75rem;
+}
+
+/* Unit */
+.defs {
+  margin: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.def {
+  background: var(--card);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  padding: 0.6rem 0.9rem;
+}
+
+.def dt {
+  font-weight: 600;
+}
+
+.def dd {
+  margin: 0;
+}
+
+.def dd p {
+  margin: 0.3rem 0 0;
+}
+
+.problemRowTitle {
+  flex: 1;
+  min-width: 0;
+}
+
+.problemRowTitle .muted {
+  font-size: 0.85rem;
+}
+
+.problemId {
+  font-family: 'Lexend Deca', system-ui, sans-serif;
+  color: var(--accent);
+  flex: none;
+  min-width: 2.6rem;
+}
+
+/* Status chips */
+.chip {
+  font-family: 'Lexend Deca', system-ui, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+  white-space: nowrap;
+  flex: none;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+}
+
+.chip-working {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.chip-solved {
+  background: var(--good-soft);
+  border-color: var(--good);
+  color: var(--good);
+}
+
+.chip-shaky {
+  background: var(--warn-soft);
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.chip-due {
+  background: var(--bad-soft);
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+/* Problem */
+.problemHead {
+  margin-bottom: 0.5rem;
+}
+
+.problemTitle {
+  font-size: clamp(1.4rem, 4vw, 1.8rem);
+  line-height: 1.25;
+  margin: 0.3rem 0 0.25rem;
+}
+
+.uses {
+  font-family: 'Lexend Deca', system-ui, sans-serif;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.statement {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 0.25rem 1rem;
+  margin: 1rem 0;
+}
+
+.bogus {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.main .bogusLine {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  padding: 0.5rem 0.75rem;
+}
+
+.lineNo {
+  font-family: 'Lexend Deca', system-ui, sans-serif;
+  color: var(--muted);
+  flex: none;
+  width: 1.2rem;
+}
+
+.lineText {
+  flex: 1;
+  min-width: 0;
+}
+
+.verdict {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+}
+
+.main .picked {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.main .confirmed {
+  border-color: var(--good);
+  background: var(--good-soft);
+}
+
+.main button.picked:disabled,
+.main button.confirmed:disabled {
+  opacity: 1;
+}
+
+.attemptLabel {
+  display: block;
+  font-family: 'Lexend Deca', system-ui, sans-serif;
+  font-size: 0.9rem;
+  margin: 1rem 0 0.35rem;
+}
+
+.attempt {
+  display: block;
+  width: 100%;
+  min-height: 12rem;
+  resize: vertical;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.attempt[readonly] {
+  opacity: 0.8;
+}
+
+.gate {
+  font-family: 'Lexend Deca', system-ui, sans-serif;
+  font-size: 0.85rem;
+  color: var(--warn);
+  margin: 0.4rem 0 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.note,
+.good,
+.bad {
+  font-family: 'Lexend Deca', system-ui, sans-serif;
+  font-size: 0.88rem;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+}
+
+.note {
+  color: var(--muted);
+  padding-left: 0;
+}
+
+.good {
+  color: var(--good);
+  background: var(--good-soft);
+}
+
+.bad {
+  color: var(--bad);
+  background: var(--bad-soft);
+}
+
+.preview {
+  border: 1px dashed var(--rule);
+  border-radius: 8px;
+  padding: 0.25rem 1rem;
+  margin: 0.75rem 0;
+}
+
+.hints {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.hint {
+  background: var(--accent-soft);
+  border-radius: 6px;
+  padding: 0.5rem 0.9rem;
+}
+
+.hint p {
+  margin: 0.25rem 0;
+}
+
+.hintNo {
+  font-family: 'Lexend Deca', system-ui, sans-serif;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.solution {
+  border-top: 2px solid var(--rule);
+  margin-top: 1.75rem;
+  padding-top: 0.5rem;
+}
+
+.checks li {
+  margin-bottom: 0.3rem;
+}
+
+.checks li p {
+  margin: 0;
+}
+
+.graded {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 0.25rem 1rem 0.9rem;
+}
+
+.confirm {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 0.25rem 1rem;
+}
+
+.pager {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Lexend Deca', system-ui, sans-serif;
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+}
+
+/* Long display math scrolls inside its own box rather than widening the page. */
+.main :global(.proofs-display-math) {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.1rem 0;
+}
+
+.main :global(.katex) {
+  font-size: 1.05em;
+}

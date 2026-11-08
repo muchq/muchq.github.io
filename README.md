@@ -58,6 +58,7 @@ node scripts/topology-sync.mjs --check
 | `/resilience` | Distributed-systems game |
 | `/smallcat` | Pong, moved from smallcat.dog |
 | `/groups`, `/sets`, `/top` | Math learning modules (permutation groups, sets, Topology Quest) |
+| `/proofs` | Algebra and topology by proof: 12 units, 119 problems, π₁(S¹) ≅ ℤ at the end. Unlisted — no nav entry, `noindex`; progress stays in the browser (`src/apps/proofs/`) |
 | `/topology` | The deployment diagram, from MoonBase's `docs/DEPLOYMENT.md`: services and their links by kind (http, sql, logs, metrics), with each container's live status |
 
 The nav's **Hmm** menu links to apps hosted off muchq.com (see the
