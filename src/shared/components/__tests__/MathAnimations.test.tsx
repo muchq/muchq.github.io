@@ -11,6 +11,7 @@ describe('MathAnimations', () => {
         <Routes>
           <Route path="/" element={<MathAnimations />} />
           <Route path="/groups" element={<p>the course</p>} />
+          <Route path="/proofs" element={<p>the proofs course</p>} />
         </Routes>
       </MemoryRouter>
     )
@@ -23,5 +24,14 @@ describe('MathAnimations', () => {
     expect(link.textContent).toMatch(/^G\/ker\W?φ≅im\W?φ$/)
     await userEvent.click(link)
     expect(screen.getByText('the course')).toBeInTheDocument()
+  })
+
+  it('the orbiting fundamental group of the circle links to the proofs course', async () => {
+    home()
+    const link = screen.getByRole('link', { name: 'Algebra and topology, by proof' })
+    expect(link).toHaveAttribute('href', '/proofs')
+    expect(link.textContent).toBe('π1(S1)≅ℤ')
+    await userEvent.click(link)
+    expect(screen.getByText('the proofs course')).toBeInTheDocument()
   })
 })

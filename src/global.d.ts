@@ -13,6 +13,7 @@ declare module 'react/jsx-runtime' {
       semantics: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
       mrow: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
       msub: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
+      msup: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
       msubsup: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>
     }
   }
