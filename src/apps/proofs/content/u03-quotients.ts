@@ -36,6 +36,11 @@ const unit: Unit = {
       term: 'Center',
       body: md`$Z(G) = \{z \in G : zg = gz \text{ for all } g \in G\}$.`,
     },
+    {
+      term: 'Direct product',
+      body: md`For groups $G$ and $H$, the **direct product** $G \times H$ is the set of pairs with $(g, h)(g', h') =
+        (gg', hh')$; it is a group, with identity $(e, e)$ and $(g, h)^{-1} = (g^{-1}, h^{-1})$.`,
+    },
   ],
   problems: [
     {
@@ -97,7 +102,7 @@ const unit: Unit = {
       statement: md`Let $G$ be a finite group. Prove: (a) every element has finite order dividing $|G|$;
         (b) $g^{|G|} = e$ for every $g$; (c) every group of prime order is cyclic. (d) Deduce Fermat's little
         theorem: if $p$ is prime and $p \nmid a$, then $a^{p-1} \equiv 1 \pmod p$. (You may assume that the
-        nonzero classes $(\Z/p)^\times$ form a group of order $p - 1$ under multiplication.)`,
+        nonzero classes $(\Z/p)^\times$ form a group of order $p - 1$ under multiplication; 5.7 proves it.)`,
       uses: ['2.6', '3.2'],
       hints: [
         md`(a) Apply Lagrange to $\langle g \rangle$. First: why is the order of $g$ finite?`,
@@ -331,7 +336,7 @@ const unit: Unit = {
       statement: md`(a) Let $H \le G$ and $N \trianglelefteq G$. Prove that $HN = \{hn\}$ is a subgroup, that $H \cap N
         \trianglelefteq H$, and that $H/(H \cap N) \cong HN/N$. (b) Let $N \subseteq K$ be normal subgroups of $G$. Prove
         that $K/N \trianglelefteq G/N$ and $(G/N)/(K/N) \cong G/K$.`,
-      uses: ['2.4', '3.1', '3.7'],
+      uses: ['2.4', '3.1', '3.2', '3.7'],
       hints: [
         md`Each isomorphism is a first isomorphism theorem in disguise. Find the homomorphism.`,
         md`(a) $h \mapsto hN$. (b) $gN \mapsto gK$ — check it is well defined.`,
@@ -341,12 +346,70 @@ const unit: Unit = {
         is a homomorphism, onto since $hnN = hN$, with kernel $H \cap N$. So $H \cap N \trianglelefteq H$ (3.1) and
         $H/(H \cap N) \cong HN/N$ (3.7).
 
-        (b) $\psi\colon G/N \to G/K$, $gN \mapsto gK$, is well defined: $gN = g'N$ gives $g^{-1}g' \in N \subseteq K$.
+        (b) $\psi\colon G/N \to G/K$, $gN \mapsto gK$, is well defined: $gN = g'N$ gives $g^{-1}g' \in N \subseteq K$,
+        so $gK = g'K$ (3.2).
         It is a homomorphism, onto, with kernel $\{gN : g \in K\} = K/N$. So $K/N \trianglelefteq G/N$ (3.1) and
         $(G/N)/(K/N) \cong G/K$ (3.7).`,
       checks: [
         md`$HN$ is shown to be a subgroup using normality of $N$.`,
         md`Each homomorphism is checked to be well defined and onto, and its kernel computed.`,
+      ],
+    },
+    {
+      id: '3.14',
+      kind: 'prove',
+      title: 'All cyclic groups',
+      statement: md`Prove that every cyclic group is isomorphic to $\Z$ or to $\Z/n$ for some $n \ge 1$.`,
+      uses: ['2.7', '3.7'],
+      hints: [md`Map $\Z$ onto $\langle g \rangle$. What can the kernel be?`],
+      solution: md`Let $G = \langle g \rangle$. $\varphi(k) = g^k$ is a homomorphism $(\Z, +) \to G$ (exponent laws), onto by
+        definition. Its kernel is a subgroup of $\Z$, so $n\Z$ for some $n \ge 0$ (2.7). By 3.7, $G \cong \Z/n\Z$:
+        that is $\Z/n$ if $n \ge 1$, and $\Z/\{0\} \cong \Z$ if $n = 0$.`,
+      checks: [md`An explicit surjective homomorphism from $\Z$ is given.`, md`Both possible kernels are handled.`],
+    },
+    {
+      id: '3.15',
+      kind: 'decide',
+      title: 'Products of cyclic groups',
+      statement: md`**Prove or disprove:** $\Z/m \times \Z/n$ is cyclic for all $m, n \ge 1$.`,
+      verdict: false,
+      uses: ['2.6', '3.3', '3.7'],
+      hints: [
+        md`Try the smallest case with $m$ and $n$ not coprime.`,
+        md`And when $\gcd(m, n) = 1$: map $\Z$ into the product, and compute the kernel.`,
+      ],
+      solution: md`**False.** $\Z/2 \times \Z/2$ has 4 elements, each of order at most 2, since $2(a, b) = (0, 0)$; a cyclic
+        group of order 4 has an element of order 4.
+
+        **When $\gcd(m, n) = 1$ it is true.** $k \mapsto ([k]_m, [k]_n)$ is a homomorphism $\Z \to \Z/m \times \Z/n$ with
+        kernel $\{k : m \mid k,\ n \mid k\} = mn\Z$ (by unique factorization, as $m$ and $n$ share no prime). By 3.7
+        its image is isomorphic to $\Z/mn$, so has $mn$ elements — all of $\Z/m \times \Z/n$. So the product is
+        $\cong \Z/mn$, cyclic.`,
+      checks: [
+        md`A non-cyclic product is exhibited, with every element's order bounded.`,
+        md`The coprime case (optional but expected) computes the kernel and counts the image.`,
+      ],
+    },
+    {
+      id: '3.16',
+      kind: 'prove',
+      title: 'Recognizing a direct product',
+      statement: md`Let $H, K$ be normal subgroups of $G$ with $H \cap K = \{e\}$ and $HK = G$. Prove that
+        $G \cong H \times K$.`,
+      uses: ['3.1'],
+      hints: [
+        md`First show that elements of $H$ commute with elements of $K$: look at $hkh^{-1}k^{-1}$.`,
+        md`Then $(h, k) \mapsto hk$.`,
+      ],
+      solution: md`For $h \in H$, $k \in K$: $hkh^{-1}k^{-1} = (hkh^{-1})k^{-1} \in K$ and $= h(kh^{-1}k^{-1}) \in H$, by normality;
+        so it is $e$, and $hk = kh$. Then $\varphi(h, k) = hk$ is a homomorphism $H \times K \to G$:
+        $\varphi((h, k)(h', k')) = hh'kk' = hkh'k'$. It is onto because $HK = G$, and its kernel is
+        $\{(h, k) : hk = e\} = \{(h, h^{-1}) : h \in H \cap K\} = \{(e, e)\}$. By 3.1 it is injective, so an
+        isomorphism.`,
+      checks: [
+        md`Commuting of $H$ and $K$ is derived from normality and trivial intersection.`,
+        md`The homomorphism property uses that commuting.`,
+        md`The kernel is computed using $H \cap K = \{e\}$.`,
       ],
     },
   ],

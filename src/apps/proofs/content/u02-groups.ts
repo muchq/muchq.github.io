@@ -273,8 +273,9 @@ const unit: Unit = {
         md`"$j = \sigma^m(i)$ for some $m \in \Z$" is an equivalence relation. What does $\sigma$ do on one class?`,
       ],
       solution: md`**Disjoint cycles.** Put $i \sim j$ iff $j = \sigma^m(i)$ for some $m \in \Z$; this is an equivalence
-        relation ($\sigma^0$, $\sigma^{-m}$, $\sigma^{m+m'}$), so its classes partition $\{1, \dots, n\}$ (1.1). $\sigma$ has
-        finite order in the finite group $S_n$, so some $m \ge 1$ has $\sigma^m(i) = i$; let $k$ be the least. As in 2.6,
+        relation ($\sigma^0$, $\sigma^{-m}$, $\sigma^{m+m'}$), so its classes partition $\{1, \dots, n\}$ (1.1). The points
+        $i, \sigma(i), \sigma^2(i), \dots$ of a finite set repeat: $\sigma^a(i) = \sigma^b(i)$ with $a < b$ gives
+        $\sigma^{b-a}(i) = i$. So some $m \ge 1$ has $\sigma^m(i) = i$; let $k$ be the least. As in 2.6,
         $i, \sigma(i), \dots, \sigma^{k-1}(i)$ are distinct and every $\sigma^m(i)$ is one of them. So on the class $C$
         of $i$, $\sigma$ acts as the cycle $(i\,\sigma(i)\,\cdots\,\sigma^{k-1}(i))$, and the cycles of different classes
         are disjoint. Their product is $\sigma$: a point $x$ is moved only by the cycle of its own class, which sends it

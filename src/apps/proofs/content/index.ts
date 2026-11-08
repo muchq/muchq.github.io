@@ -43,11 +43,11 @@ export const CONVENTIONS: string[] = [
   'ℕ = {0, 1, 2, …}.',
   'Compact does not include Hausdorff.',
   'I = [0, 1]; a path is a continuous map from I.',
-  'S¹ is the unit circle in ℂ, and p(t) = e^{2πit}.',
+  'S¹ is the unit circle in ℂ, and p(t) = e^{2πit}: a continuous homomorphism from (ℝ, +) onto (S¹, ·) with kernel ℤ.',
   'Groups are written multiplicatively with identity e; permutations compose right to left.',
-  'Rings are commutative with 1, and ring homomorphisms send 1 to 1.',
+  'Rings are commutative with 1, and ring homomorphisms send 1 to 1. For a field F, evaluating polynomials at an element of a larger ring is a ring homomorphism from F[x].',
   'Choice is used freely: picking points from nonempty sets, and Zorn’s lemma (Unit 1).',
-  'Assumed background: arithmetic of ℤ and ℝ, the division algorithm, unique prime factorization, the least upper bound property and completeness of ℝ, the Cauchy–Schwarz inequality, continuity of polynomials, |·|, √, sin, cos and e^{it}, and that sums, products and quotients (with nonvanishing denominator) of continuous real- or complex-valued functions on any space are continuous.',
+  'Assumed background: arithmetic of ℤ and ℝ, the division algorithm, unique prime factorization, the least upper bound property and completeness of ℝ, density of ℚ in ℝ, the exponent laws in a group, the Cauchy–Schwarz inequality, continuity of polynomials, |·|, √, sin, cos and e^{it}, and that sums, products and quotients (with nonvanishing denominator) of continuous real- or complex-valued functions on any space are continuous.',
   'Any earlier problem may be cited by number.',
 ]
 

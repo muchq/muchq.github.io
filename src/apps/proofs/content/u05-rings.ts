@@ -39,11 +39,11 @@ const unit: Unit = {
     },
     {
       term: 'Polynomials over a field',
-      body: md`For a field $F$, $F[x]$ is the ring of polynomials. Assumed: $\deg(fg) = \deg f + \deg g$ for nonzero
-        $f, g$, and division with remainder — for $g \ne 0$, every $f$ is $qg + r$ with $r = 0$ or
-        $\deg r < \deg g$; and evaluation — if $F$ is a subring of a ring $S$ and $c \in S$, then $f \mapsto f(c)$ is a
-        ring homomorphism $F[x] \to S$. A polynomial $p$ of degree at least 1 is **irreducible** if $p = ab$ forces
-        $a$ or $b$ to be constant.`,
+      body: md`For a field $F$, $F[x]$ is the ring of polynomials; degree and division are Problem 5.8. Assumed:
+        evaluation — if $F$ is a subring of a ring $S$ (a subset closed under $+$, $-$, $\cdot$ and containing 1) and
+        $c \in S$, then $f \mapsto f(c)$ is a ring homomorphism $F[x] \to S$. A polynomial $p$ of degree at least 1 is
+        **irreducible** if $p = ab$ forces $a$ or $b$ to be constant — by 5.8, the same as irreducible in the
+        sense below, since the units of $F[x]$ are the nonzero constants.`,
     },
     {
       term: 'Divisibility in a domain',
@@ -212,6 +212,32 @@ const unit: Unit = {
     {
       id: '5.8',
       kind: 'prove',
+      title: 'Polynomial division',
+      statement: md`Let $F$ be a field. Prove that $\deg(fg) = \deg f + \deg g$ for nonzero $f, g \in F[x]$; deduce that
+        $F[x]$ is an integral domain whose units are exactly the nonzero constants. Then prove division with
+        remainder: for $g \ne 0$, every $f$ is $qg + r$ with $r = 0$ or $\deg r < \deg g$.`,
+      hints: [
+        md`What is the leading coefficient of $fg$?`,
+        md`Division: induct on $\deg f$. If $\deg f \ge \deg g$, which multiple of $g$ cancels the leading term of $f$?`,
+      ],
+      solution: md`If $f$ and $g$ have leading coefficients $a, b \ne 0$ and degrees $m, n$, then $fg$ has $x^{m+n}$ coefficient
+        $ab$, nonzero because $F$ is a field, and no higher terms; so $\deg(fg) = m + n$. Hence $fg \ne 0$: $F[x]$
+        is an integral domain. If $fg = 1$, then $\deg f + \deg g = 0$, so both are constants; conversely a nonzero
+        constant has an inverse in $F$.
+
+        *Division*, by strong induction on $\deg f$ (the case $f = 0$ takes $q = r = 0$). If $\deg f < \deg g$, take
+        $q = 0$, $r = f$. Otherwise, with leading coefficients $a$ of $f$ and $b$ of $g$, the polynomial
+        $f_1 = f - ab^{-1}x^{\deg f - \deg g}g$ is $0$ or has smaller degree than $f$, since the leading terms cancel. By
+        induction $f_1 = q_1g + r$ with $r = 0$ or $\deg r < \deg g$, and $f = (q_1 + ab^{-1}x^{\deg f - \deg g})g + r$.`,
+      checks: [
+        md`The leading coefficient of a product is shown nonzero, using that $F$ is a field.`,
+        md`Units are identified in both directions.`,
+        md`The division step cancels the leading term and inducts on degree, with the base cases handled.`,
+      ],
+    },
+    {
+      id: '5.9',
+      kind: 'prove',
       title: 'Polynomials over a field',
       statement: md`Let $F$ be a field. Prove that every ideal of $F[x]$ is principal, and that if $p$ is irreducible
         then $F[x]/(p)$ is a field.`,
@@ -222,10 +248,10 @@ const unit: Unit = {
         md`If $(p) \subseteq (g)$, then $p = hg$. What does irreducibility say about $h$ and $g$?`,
       ],
       solution: md`Let $I \ne \{0\}$ (else $I = (0)$) and take $g \in I$ nonzero of least degree. For $f \in I$, write
-        $f = qg + r$ with $r = 0$ or $\deg r < \deg g$; $r = f - qg \in I$, so $r = 0$ by minimality. So
+        $f = qg + r$ with $r = 0$ or $\deg r < \deg g$ (5.8); $r = f - qg \in I$, so $r = 0$ by minimality. So
         $I = (g)$.
 
-        Nonzero constants are units of $F[x]$, with inverses in $F$. Let $p$ be irreducible.
+        The units of $F[x]$ are the nonzero constants (5.8). Let $p$ be irreducible.
         $(p)$ is proper: its nonzero elements have degree at least $\deg p \ge 1$, so $1 \notin (p)$. Let
         $(p) \subseteq J$ with $J$ an ideal; then $J = (g)$ and $p = hg$. If $g$ is constant, it is a nonzero
         constant — $g = 0$ would force $p = 0$ — hence a unit, and $J = F[x]$. Otherwise $h$ is a nonzero
@@ -237,11 +263,11 @@ const unit: Unit = {
       ],
     },
     {
-      id: '5.9',
+      id: '5.10',
       kind: 'prove',
       title: 'The complex numbers, constructed',
       statement: md`Prove that $\R[x]/(x^2 + 1) \cong \C$ as rings.`,
-      uses: ['5.2', '5.5', '5.8'],
+      uses: ['5.2', '5.5', '5.9'],
       hints: [
         md`Find a surjective ring homomorphism $\R[x] \to \C$ that kills $x^2 + 1$.`,
         md`Its kernel is an ideal containing $x^2 + 1$. Why can it not be bigger than $(x^2 + 1)$?`,
@@ -251,7 +277,7 @@ const unit: Unit = {
         $(x^2 + 1) \subseteq K$, and $K \ne \R[x]$ since $\varepsilon(1) = 1$. $x^2 + 1$ is irreducible: if
         $x^2 + 1 = ab$ with neither factor constant, the degrees add to 2, so both are linear; a linear factor
         $\alpha x + \beta$ vanishes at $r = -\beta/\alpha \in \R$, and evaluating at $r$ (a homomorphism) gives
-        $r^2 + 1 = 0$, impossible. So $\R[x]/(x^2 + 1)$ is a field (5.8), $(x^2 + 1)$ is maximal (5.5), forcing
+        $r^2 + 1 = 0$, impossible. So $\R[x]/(x^2 + 1)$ is a field (5.9), $(x^2 + 1)$ is maximal (5.5), forcing
         $K = (x^2 + 1)$, and $\R[x]/(x^2 + 1) \cong \C$ by 5.2.`,
       checks: [
         md`An explicit surjective homomorphism is given.`,
@@ -260,7 +286,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '5.10',
+      id: '5.11',
       kind: 'flaw',
       title: 'Quotients of domains',
       statement: md`**Claim.** If $R$ is an integral domain and $I$ is an ideal, then $R/I$ is an integral domain. Find the
@@ -284,12 +310,12 @@ const unit: Unit = {
       ],
     },
     {
-      id: '5.11',
+      id: '5.12',
       kind: 'flaw',
       title: 'Maximal subgroups',
       statement: md`**Claim.** In an abelian group $G$, every proper subgroup $H$ lies in a maximal proper subgroup.
         Find the first line that is wrong or does not follow.`,
-      uses: ['2.10', '3.5'],
+      uses: ['2.10', '3.3', '3.5', '3.12'],
       lines: [
         md`Let $\mathcal P$ be the set of proper subgroups of $G$ containing $H$, ordered by $\subseteq$. The empty
           chain has $H$ as an upper bound.`,
@@ -305,10 +331,10 @@ const unit: Unit = {
         while a cyclic $\langle q \rangle$ with $q \ne 0$ misses $q/2$; and their union is $\Q$, as
         $\frac ab = a(b - 1)! \cdot \frac1{b!}$ for $b \ge 1$.
 
-        The claim is false: $\Q$ has **no** maximal proper subgroup. If $M$ were one, every subgroup of $\Q/M$
-        would pull back to a subgroup between $M$ and $\Q$, so $\Q/M$ would have no subgroups but the trivial one
-        and itself; by 2.10 it is cyclic of prime order $p$. Then $p(q + M) = M$, i.e. $pq \in M$, for every $q$;
-        but every rational is $p \cdot \frac qp$, so $\Q \subseteq M$. Compare 5.12.`,
+        The claim is false: $\Q$ has **no** maximal proper subgroup. If $M$ were one, subgroups of $\Q/M$
+        correspond to subgroups between $M$ and $\Q$ (3.12), so $\Q/M$ has no subgroups but the trivial one and
+        itself; by 2.10 it is cyclic of prime order $p$. Then $p(q + M) = M$ (3.3(b)), i.e. $pq \in M$, for every $q$;
+        but every rational is $p \cdot \frac qp$, so $\Q \subseteq M$. Compare 5.13.`,
       checks: [
         md`Line 4 is identified: properness is not preserved by unions.`,
         md`A chain of proper subgroups with union $G$ is exhibited.`,
@@ -316,7 +342,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '5.12',
+      id: '5.13',
       kind: 'prove',
       challenge: true,
       title: "Krull's theorem",
@@ -324,7 +350,7 @@ const unit: Unit = {
         $1 \ne 0$ has a maximal ideal.`,
       hints: [
         md`Zorn's lemma — on which partially ordered set?`,
-        md`Why is the union of a chain of proper ideals still proper? Compare 5.11.`,
+        md`Why is the union of a chain of proper ideals still proper? Compare 5.12.`,
       ],
       solution: md`Let $I$ be proper and $\mathcal P$ the set of proper ideals containing $I$, ordered by inclusion; the
         empty chain has upper bound $I \in \mathcal P$. For a nonempty chain $\mathcal C$, $U = \bigcup\mathcal C$ is an
@@ -340,7 +366,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '5.13',
+      id: '5.14',
       kind: 'prove',
       title: 'The Chinese remainder theorem',
       statement: md`Let $I, J$ be ideals of $R$ with $I + J = R$. Prove $R/(I \cap J) \cong R/I \times R/J$. Deduce
@@ -364,7 +390,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '5.14',
+      id: '5.15',
       kind: 'prove',
       title: 'Irreducible and prime',
       statement: md`In an integral domain, prove that every prime element is irreducible. In a PID, prove that an
@@ -388,31 +414,35 @@ const unit: Unit = {
       ],
     },
     {
-      id: '5.15',
+      id: '5.16',
       kind: 'prove',
       challenge: true,
       title: 'Unique factorization in F[x]',
       statement: md`Let $F$ be a field. Prove that every polynomial of degree at least 1 in $F[x]$ is a product of
         irreducible polynomials, and that this product is unique up to the order of the factors and multiplication
         of the factors by nonzero constants.`,
-      uses: ['5.8', '5.14'],
+      uses: ['5.8', '5.9', '5.15'],
       hints: [
         md`Existence: strong induction on the degree.`,
         md`Uniqueness: an irreducible factor of one side divides the other side. Why does it divide one of its
           factors?`,
       ],
-      solution: md`$F[x]$ is an integral domain (degrees add, so a product of nonzero polynomials is nonzero) and a PID
-        (5.8), so irreducible polynomials are prime (5.14). The units are the nonzero constants.
+      solution: md`$F[x]$ is an integral domain whose units are the nonzero constants (5.8), and a PID (5.9), so
+        irreducible polynomials are prime (5.15).
 
         *Existence*, by strong induction on $\deg f \ge 1$. If $f$ is irreducible, done. Otherwise $f = ab$ with
         neither constant, so $1 \le \deg a, \deg b < \deg f$; each is a product of irreducibles by induction.
 
-        *Uniqueness*, by induction on the number $r$ of factors in one product. Suppose
-        $p_1 \cdots p_r = q_1 \cdots q_s$ with all factors irreducible. $p_1$ is prime and divides the right side, so
-        (by induction on the number of factors) it divides some $q_j$; reorder so $j = 1$. Then $q_1 = p_1u$, and as
-        $q_1$ is irreducible and $p_1$ is not a unit, $u$ is a nonzero constant. Cancelling $p_1$:
-        $p_2 \cdots p_r = (uq_2) \cdots q_s$. If $r = 1$ the left side is $1$, so $s = 1$ (a product of irreducibles
-        has positive degree). Otherwise induction matches the remaining factors up to order and constants.`,
+        *Uniqueness*, by induction on $r$. Suppose $p_1 \cdots p_r = q_1 \cdots q_s$ with all factors irreducible.
+        $p_1$ is prime and divides the right side, so (by induction on the number of factors) it divides some $q_j$;
+        reorder so $j = 1$. Then $q_1 = p_1u$, and as $q_1$ is irreducible and $p_1$ is not a unit, $u$ is a nonzero
+        constant. Cancelling $p_1$ (a domain): $p_2 \cdots p_r = u\,q_2 \cdots q_s$. If $r = 1$ or $s = 1$, one side
+        is now a nonzero constant ($1$ or $u$); a nonempty product of irreducibles has positive degree, so both sides
+        are empty: $r = s = 1$. Otherwise $uq_2$ is irreducible ($uq_2 = ab$ gives $q_2 = (u^{-1}a)b$), and induction
+        applied to $p_2 \cdots p_r = (uq_2)\,q_3 \cdots q_s$ matches the remaining factors up to order and constants.
+
+        The same argument in $\Z$ — a PID by 5.7, with units $\pm 1$ and size in place of degree — proves unique
+        factorization of integers, which earlier units assumed.`,
       checks: [
         md`$F[x]$ is shown to be a domain and a PID, so irreducibles are prime.`,
         md`Existence uses that a nontrivial factorization lowers both degrees.`,

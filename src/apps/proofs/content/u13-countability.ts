@@ -124,8 +124,9 @@ const unit: Unit = {
         md`In the cocountable topology on $\R$, which sequences converge?`,
       ],
       solution: md`**False.** Give $\R$ the cocountable topology. It is a topology: $\R$ and $\emptyset$ are open; the
-        complement of a union of nonempty open sets lies inside the countable complement of one of them; and the
-        complement of $U \cap V$ is the union of two countable sets, which is countable (with injections $f, g$ into
+        complement of a union of nonempty open sets lies inside the countable complement of one of them; and for $U \cap V$, if
+        either is empty so is the intersection, and otherwise its complement is the union of two countable sets,
+        which is countable (with injections $f, g$ into
         $\N$, send $x$ to $2f(x)$ if it lies in the first set and to $2g(x) + 1$ otherwise).
 
         *Convergent sequences are eventually constant.* If $x_n \to x$, the set
@@ -143,13 +144,14 @@ const unit: Unit = {
     {
       id: '13.5',
       kind: 'prove',
+      challenge: true,
       title: 'Regular and second countable means normal',
       statement: md`Prove that every regular, second countable space is normal.`,
       uses: ['11.2'],
       hints: [
         md`Cover $A$ by countably many basis sets whose closures miss $B$, and $B$ likewise.`,
-        md`Make the two covers disjoint by trimming the $n$-th set of each by the closures of the first $n$ of the
-          other.`,
+        md`The two covers may overlap. Trim them — each set by finitely many closures from the other cover — so that
+          they still cover and no longer meet.`,
       ],
       solution: md`Let $A, B$ be disjoint closed sets (if either is empty, $\emptyset$ and $X$ separate them), and fix a
         countable basis. For $a \in A$, regularity (11.2, with $U = X \setminus B$) gives an open $V \ni a$ with
@@ -201,11 +203,11 @@ const unit: Unit = {
     {
       id: '13.7',
       kind: 'prove',
-      challenge: true,
       title: 'Urysohn metrization',
       statement: md`Prove that every regular, second countable space is metrizable.`,
       uses: ['11.2', '11.7', '12.10', '13.5', '13.6'],
       hints: [
+        md`Instead of building a metric, can you find a metric space that $X$ sits inside?`,
         md`You can already embed spaces in cubes (12.10). How many functions do you need here?`,
         md`For basis sets with $\overline{B_n} \subseteq B_m$, Urysohn gives $g_{n,m}$ equal to 1 on $\overline{B_n}$ and 0
           off $B_m$.`,

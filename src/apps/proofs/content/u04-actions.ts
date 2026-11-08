@@ -252,7 +252,7 @@ const unit: Unit = {
       challenge: true,
       title: 'Sylow subgroups exist',
       statement: md`Let $|G| = p^km$ with $p$ prime and $p \nmid m$. Prove that $G$ has a subgroup of order $p^k$.`,
-      uses: ['3.2', '3.12', '4.1', '4.2', '4.9'],
+      uses: ['3.2', '3.9', '3.12', '4.1', '4.2', '4.9'],
       hints: [
         md`Strong induction on $|G|$. Where can you find a smaller group whose order is still divisible by a large
           power of $p$?`,
@@ -263,15 +263,15 @@ const unit: Unit = {
       ],
       solution: md`Strong induction on $|G|$. If $k = 0$, take $\{e\}$; let $k \ge 1$.
 
-        *Case $p \mid |Z(G)|$.* Cauchy (4.9) gives $z \in Z(G)$ of order $p$; $N = \langle z \rangle$ is normal, since $z$
+        *Case $p \mid |Z(G)|$.* $Z(G)$ is a group (3.9), and Cauchy (4.9) gives $z \in Z(G)$ of order $p$; $N = \langle z \rangle$ is normal, since $z$
         is central. $|G/N| = p^{k-1}m < |G|$, so $G/N$ has a subgroup $\bar K$ of order $p^{k-1}$, and
         $K = \pi^{-1}(\bar K)$ is a subgroup of order $p^{k-1} \cdot p = p^k$ (3.12).
 
         *Case $p \nmid |Z(G)|$.* Conjugacy classes partition $G$ (4.1), and the one-element classes are the elements
         of $Z(G)$; so $|G| = |Z(G)| + \sum |C|$ over the other classes. As $p \mid |G|$ and $p \nmid |Z(G)|$, some
         class $C$ with $|C| > 1$ has $p \nmid |C|$. For $x \in C$, $|C| = [G : C_G(x)]$ (4.2), so
-        $|C_G(x)| = p^k m/|C|$ is divisible by $p^k$ — the prime factorization of $|C|$ has no $p$ — and is less than
-        $|G|$. By induction $C_G(x)$, hence $G$, has a subgroup of order $p^k$.`,
+        $|C_G(x)| = p^k \cdot \frac{m}{|C|}$, where $\frac m{|C|}$ is an integer prime to $p$ — the prime factorization of
+        $|C|$ has no $p$ — and $|C_G(x)| < |G|$. By induction $C_G(x)$, hence $G$, has a subgroup of order $p^k$.`,
       checks: [
         md`The induction is on $|G|$ and covers $k = 0$.`,
         md`The central case lifts a subgroup through the correspondence, with its order computed.`,
@@ -288,12 +288,13 @@ const unit: Unit = {
         $n_p$ of Sylow $p$-subgroups divides $m$, and $n_p \equiv 1 \pmod p$.`,
       uses: ['3.2', '4.2', '4.4'],
       hints: [
-        md`(a) Let $Q$ act on the left cosets of $P$. How many are there, and what does 4.4 say?`,
+        md`(a) A $p$-group acting on a set whose size is prime to $p$ must do something. Find such a set.`,
         md`(b) Let $G$, and then $P$, act on the set of Sylow $p$-subgroups by conjugation.`,
         md`If $P$ normalizes a Sylow subgroup $Q$, then $P$ and $Q$ are Sylow subgroups of $N_G(Q)$, where $Q$ is
           normal.`,
       ],
-      solution: md`(a) $Q$ acts on the $m$ left cosets of $P$ by $q \cdot gP = qgP$. As $p \nmid m$, 4.4 gives a fixed coset
+      solution: md`(a) $Q$ acts on the $m$ left cosets of $P$ by $q \cdot gP = qgP$, well defined since $gP = g'P$ gives
+        $(qg)^{-1}qg' = g^{-1}g' \in P$. As $p \nmid m$, 4.4 gives a fixed coset
         $gP$: $QgP = gP$, so $g^{-1}Qg \subseteq P$ and $Q \subseteq gPg^{-1}$. If $Q$ is a Sylow subgroup, the
         orders agree, so $Q = gPg^{-1}$.
 
@@ -315,13 +316,13 @@ const unit: Unit = {
       title: 'Order fifteen',
       statement: md`**Prove or disprove:** every group of order 15 is cyclic.`,
       verdict: true,
-      uses: ['3.4', '4.11'],
+      uses: ['3.4', '4.10', '4.11'],
       hints: [
         md`How many Sylow 3-subgroups and Sylow 5-subgroups can there be?`,
         md`Two normal subgroups with trivial intersection: do their elements commute?`,
       ],
       solution: md`**True.** $n_3$ divides 5 and is $\equiv 1 \pmod 3$, so $n_3 = 1$; $n_5$ divides 3 and is $\equiv 1 \pmod 5$, so
-        $n_5 = 1$ (4.11). So the Sylow subgroups $H$ (order 3) and $K$ (order 5) are normal — each equals all its
+        $n_5 = 1$ (Sylow subgroups exist by 4.10; 4.11). So the Sylow subgroups $H$ (order 3) and $K$ (order 5) are normal — each equals all its
         conjugates — and $H \cap K = \{e\}$ (3.4). For $h \in H$, $k \in K$: $hkh^{-1}k^{-1}$ lies in $K$ (as
         $hkh^{-1} \in K$) and in $H$ (as $kh^{-1}k^{-1} \in H$), so it is $e$ and $hk = kh$. Take $h \ne e$, $k \ne e$,
         of orders 3 and 5. If $(hk)^n = h^nk^n = e$, then $h^n = k^{-n} \in H \cap K = \{e\}$, so $3 \mid n$ and

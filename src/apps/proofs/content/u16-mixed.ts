@@ -314,7 +314,7 @@ const unit: Unit = {
       verdict: true,
       hints: [md`What ideal does a single non-unit generate?`, md`Can a maximal ideal contain a unit?`],
       solution: md`**True.** If $a$ is a non-unit, $(a) = Ra$ does not contain 1 (else $ra = 1$), so it is proper and lies
-        in a maximal ideal by Krull's theorem (5.12); hence $a$ lies in a maximal ideal. Conversely, a maximal ideal
+        in a maximal ideal by Krull's theorem (5.13); hence $a$ lies in a maximal ideal. Conversely, a maximal ideal
         contains no unit: $u \in M$ would give $1 = u^{-1}u \in M$, so $M = R$.`,
       checks: [
         md`A non-unit is shown to generate a proper ideal.`,

@@ -116,7 +116,7 @@ const unit: Unit = {
         a chosen point of $U_\alpha$ for $\alpha \in F$ and with $a$ elsewhere — a point of $Y_F$. By 9.4(b), the
         closure of $Y$, which is the whole product, is connected.`,
       checks: [
-        md`The finite-support set is shown connected via finite products.`,
+        md`Each $Y_F$ is shown connected by induction on $|F|$, adding one slice at a time (9.4(a)).`,
         md`Density is checked against an arbitrary basis set.`,
         md`9.4(b) closes the argument.`,
       ],

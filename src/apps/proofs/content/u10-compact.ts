@@ -306,11 +306,12 @@ const unit: Unit = {
       solution: md`(⇒) A compact $K$ is closed, $\R^n$ being Hausdorff (10.3, 7.12). It is bounded: the balls $B(0, k)$
         cover it, finitely many do, and it lies in the largest.
 
-        (⇐) A bounded set lies in some $B(0, R) \subseteq [-R, R]^n$. The Euclidean metric and
+        (⇐) A bounded set lies in some ball $B(x, r) \subseteq B(0, |x| + r)$, so in some $B(0, R) \subseteq [-R, R]^n$. The Euclidean metric and
         $d_\infty(u, v) = \max_i |u_i - v_i|$ satisfy $d_\infty \le d \le \sqrt n\,d_\infty$, so they have the same open
         sets (6.6), and $d_\infty$-balls are products of intervals; so the topology of $\R^n$ is the product topology of
         $\R^{n-1} \times \R$. $[-R, R]$ is compact (10.5 and a homeomorphism), so $[-R, R]^n$ is compact by induction
-        with 10.8. A closed subset of it is compact (10.1).`,
+        with 10.8 — and its product topology is its subspace topology from $\R^n$, since, as in 10.8, the basic sets
+        $(U \cap C^{n-1}) \times (V \cap C)$ for $C = [-R, R]$ are exactly $(U \times V) \cap C^n$. A closed subset of it is compact (10.1).`,
       checks: [
         md`Compact ⇒ closed uses Hausdorff; compact ⇒ bounded uses a finite subcover.`,
         md`The Euclidean topology is identified with the product topology.`,
@@ -324,14 +325,17 @@ const unit: Unit = {
       title: 'Sequentially compact metric spaces are compact',
       statement: md`Prove that a sequentially compact metric space is compact. (With 10.10: for metric spaces, compact
         and sequentially compact agree.)`,
+      uses: ['6.8', '10.9'],
       hints: [
+        md`A finite subcover would follow if $X$ were covered by finitely many sets, each small enough to fit inside
+          one member of the cover. What two properties would give you that?`,
         md`Step 1: every open cover has a Lebesgue number. Suppose not, and pick a bad set of diameter below
           $\frac1n$ for each $n$.`,
         md`Step 2: for every $\varepsilon$, finitely many $\varepsilon$-balls cover. If not, build a sequence whose
           points are pairwise $\varepsilon$ apart.`,
-        md`Step 3: combine.`,
       ],
-      solution: md`Let $X$ be sequentially compact and $\mathcal U$ an open cover.
+      solution: md`If $X = \emptyset$ there is nothing to do; otherwise let $\mathcal U$ be an open cover, necessarily
+        nonempty, of the sequentially compact $X$.
 
         *Lebesgue number.* If none exists, for each $n$ there is $A_n$ with $\operatorname{diam} A_n < \frac1n$ lying in
         no member of $\mathcal U$; $A_n \ne \emptyset$, as $\emptyset$ lies in any member. Pick $x_n \in A_n$ and a
@@ -341,12 +345,12 @@ const unit: Unit = {
 
         *Finitely many balls.* Fix $\varepsilon > 0$. If no finitely many $\varepsilon$-balls cover $X$, choose
         $x_1$, and inductively $x_{n+1}$ outside $B(x_1, \varepsilon) \cup \dots \cup B(x_n, \varepsilon)$. Then
-        $d(x_i, x_j) \ge \varepsilon$ for $i \ne j$, so no subsequence is Cauchy, and none converges — a
-        contradiction.
+        $d(x_i, x_j) \ge \varepsilon$ for $i \ne j$, so no subsequence is Cauchy, and none converges (convergent
+        sequences are Cauchy, 6.8) — a contradiction.
 
         *Finite subcover.* With a Lebesgue number $\delta$, cover $X$ by finitely many balls of radius $\frac\delta3$;
         each has diameter at most $\frac{2\delta}3 < \delta$, so lies in a member of $\mathcal U$. Those finitely many
-        members cover $X$. (If $X = \emptyset$ there is nothing to do.)`,
+        members cover $X$.`,
       checks: [
         md`The Lebesgue number is obtained by contradiction through a convergent subsequence.`,
         md`Total boundedness is obtained by contradiction through an $\varepsilon$-separated sequence.`,
