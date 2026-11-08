@@ -67,8 +67,9 @@ const unit: Unit = {
       statement: md`**Prove or disprove:** every quotient of a Hausdorff space is Hausdorff.`,
       verdict: false,
       hints: [
-        md`Collapse a subset that is not closed.`,
-        md`In $\R/(0, 1)$, try to separate the class $(0, 1)$ from the point $1$.`,
+        md`A neighborhood of a class must contain the whole class. When could that force it to contain a nearby
+          point?`,
+        md`Collapse a subset that is not closed — in $\R/(0, 1)$, try to separate the class $(0, 1)$ from $1$.`,
       ],
       solution: md`**False.** In $\R$ collapse $A = (0, 1)$; let $a = q(A)$ and $b = q(1)$, so $a \ne b$. Let $U$
         be open with $b \in U$. Then $q^{-1}(U)$ is open in $\R$ and contains $1$, so contains some
@@ -114,8 +115,9 @@ const unit: Unit = {
       verdict: true,
       uses: ['6.12', '6.10', '6.5'],
       hints: [
-        md`6.12(b): Hausdorff iff the diagonal is closed.`,
-        md`Find a continuous map $G \times G \to G$ under which the diagonal is the preimage of $\{e\}$.`,
+        md`Which description of "Hausdorff" from Unit 6 is about a closed set?`,
+        md`6.12(b): the diagonal. Find a continuous map $G \times G \to G$ under which the diagonal is the
+          preimage of $\{e\}$.`,
       ],
       solution: md`**True.** $\phi(x, y) = xy^{-1}$ is continuous: it is multiplication composed with
         $(x, y) \mapsto (x, y^{-1})$, continuous by 6.10 since its components are $\pi_1$ and inversion
@@ -160,8 +162,9 @@ const unit: Unit = {
         (b) points of $G/H$ are closed if and only if $H$ is closed in $G$.`,
       uses: ['7.3'],
       hints: [
-        md`(a) $q^{-1}(q(U)) = UH$. Then 7.3(b).`,
-        md`(b) A point of $G/H$ is $gH$. Its preimage under $q$ is the coset $gH \subseteq G$.`,
+        md`(a) Which points of $G$ have the same image under $q$ as some point of $U$?`,
+        md`(a) $q^{-1}(q(U)) = UH$; then 7.3(b). (b) A point of $G/H$ is $gH$, and its preimage under $q$ is the
+          coset $gH \subseteq G$.`,
       ],
       solution: md`(a) $g \in q^{-1}(q(U))$ iff $gH = uH$ for some $u \in U$ iff $g \in uH$ for some $u \in U$
         iff $g \in UH$. If $U$ is open, $UH$ is open (7.3(b)), so $q(U)$ is open.
@@ -182,8 +185,9 @@ const unit: Unit = {
       statement: md`Let $H$ be a subgroup of a topological group $G$. Prove that $\overline H$ is a subgroup.`,
       uses: ['6.5', '6.10', '2.4', '7.4'],
       hints: [
-        md`Use $\phi(x, y) = xy^{-1}$ and 6.5(iii).`,
-        md`$\overline{H \times H} = \overline H \times \overline H$ by 6.10(c).`,
+        md`The subgroup test asks about $ab^{-1}$. Which continuous map produces it, and what do continuous maps
+          do to closures?`,
+        md`$\phi(x, y) = xy^{-1}$, 6.5(iii), and $\overline{H \times H} = \overline H \times \overline H$ (6.10(c)).`,
       ],
       solution: md`$e \in H \subseteq \overline H$, so $\overline H \ne \emptyset$. $\phi(x, y) = xy^{-1}$ is
         continuous (7.4) and $\phi(H \times H) \subseteq H$. By 6.10(c) and 6.5(iii),

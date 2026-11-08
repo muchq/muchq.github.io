@@ -22,12 +22,13 @@ export interface Problem {
   lines?: string[]
   /** flaw: 1-based index of the first line that does not follow. */
   flawLine?: number
-  /** Earlier problems whose results this one may cite. */
+  /** Earlier problems the reference proof draws on. Shown only after the reveal:
+   *  listing them up front would announce the method. */
   uses?: string[]
   challenge?: boolean
 }
 
-export type Track = 'Foundations' | 'Algebra' | 'Topology' | 'Bridge' | 'Synthesis'
+export type Track = 'Foundations' | 'Algebra' | 'Topology' | 'Bridge' | 'Synthesis' | 'Mixed'
 
 export interface Definition {
   term: string

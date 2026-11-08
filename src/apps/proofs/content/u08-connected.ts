@@ -182,10 +182,11 @@ const unit: Unit = {
         segments gives a path (pasting, 6.9). So $\R^2 \setminus \{h(0)\}$ is connected (8.4(c)) while
         $\R \setminus \{0\}$ is not.
 
-        **$[0, 1]$ vs $S^1$.** $[0, 1] \setminus \{1/2\}$ is disconnected (split at $1/2$). For any
-        $q = (\cos 2\pi s, \sin 2\pi s)$, $S^1 \setminus \{q\}$ is the image of the interval $(s, s + 1)$ —
-        connected, being convex (8.4(c)) — under $t \mapsto (\cos 2\pi t, \sin 2\pi t)$, so it is connected
-        (8.3). A homeomorphism $h\colon [0, 1] \to S^1$ would make $S^1 \setminus \{h(1/2)\}$ disconnected.`,
+        **$[0, 1]$ vs $S^1$.** $[0, 1] \setminus \{1/2\}$ is disconnected (split at $1/2$). Identify $\R^2$ with
+        $\C$, so $S^1$ is the image of $p(t) = e^{2\pi i t}$. Any $q \in S^1$ is $p(s)$ for some $s$, and since
+        $p$ is onto with $p(t) = p(s) \iff t - s \in \Z$, $p$ maps the interval $(s, s + 1)$ onto
+        $S^1 \setminus \{q\}$. The interval is connected, being convex (8.4(c)), so $S^1 \setminus \{q\}$ is
+        connected (8.3). A homeomorphism $h\colon [0, 1] \to S^1$ would make $S^1 \setminus \{h(1/2)\}$ disconnected.`,
       checks: [
         md`Restricting a homeomorphism to punctured spaces is justified.`,
         md`$\R^2$ minus a point is shown path-connected with an explicit path avoiding the point.`,
@@ -266,10 +267,10 @@ const unit: Unit = {
       id: '8.10',
       kind: 'decide',
       challenge: true,
-      title: 'Connected but not path-connected?',
+      title: 'Connected versus path-connected',
       statement: md`**Prove or disprove:** every connected space is path-connected.`,
       verdict: false,
-      uses: ['8.3', '8.4'],
+      uses: ['8.3', '8.4', '6.2'],
       hints: [
         md`The topologist's sine curve $S$. For connectedness: what is the closure of the graph part?`,
         md`Suppose $\alpha$ is a path in $S$ from $(0, 0)$ to $(1, \sin 1)$. Consider the last time $t_0$ that
@@ -286,8 +287,9 @@ const unit: Unit = {
         by 8.4(b).
 
         **Not path-connected.** Let $\alpha = (\alpha_1, \alpha_2)\colon [0, 1] \to S$ be a path from $(0, 0)$
-        to $(1, \sin 1)$. $Z = \alpha^{-1}(\{0\} \times [-1, 1])$ is closed, contains 0 and not 1, so
-        $t_0 = \max Z < 1$ exists. For $t > t_0$, $\alpha(t) \in G$: $\alpha_1(t) > 0$ and
+        to $(1, \sin 1)$. $Z = \alpha^{-1}(\{0\} \times [-1, 1])$ is closed, contains 0 and not 1. Its supremum
+        $t_0$ exists, and every interval around $t_0$ meets $Z$, so $t_0 \in \overline Z = Z$ (6.2); hence
+        $t_0 = \max Z < 1$. For $t > t_0$, $\alpha(t) \in G$: $\alpha_1(t) > 0$ and
         $\alpha_2(t) = \sin(1/\alpha_1(t))$. By continuity of $\alpha_2$ at $t_0$ choose $\delta > 0$, with
         $t_0 + \delta \le 1$, such that $|\alpha_2(t) - \alpha_2(t_0)| < 1$ for $|t - t_0| < \delta$. Let
         $a = \alpha_1(t_0 + \delta/2) > 0$. By the intermediate value theorem (8.3), $\alpha_1$ takes every value

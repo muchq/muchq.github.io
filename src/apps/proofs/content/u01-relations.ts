@@ -185,19 +185,21 @@ const unit: Unit = {
       id: '1.7',
       kind: 'prove',
       title: 'Pairs and fractions',
-      statement: md`Prove that $\N \times \N$ is countable, and deduce that $\Q$ is countable. (Unique prime
-        factorization may be assumed.)`,
+      statement: md`Prove that $\N \times \N$ is countable, and deduce from it that $\Q$ is countable. (Unique
+        prime factorization may be assumed.)`,
       hints: [
         md`You need an injection $\N \times \N \to \N$. Primes help.`,
-        md`For $\Q$, use a *unique* representation of each rational, and a third prime for the sign.`,
+        md`For $\Q$, use a *unique* representation of each rational. How can a pair of natural numbers also
+          remember a sign?`,
       ],
       solution: md`$\phi(m, n) = 2^m 3^n$ is injective: if $2^m 3^n = 2^{m'} 3^{n'}$, unique factorization gives
         $m = m'$ and $n = n'$.
 
         Each $r \in \Q$ has a unique expression $r = s\,a/b$ with $s \in \{1, -1\}$, $a, b \in \N$, $b \ge 1$,
-        $\gcd(a, b) = 1$, and $s = 1$ when $a = 0$. Put $\psi(r) = 2^a 3^b 5^{(1 - s)/2}$. Distinct rationals have
-        distinct triples $(a, b, s)$, hence distinct images by unique factorization; so $\psi\colon \Q \to \N$
-        is injective.`,
+        $\gcd(a, b) = 1$, and $s = 1$ when $a = 0$. Put $\psi(r) = \phi(a, 2b + (1 - s)/2)$. Distinct rationals
+        have distinct triples $(a, b, s)$, and $(b, s)$ can be read back from $m = 2b + (1 - s)/2$ — $s$ from the
+        parity of $m$, then $b$ — so distinct rationals give distinct pairs. As $\phi$ is injective, so is
+        $\psi\colon \Q \to \N$.`,
       checks: [
         md`Injectivity comes from unique factorization, not from assertion.`,
         md`The representation of rationals is unique: lowest terms, a sign convention, and zero handled.`,

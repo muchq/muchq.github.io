@@ -183,7 +183,7 @@ const unit: Unit = {
     {
       id: '2.8',
       kind: 'decide',
-      title: 'Finite orders, infinite product',
+      title: 'Products of elements of finite order',
       statement: md`**Prove or disprove:** if $a$ and $b$ have finite order in a group $G$, then so does $ab$.`,
       verdict: false,
       hints: [

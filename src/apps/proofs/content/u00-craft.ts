@@ -76,8 +76,9 @@ const unit: Unit = {
       title: 'Squares modulo 3',
       statement: md`Let $a, b$ be integers. Prove that if $3 \mid a^2 + b^2$, then $3 \mid a$ and $3 \mid b$.`,
       hints: [
-        md`Every integer is $3k$, $3k + 1$ or $3k + 2$. What remainder can $a^2$ leave on division by 3?`,
-        md`Show $a^2$ leaves remainder $0$ or $1$, and $0$ exactly when $3 \mid a$. Then argue by contrapositive.`,
+        md`Experiment: what remainders do $0^2, 1^2, 2^2, 3^2, 4^2, 5^2$ leave on division by 3?`,
+        md`Every integer is $3k$, $3k + 1$ or $3k + 2$. Show $a^2$ leaves remainder $0$ or $1$, and $0$ exactly
+          when $3 \mid a$. Then argue by contrapositive.`,
       ],
       solution: md`**Lemma.** If $3 \mid n$ then $n^2 = 3m$ for an integer $m$; otherwise $n^2 = 3m + 1$.
         *Proof.* Write $n = 3k + r$ with $r \in \{0, 1, 2\}$, so $n^2 = 3(3k^2 + 2kr) + r^2$. For $r = 0$ this

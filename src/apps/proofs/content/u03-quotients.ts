@@ -44,7 +44,7 @@ const unit: Unit = {
       title: 'Kernels detect injectivity',
       statement: md`Let $\varphi\colon G \to H$ be a homomorphism. Prove: (a) $\varphi(e_G) = e_H$ and
         $\varphi(g^{-1}) = \varphi(g)^{-1}$; (b) $\ker\varphi$ is a normal subgroup of $G$; (c) $\varphi$ is
-        injective if and only if $\ker\varphi = \{e_G\}$.`,
+        injective if and only if $\ker\varphi = \{e_G\}$; (d) the image $\varphi(G)$ is a subgroup of $H$.`,
       uses: ['2.1', '2.4'],
       hints: [
         md`(a) $\varphi(e) = \varphi(ee) = \varphi(e)\varphi(e)$. Cancel — in which group?`,
@@ -56,20 +56,23 @@ const unit: Unit = {
         $\varphi(ab^{-1}) = \varphi(a)\varphi(b)^{-1} = e$, so 2.4 applies. For $g \in G$ and $n \in \ker\varphi$:
         $\varphi(gng^{-1}) = \varphi(g)\,e\,\varphi(g)^{-1} = e$. (c) If $\varphi$ is injective and
         $\varphi(g) = e = \varphi(e)$, then $g = e$. Conversely, if the kernel is trivial and
-        $\varphi(a) = \varphi(b)$, then $\varphi(ab^{-1}) = e$, so $ab^{-1} = e$ and $a = b$.`,
+        $\varphi(a) = \varphi(b)$, then $\varphi(ab^{-1}) = e$, so $ab^{-1} = e$ and $a = b$. (d)
+        $e_H = \varphi(e) \in \varphi(G)$, and $\varphi(a)\varphi(b)^{-1} = \varphi(ab^{-1}) \in \varphi(G)$ by
+        (a); apply 2.4 in $H$.`,
       checks: [
         md`(a) cancels in $H$, not in $G$.`,
         md`(b) checks normality, not only the subgroup property.`,
         md`(c) proves both directions; the substantial one passes through $ab^{-1}$.`,
+        md`(d) checks the image with the subgroup test, in $H$.`,
       ],
     },
     {
       id: '3.2',
       kind: 'prove',
-      title: "Lagrange's theorem",
-      statement: md`Let $H$ be a subgroup of a finite group $G$. Prove that the left cosets of $H$ partition
-        $G$, that each has exactly $|H|$ elements, and hence $|G| = [G : H]\,|H|$. Show also that
-        $aH = bH$ if and only if $a^{-1}b \in H$.`,
+      title: "Cosets, and Lagrange's theorem",
+      statement: md`Let $H$ be a subgroup of a group $G$. Prove that the left cosets of $H$ partition $G$, that
+        $aH = bH$ if and only if $a^{-1}b \in H$, and that $h \mapsto ah$ is a bijection $H \to aH$. Deduce
+        Lagrange's theorem: if $G$ is finite, $|G| = [G : H]\,|H|$.`,
       uses: ['1.1', '2.1'],
       hints: [
         md`Cosets are the classes of $a \sim b \iff a^{-1}b \in H$. Check the axioms and identify the class of $a$.`,
@@ -79,8 +82,8 @@ const unit: Unit = {
         $b^{-1}a = (a^{-1}b)^{-1} \in H$. Transitive: $a^{-1}c = (a^{-1}b)(b^{-1}c) \in H$. The class of $a$ is
         $\{b : a^{-1}b \in H\} = \{ah : h \in H\} = aH$. By 1.1 the cosets partition $G$, and $aH = bH$ iff
         $a \sim b$ iff $a^{-1}b \in H$. The map $H \to aH$, $h \mapsto ah$, is onto by definition and
-        one-to-one by cancellation, so $|aH| = |H|$. Summing over the $[G : H]$ disjoint cosets gives
-        $|G| = [G : H]\,|H|$.`,
+        one-to-one by cancellation. None of this used finiteness. If $G$ is finite, each coset has $|H|$
+        elements, and summing over the $[G : H]$ disjoint cosets gives $|G| = [G : H]\,|H|$.`,
       checks: [
         md`The cosets are shown to partition $G$.`,
         md`The bijection $H \to aH$ is checked in both directions.`,
@@ -168,9 +171,11 @@ const unit: Unit = {
         md`For $g \notin H$, compare $gH$ and $Hg$.`,
       ],
       solution: md`The two left cosets partition $G$ and one is $eH = H$, so the other is $G \setminus H$. Right
-        cosets also partition $G$ (classes of $a \sim b \iff ba^{-1} \in H$), and inversion maps left cosets to
-        right cosets bijectively, $(gH)^{-1} = Hg^{-1}$, so there are exactly two right cosets as well: $H$
-        and $G \setminus H$. Let $g \in G$. If $g \in H$, then $gH = H = Hg$. If $g \notin H$,
+        cosets also partition $G$: they are the classes of $a \sim b \iff ba^{-1} \in H$, whose axioms check
+        exactly as in 3.2. Inversion maps left cosets to right cosets, since $(gh)^{-1} = h^{-1}g^{-1}$ gives
+        $(gH)^{-1} = Hg^{-1}$, and every right coset $Hk$ is $(k^{-1}H)^{-1}$; distinct left cosets go to distinct
+        right cosets because inversion is a bijection of $G$. So there are exactly two right cosets as well:
+        $H$ and $G \setminus H$. Let $g \in G$. If $g \in H$, then $gH = H = Hg$. If $g \notin H$,
         then $gH$ and $Hg$ are each the coset containing $g$ other than $H$, so $gH = G \setminus H = Hg$.
         Either way $gH = Hg$. So for $h \in H$, $gh \in Hg$: $gh = h'g$ with $h' \in H$, i.e.
         $ghg^{-1} = h' \in H$.`,
@@ -191,7 +196,7 @@ const unit: Unit = {
         md`Compare with 1.4. What is "same image under $\varphi$" in terms of $K$?`,
         md`$\varphi(a) = \varphi(b) \iff a^{-1}b \in K \iff aK = bK$.`,
       ],
-      solution: md`$K$ is normal (3.1), so $G/K$ is a group (3.5). For $a, b \in G$:
+      solution: md`$K$ is normal (3.1(b)), so $G/K$ is a group (3.5), and $\varphi(G)$ is a group (3.1(d)). For $a, b \in G$:
         $\varphi(a) = \varphi(b) \iff \varphi(a^{-1}b) = e \iff a^{-1}b \in K \iff aK = bK$ (3.2). So "same image"
         is "same coset", and 1.4 makes $\bar\varphi$ a well-defined bijection onto $\varphi(G)$. It is a
         homomorphism: $\bar\varphi(aK\,bK) = \bar\varphi(abK) = \varphi(ab) = \varphi(a)\varphi(b)$.`,
@@ -222,7 +227,8 @@ const unit: Unit = {
       id: '3.9',
       kind: 'prove',
       title: 'Cyclic modulo the center',
-      statement: md`Prove that if $G/Z(G)$ is cyclic, then $G$ is abelian.`,
+      statement: md`Prove that $Z(G)$ is a normal subgroup of $G$, and that if $G/Z(G)$ is cyclic, then $G$ is
+        abelian.`,
       hints: [
         md`First: $Z(G)$ is a normal subgroup. Then suppose $G/Z(G) = \langle gZ(G) \rangle$.`,
         md`Every element of $G$ is $g^k z$ with $z \in Z(G)$. Multiply two such elements in both orders.`,
@@ -266,8 +272,9 @@ const unit: Unit = {
       kind: 'decide',
       challenge: true,
       title: 'The converse of Lagrange',
-      statement: md`**Prove or disprove:** the alternating group $A_4$ — the even permutations of
-        $\{1, 2, 3, 4\}$, a group of order 12 — has a subgroup of order 6.`,
+      statement: md`**Prove or disprove:** the alternating group $A_4$ has a subgroup of order 6. Here $A_4$ is
+        the group of even permutations of $\{1, 2, 3, 4\}$: the identity, the three products of two disjoint
+        transpositions, and the eight 3-cycles (each is even, as $(a\,b\,c) = (a\,c)(a\,b)$) — 12 elements.`,
       verdict: false,
       uses: ['3.3', '3.5', '3.6'],
       hints: [
@@ -275,14 +282,13 @@ const unit: Unit = {
         md`A subgroup of order 6 has index 2. What does that force about $g^2$ for every $g \in A_4$?`,
         md`Every 3-cycle is a square of something.`,
       ],
-      solution: md`**False.** $A_4$ consists of $e$, the three products of two disjoint transpositions, and the
-        eight 3-cycles. Suppose $H \le A_4$ with $|H| = 6$. Then $[A_4 : H] = 2$, so $H$ is normal (3.6) and
+      solution: md`**False.** Suppose $H \le A_4$ with $|H| = 6$. Then $[A_4 : H] = 2$, so $H$ is normal (3.6) and
         $A_4/H$ is a group of order 2 (3.5), in which every element squares to the identity (3.3(b)). So
         $g^2H = (gH)^2 = H$, i.e. $g^2 \in H$, for every $g \in A_4$. If $\sigma$ is a 3-cycle, then
         $\sigma^3 = e$ and $\sigma = \sigma^4 = (\sigma^2)^2$ with $\sigma^2 \in A_4$, so $\sigma \in H$. Then
         $H$ contains $e$ and eight 3-cycles — at least 9 elements, not 6.`,
       checks: [
-        md`The 3-cycles of $A_4$ are counted correctly: eight.`,
+        md`The size of $H$ is contradicted by counting the 3-cycles it must contain.`,
         md`"Index 2 ⇒ normal ⇒ all squares lie in $H$" is justified step by step.`,
         md`Each 3-cycle is exhibited as a square of an element of $A_4$.`,
       ],

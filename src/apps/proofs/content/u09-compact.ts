@@ -27,10 +27,6 @@ const unit: Unit = {
         for an open cover $\mathcal U$ is a $\delta > 0$ such that every subset of diameter less than $\delta$
         lies in some member of $\mathcal U$.`,
     },
-    {
-      term: 'Bounded',
-      body: md`A subset of a metric space is **bounded** if it lies in some ball.`,
-    },
   ],
   problems: [
     {
@@ -145,13 +141,13 @@ const unit: Unit = {
       title: 'Extreme values',
       statement: md`Prove that a continuous $f\colon K \to \R$ on a nonempty compact space attains a maximum and
         a minimum.`,
-      uses: ['9.1', '9.3', '6.2'],
+      uses: ['9.1', '9.3', '6.2', '6.12'],
       hints: [
         md`$f(K)$ is compact. Show compact subsets of $\R$ are bounded and closed.`,
         md`A nonempty closed bounded subset of $\R$ contains its supremum.`,
       ],
       solution: md`$f(K)$ is compact (9.1(b)) and nonempty. It is bounded: the intervals $(-n, n)$ cover it, so
-        finitely many do, and it lies in the largest. It is closed (9.3; $\R$ is Hausdorff). Let
+        finitely many do, and it lies in the largest. It is closed (9.3; $\R$ is Hausdorff by 6.12(c)). Let
         $M = \sup f(K)$. Every interval $(M - \varepsilon, M + \varepsilon)$ meets $f(K)$, so
         $M \in \overline{f(K)} = f(K)$ (6.2): $M = f(k)$ is a maximum. Apply this to $-f$ for the minimum.`,
       checks: [
@@ -202,7 +198,9 @@ const unit: Unit = {
         $x_1, \dots, x_k$ then cover $X \times Y$.
 
         **Disk and square.** $[0, 1]$ is compact (9.5) and so is $[-1, 1]$, its image under $t \mapsto 2t - 1$
-        (9.1). So $[0, 1]^2$ and $[-1, 1]^2$ are compact. $D^2$ is the preimage of $(-\infty, 1]$ under the
+        (9.1). So $[0, 1]^2$ and $[-1, 1]^2$ are compact in the product topology — which is also their subspace
+        topology from $\R^2 = \R \times \R$, as the basic sets $(U \cap I) \times (V \cap I)$ are exactly
+        $(U \times V) \cap I^2$. $D^2$ is the preimage of $(-\infty, 1]$ under the
         continuous $v \mapsto |v|$, so closed, and it lies in $[-1, 1]^2$; it is compact by 9.1(a).`,
       checks: [
         md`The tube step: a finite intersection of open sets, and its tube covered.`,
@@ -271,7 +269,7 @@ const unit: Unit = {
         $\R/\Z$ (cosets of $\Z$, quotient topology from $\R$) are both homeomorphic to
         $S^1 = \{z \in \C : |z| = 1\}$. (Take as known: $p(t) = e^{2\pi i t}$ is continuous and onto $S^1$,
         and $p(s) = p(t) \iff s - t \in \Z$.)`,
-      uses: ['7.1', '9.1', '9.4', '9.5'],
+      uses: ['7.1', '9.1', '9.4', '9.5', '6.12'],
       hints: [
         md`$p$ restricted to $[0, 1]$ is constant on classes. Use 7.1(c), then 9.4.`,
         md`$\R/\Z$ is not obviously compact. Get a continuous bijection $\R/\Z \to S^1$ from $p$, and write its
@@ -281,7 +279,7 @@ const unit: Unit = {
         integer). For $s, t \in [0, 1]$, $g(s) = g(t)$ iff $s - t \in \Z$ iff $s = t$ or $\{s, t\} = \{0, 1\}$.
         So $g$ is constant on classes and induces a continuous bijection $h\colon [0, 1]/{\sim} \to S^1$ (7.1).
         The quotient is compact, as the image of $[0, 1]$ under $q$ (9.5, 9.1), and $S^1$ is Hausdorff, being
-        metric. By 9.4, $h$ is a homeomorphism.
+        metric (6.12(c)). By 9.4, $h$ is a homeomorphism.
 
         **Part 2.** $p$ is constant on cosets of $\Z$, so induces a continuous $\bar p\colon \R/\Z \to S^1$
         (7.1), bijective since $p(s) = p(t) \iff s + \Z = t + \Z$. The composite $[0, 1] \to \R \to \R/\Z$ is

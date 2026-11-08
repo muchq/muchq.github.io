@@ -171,6 +171,14 @@ describe('the curriculum', () => {
     }
   })
 
+  it('ends with a mixed unit that signposts nothing: no definitions, no cited results', () => {
+    const mixed = UNITS.filter(u => u.track === 'Mixed')
+    expect(mixed).toHaveLength(1)
+    expect(UNITS.at(-1)).toBe(mixed[0])
+    expect(mixed[0].definitions).toEqual([])
+    for (const p of mixed[0].problems) expect(p.uses ?? [], p.id).toEqual([])
+  })
+
   it('routes every problem by a slug that finds it again', () => {
     for (const unit of UNITS) for (const p of unit.problems) expect(problemBySlug(unit, problemSlug(p.id))).toBe(p)
   })

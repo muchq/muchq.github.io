@@ -2,7 +2,8 @@
 // request for information — a hint, a verdict or flaw check, the reference
 // proof — costs a revision of the written attempt. A request is honoured only
 // when the attempt is long enough to be an attempt and has changed since the
-// last request. Being stuck counts, if you write down where and why.
+// last request. Being stuck counts, if you write down where and why. Whitespace
+// is not a revision.
 //
 // Pure functions over plain data, so the page and the tests drive the same
 // rules. `step` returns the input state unchanged when an action is refused.
@@ -56,9 +57,11 @@ export const freshState = (history: PastAttempt[] = []): ProblemState => ({
 /** Why the attempt cannot pay for a request right now, if it cannot. */
 export type WritingBlock = 'short' | 'unrevised'
 
+const words = (text: string) => text.replace(/\s+/g, ' ').trim()
+
 export function writingBlock(s: ProblemState): WritingBlock | null {
-  if (s.attempt.trim().length < MIN_ATTEMPT) return 'short'
-  if (s.spentOn !== null && s.attempt === s.spentOn) return 'unrevised'
+  if (words(s.attempt).length < MIN_ATTEMPT) return 'short'
+  if (s.spentOn !== null && words(s.attempt) === words(s.spentOn)) return 'unrevised'
   return null
 }
 
@@ -85,7 +88,7 @@ export type Action =
   | { type: 'check' }
   | { type: 'reveal' }
   | { type: 'grade'; grade: Grade; now: number }
-  | { type: 'restart' }
+  | { type: 'restart'; now: number }
 
 const DAY = 24 * 60 * 60 * 1000
 
@@ -97,6 +100,15 @@ export function redoDelay(grade: Grade, hints: number, misses: number): number |
   if (grade === 'wrong') return 1 * DAY
   if (grade === 'gap') return 3 * DAY
   return hints === 0 && misses === 0 ? null : 7 * DAY
+}
+
+/**
+ * A graded problem may be started again from a blank page — but not while a
+ * redo is owed and not yet due: retyping a proof read a minute ago is recall,
+ * not the test the delay exists for.
+ */
+export function canRestart(s: ProblemState, now: number): boolean {
+  return s.grade !== null && (s.redoAt === null || now >= s.redoAt)
 }
 
 export function step(p: Problem, s: ProblemState, a: Action): ProblemState {
@@ -133,8 +145,10 @@ export function step(p: Problem, s: ProblemState, a: Action): ProblemState {
         history: [...s.history, { at: a.now, grade: a.grade, hints: s.hints, misses: s.misses }],
       }
     }
+    // An owed redo stays owed until a new grade replaces it, so one started
+    // and abandoned is still due.
     case 'restart':
-      return s.grade === null ? s : freshState(s.history)
+      return canRestart(s, a.now) ? { ...freshState(s.history), redoAt: s.redoAt } : s
   }
 }
 
@@ -142,11 +156,35 @@ export type Status = 'new' | 'working' | 'solved' | 'shaky' | 'due'
 
 export function status(s: ProblemState | undefined, now: number): Status {
   if (!s) return 'new'
+  // Graded and waiting, or restarted and abandoned: either way, owed.
+  if (s.redoAt !== null && now >= s.redoAt) return 'due'
   if (s.grade === null) {
     const untouched =
       s.history.length === 0 && s.attempt.trim() === '' && s.spentOn === null && s.verdict === null && s.line === null
     return untouched ? 'new' : 'working'
   }
-  if (s.redoAt !== null && now >= s.redoAt) return 'due'
   return s.grade === 'complete' ? 'solved' : 'shaky'
+}
+
+/**
+ * A stored state made consistent with the problem it belongs to: stored
+ * progress may predate a content edit, or come from a hand-edited file. A pick
+ * the problem cannot have is dropped, "confirmed" holds only for the right
+ * answer, hints are capped, and a grade that owes a redo has a due date.
+ * Returns the same object when nothing needed changing.
+ */
+export function normalize(p: Problem, s: ProblemState): ProblemState {
+  const verdict = p.kind === 'decide' ? s.verdict : null
+  const line = p.kind === 'flaw' && s.line !== null && s.line <= (p.lines?.length ?? 0) ? s.line : null
+  const right = p.kind === 'decide' ? verdict === p.verdict : p.kind === 'flaw' ? line === p.flawLine : false
+  const confirmed = s.confirmed && right && (verdict !== null || line !== null)
+  const hints = Math.min(s.hints, p.hints.length)
+  let redoAt = s.redoAt
+  if (s.grade !== null && redoAt === null) {
+    const delay = redoDelay(s.grade, hints, s.misses)
+    if (delay !== null) redoAt = (s.history.at(-1)?.at ?? 0) + delay
+  }
+  const same =
+    verdict === s.verdict && line === s.line && confirmed === s.confirmed && hints === s.hints && redoAt === s.redoAt
+  return same ? s : { ...s, verdict, line, confirmed, hints, redoAt }
 }

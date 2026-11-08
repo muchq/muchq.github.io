@@ -33,6 +33,7 @@ export default function UnitView({ unit, progress, now }: Props) {
         <Markup text={unit.why} className={styles.lede} />
       </header>
 
+      {unit.definitions.length > 0 && (
       <section aria-labelledby="defs-title">
         <h2 id="defs-title">Definitions</h2>
         <p className={styles.muted}>
@@ -49,6 +50,7 @@ export default function UnitView({ unit, progress, now }: Props) {
           ))}
         </dl>
       </section>
+      )}
 
       <section aria-labelledby="problems-title">
         <h2 id="problems-title">Problems</h2>

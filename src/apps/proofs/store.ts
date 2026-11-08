@@ -38,9 +38,10 @@ export function sanitizeState(v: unknown): ProblemState | null {
   s.confirmed = v.confirmed === true
   s.misses = count(v.misses)
   s.solution = v.solution === true
-  // A grade only means something once the reference was seen.
+  // A grade only means something once the reference was seen; a redo date
+  // only once something was graded (it outlives a restart).
   s.grade = s.solution ? grade(v.grade) : null
-  s.redoAt = s.grade === null ? null : time(v.redoAt)
+  s.redoAt = s.grade !== null || history.length > 0 ? time(v.redoAt) : null
   return s
 }
 

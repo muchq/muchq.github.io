@@ -314,9 +314,9 @@ const unit: Unit = {
       kind: 'prove',
       title: 'Hausdorff spaces',
       statement: md`Prove: (a) in a Hausdorff space a sequence has at most one limit; (b) $X$ is Hausdorff if and
-        only if the diagonal $\Delta = \{(x, x) : x \in X\}$ is closed in $X \times X$. Then show (a) fails in
-        the cofinite topology on an infinite set.`,
-      uses: ['6.7'],
+        only if the diagonal $\Delta = \{(x, x) : x \in X\}$ is closed in $X \times X$; (c) every metric space is
+        Hausdorff. Then show (a) fails in the cofinite topology on an infinite set.`,
+      uses: ['6.7', '5.1'],
       hints: [
         md`(a) Two limits, two disjoint neighborhoods, and "all large $n$" twice.`,
         md`(b) Translate "the box $U \times V$ misses $\Delta$" into a statement about $U$ and $V$.`,
@@ -329,11 +329,15 @@ const unit: Unit = {
         so the complement of $\Delta$ is open. (⇐) If $x \ne y$, then $(x, y)$ lies in the open complement of
         $\Delta$, hence in a box $U \times V$ inside it, and $U$, $V$ are disjoint neighborhoods.
 
+        (c) For $x \ne y$ let $r = d(x, y)/2 > 0$. A point $z$ in both $B(x, r)$ and $B(y, r)$ would give
+        $d(x, y) \le d(x, z) + d(z, y) < 2r = d(x, y)$. So the balls — open by 5.1 — are disjoint.
+
         In the cofinite topology on an infinite set, a sequence of distinct points converges to every point
         (6.7), so limits are not unique.`,
       checks: [
         md`(a) takes $n$ beyond both thresholds at once.`,
         md`(b) proves both directions via boxes.`,
+        md`(c) uses balls of half the distance and the triangle inequality.`,
       ],
     },
   ],

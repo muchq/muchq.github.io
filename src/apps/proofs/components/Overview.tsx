@@ -45,7 +45,7 @@ export default function Overview({ progress, merge, now }: Props) {
         </h1>
         <p className={styles.lede}>
           <MarkupInline
-            text={String.raw`Twelve units, ${ALL_PROBLEMS.length} problems, one destination: $\pi_1(S^1) \cong \mathbb{Z}$, and with it Brouwer's fixed point theorem and the fundamental theorem of algebra. Getting there takes groups, quotients and actions on one side, and spaces, connectedness and compactness on the other.`}
+            text={String.raw`${UNITS.length} units, ${ALL_PROBLEMS.length} problems, one destination: $\pi_1(S^1) \cong \mathbb{Z}$, and with it Brouwer's fixed point theorem and the fundamental theorem of algebra. Getting there takes groups, quotients and actions on one side, and spaces, connectedness and compactness on the other; a final mixed set takes away the signposts.`}
           />
         </p>
       </header>
@@ -55,7 +55,7 @@ export default function Overview({ progress, merge, now }: Props) {
         <ol className={styles.method}>
           <li>
             <strong>You prove everything.</strong> Units give definitions and nothing else. Every theorem is a
-            problem, and later problems cite earlier ones by number.
+            problem, and any earlier problem may be cited by number — which ones help is for you to find.
           </li>
           <li>
             <strong>Write before you look.</strong> A hint, a verdict check and the reference proof each cost one
@@ -138,7 +138,10 @@ export default function Overview({ progress, merge, now }: Props) {
 
       <section aria-labelledby="data-title">
         <h2 id="data-title">Your progress</h2>
-        <p className={styles.muted}>Saved in this browser only. Move it between devices with a file.</p>
+        <p className={styles.muted}>
+          Saved in this browser only, and a browser may clear it — Safari does after a week without a visit. Export
+          to keep your proofs, or to move them to another device.
+        </p>
         <div className={styles.actions}>
           <button type="button" onClick={download}>
             Export progress

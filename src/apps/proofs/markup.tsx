@@ -13,7 +13,8 @@ function Tex({ tex, display }: { tex: string; display: boolean }) {
   )
 }
 
-function InlineText({ text }: { text: string }) {
+/** Inline-only rendering, for titles and single lines. */
+export function MarkupInline({ text }: { text: string }) {
   return (
     <>
       {parseInline(text).map((piece, i) => {
@@ -24,11 +25,6 @@ function InlineText({ text }: { text: string }) {
       })}
     </>
   )
-}
-
-/** Inline-only rendering, for titles and single lines. */
-export function MarkupInline({ text }: { text: string }) {
-  return <InlineText text={text} />
 }
 
 export default function Markup({ text, className }: { text: string; className?: string }) {
@@ -45,7 +41,7 @@ export default function Markup({ text, className }: { text: string; className?: 
               <List key={i}>
                 {b.items.map((item, j) => (
                   <li key={j}>
-                    <InlineText text={item} />
+                    <MarkupInline text={item} />
                   </li>
                 ))}
               </List>
@@ -54,7 +50,7 @@ export default function Markup({ text, className }: { text: string; className?: 
           case 'p':
             return (
               <p key={i}>
-                <InlineText text={b.text} />
+                <MarkupInline text={b.text} />
               </p>
             )
         }

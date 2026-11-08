@@ -128,6 +128,28 @@ export function parseInline(src: string): Inline[] {
   return out
 }
 
+const escapeHtml = (s: string) =>
+  s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+
+/**
+ * TeX to HTML. Bad TeX — which students will type — comes back as KaTeX's
+ * red error mark, never a throw. `trust` stays off (no links, classes or
+ * images from TeX), sizes are capped so a typed \rule cannot stretch the
+ * page, and the macros are copied per call so a \gdef in one snippet cannot
+ * redefine \R for the next.
+ */
 export function renderTex(tex: string, displayMode: boolean): string {
-  return katex.renderToString(tex, { displayMode, throwOnError: false, strict: 'ignore', macros: { ...MACROS } })
+  try {
+    return katex.renderToString(tex, {
+      displayMode,
+      throwOnError: false,
+      strict: 'ignore',
+      trust: false,
+      maxSize: 10,
+      maxExpand: 1000,
+      macros: { ...MACROS },
+    })
+  } catch {
+    return `<span class="katex-error">${escapeHtml(tex)}</span>`
+  }
 }

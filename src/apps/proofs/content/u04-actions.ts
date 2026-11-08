@@ -91,10 +91,13 @@ const unit: Unit = {
         $|S| = \sum_x |G_x| = \sum_x |G|/|G \cdot x|$ (4.2). An orbit $O$ contributes
         $\sum_{x \in O}|G|/|O| = |G|$, so $|S| = |G| \cdot (\text{number of orbits})$.
 
-        **Necklaces.** $\Z/6$ acts on the $2^6$ colorings of the positions $\Z/6$ by rotation. The cycles of
-        rotation by $k$ are the cosets of the subgroup $\langle [k] \rangle \le \Z/6$, which has
-        $6/\gcd(k, 6)$ elements, so there are $\gcd(k, 6)$ cycles and $2^{\gcd(k,6)}$ fixed colorings. For
-        $k = 0, \dots, 5$: $64 + 2 + 4 + 8 + 4 + 2 = 84$. So there are $84/6 = 14$ necklaces.`,
+        **Necklaces.** $\Z/6$ acts on the $2^6$ colorings $c$ of the positions $\Z/6$ by rotation,
+        $([k] \cdot c)(i) = c(i - k)$. The cycles of rotation by $k$ are the cosets of the subgroup
+        $\langle [k] \rangle$, and these subgroups are $\langle 0 \rangle = \{0\}$,
+        $\langle 1 \rangle = \langle 5 \rangle = \Z/6$, $\langle 2 \rangle = \langle 4 \rangle = \{0, 2, 4\}$ and
+        $\langle 3 \rangle = \{0, 3\}$. So for $k = 0, \dots, 5$ there are $6, 1, 2, 3, 2, 1$ cycles, and a
+        coloring is fixed iff it is constant on each cycle: $64 + 2 + 4 + 8 + 4 + 2 = 84$ fixed pairs, and
+        $84/6 = 14$ necklaces.`,
       checks: [
         md`The double count is set up on an explicit set of pairs.`,
         md`Orbit–stabilizer replaces $|G_x|$, and the sum is regrouped by orbit.`,
@@ -141,8 +144,8 @@ const unit: Unit = {
         point is fixed by every element of the group.`,
       verdict: false,
       hints: [
-        md`Orbit sizes divide 12. Can they add up to 5 without using 1?`,
-        md`Build an action of $\Z/12$ with orbits of sizes 2 and 3.`,
+        md`What constrains the sizes of orbits?`,
+        md`Orbit sizes divide 12. Can they add up to 5 without using 1? If so, build such an action.`,
       ],
       solution: md`**False.** Let $\Z/12$ act on $X = \{a_0, a_1\} \cup \{b_0, b_1, b_2\}$ by
         $[k] \cdot a_i = a_{(i + k) \bmod 2}$ and $[k] \cdot b_j = b_{(j + k) \bmod 3}$. This is well defined
@@ -169,8 +172,9 @@ const unit: Unit = {
       solution: md`Under conjugation $x$ is fixed iff $gxg^{-1} = x$ for all $g$: $X^G = Z(G)$. By 4.4,
         $|Z(G)| \equiv |G| \equiv 0 \pmod p$. Since $e \in Z(G)$, $|Z(G)| \ge 1$, hence $|Z(G)| \ge p$.
 
-        **Order $p^2$.** $Z(G)$ is a subgroup (3.9), so its order divides $p^2$ and, by the above, is $p$ or
-        $p^2$. If $p^2$, $G = Z(G)$ is abelian. If $p$, then $G/Z(G)$ has prime order $p$, so is cyclic (3.3),
+        **Order $p^2$.** $Z(G)$ is a normal subgroup (3.9), so its order divides $p^2$ and, by the above, is $p$
+        or $p^2$. If $p^2$, $G = Z(G)$ is abelian. If $p$, then $G/Z(G)$ has prime order $p$, so is cyclic
+        (3.3(c)),
         so $G$ is abelian (3.9) — whence $Z(G) = G$, contradicting $|Z(G)| = p$. So $G$ is abelian.`,
       checks: [
         md`The fixed points of conjugation are identified as the center.`,

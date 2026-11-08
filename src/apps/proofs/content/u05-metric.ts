@@ -29,6 +29,10 @@ const unit: Unit = {
         converges.`,
     },
     {
+      term: 'Bounded',
+      body: md`A subset of a metric space is **bounded** if it lies in some ball.`,
+    },
+    {
       term: 'Continuity',
       body: md`$f\colon X \to Y$ is continuous at $a$ if for every $\varepsilon > 0$ there is $\delta > 0$ with
         $d(x, a) < \delta \Rightarrow d(f(x), f(a)) < \varepsilon$; continuous if continuous at every point.`,
@@ -78,8 +82,9 @@ const unit: Unit = {
         $d(x_n, x) < r$, so $x_n \notin F$ — a contradiction.
 
         (⇐) Suppose $F$ is not closed: there is $x \notin F$ such that no ball around $x$ lies in
-        $X \setminus F$, so every $B(x, 1/n)$ meets $F$. Choose $x_n \in F \cap B(x, 1/n)$. Then $x_n \to x$ and
-        $x \notin F$, so the sequence condition fails.`,
+        $X \setminus F$, so every $B(x, 1/n)$ meets $F$. Choose $x_n \in F \cap B(x, 1/n)$. Then $x_n \to x$:
+        given $\varepsilon > 0$, take $N > 1/\varepsilon$, so $d(x_n, x) < 1/n \le 1/N < \varepsilon$ for
+        $n \ge N$. As $x \notin F$, the sequence condition fails.`,
       checks: [
         md`(⇒) derives a contradiction from a ball that avoids $F$.`,
         md`(⇐) negates "open" correctly and builds the sequence from shrinking balls.`,
@@ -171,7 +176,8 @@ const unit: Unit = {
         it equals $d(x, y) + d(y, z) \ge d(x, z) \ge \bar d(x, z)$. For $r \le 1$, $B_{\bar d}(x, r) = B_d(x, r)$.
         Openness asks for *some* ball around each point inside the set, and a smaller ball still fits, so it
         is enough to use radii $r \le 1$: the open sets agree. On $\R$, $\bar d \le 1$ makes $\R$ bounded and
-        $|x - y|$ does not, with the same open sets.`,
+        $|x - y|$ does not, with the same open sets. (No constant $c > 0$ has $c|x - y| \le \min(|x - y|, 1)$:
+        it fails once $|x - y| > 1/c$.)`,
       checks: [
         md`(a) proves containment of balls in both directions.`,
         md`(b) verifies the triangle inequality for $\min(d, 1)$ by cases.`,

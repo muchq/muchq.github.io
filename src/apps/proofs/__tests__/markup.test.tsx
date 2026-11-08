@@ -90,3 +90,28 @@ describe('Markup', () => {
     expect(container.querySelectorAll('ol > li').length).toBe(2)
   })
 })
+
+// Students type TeX into their attempts; these pin the options that keep it inert.
+describe('TeX from a student', () => {
+  it('makes no links, classes or images, whatever the TeX asks for', () => {
+    const { container } = render(
+      <Markup text={'$\\href{javascript:alert(1)}{x}$ $\\url{javascript:alert(1)}$ $\\htmlClass{evil}{y}$ $\\includegraphics{x.png}$'} />
+    )
+    expect(container.querySelector('a')).toBeNull()
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.querySelector('.evil')).toBeNull()
+  })
+
+  it('cannot redefine a shared macro for the next snippet', () => {
+    const first = render(<Markup text={'$\\gdef\\R{X}$'} />)
+    first.unmount()
+    const { container } = render(<Markup text={'$\\R$'} />)
+    expect(container.querySelector('.mathbb')).not.toBeNull()
+  })
+
+  it('caps sizes, so a huge rule cannot stretch the page', () => {
+    const { container } = render(<Markup text={'$\\rule{5000em}{5000em}$'} />)
+    const rule = container.querySelector('.katex-rule') as HTMLElement
+    expect(parseFloat(rule.style.borderRightWidth)).toBeLessThanOrEqual(10)
+  })
+})

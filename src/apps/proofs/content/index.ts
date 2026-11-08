@@ -11,6 +11,7 @@ import connected from './u08-connected'
 import compact from './u09-compact'
 import homotopy from './u10-homotopy'
 import circle from './u11-circle'
+import mixed from './u12-mixed'
 
 /** In order. Problem ids are "unit.n" and are the storage keys for progress. */
 export const UNITS: Unit[] = [
@@ -26,6 +27,7 @@ export const UNITS: Unit[] = [
   compact,
   homotopy,
   circle,
+  mixed,
 ]
 
 /** Stated once on the overview and handed to referees with every problem. */
@@ -36,7 +38,8 @@ export const CONVENTIONS: string[] = [
   'S¹ is the unit circle in ℂ, and p(t) = e^{2πit}.',
   'Groups are written multiplicatively with identity e; permutations compose right to left.',
   'Choice is used freely (e.g. picking one point from each of countably many nonempty sets).',
-  'Assumed background: arithmetic of ℤ and ℝ, the division algorithm, unique prime factorization, the least upper bound property of ℝ, and continuity of polynomials, |·|, √, and e^{it}.',
+  'Assumed background: arithmetic of ℤ and ℝ, the division algorithm, unique prime factorization, the least upper bound property of ℝ, the Cauchy–Schwarz inequality, and continuity of polynomials, |·|, √, sin, cos, e^{it}, and quotients with nonvanishing denominators.',
+  'Any earlier problem may be cited by number.',
 ]
 
 export const ALL_PROBLEMS: { unit: Unit; problem: Problem }[] = UNITS.flatMap(unit =>

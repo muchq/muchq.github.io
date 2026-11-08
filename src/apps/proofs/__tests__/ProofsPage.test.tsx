@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from '@/App'
-import { problemById } from '../content'
+import { problemById, UNITS } from '../content'
 import { freshState, MIN_ATTEMPT } from '../gate'
 import { exportProgress, loadProgress, saveProgress, STORAGE_KEY } from '../store'
 
@@ -22,9 +22,13 @@ const write = (text: string) => fireEvent.change(screen.getByLabelText(/^Your (a
 const long = (tag: string) => `${tag} `.padEnd(MIN_ATTEMPT, '.')
 const button = (name: RegExp | string) => screen.getByRole('button', { name })
 
+const clipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+
 afterEach(() => {
   localStorage.clear()
   vi.restoreAllMocks()
+  if (clipboard) Object.defineProperty(navigator, 'clipboard', clipboard)
+  else delete (navigator as { clipboard?: unknown }).clipboard
 })
 
 describe('/proofs is unlisted', () => {
@@ -34,13 +38,16 @@ describe('/proofs is unlisted', () => {
     expect(within(nav).getByText('MuchQ : Proofs')).toBeDefined()
     expect(document.querySelector('a[href="/proofs"]')).toBeNull()
     expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex, nofollow')
-    expect(screen.getAllByRole('link', { name: /^Unit \d+: .*, \d+ of \d+ solved$/ })).toHaveLength(12)
+    expect(screen.getAllByRole('link', { name: /^Unit \d+: .*, \d+ of \d+ solved$/ })).toHaveLength(UNITS.length)
   })
 
-  it('drops the noindex tag on leaving', async () => {
+  it('titles itself, and drops the noindex tag and the title on leaving', async () => {
+    document.title = 'MuchQ'
     const view = await at('/proofs')
+    expect(document.title).toBe('Proofs · MuchQ')
     view.unmount()
     expect(document.querySelector('meta[name="robots"]')).toBeNull()
+    expect(document.title).toBe('MuchQ')
   })
 
   it('says so for a unit or problem that does not exist', async () => {
@@ -86,10 +93,31 @@ describe('a prove problem', () => {
     expect(screen.getByText(/Graded/)).toHaveTextContent('Graded gap with 1 hint.')
     expect(screen.getByText(/A redo from a blank page comes due/)).toBeDefined()
     expect(screen.getAllByText('redo scheduled').length).toBeGreaterThan(0)
+    // Not while the reference is fresh.
+    expect(screen.queryByRole('button', { name: 'Start over from a blank page' })).toBeNull()
+    expect(screen.getByText(/The blank page opens then/)).toBeDefined()
+  })
 
+  it('opens the blank page once the redo is due, and the overview lists it until then', async () => {
+    const graded = Date.now()
+    const first = await at('/proofs/craft/0-4')
+    write(long('first'))
+    fireEvent.click(button('Show reference proof'))
+    fireEvent.click(button(/^Wrong/))
+    first.unmount()
+
+    vi.spyOn(Date, 'now').mockReturnValue(graded + 24 * 60 * 60 * 1000 + 60_000)
+    const overview = await at('/proofs')
+    expect(within(screen.getByRole('region', { name: 'Due for a redo' })).getByRole('link')).toHaveTextContent('0.4')
+    overview.unmount()
+
+    await at('/proofs/craft/0-4')
+    expect(screen.getByText('A redo from a blank page is due now.', { exact: false })).toBeDefined()
     fireEvent.click(button('Start over from a blank page'))
     expect(screen.getByLabelText('Your attempt')).toHaveValue('')
-    expect(hint()).toHaveTextContent('Hint 1 of 3')
+    expect(button(/^Hint \d of \d$/)).toHaveTextContent('Hint 1 of 3')
+    // Started and not finished, it is still owed.
+    expect(screen.getAllByText('redo due').length).toBeGreaterThan(0)
   })
 
   it('keeps the work across a reload', async () => {
@@ -115,6 +143,64 @@ describe('a prove problem', () => {
     expect(sent).toContain('my attempt at it')
     expect(sent).not.toContain(problemById('0.4')!.problem.solution)
     expect(screen.getByText(/Copied:/)).toBeDefined()
+    // The copy was of the old text; an edit makes the note untrue.
+    write('my attempt at it, revised')
+    expect(screen.queryByText(/Copied:/)).toBeNull()
+  })
+
+  // Naming the earlier results up front would announce the method.
+  it('names the results the proof draws on only after the reveal', async () => {
+    await at('/proofs/quotients/3-7')
+    expect(screen.queryByText(/Draws on/)).toBeNull()
+    expect(screen.queryByRole('link', { name: '1.4' })).toBeNull()
+    write(long('attempt'))
+    fireEvent.click(button('Show reference proof'))
+    expect(screen.getByText(/Draws on/)).toBeDefined()
+    expect(screen.getByRole('link', { name: '1.4' })).toHaveAttribute('href', '/proofs/relations/1-4')
+  })
+
+  it('previews hostile text as text', async () => {
+    await at('/proofs/craft/0-4')
+    write('<img src=x onerror="alert(1)"> and $\\href{javascript:alert(1)}{x}$')
+    fireEvent.click(button('Preview'))
+    const preview = screen.getByRole('region', { name: 'Preview of your attempt' })
+    expect(preview.querySelector('img')).toBeNull()
+    expect(preview.querySelector('a')).toBeNull()
+    expect(preview).toHaveTextContent('<img src=x onerror="alert(1)">')
+  })
+
+  it('adopts what another tab saved, so its next save keeps that work', async () => {
+    await at('/proofs/craft/0-4')
+    write(long('this tab'))
+    // Another tab writes its own problem, then the browser tells this one.
+    const theirs = { ...freshState(), attempt: 'other tab' }
+    saveProgress({ ...loadProgress(), '0.2': theirs })
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY }))
+    })
+    write(long('this tab, more'))
+    expect(loadProgress()['0.2']).toEqual(theirs)
+    expect(loadProgress()['0.4'].attempt).toBe(long('this tab, more'))
+  })
+
+  it('ignores storage events about other keys', async () => {
+    await at('/proofs/craft/0-4')
+    write(long('this tab'))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({}))
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'something.else' }))
+    })
+    expect(screen.getByLabelText('Your attempt')).toHaveValue(long('this tab'))
+  })
+
+  it('does not honour a stored confirmation the pick does not earn', async () => {
+    // 0.7 is false; a hand-edited store claims "true" was confirmed.
+    saveProgress({ '0.7': { ...freshState(), attempt: long('x'), verdict: true, confirmed: true } })
+    await at('/proofs/craft/0-7')
+    expect(screen.queryByText(/Right verdict/)).toBeNull()
+    write(long('y'))
+    expect(button('Show reference proof')).toBeDisabled()
+    expect(button('Check verdict')).toBeEnabled()
   })
 
   it('says so when the browser refuses the clipboard', async () => {
@@ -208,6 +294,35 @@ describe('the overview', () => {
     expect(loadProgress()).toEqual({ '0.1': mine, '0.2': theirs })
   })
 
+  it('cancels an import without changing anything', async () => {
+    const mine = { ...freshState(), attempt: 'mine' }
+    saveProgress({ '0.2': mine })
+    await at('/proofs')
+    const file = new File([exportProgress({ '0.2': { ...freshState(), attempt: 'theirs' } })], 'p.json')
+    await userEvent.upload(screen.getByLabelText('Progress file'), file)
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('group', { name: 'Confirm import' })).toBeNull()
+    expect(loadProgress()).toEqual({ '0.2': mine })
+  })
+
+  it('exports the progress as a downloadable file', async () => {
+    const mine = { ...freshState(), attempt: 'mine' }
+    saveProgress({ '0.2': mine })
+    const created: Blob[] = []
+    Object.assign(URL, {
+      createObjectURL: vi.fn((b: Blob) => {
+        created.push(b)
+        return 'blob:x'
+      }),
+      revokeObjectURL: vi.fn(),
+    })
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    await at('/proofs')
+    fireEvent.click(button('Export progress'))
+    expect(click).toHaveBeenCalledOnce()
+    expect(JSON.parse(await created[0].text())).toEqual({ version: 1, progress: { '0.2': mine } })
+  })
+
   it('rejects a file that is not an export and changes nothing', async () => {
     saveProgress({ '0.1': { ...freshState(), attempt: 'mine' } })
     await at('/proofs')
@@ -226,5 +341,31 @@ describe('a unit', () => {
     expect(screen.getByRole('link', { name: '0.1 Negating continuity · Prove not started' })).toBeDefined()
     expect(screen.getByRole('link', { name: '0.2 Squares modulo 3 · Prove in progress' })).toBeDefined()
     expect(screen.getByRole('link', { name: '0.9 Divisors by pigeonhole · Prove · challenge not started' })).toBeDefined()
+  })
+})
+
+describe('scrolling', () => {
+  const spyOnScroll = () => {
+    const set = vi.fn()
+    Object.defineProperty(document.body, 'scrollTop', { configurable: true, get: () => 0, set })
+    return set
+  }
+
+  it('starts a page opened by a link at the top, but leaves the first load alone', async () => {
+    const set = spyOnScroll()
+    await at('/proofs/craft')
+    expect(set).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('link', { name: /^0\.3 Postage/ }))
+    await screen.findByRole('heading', { level: 1, name: /0\.3/ })
+    expect(set).toHaveBeenCalledWith(0)
+    delete (document.body as { scrollTop?: number }).scrollTop
+  })
+})
+
+describe('a mixed unit', () => {
+  it('has no definitions section and no unit-specific signposts', async () => {
+    await at('/proofs/mixed')
+    expect(screen.queryByRole('heading', { name: 'Definitions' })).toBeNull()
+    expect(screen.getAllByRole('listitem').length).toBeGreaterThan(0)
   })
 })

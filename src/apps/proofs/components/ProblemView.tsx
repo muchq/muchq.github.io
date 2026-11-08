@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { canCheck, canHint, canReveal, MIN_ATTEMPT, status, writingBlock, type Grade, type ProblemState } from '../gate'
+import { canCheck, canHint, canRestart, canReveal, MIN_ATTEMPT, status, writingBlock, type Grade, type ProblemState } from '../gate'
 import { problemById, problemSlug } from '../content'
 import Markup, { MarkupInline } from '../markup'
 import { REFEREE_QUESTIONS, refereePrompt } from '../referee'
@@ -89,20 +89,7 @@ export default function ProblemView({ unit, problem: p, state: s, act, now }: Pr
         <h1 id="problem-title" className={styles.problemTitle}>
           <span className={styles.problemId}>{p.id}</span> <MarkupInline text={p.title} />
         </h1>
-        {p.uses && p.uses.length > 0 && (
-          <p className={styles.uses}>
-            May cite:{' '}
-            {p.uses.map((id, i) => {
-              const target = problemById(id)
-              return (
-                <span key={id}>
-                  {i > 0 && ', '}
-                  {target ? <Link to={`/proofs/${target.unit.id}/${problemSlug(id)}`}>{id}</Link> : id}
-                </span>
-              )
-            })}
-          </p>
-        )}
+
       </header>
 
       <Markup text={p.statement} className={styles.statement} />
@@ -158,7 +145,10 @@ export default function ProblemView({ unit, problem: p, state: s, act, now }: Pr
         className={styles.attempt}
         value={s.attempt}
         readOnly={s.solution}
-        onChange={e => act(p, { type: 'edit', text: e.target.value })}
+        onChange={e => {
+          setCopied(null)
+          act(p, { type: 'edit', text: e.target.value })
+        }}
         placeholder={
           p.kind === 'flaw'
             ? 'Which line fails, why, and what would a counterexample to the claim look like?'
@@ -233,6 +223,21 @@ export default function ProblemView({ unit, problem: p, state: s, act, now }: Pr
         <section className={styles.solution} aria-labelledby="reference-title">
           <h2 id="reference-title">Reference proof</h2>
           <Markup text={p.solution} />
+          {/* Shown only now: listing the tools up front would announce the method. */}
+          {p.uses && p.uses.length > 0 && (
+            <p className={styles.uses}>
+              Draws on{' '}
+              {p.uses.map((id, i) => {
+                const target = problemById(id)
+                return (
+                  <span key={id}>
+                    {i > 0 && ', '}
+                    {target ? <Link to={`/proofs/${target.unit.id}/${problemSlug(id)}`}>{id}</Link> : id}
+                  </span>
+                )
+              })}
+            </p>
+          )}
           <h3>A complete answer…</h3>
           <ul className={styles.checks}>
             {p.checks.map((c, i) => (
@@ -269,9 +274,13 @@ export default function ProblemView({ unit, problem: p, state: s, act, now }: Pr
                     ? 'A redo from a blank page is due now.'
                     : `A redo from a blank page comes due ${formatDay(s.redoAt)}.`}
               </p>
-              <button type="button" onClick={() => act(p, { type: 'restart' })}>
-                Start over from a blank page
-              </button>
+              {canRestart(s, now) ? (
+                <button type="button" onClick={() => act(p, { type: 'restart', now: Date.now() })}>
+                  Start over from a blank page
+                </button>
+              ) : (
+                <p className={styles.muted}>The blank page opens then — not while the reference is fresh.</p>
+              )}
             </div>
           )}
         </section>

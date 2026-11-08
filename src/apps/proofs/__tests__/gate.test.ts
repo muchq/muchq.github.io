@@ -9,6 +9,8 @@ import {
   status,
   step,
   writingBlock,
+  canRestart,
+  normalize,
   type Action,
   type ProblemState,
 } from '../gate'
@@ -55,6 +57,22 @@ describe('the attempt pays for every request', () => {
     expect(step(prove, one, { type: 'hint' })).toBe(one)
     const two = run(prove, [{ type: 'edit', text: long('b') }, { type: 'hint' }], one)
     expect(two.hints).toBe(2)
+  })
+
+  it('does not count whitespace as a revision', () => {
+    const spent = run(prove, [{ type: 'edit', text: long('a') }, { type: 'hint' }])
+    for (const text of [long('a') + ' ', ' ' + long('a'), long('a').replace(' ', '\n\n  ')]) {
+      expect(writingBlock(step(prove, spent, { type: 'edit', text }))).toBe('unrevised')
+    }
+    // Control: one real character is a revision.
+    expect(writingBlock(step(prove, spent, { type: 'edit', text: long('a') + 'y' }))).toBeNull()
+  })
+
+  it('does not count whitespace toward the minimum either', () => {
+    const spaced = run(prove, [{ type: 'edit', text: 'x '.repeat(MIN_ATTEMPT / 2) + 'x' }])
+    expect(writingBlock(spaced)).toBeNull()
+    const gappy = run(prove, [{ type: 'edit', text: 'x' + ' '.repeat(MIN_ATTEMPT) + 'y' }])
+    expect(writingBlock(gappy)).toBe('short')
   })
 
   it('treats editing back to the spent text as no revision at all', () => {
@@ -191,15 +209,43 @@ describe('after the reference', () => {
     expect(step(prove, graded, { type: 'grade', grade: 'wrong', now: 2000 })).toBe(graded)
   })
 
-  it('starts over from a blank page and keeps the history', () => {
+  it('starts over from a blank page once the redo is due, keeping the history and the debt', () => {
     const graded = step(prove, revealed, { type: 'grade', grade: 'gap', now: 1000 })
-    const again = step(prove, graded, { type: 'restart' })
-    expect(again).toEqual({ ...freshState(), history: graded.history })
+    const due = 1000 + 3 * DAY
+    const again = step(prove, graded, { type: 'restart', now: due })
+    expect(again).toEqual({ ...freshState(), history: graded.history, redoAt: due })
     expect(canHint(prove, again)).toBe(false)
   })
 
+  // Retyping a proof read a minute ago is recall, not the test.
+  it('refuses to restart while a redo is owed and not yet due', () => {
+    const graded = step(prove, revealed, { type: 'grade', grade: 'wrong', now: 1000 })
+    expect(canRestart(graded, 1000 + DAY - 1)).toBe(false)
+    expect(step(prove, graded, { type: 'restart', now: 1000 + DAY - 1 })).toBe(graded)
+    expect(canRestart(graded, 1000 + DAY)).toBe(true)
+  })
+
+  it('lets an unaided, complete solution be practised again at any time', () => {
+    const solved = run(prove, [{ type: 'edit', text: long('a') }, { type: 'reveal' }, { type: 'grade', grade: 'complete', now: 1000 }])
+    expect(solved.redoAt).toBeNull()
+    expect(step(prove, solved, { type: 'restart', now: 1001 }).grade).toBeNull()
+  })
+
   it('refuses to restart an ungraded attempt', () => {
-    expect(step(prove, revealed, { type: 'restart' })).toBe(revealed)
+    expect(canRestart(revealed, 10 * DAY)).toBe(false)
+    expect(step(prove, revealed, { type: 'restart', now: 10 * DAY })).toBe(revealed)
+  })
+
+  it('schedules the next redo from the grade of the redo itself', () => {
+    const graded = step(prove, revealed, { type: 'grade', grade: 'gap', now: 0 })
+    const redo = run(
+      prove,
+      [{ type: 'restart', now: 3 * DAY }, { type: 'edit', text: long('redo') }, { type: 'reveal' }, { type: 'grade', grade: 'complete', now: 4 * DAY }],
+      graded
+    )
+    expect(redo.redoAt).toBeNull()
+    expect(status(redo, 100 * DAY)).toBe('solved')
+    expect(redo.history.map(h => h.grade)).toEqual(['gap', 'complete'])
   })
 })
 
@@ -232,8 +278,11 @@ describe('status', () => {
     expect(status(step(decide, freshState(), { type: 'pickVerdict', value: true }), 0)).toBe('working')
   })
 
-  it('counts a restarted problem as in progress, not new', () => {
-    expect(status(step(prove, graded('gap', 0), { type: 'restart' }), 0)).toBe('working')
+  it('keeps a restarted-but-abandoned redo due, and a voluntary restart in progress', () => {
+    const abandoned = step(prove, graded('gap', 0), { type: 'restart', now: 3 * DAY })
+    expect(status(abandoned, 3 * DAY)).toBe('due')
+    const practice = step(prove, graded('complete', 0), { type: 'restart', now: 0 })
+    expect(status(practice, 100 * DAY)).toBe('working')
   })
 
   it('is solved for good after a complete unaided grade', () => {
@@ -250,5 +299,41 @@ describe('status', () => {
     const s = graded('gap', 0)
     expect(status(s, 3 * DAY - 1)).toBe('shaky')
     expect(status(s, 3 * DAY)).toBe('due')
+  })
+})
+
+describe('normalize', () => {
+  const graded = { ...freshState(), attempt: 'x', solution: true, history: [{ at: 50, grade: 'gap' as const, hints: 0, misses: 0 }] }
+
+  it('returns a consistent state untouched, as the same object', () => {
+    const s = run(decide, [{ type: 'edit', text: long('a') }, { type: 'pickVerdict', value: false }, { type: 'check' }])
+    expect(normalize(decide, s)).toBe(s)
+    const fresh = freshState()
+    expect(normalize(prove, fresh)).toBe(fresh)
+  })
+
+  it('withdraws a confirmation the pick does not earn, and keeps one it does', () => {
+    expect(normalize(decide, { ...freshState(), confirmed: true }).confirmed).toBe(false)
+    expect(normalize(decide, { ...freshState(), verdict: true, confirmed: true }).confirmed).toBe(false)
+    expect(normalize(decide, { ...freshState(), verdict: false, confirmed: true }).confirmed).toBe(true)
+    expect(normalize(flaw, { ...freshState(), line: 3, confirmed: true }).confirmed).toBe(false)
+    expect(normalize(flaw, { ...freshState(), line: 2, confirmed: true }).confirmed).toBe(true)
+    expect(normalize(prove, { ...freshState(), confirmed: true }).confirmed).toBe(false)
+  })
+
+  it('drops picks a problem cannot have', () => {
+    expect(normalize(prove, { ...freshState(), verdict: true, line: 2 })).toMatchObject({ verdict: null, line: null })
+    expect(normalize(flaw, { ...freshState(), line: 4 }).line).toBeNull()
+    expect(normalize(flaw, { ...freshState(), line: 3 }).line).toBe(3)
+  })
+
+  it('caps hints at what the problem has', () => {
+    expect(normalize(prove, { ...freshState(), hints: 9 }).hints).toBe(2)
+    expect(normalize(prove, { ...freshState(), hints: 2 }).hints).toBe(2)
+  })
+
+  it('restores the due date a grade owes, from when it was graded', () => {
+    expect(normalize(prove, { ...graded, grade: 'gap', redoAt: null }).redoAt).toBe(50 + 3 * DAY)
+    expect(normalize(prove, { ...graded, grade: 'complete', redoAt: null }).redoAt).toBeNull()
   })
 })

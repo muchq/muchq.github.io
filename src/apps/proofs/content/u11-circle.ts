@@ -127,7 +127,7 @@ const unit: Unit = {
         Prove there is a unique continuous $\tilde F\colon I \times I \to \R$ with $p \circ \tilde F = F$ and
         $\tilde F(0, 0) = t_0$. Deduce: if $\alpha \simeq_p \beta$ in $S^1$, their lifts from a common starting
         point end at a common point.`,
-      uses: ['11.1', '11.2', '11.3', '9.8', '9.9', '8.5', '6.9'],
+      uses: ['11.1', '11.2', '11.3', '9.8', '9.9', '8.4', '8.5', '6.9'],
       hints: [
         md`As in 11.3: a Lebesgue number for $\{F^{-1}(U_0), F^{-1}(U_{1/2})\}$ on the compact square, and a
           grid of small squares.`,
@@ -146,8 +146,9 @@ const unit: Unit = {
         $Q_{11}, Q_{21}, \dots, Q_{N1}, Q_{12}, \dots$ — left to right, bottom to top.
 
         Suppose $\tilde F$ is defined, continuous and a lift on the union $R$ of the squares before $Q = Q_{jk}$.
-        $A = Q \cap R$ is empty (only for $Q_{11}$), or the bottom edge of $Q$, or its left edge, or both; in each
-        case $A$ is connected and contains the corner $c = (\frac{j-1}N, \frac{k-1}N)$. Let $J$ be the interval
+        $A = Q \cap R$ is empty (only for $Q_{11}$), or the bottom edge of $Q$, or its left edge, or both. Each
+        edge is a continuous image of an interval, hence connected (8.2, 8.3), and both contain the corner
+        $c = (\frac{j-1}N, \frac{k-1}N)$, so $A$ is connected (8.4(a)) and contains $c$. Let $J$ be the interval
         over $U_{a_{jk}}$ containing $\tilde F(c)$ (for $Q_{11}$, containing $t_0$) and put
         $G = (p|_J)^{-1} \circ F$ on $Q$. On $A$, $G$ and $\tilde F$ are lifts of $F|_A$ that agree at $c$, so
         they agree on all of $A$ (11.2). $R$ and $Q$ are closed, so pasting (6.9) extends $\tilde F$
@@ -347,7 +348,7 @@ const unit: Unit = {
         Prove that the deck transformations are exactly the translations $t \mapsto t + n$, $n \in \Z$, and that
         they form a group isomorphic to $\Z$ — the same group as $\pi_1(S^1)$ — whose orbits on $\R$ are the
         cosets $t + \Z$, so that the orbit space is $\R/\Z \cong S^1$ (9.11).`,
-      uses: ['11.2', '9.11'],
+      uses: ['11.2', '9.11', '4.1'],
       hints: [
         md`Integer translations work because $\ker p = \Z$.`,
         md`Conversely, $h$ and $t \mapsto t + h(0)$ are both lifts of $p\colon \R \to S^1$. Do they agree somewhere?`,
@@ -357,8 +358,9 @@ const unit: Unit = {
         $n = h(0) \in \Z$. Both $h$ and $\tau_n$ are lifts of $p\colon \R \to S^1$ — continuous maps
         $\R \to \R$ whose composite with $p$ is $p$ — and they agree at $0$; $\R$ is connected (convex, 8.4), so
         $h = \tau_n$ (11.2). The map $n \mapsto \tau_n$ is a homomorphism ($\tau_m \circ \tau_n = \tau_{m+n}$),
-        injective ($\tau_n = \mathrm{id}$ forces $n = 0$), and onto the deck group by the above. The orbit of
-        $t$ is $\{t + n : n \in \Z\} = t + \Z$.`,
+        injective ($\tau_n = \mathrm{id}$ forces $n = 0$), and onto the deck group by the above. So $\Z$ acts
+        on $\R$ by $n \cdot t = t + n$; the orbit of $t$ is $t + \Z$, the orbits partition $\R$ (4.1), and the
+        orbit space is $\R/\Z$.`,
       checks: [
         md`Integer translations are verified to be deck transformations.`,
         md`An arbitrary deck transformation is identified with a translation by uniqueness of lifts.`,

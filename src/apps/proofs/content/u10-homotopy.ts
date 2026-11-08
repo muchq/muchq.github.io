@@ -126,7 +126,7 @@ const unit: Unit = {
       uses: ['10.1', '10.2', '10.3', '6.9'],
       hints: [
         md`At time $t$, go out along $\alpha$ only as far as $\alpha(1 - t)$, then come back.`,
-        md`$H(s, t) = \alpha(2s(1 - t))$ for $s \le 1/2$ and $\alpha((2 - 2s)(1 - t))$ for $s \ge 1/2$.`,
+        md`The two halves of your homotopy should meet at $\alpha(1 - t)$ when $s = 1/2$.`,
       ],
       solution: md`Define $H(s, t) = \alpha(2s(1 - t))$ for $s \in [0, \frac12]$ and $\alpha((2 - 2s)(1 - t))$ for
         $s \in [\frac12, 1]$. Both give $\alpha(1 - t)$ at $s = \frac12$, so $H$ is continuous by pasting.
@@ -174,8 +174,8 @@ const unit: Unit = {
       hints: [md`Count the conditions in the definition of path homotopy.`, md`Compute $H(1, t)$.`],
       solution: md`**Line 5.** A path homotopy must also fix both endpoints for every $t$. $H(0, t) = x_0$ holds,
         but $H(1, t) = \alpha(1 - t)$ moves along the loop. $H$ is a homotopy of maps $I \to X$ — every path is
-        homotopic to a constant *as a map*, because $I$ is convex — but not a path homotopy. Unit 11 shows
-        $\pi_1(S^1) \cong \Z$, so the claim is false.`,
+        homotopic to a constant *as a map*, because $I$ is convex — but not a path homotopy. The claim is in fact
+        false: $\pi_1(S^1) \cong \Z$ (proved in Unit 11).`,
       checks: [md`Line 5 is identified, naming the endpoint condition that fails.`, md`$H(1, t)$ is computed.`],
     },
     {

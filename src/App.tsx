@@ -21,13 +21,16 @@ import WordchainsPage from './apps/wordchains/pages/WordchainsPage'
 import IiliPage from './apps/iili/pages/IiliPage'
 import SmallcatPage from './apps/smallcat/pages/SmallcatPage'
 import NotFoundPage from './core/pages/NotFoundPage'
+import LoadBoundary from './shared/components/LoadBoundary'
 
 // Unlisted, and the only page that needs KaTeX: split out of the main bundle.
 const ProofsPage = lazy(() => import('./apps/proofs/pages/ProofsPage'))
 const proofs = (
-  <Suspense fallback={null}>
-    <ProofsPage />
-  </Suspense>
+  <LoadBoundary>
+    <Suspense fallback={null}>
+      <ProofsPage />
+    </Suspense>
+  </LoadBoundary>
 )
 
 function App() {
