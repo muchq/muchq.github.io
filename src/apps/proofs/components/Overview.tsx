@@ -45,7 +45,7 @@ export default function Overview({ progress, merge, now }: Props) {
         </h1>
         <p className={styles.lede}>
           <MarkupInline
-            text={String.raw`${UNITS.length} units, ${ALL_PROBLEMS.length} problems, one destination: $\pi_1(S^1) \cong \mathbb{Z}$, and with it Brouwer's fixed point theorem and the fundamental theorem of algebra. Getting there takes groups, quotients and actions on one side, and spaces, connectedness and compactness on the other; a final mixed set takes away the signposts.`}
+            text={String.raw`${UNITS.length} units, ${ALL_PROBLEMS.length} problems, a first course in abstract algebra and point-set topology with nothing proved for you. Groups, actions and rings on one side; metric and topological spaces, connectedness, compactness, separation and Tychonoff on the other. They meet in $\pi_1(S^1) \cong \mathbb{Z}$, with Brouwer's fixed point theorem and the fundamental theorem of algebra, and a final mixed set takes away the signposts.`}
           />
         </p>
       </header>

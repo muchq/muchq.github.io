@@ -3,7 +3,7 @@ import { md } from './md'
 
 const unit: Unit = {
   id: 'metric',
-  n: 5,
+  n: 6,
   title: 'Metric spaces',
   track: 'Topology',
   prereqs: [0],
@@ -40,7 +40,7 @@ const unit: Unit = {
   ],
   problems: [
     {
-      id: '5.1',
+      id: '6.1',
       kind: 'prove',
       title: 'Open sets in a metric space',
       statement: md`Prove: (a) every open ball is open; (b) $\emptyset$ and $X$ are open, any union of open sets
@@ -67,7 +67,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '5.2',
+      id: '6.2',
       kind: 'prove',
       title: 'Closed means closed under limits',
       statement: md`In a metric space, prove that $F$ is closed if and only if every limit of a convergent
@@ -92,12 +92,12 @@ const unit: Unit = {
       ],
     },
     {
-      id: '5.3',
+      id: '6.3',
       kind: 'prove',
       title: 'Continuity without epsilons',
       statement: md`Prove that $f\colon X \to Y$ between metric spaces is continuous if and only if
         $f^{-1}(V)$ is open for every open $V \subseteq Y$.`,
-      uses: ['5.1'],
+      uses: ['6.1'],
       hints: [
         md`(⇒) For $a \in f^{-1}(V)$, $V$ contains a ball around $f(a)$. Continuity at $a$ turns it into a ball around $a$.`,
         md`(⇐) Given $a$ and $\varepsilon$, the ball $B(f(a), \varepsilon)$ is open.`,
@@ -106,7 +106,7 @@ const unit: Unit = {
         $B(f(a), \varepsilon) \subseteq V$, then $\delta$ from continuity at $a$. If $d(x, a) < \delta$, then
         $f(x) \in B(f(a), \varepsilon) \subseteq V$. So $B(a, \delta) \subseteq f^{-1}(V)$.
 
-        (⇐) Let $a \in X$ and $\varepsilon > 0$. $B(f(a), \varepsilon)$ is open (5.1), so its preimage is open
+        (⇐) Let $a \in X$ and $\varepsilon > 0$. $B(f(a), \varepsilon)$ is open (6.1), so its preimage is open
         and contains $a$: some $B(a, \delta)$ lies in it. That is,
         $d(x, a) < \delta \Rightarrow d(f(x), f(a)) < \varepsilon$.`,
       checks: [
@@ -116,7 +116,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '5.4',
+      id: '6.4',
       kind: 'decide',
       title: 'Closures of balls',
       statement: md`**Prove or disprove:** in every metric space, the smallest closed set containing $B(x, r)$
@@ -137,7 +137,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '5.5',
+      id: '6.5',
       kind: 'decide',
       title: 'Square roots of metrics',
       statement: md`**Prove or disprove:** if $d$ is a metric on $X$, then so is $\sqrt{d}$, defined by
@@ -156,7 +156,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '5.6',
+      id: '6.6',
       kind: 'prove',
       title: 'Same open sets, different metrics',
       statement: md`(a) Let $d, d'$ be metrics on $X$ with constants $c, C > 0$ such that
@@ -185,7 +185,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '5.7',
+      id: '6.7',
       kind: 'flaw',
       title: 'Continuous images of Cauchy sequences',
       statement: md`**Claim.** If $f\colon X \to Y$ is continuous and $(x_n)$ is Cauchy, then $(f(x_n))$ is
@@ -210,14 +210,14 @@ const unit: Unit = {
       ],
     },
     {
-      id: '5.8',
+      id: '6.8',
       kind: 'prove',
       title: 'Complete and closed',
       statement: md`Let $Y \subseteq X$ carry the restricted metric. Prove: (a) if $X$ is complete and $Y$ is
         closed, then $Y$ is complete; (b) if $Y$ is complete, then $Y$ is closed in $X$.`,
-      uses: ['5.2'],
+      uses: ['6.2'],
       hints: [
-        md`5.2, in both directions. Limits in a metric space are unique — prove it if you use it.`,
+        md`6.2, in both directions. Limits in a metric space are unique — prove it if you use it.`,
         md`(b) A sequence in $Y$ converging in $X$ is Cauchy. Why?`,
       ],
       solution: md`Two facts first. *Limits are unique:* if $x_n \to x$ and $x_n \to x'$, then
@@ -225,8 +225,8 @@ const unit: Unit = {
         sequences are Cauchy:* $d(x_m, x_n) \le d(x_m, x) + d(x, x_n)$.
 
         (a) A Cauchy sequence in $Y$ is Cauchy in $X$, so converges to some $x \in X$; as $Y$ is closed,
-        $x \in Y$ (5.2). (b) Let $y_n \in Y$ with $y_n \to x \in X$. Then $(y_n)$ is Cauchy, so it converges in
-        $Y$ to some $y$ — also a limit in $X$. By uniqueness $x = y \in Y$. By 5.2, $Y$ is closed.`,
+        $x \in Y$ (6.2). (b) Let $y_n \in Y$ with $y_n \to x \in X$. Then $(y_n)$ is Cauchy, so it converges in
+        $Y$ to some $y$ — also a limit in $X$. By uniqueness $x = y \in Y$. By 6.2, $Y$ is closed.`,
       checks: [
         md`Uniqueness of limits is proved or properly cited.`,
         md`(b) uses explicitly that convergent sequences are Cauchy.`,
@@ -234,13 +234,13 @@ const unit: Unit = {
       ],
     },
     {
-      id: '5.9',
+      id: '6.9',
       kind: 'prove',
       challenge: true,
       title: 'Contractions have fixed points',
       statement: md`Let $X$ be a nonempty complete metric space and $f\colon X \to X$ satisfy
         $d(f(x), f(y)) \le k\,d(x, y)$ for all $x, y$, where $0 \le k < 1$. Prove $f$ has exactly one fixed point.`,
-      uses: ['5.8'],
+      uses: ['6.8'],
       hints: [
         md`Uniqueness is one line.`,
         md`Existence: start anywhere, $x_{n+1} = f(x_n)$. Bound $d(x_{n+1}, x_n)$ by $k^n d(x_1, x_0)$.`,
@@ -254,7 +254,7 @@ const unit: Unit = {
         $$d(x_m, x_n) \le \sum_{j=n}^{m-1} d(x_{j+1}, x_j) \le d(x_1, x_0)\sum_{j \ge n} k^j = \frac{k^n}{1 - k}\,d(x_1, x_0),$$
         which tends to 0. So $(x_n)$ is Cauchy and converges to some $x$. Then
         $d(f(x_n), f(x)) \le k\,d(x_n, x) \to 0$, so $x_{n+1} = f(x_n) \to f(x)$; but also $x_{n+1} \to x$. By
-        uniqueness of limits (5.8), $f(x) = x$.`,
+        uniqueness of limits (6.8), $f(x) = x$.`,
       checks: [
         md`Uniqueness uses $k < 1$.`,
         md`The Cauchy estimate sums a geometric series with an explicit bound.`,

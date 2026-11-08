@@ -3,11 +3,11 @@ import { md } from './md'
 
 const unit: Unit = {
   id: 'compact',
-  n: 9,
+  n: 10,
   title: 'Compactness',
   track: 'Topology',
-  prereqs: [7],
-  why: md`Compactness turns local information into global: finitely many pieces suffice. Unit 11 uses it in
+  prereqs: [8],
+  why: md`Compactness turns local information into global: finitely many pieces suffice. Unit 14 uses it in
     one precise form — the Lebesgue number lemma — to lift paths. Watch where Hausdorff is needed, and where
     it is not.`,
   definitions: [
@@ -30,7 +30,7 @@ const unit: Unit = {
   ],
   problems: [
     {
-      id: '9.1',
+      id: '10.1',
       kind: 'prove',
       title: 'Closed subsets and continuous images',
       statement: md`Prove: (a) a closed subset of a compact space is compact; (b) a continuous image of a
@@ -52,7 +52,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '9.2',
+      id: '10.2',
       kind: 'flaw',
       title: 'Compact implies closed?',
       statement: md`**Claim.** Every compact subset $K$ of a space $X$ is closed. Find the first line that is
@@ -69,14 +69,14 @@ const unit: Unit = {
       solution: md`**Line 2.** Disjoint neighborhoods of $x$ and $k$ exist when $X$ is Hausdorff, which was not
         assumed. The claim is false: in $\{a, b\}$ with only $\emptyset$ and $\{a, b\}$ open, $K = \{a\}$ is
         compact (a space with finitely many open sets is compact) but not closed. Lines 3–5 are sound — with
-        Hausdorff added, this is a correct proof (9.3).`,
+        Hausdorff added, this is a correct proof (10.3).`,
       checks: [
         md`Line 2 is identified as needing Hausdorff.`,
         md`A compact, non-closed subset is exhibited, both properties checked.`,
       ],
     },
     {
-      id: '9.3',
+      id: '10.3',
       kind: 'prove',
       title: 'Compact sets in Hausdorff spaces',
       statement: md`Let $X$ be Hausdorff and $K \subseteq X$ compact. Prove that for each $x \notin K$ there are
@@ -93,24 +93,24 @@ const unit: Unit = {
       ],
     },
     {
-      id: '9.4',
+      id: '10.4',
       kind: 'prove',
       title: 'The closed map lemma',
       statement: md`Let $f\colon K \to H$ be continuous with $K$ compact and $H$ Hausdorff. Prove $f$ maps closed
         sets to closed sets. Deduce that a continuous bijection from a compact space to a Hausdorff space is a
         homeomorphism.`,
-      uses: ['9.1', '9.3', '6.5'],
+      uses: ['10.1', '10.3', '7.5'],
       hints: [md`Closed ⇒ compact ⇒ compact image ⇒ closed. Cite each step.`],
-      solution: md`If $F \subseteq K$ is closed, it is compact (9.1(a)), so $f(F)$ is compact (9.1(b)), so $f(F)$
-        is closed in the Hausdorff space $H$ (9.3). If $f$ is bijective, then for closed $F$,
-        $(f^{-1})^{-1}(F) = f(F)$ is closed, so $f^{-1}$ is continuous (6.5).`,
+      solution: md`If $F \subseteq K$ is closed, it is compact (10.1(a)), so $f(F)$ is compact (10.1(b)), so $f(F)$
+        is closed in the Hausdorff space $H$ (10.3). If $f$ is bijective, then for closed $F$,
+        $(f^{-1})^{-1}(F) = f(F)$ is closed, so $f^{-1}$ is continuous (7.5).`,
       checks: [
         md`Each of the three steps cites its justification.`,
         md`Continuity of the inverse is reduced to images of closed sets.`,
       ],
     },
     {
-      id: '9.5',
+      id: '10.5',
       kind: 'prove',
       title: 'The interval is compact',
       statement: md`Prove that $[0, 1]$ is compact.`,
@@ -136,20 +136,20 @@ const unit: Unit = {
       ],
     },
     {
-      id: '9.6',
+      id: '10.6',
       kind: 'prove',
       title: 'Extreme values',
       statement: md`Prove that a continuous $f\colon K \to \R$ on a nonempty compact space attains a maximum and
         a minimum.`,
-      uses: ['9.1', '9.3', '6.2', '6.12'],
+      uses: ['10.1', '10.3', '7.2', '7.12'],
       hints: [
         md`$f(K)$ is compact. Show compact subsets of $\R$ are bounded and closed.`,
         md`A nonempty closed bounded subset of $\R$ contains its supremum.`,
       ],
-      solution: md`$f(K)$ is compact (9.1(b)) and nonempty. It is bounded: the intervals $(-n, n)$ cover it, so
-        finitely many do, and it lies in the largest. It is closed (9.3; $\R$ is Hausdorff by 6.12(c)). Let
+      solution: md`$f(K)$ is compact (10.1(b)) and nonempty. It is bounded: the intervals $(-n, n)$ cover it, so
+        finitely many do, and it lies in the largest. It is closed (10.3; $\R$ is Hausdorff by 7.12(c)). Let
         $M = \sup f(K)$. Every interval $(M - \varepsilon, M + \varepsilon)$ meets $f(K)$, so
-        $M \in \overline{f(K)} = f(K)$ (6.2): $M = f(k)$ is a maximum. Apply this to $-f$ for the minimum.`,
+        $M \in \overline{f(K)} = f(K)$ (7.2): $M = f(k)$ is a maximum. Apply this to $-f$ for the minimum.`,
       checks: [
         md`Boundedness comes from a finite subcover.`,
         md`The supremum is shown to lie in $f(K)$ by closedness.`,
@@ -157,7 +157,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '9.7',
+      id: '10.7',
       kind: 'decide',
       title: 'Closed and bounded',
       statement: md`**Prove or disprove:** every closed and bounded subset of a metric space is compact.`,
@@ -172,14 +172,14 @@ const unit: Unit = {
       ],
     },
     {
-      id: '9.8',
+      id: '10.8',
       kind: 'prove',
       title: 'Products of compact spaces',
       statement: md`Prove that if $X$ and $Y$ are compact then $X \times Y$ is compact. Deduce that the closed
         disk $D^2 = \{v \in \R^2 : |v| \le 1\}$ and the square $[0, 1]^2$ are compact. (Use that the topology of
-        $\R^2$ is the product topology of $\R \times \R$: by 5.6, the Euclidean metric and
+        $\R^2$ is the product topology of $\R \times \R$: by 6.6, the Euclidean metric and
         $\max(|u_1 - v_1|, |u_2 - v_2|)$ have the same open sets, and balls of the latter are boxes.)`,
-      uses: ['9.1', '9.5', '5.6'],
+      uses: ['10.1', '10.5', '6.6'],
       hints: [
         md`It suffices to cover by finitely many boxes, each inside a member of the given cover.`,
         md`Tube lemma: for fixed $x$, the slice $\{x\} \times Y$ is compact. Cover it by finitely many boxes
@@ -197,11 +197,11 @@ const unit: Unit = {
         The $U_x$ cover $X$, so finitely many $U_{x_1}, \dots, U_{x_k}$ do; the finitely many boxes chosen for
         $x_1, \dots, x_k$ then cover $X \times Y$.
 
-        **Disk and square.** $[0, 1]$ is compact (9.5) and so is $[-1, 1]$, its image under $t \mapsto 2t - 1$
-        (9.1). So $[0, 1]^2$ and $[-1, 1]^2$ are compact in the product topology — which is also their subspace
+        **Disk and square.** $[0, 1]$ is compact (10.5) and so is $[-1, 1]$, its image under $t \mapsto 2t - 1$
+        (10.1). So $[0, 1]^2$ and $[-1, 1]^2$ are compact in the product topology — which is also their subspace
         topology from $\R^2 = \R \times \R$, as the basic sets $(U \cap I) \times (V \cap I)$ are exactly
         $(U \times V) \cap I^2$. $D^2$ is the preimage of $(-\infty, 1]$ under the
-        continuous $v \mapsto |v|$, so closed, and it lies in $[-1, 1]^2$; it is compact by 9.1(a).`,
+        continuous $v \mapsto |v|$, so closed, and it lies in $[-1, 1]^2$; it is compact by 10.1(a).`,
       checks: [
         md`The tube step: a finite intersection of open sets, and its tube covered.`,
         md`Compactness is used twice — once on a slice, once on $X$.`,
@@ -209,7 +209,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '9.9',
+      id: '10.9',
       kind: 'prove',
       title: 'The Lebesgue number lemma',
       statement: md`Let $X$ be a nonempty compact metric space and $\mathcal U$ an open cover. Prove that
@@ -236,7 +236,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '9.10',
+      id: '10.10',
       kind: 'decide',
       title: 'Compact metric spaces and sequences',
       statement: md`**Prove or disprove:** every compact metric space is sequentially compact.`,
@@ -262,27 +262,27 @@ const unit: Unit = {
       ],
     },
     {
-      id: '9.11',
+      id: '10.11',
       kind: 'prove',
       title: 'The circle as a quotient',
       statement: md`Let $\sim$ on $[0, 1]$ identify $0$ with $1$ and nothing else. Prove that $[0, 1]/{\sim}$ and
         $\R/\Z$ (cosets of $\Z$, quotient topology from $\R$) are both homeomorphic to
         $S^1 = \{z \in \C : |z| = 1\}$. (Take as known: $p(t) = e^{2\pi i t}$ is continuous and onto $S^1$,
         and $p(s) = p(t) \iff s - t \in \Z$.)`,
-      uses: ['7.1', '9.1', '9.4', '9.5', '6.12'],
+      uses: ['8.1', '10.1', '10.4', '10.5', '7.12'],
       hints: [
-        md`$p$ restricted to $[0, 1]$ is constant on classes. Use 7.1(c), then 9.4.`,
+        md`$p$ restricted to $[0, 1]$ is constant on classes. Use 8.1(c), then 10.4.`,
         md`$\R/\Z$ is not obviously compact. Get a continuous bijection $\R/\Z \to S^1$ from $p$, and write its
           inverse using the first part.`,
       ],
       solution: md`**Part 1.** $g = p|_{[0, 1]}$ is continuous and onto $S^1$ (shift any $t$ into $[0, 1)$ by an
         integer). For $s, t \in [0, 1]$, $g(s) = g(t)$ iff $s - t \in \Z$ iff $s = t$ or $\{s, t\} = \{0, 1\}$.
-        So $g$ is constant on classes and induces a continuous bijection $h\colon [0, 1]/{\sim} \to S^1$ (7.1).
-        The quotient is compact, as the image of $[0, 1]$ under $q$ (9.5, 9.1), and $S^1$ is Hausdorff, being
-        metric (6.12(c)). By 9.4, $h$ is a homeomorphism.
+        So $g$ is constant on classes and induces a continuous bijection $h\colon [0, 1]/{\sim} \to S^1$ (8.1).
+        The quotient is compact, as the image of $[0, 1]$ under $q$ (10.5, 10.1), and $S^1$ is Hausdorff, being
+        metric (7.12(c)). By 10.4, $h$ is a homeomorphism.
 
         **Part 2.** $p$ is constant on cosets of $\Z$, so induces a continuous $\bar p\colon \R/\Z \to S^1$
-        (7.1), bijective since $p(s) = p(t) \iff s + \Z = t + \Z$. The composite $[0, 1] \to \R \to \R/\Z$ is
+        (8.1), bijective since $p(s) = p(t) \iff s + \Z = t + \Z$. The composite $[0, 1] \to \R \to \R/\Z$ is
         continuous and identifies $0$ with $1$, so it induces a continuous
         $\iota\colon [0, 1]/{\sim} \to \R/\Z$, and $\bar p \circ \iota = h$. Then
         $\bar p \circ (\iota \circ h^{-1}) = \mathrm{id}$, and as $\bar p$ is bijective,

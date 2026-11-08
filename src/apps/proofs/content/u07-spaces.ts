@@ -3,10 +3,10 @@ import { md } from './md'
 
 const unit: Unit = {
   id: 'spaces',
-  n: 6,
+  n: 7,
   title: 'Topological spaces',
   track: 'Topology',
-  prereqs: [5, 1],
+  prereqs: [6, 1],
   why: md`Keep the open sets, forget the metric. Now the definitions are the only tools: a proof that silently
     uses a distance, a sequence or a picture of the plane is not a proof here. Expect the familiar to fail.`,
   definitions: [
@@ -53,7 +53,7 @@ const unit: Unit = {
   ],
   problems: [
     {
-      id: '6.1',
+      id: '7.1',
       kind: 'prove',
       title: 'Bases generate topologies',
       statement: md`Let $\mathcal B$ be a basis on $X$. Prove that the family it generates is a topology, and
@@ -77,7 +77,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '6.2',
+      id: '7.2',
       kind: 'prove',
       title: 'Closure by neighborhoods',
       statement: md`Prove that $x \in \overline A$ if and only if every neighborhood of $x$ meets $A$. Prove also
@@ -104,16 +104,16 @@ const unit: Unit = {
       ],
     },
     {
-      id: '6.3',
+      id: '7.3',
       kind: 'decide',
       title: 'Closure of an intersection',
       statement: md`**Prove or disprove:** $\overline{A \cap B} = \overline A \cap \overline B$ for all subsets
         $A, B$ of every space.`,
       verdict: false,
-      uses: ['6.2'],
+      uses: ['7.2'],
       hints: [md`One inclusion always holds. Which?`, md`Two dense sets can be disjoint.`],
       solution: md`**False.** In $\R$ take $A = \Q$ and $B = \R \setminus \Q$. Every open interval contains
-        both rationals and irrationals, so by 6.2 both are dense: $\overline A \cap \overline B = \R$. But
+        both rationals and irrationals, so by 7.2 both are dense: $\overline A \cap \overline B = \R$. But
         $A \cap B = \emptyset$, whose closure is $\emptyset$. (Always true: $\overline{A \cap B} \subseteq
         \overline A \cap \overline B$, by monotonicity.)`,
       checks: [
@@ -122,7 +122,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '6.4',
+      id: '7.4',
       kind: 'decide',
       title: 'Boundaries',
       statement: md`**Prove or disprove:** for every subset $A$ of every space $X$, the boundary $\partial A$ is
@@ -135,7 +135,7 @@ const unit: Unit = {
       checks: [md`$\partial A$ is written as an intersection of closed sets, each justified.`],
     },
     {
-      id: '6.5',
+      id: '7.5',
       kind: 'prove',
       title: 'Three faces of continuity',
       statement: md`For $f\colon X \to Y$, prove the following are equivalent: (i) $f$ is continuous;
@@ -160,7 +160,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '6.6',
+      id: '7.6',
       kind: 'prove',
       title: 'The lower limit line',
       statement: md`(a) Show that $\{[a, b) : a < b\}$ is a basis on $\R$. (b) Prove the topology of $\R_\ell$ is
@@ -183,7 +183,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '6.7',
+      id: '7.7',
       kind: 'prove',
       title: 'The cofinite topology',
       statement: md`Let $X$ be an infinite set with the cofinite topology. Prove: (a) it is a topology; (b) any
@@ -209,7 +209,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '6.8',
+      id: '7.8',
       kind: 'decide',
       title: 'Open in a subspace',
       statement: md`**Prove or disprove:** if $Y \subseteq X$ and $A$ is open in the subspace $Y$, then $A$ is open
@@ -229,13 +229,13 @@ const unit: Unit = {
       ],
     },
     {
-      id: '6.9',
+      id: '7.9',
       kind: 'prove',
       title: 'The pasting lemma',
       statement: md`Let $X = A \cup B$ with $A$, $B$ closed in $X$, and let $f\colon X \to Y$ be a function whose
         restrictions to $A$ and $B$ are continuous. Prove $f$ is continuous. Show by example that "closed"
         cannot simply be dropped.`,
-      uses: ['6.5'],
+      uses: ['7.5'],
       hints: [
         md`Work with closed sets: $f^{-1}(F) = (f|_A)^{-1}(F) \cup (f|_B)^{-1}(F)$.`,
         md`A closed subset of the closed subspace $A$ is closed in $X$ — prove it.`,
@@ -244,7 +244,7 @@ const unit: Unit = {
         in $A$ of $U \cap A$ is $(X \setminus U) \cap A$). Let $F \subseteq Y$ be closed. Then
         $(f|_A)^{-1}(F)$ is closed in $A$, so equals $C \cap A$ for a closed $C$, and is therefore closed in $X$
         because $A$ is. The same holds for $B$. So $f^{-1}(F) = (f|_A)^{-1}(F) \cup (f|_B)^{-1}(F)$ is a union of
-        two closed sets, hence closed, and $f$ is continuous by 6.5.
+        two closed sets, hence closed, and $f$ is continuous by 7.5.
 
         **Example.** $\R = (-\infty, 0) \cup [0, \infty)$ with $f = 0$ on the first piece and $1$ on the second.
         Each restriction is constant, hence continuous, but $f^{-1}((1/2, 2)) = [0, \infty)$ is not open.`,
@@ -255,26 +255,26 @@ const unit: Unit = {
       ],
     },
     {
-      id: '6.10',
+      id: '7.10',
       kind: 'prove',
       title: 'Products and their maps',
       statement: md`Give $X \times Y$ the product topology. Prove: (a) the projections are continuous; (b)
         $f\colon Z \to X \times Y$ is continuous iff $\pi_X \circ f$ and $\pi_Y \circ f$ are; (c)
         $\overline{A \times B} = \overline A \times \overline B$.`,
-      uses: ['6.1', '6.2'],
+      uses: ['7.1', '7.2'],
       hints: [
         md`(a) $\pi_X^{-1}(U) = U \times Y$.`,
-        md`(b) Open sets are unions of boxes (6.1), and $f^{-1}(U \times V) = (\pi_Xf)^{-1}(U) \cap (\pi_Yf)^{-1}(V)$.`,
-        md`(c) Use 6.2 with basic neighborhoods $U \times V$.`,
+        md`(b) Open sets are unions of boxes (7.1), and $f^{-1}(U \times V) = (\pi_Xf)^{-1}(U) \cap (\pi_Yf)^{-1}(V)$.`,
+        md`(c) Use 7.2 with basic neighborhoods $U \times V$.`,
       ],
       solution: md`(a) $\pi_X^{-1}(U) = U \times Y$ is a box. (b) (⇒) Composites of continuous maps are
         continuous, since $(g \circ f)^{-1}(W) = f^{-1}(g^{-1}(W))$. (⇐) An open $W$ is a union of boxes
-        $U_i \times V_i$ (6.1), and
+        $U_i \times V_i$ (7.1), and
         $f^{-1}(W) = \bigcup_i (\pi_X f)^{-1}(U_i) \cap (\pi_Y f)^{-1}(V_i)$ is open.
 
         (c) $(U \times V) \cap (A \times B) = (U \cap A) \times (V \cap B)$, which is nonempty iff both factors
         are. If $x \in \overline A$ and $y \in \overline B$, every box around $(x, y)$ meets $A \times B$, so
-        $(x, y) \in \overline{A \times B}$ by 6.2 with basic neighborhoods. Conversely if
+        $(x, y) \in \overline{A \times B}$ by 7.2 with basic neighborhoods. Conversely if
         $(x, y) \in \overline{A \times B}$ and $U \ni x$ is open, the box $U \times Y$ meets $A \times B$, so
         $U$ meets $A$: $x \in \overline A$. Likewise $y \in \overline B$.`,
       checks: [
@@ -283,12 +283,12 @@ const unit: Unit = {
       ],
     },
     {
-      id: '6.11',
+      id: '7.11',
       kind: 'flaw',
       title: 'Continuous bijections',
       statement: md`**Claim.** Every continuous bijection is a homeomorphism. Find the first line that is wrong
         or does not follow.`,
-      uses: ['6.6'],
+      uses: ['7.6'],
       lines: [
         md`Let $f\colon X \to Y$ be a continuous bijection and $g = f^{-1}$.`,
         md`To see that $g$ is continuous, let $U \subseteq X$ be open; we show $g^{-1}(U)$ is open in $Y$.`,
@@ -299,24 +299,24 @@ const unit: Unit = {
       flawLine: 4,
       hints: [
         md`What does the definition of continuity say about the image $f(U)$?`,
-        md`6.6 contains a continuous bijection whose inverse is not continuous.`,
+        md`7.6 contains a continuous bijection whose inverse is not continuous.`,
       ],
       solution: md`**Line 4.** Continuity is a condition on *preimages*; it says nothing about images. (Line 3
         is fine: for a bijection, $(f^{-1})^{-1}(U) = f(U)$.) Counterexample: the identity $\R_\ell \to \R$ is a
-        continuous bijection (6.6) whose inverse is not continuous.`,
+        continuous bijection (7.6) whose inverse is not continuous.`,
       checks: [
         md`Line 4 is identified: continuity controls preimages, not images.`,
         md`A continuous bijection with discontinuous inverse is exhibited.`,
       ],
     },
     {
-      id: '6.12',
+      id: '7.12',
       kind: 'prove',
       title: 'Hausdorff spaces',
       statement: md`Prove: (a) in a Hausdorff space a sequence has at most one limit; (b) $X$ is Hausdorff if and
         only if the diagonal $\Delta = \{(x, x) : x \in X\}$ is closed in $X \times X$; (c) every metric space is
         Hausdorff. Then show (a) fails in the cofinite topology on an infinite set.`,
-      uses: ['6.7', '5.1'],
+      uses: ['7.7', '6.1'],
       hints: [
         md`(a) Two limits, two disjoint neighborhoods, and "all large $n$" twice.`,
         md`(b) Translate "the box $U \times V$ misses $\Delta$" into a statement about $U$ and $V$.`,
@@ -330,10 +330,10 @@ const unit: Unit = {
         $\Delta$, hence in a box $U \times V$ inside it, and $U$, $V$ are disjoint neighborhoods.
 
         (c) For $x \ne y$ let $r = d(x, y)/2 > 0$. A point $z$ in both $B(x, r)$ and $B(y, r)$ would give
-        $d(x, y) \le d(x, z) + d(z, y) < 2r = d(x, y)$. So the balls — open by 5.1 — are disjoint.
+        $d(x, y) \le d(x, z) + d(z, y) < 2r = d(x, y)$. So the balls — open by 6.1 — are disjoint.
 
         In the cofinite topology on an infinite set, a sequence of distinct points converges to every point
-        (6.7), so limits are not unique.`,
+        (7.7), so limits are not unique.`,
       checks: [
         md`(a) takes $n$ beyond both thresholds at once.`,
         md`(b) proves both directions via boxes.`,

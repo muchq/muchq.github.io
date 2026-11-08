@@ -3,12 +3,12 @@ import { md } from './md'
 
 const unit: Unit = {
   id: 'homotopy',
-  n: 10,
+  n: 13,
   title: 'Homotopy and the fundamental group',
   track: 'Synthesis',
-  prereqs: [8, 2],
+  prereqs: [9, 2],
   why: md`Paths up to deformation form a group. Each group axiom is a topological construction, and every
-    verification rests on the pasting lemma (6.9) and products (6.10). Write the homotopies down explicitly —
+    verification rests on the pasting lemma (7.9) and products (7.10). Write the homotopies down explicitly —
     a picture is a hint, not a proof.`,
   definitions: [
     {
@@ -43,11 +43,11 @@ const unit: Unit = {
   ],
   problems: [
     {
-      id: '10.1',
+      id: '13.1',
       kind: 'prove',
       title: 'An equivalence relation',
       statement: md`Prove that $\simeq_p$ is an equivalence relation on the paths from $x$ to $y$.`,
-      uses: ['6.9'],
+      uses: ['7.9'],
       hints: [
         md`Reflexive: a homotopy that does not move. Symmetric: run time backwards.`,
         md`Transitive: one homotopy on $t \in [0, 1/2]$, the other on $[1/2, 1]$, at double speed.`,
@@ -56,7 +56,7 @@ const unit: Unit = {
         $H(s, 1 - t)$ runs from $\beta$ to $\alpha$, with the endpoint conditions inherited. *Transitive:* given
         $H$ from $\alpha$ to $\beta$ and $K$ from $\beta$ to $\gamma$, let $L(s, t) = H(s, 2t)$ for $t \le 1/2$
         and $K(s, 2t - 1)$ for $t \ge 1/2$. At $t = 1/2$ both are $\beta(s)$, so $L$ is well defined, and it is
-        continuous by pasting on the closed sets $I \times [0, 1/2]$ and $I \times [1/2, 1]$ (6.9). Then
+        continuous by pasting on the closed sets $I \times [0, 1/2]$ and $I \times [1/2, 1]$ (7.9). Then
         $L(s, 0) = \alpha(s)$, $L(s, 1) = \gamma(s)$, $L(0, t) = x$ and $L(1, t) = y$.`,
       checks: [
         md`Each of the three homotopies is written explicitly.`,
@@ -65,12 +65,12 @@ const unit: Unit = {
       ],
     },
     {
-      id: '10.2',
+      id: '13.2',
       kind: 'prove',
       title: 'Concatenation respects homotopy',
       statement: md`Prove that if $\alpha \simeq_p \alpha'$ and $\beta \simeq_p \beta'$, with
         $\alpha(1) = \beta(0)$, then $\alpha \cdot \beta \simeq_p \alpha' \cdot \beta'$.`,
-      uses: ['6.9'],
+      uses: ['7.9'],
       hints: [md`Put one homotopy on the left half of the square and the other on the right half.`],
       solution: md`Let $H$ run from $\alpha$ to $\alpha'$ and $K$ from $\beta$ to $\beta'$. Define
         $L(s, t) = H(2s, t)$ for $s \le 1/2$ and $K(2s - 1, t)$ for $s \ge 1/2$. At $s = 1/2$,
@@ -83,7 +83,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '10.3',
+      id: '13.3',
       kind: 'prove',
       title: 'Reparametrization',
       statement: md`Let $\alpha$ be a path and $\varphi\colon I \to I$ continuous with $\varphi(0) = 0$ and
@@ -118,12 +118,12 @@ const unit: Unit = {
       ],
     },
     {
-      id: '10.4',
+      id: '13.4',
       kind: 'prove',
       title: 'The fundamental group is a group',
       statement: md`Prove that $\alpha \cdot \bar\alpha \simeq_p c_x$ for any path $\alpha$ starting at $x$.
         Conclude that $\pi_1(X, x_0)$ is a group with identity $[c_{x_0}]$ and $[\alpha]^{-1} = [\bar\alpha]$.`,
-      uses: ['10.1', '10.2', '10.3', '6.9'],
+      uses: ['13.1', '13.2', '13.3', '7.9'],
       hints: [
         md`At time $t$, go out along $\alpha$ only as far as $\alpha(1 - t)$, then come back.`,
         md`The two halves of your homotopy should meet at $\alpha(1 - t)$ when $s = 1/2$.`,
@@ -135,15 +135,15 @@ const unit: Unit = {
         c_x$, and applied to $\bar\alpha$ (as $\bar{\bar\alpha} = \alpha$), $\bar\alpha \cdot \alpha \simeq_p
         c_{\alpha(1)}$.
 
-        The product on classes is well defined (10.1, 10.2), associative (10.3(a)), has identity $[c_{x_0}]$
-        (10.3(b)), and $[\bar\alpha]$ is inverse to $[\alpha]$ by the above.`,
+        The product on classes is well defined (13.1, 13.2), associative (13.3(a)), has identity $[c_{x_0}]$
+        (13.3(b)), and $[\bar\alpha]$ is inverse to $[\alpha]$ by the above.`,
       checks: [
         md`The inverse homotopy is explicit, continuous by pasting, with its four boundary conditions checked.`,
         md`Well-definedness, associativity and identity are cited rather than re-proved.`,
       ],
     },
     {
-      id: '10.5',
+      id: '13.5',
       kind: 'decide',
       title: 'Convex sets',
       statement: md`**Prove or disprove:** if $C \subseteq \R^n$ is convex, then any two paths in $C$ with the
@@ -157,7 +157,7 @@ const unit: Unit = {
       checks: [md`Convexity keeps the homotopy inside $C$.`, md`The endpoint conditions are verified.`],
     },
     {
-      id: '10.6',
+      id: '13.6',
       kind: 'flaw',
       title: 'Every loop contracts?',
       statement: md`**Claim.** For every space $X$ and $x_0 \in X$, $\pi_1(X, x_0)$ is trivial. Find the first
@@ -175,22 +175,22 @@ const unit: Unit = {
       solution: md`**Line 5.** A path homotopy must also fix both endpoints for every $t$. $H(0, t) = x_0$ holds,
         but $H(1, t) = \alpha(1 - t)$ moves along the loop. $H$ is a homotopy of maps $I \to X$ — every path is
         homotopic to a constant *as a map*, because $I$ is convex — but not a path homotopy. The claim is in fact
-        false: $\pi_1(S^1) \cong \Z$ (proved in Unit 11).`,
+        false: $\pi_1(S^1) \cong \Z$ (proved in Unit 14).`,
       checks: [md`Line 5 is identified, naming the endpoint condition that fails.`, md`$H(1, t)$ is computed.`],
     },
     {
-      id: '10.7',
+      id: '13.7',
       kind: 'prove',
       title: 'Change of basepoint',
       statement: md`Let $h$ be a path from $x_0$ to $x_1$. Prove that $\Phi_h[\alpha] = [\bar h \cdot \alpha
         \cdot h]$ is a well-defined isomorphism $\pi_1(X, x_0) \to \pi_1(X, x_1)$.`,
-      uses: ['10.2', '10.3', '10.4'],
+      uses: ['13.2', '13.3', '13.4'],
       hints: [
-        md`By 10.3(a), brackets inside classes can be dropped.`,
+        md`By 13.3(a), brackets inside classes can be dropped.`,
         md`Homomorphism: insert $[h][\bar h] = [c_{x_0}]$ in the middle. Inverse: $\Phi_{\bar h}$.`,
       ],
-      solution: md`$\Phi_h$ is well defined by 10.2. Classes of paths multiply whenever endpoints match, and by
-        10.3 and 10.4 this multiplication is associative, with the constant paths as units and $[\bar h]$ inverse
+      solution: md`$\Phi_h$ is well defined by 13.2. Classes of paths multiply whenever endpoints match, and by
+        13.3 and 13.4 this multiplication is associative, with the constant paths as units and $[\bar h]$ inverse
         to $[h]$; so we drop brackets. Then
         $\Phi_h([\alpha][\beta]) = [\bar h][\alpha][\beta][h] = [\bar h][\alpha][h][\bar h][\beta][h] =
         \Phi_h[\alpha]\,\Phi_h[\beta]$, inserting $[h][\bar h] = [c_{x_0}]$. And
@@ -203,7 +203,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '10.8',
+      id: '13.8',
       kind: 'prove',
       title: 'Functoriality',
       statement: md`For continuous $f\colon X \to Y$, prove that $f_*$ is a well-defined homomorphism, that
@@ -226,32 +226,32 @@ const unit: Unit = {
       ],
     },
     {
-      id: '10.9',
+      id: '13.9',
       kind: 'prove',
       title: 'Retracts',
       statement: md`Let $r\colon X \to A$ be a retraction and $i\colon A \to X$ the inclusion. Prove that
         $i_*\colon \pi_1(A, a) \to \pi_1(X, a)$ is injective for each $a \in A$.`,
-      uses: ['10.8', '0.6'],
+      uses: ['13.8', '0.6'],
       hints: [md`$r \circ i = \mathrm{id}_A$. Apply functoriality.`],
       solution: md`$r \circ i = \mathrm{id}_A$ and $r(a) = a$, so $r_* \circ i_* = (r \circ i)_* = \mathrm{id}$ on
-        $\pi_1(A, a)$ (10.8). A map with a left inverse is injective (0.6).`,
+        $\pi_1(A, a)$ (13.8). A map with a left inverse is injective (0.6).`,
       checks: [md`Basepoints are tracked: $r(i(a)) = a$.`, md`Injectivity is deduced from the left inverse.`],
     },
     {
-      id: '10.10',
+      id: '13.10',
       kind: 'prove',
       title: 'Products',
       statement: md`Prove that $\pi_1(X \times Y, (x_0, y_0)) \cong \pi_1(X, x_0) \times \pi_1(Y, y_0)$.`,
-      uses: ['10.8', '6.10', '3.1'],
+      uses: ['13.8', '7.10', '3.1'],
       hints: [
         md`The map is $[\gamma] \mapsto (\pi_{X*}[\gamma], \pi_{Y*}[\gamma])$.`,
-        md`Injective: combine two path homotopies into one map to $X \times Y$ (6.10(b)).`,
+        md`Injective: combine two path homotopies into one map to $X \times Y$ (7.10(b)).`,
       ],
-      solution: md`$\Psi = (\pi_{X*}, \pi_{Y*})$ is a homomorphism by 10.8. *Onto:* for loops $\alpha, \beta$,
-        $\gamma(s) = (\alpha(s), \beta(s))$ is continuous (6.10(b)) and $\Psi[\gamma] = ([\alpha], [\beta])$.
+      solution: md`$\Psi = (\pi_{X*}, \pi_{Y*})$ is a homomorphism by 13.8. *Onto:* for loops $\alpha, \beta$,
+        $\gamma(s) = (\alpha(s), \beta(s))$ is continuous (7.10(b)) and $\Psi[\gamma] = ([\alpha], [\beta])$.
         *Trivial kernel:* if $\Psi[\gamma]$ is trivial, there are path homotopies $H$ from $\pi_X \circ \gamma$
         to $c_{x_0}$ and $K$ from $\pi_Y \circ \gamma$ to $c_{y_0}$; then $(H, K)\colon I \times I \to X \times Y$
-        is continuous (6.10(b)) and is a path homotopy from $\gamma$ to $c_{(x_0, y_0)}$. By 3.1, $\Psi$ is
+        is continuous (7.10(b)) and is a path homotopy from $\gamma$ to $c_{(x_0, y_0)}$. By 3.1, $\Psi$ is
         injective.`,
       checks: [
         md`The homomorphism property is cited.`,
@@ -260,20 +260,20 @@ const unit: Unit = {
       ],
     },
     {
-      id: '10.11',
+      id: '13.11',
       kind: 'decide',
       title: 'Null loops, null bigons',
       statement: md`**Prove or disprove:** if $X$ is path-connected and $\pi_1(X, x_0)$ is trivial, then any two
         paths in $X$ with the same endpoints are path-homotopic.`,
       verdict: true,
-      uses: ['10.7', '10.3', '10.4'],
+      uses: ['13.7', '13.3', '13.4'],
       hints: [
         md`For paths $\alpha, \beta$ from $x$ to $y$, $\alpha \cdot \bar\beta$ is a loop at $x$. Is
           $\pi_1(X, x)$ trivial?`,
         md`Multiply $[\alpha \cdot \bar\beta] = [c_x]$ on the right by $[\beta]$.`,
       ],
-      solution: md`**True.** A path from $x_0$ to $x$ gives $\pi_1(X, x) \cong \pi_1(X, x_0)$ (10.7), so
-        $[\alpha \cdot \bar\beta] = [c_x]$. Then, using 10.3 and 10.4 on classes of paths,
+      solution: md`**True.** A path from $x_0$ to $x$ gives $\pi_1(X, x) \cong \pi_1(X, x_0)$ (13.7), so
+        $[\alpha \cdot \bar\beta] = [c_x]$. Then, using 13.3 and 13.4 on classes of paths,
         $[\alpha] = [\alpha][\bar\beta][\beta] = [\alpha \cdot \bar\beta][\beta] = [c_x][\beta] = [\beta]$.`,
       checks: [
         md`Triviality is transferred to the basepoint $x$.`,

@@ -4,17 +4,17 @@ import { md } from './md'
 // No `uses` here on purpose: nothing on the page says which tools apply.
 const unit: Unit = {
   id: 'mixed',
-  n: 12,
+  n: 15,
   title: 'Mixed problems',
   track: 'Mixed',
-  prereqs: [11],
+  prereqs: [14],
   why: md`No topic, and no list of results to cite: problems from across the course in no particular order,
     several asking you to *determine* the answer rather than prove one you are given. Deciding which tools
     apply is the problem.`,
   definitions: [],
   problems: [
     {
-      id: '12.1',
+      id: '15.1',
       kind: 'prove',
       challenge: true,
       title: 'Groups of order six',
@@ -54,7 +54,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '12.2',
+      id: '15.2',
       kind: 'decide',
       title: 'The circle in the line',
       statement: md`**Prove or disprove:** there is a continuous injective map $S^1 \to \R$.`,
@@ -64,9 +64,9 @@ const unit: Unit = {
         md`Remove one point from $S^1$ — which point?`,
       ],
       solution: md`**False.** Suppose $f\colon S^1 \to \R$ is continuous and injective. $S^1 = p([0, 1])$ is compact
-        (9.5, 9.1), so $f$ attains a minimum $m = f(z_1)$ and a maximum $M = f(z_2)$ (9.6). $S^1$ has a third
-        point $z$, and by injectivity $m < c < M$ for $c = f(z)$. $S^1 \setminus \{z\}$ is connected (8.6), so its
-        image is connected (8.3). But that image contains $m$ and $M$ and, by injectivity, not $c$; its parts
+        (10.5, 10.1), so $f$ attains a minimum $m = f(z_1)$ and a maximum $M = f(z_2)$ (10.6). $S^1$ has a third
+        point $z$, and by injectivity $m < c < M$ for $c = f(z)$. $S^1 \setminus \{z\}$ is connected (9.6), so its
+        image is connected (9.3). But that image contains $m$ and $M$ and, by injectivity, not $c$; its parts
         below and above $c$ are disjoint, nonempty, and open in it. Contradiction.`,
       checks: [
         md`Compactness gives attained extremes.`,
@@ -75,7 +75,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '12.3',
+      id: '15.3',
       kind: 'prove',
       title: 'Five spaces',
       statement: md`Sort $[0, 1)$, $(0, 1)$, $[0, 1]$, $\R$ and $S^1$ into homeomorphism classes, and prove your
@@ -92,16 +92,16 @@ const unit: Unit = {
         maps $(-1, 1)$ to $\R$ with inverse $h(x) = x/(1 + |x|)$: if $x = g(u)$ then $1 + |x| = 1/(1 - |u|)$, so
         $h(x) = u$; and $h$ maps into $(-1, 1)$ with $g(h(x)) = x$ likewise. Both are continuous.
 
-        *Compact or not.* $[0, 1]$ and $S^1 = p([0, 1])$ are compact (9.5, 9.1). The others are not: $[0, 1)$ is
+        *Compact or not.* $[0, 1]$ and $S^1 = p([0, 1])$ are compact (10.5, 10.1). The others are not: $[0, 1)$ is
         covered by the open sets $[0, 1 - \frac1n)$, $(0, 1)$ by $(\frac1n, 1)$ and $\R$ by $(-n, n)$, and in each
         case finitely many lie in the largest of them, which misses points. A homeomorphism carries compact to
-        compact (9.1), so no compact space here is homeomorphic to a non-compact one.
+        compact (10.1), so no compact space here is homeomorphic to a non-compact one.
 
-        *$[0, 1]$ and $S^1$* are not homeomorphic (8.6).
+        *$[0, 1]$ and $S^1$* are not homeomorphic (9.6).
 
         *$[0, 1)$ and $\R$.* Removing $0$ from $[0, 1)$ leaves the connected $(0, 1)$; removing any $x$ from $\R$
         leaves $(-\infty, x) \cup (x, \infty)$, disconnected. A homeomorphism $h\colon [0, 1) \to \R$ would restrict
-        to one from $[0, 1) \setminus \{0\}$ onto $\R \setminus \{h(0)\}$ (as in 8.6). So $[0, 1)$ is not
+        to one from $[0, 1) \setminus \{0\}$ onto $\R \setminus \{h(0)\}$ (as in 9.6). So $[0, 1)$ is not
         homeomorphic to $\R$, nor therefore to $(0, 1)$.`,
       checks: [
         md`An explicit homeomorphism $(0, 1) \to \R$ is given, with its inverse.`,
@@ -110,7 +110,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '12.4',
+      id: '15.4',
       kind: 'decide',
       title: 'Normal subgroups inside a subgroup',
       statement: md`**Prove or disprove:** if $H$ is a subgroup of finite index in a group $G$, then $H$ contains a
@@ -132,7 +132,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '12.5',
+      id: '15.5',
       kind: 'prove',
       title: 'Maps that miss a point',
       statement: md`Prove that a continuous map $f\colon S^1 \to S^1$ that is not surjective has degree 0. Deduce
@@ -141,10 +141,10 @@ const unit: Unit = {
         md`Suppose $f$ misses $p(a)$. Where can a lift of $s \mapsto f(p(s))$ take its values?`,
         md`Those values lie in a disjoint union of open intervals of length 1. Can the lift jump between them?`,
       ],
-      solution: md`Suppose $f$ misses $p(a)$ and let $\ell$ lift $s \mapsto f(p(s))$ on $[0, 1]$ (11.3). Its values
-        lie in $p^{-1}(S^1 \setminus \{p(a)\}) = \bigcup_n (a + n, a + n + 1)$ (11.1). $\ell([0, 1])$ is connected
-        (8.2, 8.3), so it lies in one of these disjoint open intervals — otherwise they would separate it. So
-        $|\ell(1) - \ell(0)| < 1$, and the integer $\deg f = \ell(1) - \ell(0)$ (11.7) is $0$. The map
+      solution: md`Suppose $f$ misses $p(a)$ and let $\ell$ lift $s \mapsto f(p(s))$ on $[0, 1]$ (14.3). Its values
+        lie in $p^{-1}(S^1 \setminus \{p(a)\}) = \bigcup_n (a + n, a + n + 1)$ (14.1). $\ell([0, 1])$ is connected
+        (9.2, 9.3), so it lies in one of these disjoint open intervals — otherwise they would separate it. So
+        $|\ell(1) - \ell(0)| < 1$, and the integer $\deg f = \ell(1) - \ell(0)$ (14.7) is $0$. The map
         $z \mapsto z^n$ has degree $n$ (lift $s \mapsto ns$), so for $n \ne 0$ it is onto.`,
       checks: [
         md`A lift is taken and its values located in the preimage of the complement of the missed point.`,
@@ -153,7 +153,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '12.6',
+      id: '15.6',
       kind: 'decide',
       title: 'Antipodes',
       statement: md`**Prove or disprove:** every continuous $f\colon S^1 \to \R$ takes the same value at some pair
@@ -165,7 +165,7 @@ const unit: Unit = {
       ],
       solution: md`**True.** $g(z) = f(z) - f(-z)$ is continuous and $g(-z) = -g(z)$. Let $h(t) = g(p(t))$ for
         $t \in [0, \frac12]$. As $p(\frac12) = -1 = -p(0)$, $h(\frac12) = -h(0)$. If $h(0) = 0$, take $z = 1$.
-        Otherwise $h(0)$ and $h(\frac12)$ have opposite signs, and the intermediate value theorem (8.3) gives $t$
+        Otherwise $h(0)$ and $h(\frac12)$ have opposite signs, and the intermediate value theorem (9.3) gives $t$
         with $h(t) = 0$; then $z = p(t)$ has $f(z) = f(-z)$.`,
       checks: [
         md`The odd function $g$ is introduced and $g(-z) = -g(z)$ verified.`,
@@ -174,7 +174,7 @@ const unit: Unit = {
       ],
     },
     {
-      id: '12.7',
+      id: '15.7',
       kind: 'prove',
       title: 'Unions of conjugates',
       statement: md`Let $H$ be a proper subgroup of a finite group $G$. Prove that $G$ is not the union of the
@@ -195,14 +195,14 @@ const unit: Unit = {
       ],
     },
     {
-      id: '12.8',
+      id: '15.8',
       kind: 'flaw',
       title: 'A true claim, a wrong proof',
       statement: md`**Claim** (true). A continuous bijection $f\colon [0, 1] \to [0, 1]$ is a homeomorphism. Find the
         first line of this proof that is wrong or does not follow — then prove the claim correctly.`,
       lines: [
         md`$f$ is a continuous bijection, so $f^{-1}$ exists; we show it is continuous.`,
-        md`By 6.5, $f^{-1}$ is continuous iff $(f^{-1})^{-1}(F)$ is closed for every closed $F \subseteq [0, 1]$.`,
+        md`By 7.5, $f^{-1}$ is continuous iff $(f^{-1})^{-1}(F)$ is closed for every closed $F \subseteq [0, 1]$.`,
         md`Since $f$ is a bijection, $(f^{-1})^{-1}(F) = f(F)$.`,
         md`$f(F)$ is closed, because continuous maps send closed sets to closed sets.`,
         md`So $f^{-1}$ is continuous, and $f$ is a homeomorphism. $\blacksquare$`,
@@ -214,7 +214,7 @@ const unit: Unit = {
       ],
       solution: md`**Line 4.** Its reason is false: the inclusion $(0, 1) \to \R$ is continuous and sends the set
         $(0, 1)$, closed in its own space, to a set that is not closed in $\R$. The claim is still true, for a
-        reason that uses the spaces: $[0, 1]$ is compact and Hausdorff, so the closed map lemma (9.4) makes line
+        reason that uses the spaces: $[0, 1]$ is compact and Hausdorff, so the closed map lemma (10.4) makes line
         4's conclusion hold for this $f$, and the rest of the argument goes through. A true conclusion does not
         make an argument valid.`,
       checks: [
@@ -223,21 +223,63 @@ const unit: Unit = {
       ],
     },
     {
-      id: '12.9',
+      id: '15.9',
       kind: 'prove',
       title: 'The torus',
       statement: md`Prove that the torus $T = S^1 \times S^1$ is homeomorphic neither to $S^1$ nor to $D^2$.`,
       hints: [md`Find an invariant you can compute for all three.`, md`Is $\Z \times \Z$ cyclic?`],
-      solution: md`$T$ is path-connected: paths in the two factors combine into a path in the product (6.10). So
-        its fundamental group does not depend on the basepoint up to isomorphism (10.7), and the same holds for
-        $S^1$ and $D^2$; a homeomorphism would induce an isomorphism (10.8). Now
-        $\pi_1(T) \cong \Z \times \Z$ (10.10, 11.6), $\pi_1(S^1) \cong \Z$ (11.6), and $\pi_1(D^2)$ is trivial
-        (10.5). $\Z \times \Z$ is not trivial, and not cyclic: if $(a, b)$ generated it, then $(1, 0) = k(a, b)$
+      solution: md`$T$ is path-connected: paths in the two factors combine into a path in the product (7.10). So
+        its fundamental group does not depend on the basepoint up to isomorphism (13.7), and the same holds for
+        $S^1$ and $D^2$; a homeomorphism would induce an isomorphism (13.8). Now
+        $\pi_1(T) \cong \Z \times \Z$ (13.10, 14.6), $\pi_1(S^1) \cong \Z$ (14.6), and $\pi_1(D^2)$ is trivial
+        (13.5). $\Z \times \Z$ is not trivial, and not cyclic: if $(a, b)$ generated it, then $(1, 0) = k(a, b)$
         and $(0, 1) = l(a, b)$; $ka = 1$ forces $k \ne 0$, so $kb = 0$ gives $b = 0$, contradicting $lb = 1$.`,
       checks: [
         md`Basepoint independence and functoriality are cited.`,
         md`$\pi_1(T)$ is computed from the product formula.`,
         md`$\Z \times \Z$ is shown not cyclic, and not trivial.`,
+      ],
+    },
+    {
+      id: '15.10',
+      kind: 'prove',
+      title: 'Functions on compact spaces',
+      statement: md`Let $X$ be a compact Hausdorff space and $x \ne y$ points of $X$. Prove there is a continuous
+        $f\colon X \to \R$ with $f(x) \ne f(y)$.`,
+      hints: [
+        md`Open sets separate $x$ from $y$. What turns separating open sets into a function?`,
+        md`What do you know about compact Hausdorff spaces that a function-building theorem needs?`,
+      ],
+      solution: md`$X$ is normal (11.3), and $\{x\}$, $\{y\}$ are disjoint closed sets, points being closed (11.1).
+        Urysohn's lemma (11.7) gives a continuous $f\colon X \to [0, 1]$ with $f(x) = 0$ and $f(y) = 1$.`,
+      checks: [
+        md`Normality of compact Hausdorff spaces is invoked.`,
+        md`Points are shown to be closed before Urysohn is applied.`,
+      ],
+    },
+    {
+      id: '15.11',
+      kind: 'decide',
+      title: 'Maximal ideals of ℤ/n',
+      statement: md`**Prove or disprove:** for every $n \ge 2$, the number of maximal ideals of $\Z/n$ equals the number of
+        distinct primes dividing $n$.`,
+      verdict: true,
+      hints: [
+        md`Compare the ideals of $\Z/n$ with ideals of $\Z$. Which ones?`,
+        md`Pull back along $\Z \to \Z/n$, and check that this is a bijection that respects inclusion.`,
+      ],
+      solution: md`**True.** Let $\pi\colon \Z \to \Z/n$. For an ideal $M$ of $\Z/n$, $\pi^{-1}(M)$ is an ideal of $\Z$ containing
+        $n\Z$ (preimages of ideals under ring homomorphisms are ideals, directly from the definitions), and
+        $\pi(\pi^{-1}(M)) = M$ since $\pi$ is onto. For an ideal $J \supseteq n\Z$ of $\Z$, $\pi(J)$ is an ideal
+        ($\pi$ is onto; 5.3) and $\pi^{-1}(\pi(J)) = J + n\Z = J$. So $M \mapsto \pi^{-1}(M)$ is a bijection, preserving
+        inclusion both ways, from ideals of $\Z/n$ to ideals of $\Z$ containing $n\Z$; $M$ is proper iff
+        $1 \notin \pi^{-1}(M)$, so maximal ideals correspond to maximal ideals. The ideals containing $n\Z$ are
+        $d\Z$ with $d \ge 1$, $d \mid n$ (5.7), and $d\Z$ is maximal iff $d$ is prime (5.7, 5.5). So the maximal
+        ideals of $\Z/n$ match the prime divisors of $n$.`,
+      checks: [
+        md`The correspondence of ideals is proved, in both directions, with inclusion preserved.`,
+        md`Properness, hence maximality, is shown to correspond.`,
+        md`Maximal ideals of $\Z$ are identified with primes.`,
       ],
     },
   ],

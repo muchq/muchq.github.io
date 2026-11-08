@@ -217,7 +217,7 @@ const unit: Unit = {
       hints: [md`Find a surjective homomorphism $\R \to S^1$ and compute its kernel.`],
       solution: md`$S^1$ is a group: $|zw| = |z||w|$ and $|z^{-1}| = |z|^{-1}$. $p\colon (\R, +) \to (S^1, \cdot)$
         is a homomorphism by the exponent law, surjective by assumption, with kernel $\{t : p(t) = 1\} = \Z$.
-        By the first isomorphism theorem (3.7), $\R/\Z \cong S^1$. Unit 9 upgrades this to a homeomorphism.`,
+        By the first isomorphism theorem (3.7), $\R/\Z \cong S^1$. Unit 10 upgrades this to a homeomorphism.`,
       checks: [
         md`Homomorphism, surjectivity and kernel are each verified.`,
         md`The first isomorphism theorem is applied with the right kernel.`,

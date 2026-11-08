@@ -37,6 +37,16 @@ const unit: Unit = {
       body: md`A set $S$ is **countable** if there is an injection $S \to \N$, where $\N = \{0, 1, 2, \dots\}$.
         Finite sets are countable.`,
     },
+    {
+      term: "Partial orders and Zorn's lemma",
+      body: md`A **partial order** $\le$ on $P$ is reflexive, antisymmetric ($a \le b$ and $b \le a$ imply $a = b$)
+        and transitive. A **chain** is a subset any two of whose elements are comparable; the empty set is a
+        chain. An **upper bound** of $S \subseteq P$ is some $u \in P$ with $s \le u$ for all $s \in S$, and $m$
+        is **maximal** if no $p \in P$ has $m \le p$, $m \ne p$.
+
+        **Zorn's lemma** (assumed; it is equivalent to the axiom of choice): if every chain in $P$ — the empty
+        chain included — has an upper bound in $P$, then $P$ has a maximal element.`,
+    },
   ],
   problems: [
     {
@@ -223,6 +233,48 @@ const unit: Unit = {
       checks: [
         md`An explicit map to $\N$ is given.`,
         md`Injectivity is proved — uniqueness of binary expansion, or an equivalent argument.`,
+      ],
+    },
+    {
+      id: '1.9',
+      kind: 'prove',
+      title: 'Maximal chains',
+      statement: md`Prove that every partially ordered set $P$ has a maximal chain: a chain not properly contained
+        in any other chain.`,
+      hints: [
+        md`Apply Zorn's lemma — to which partially ordered set?`,
+        md`What is an upper bound for a chain of chains? Do not forget the empty one.`,
+      ],
+      solution: md`Let $\mathcal C$ be the set of chains in $P$, ordered by inclusion. Let $\mathcal K$ be a chain in
+        $\mathcal C$: a collection of chains, any two of which are nested. Its union $\bigcup\mathcal K$ is a chain:
+        two of its elements $p, q$ lie in chains $C_1, C_2 \in \mathcal K$, one of which contains the other, so $p$
+        and $q$ lie in a single chain and are comparable. So $\bigcup\mathcal K$ is an upper bound for
+        $\mathcal K$ in $\mathcal C$ — for the empty $\mathcal K$ it is $\emptyset$, itself a chain. By Zorn's lemma
+        $\mathcal C$ has a maximal element, which is a maximal chain.`,
+      checks: [
+        md`Zorn is applied to the set of chains, ordered by inclusion.`,
+        md`The union of a chain of chains is shown to be a chain.`,
+        md`The empty chain of chains is given an upper bound.`,
+      ],
+    },
+    {
+      id: '1.10',
+      kind: 'decide',
+      title: 'Which chains?',
+      statement: md`**Prove or disprove:** if every *nonempty* chain in a partially ordered set $P$ has an upper bound
+        in $P$, then $P$ has a maximal element.`,
+      verdict: false,
+      hints: [
+        md`Compare the hypothesis with Zorn's lemma word for word. What is missing?`,
+        md`Test the smallest partially ordered set there is.`,
+      ],
+      solution: md`**False.** Take $P = \emptyset$. It has no nonempty chains, so the hypothesis holds vacuously, but it
+        has no maximal element. When $P \ne \emptyset$ the statement is true: any element is an upper bound for
+        the empty chain, so Zorn's lemma applies. That is the whole content of "the empty chain included": in
+        every use of Zorn, check that the set is nonempty.`,
+      checks: [
+        md`A counterexample is given and both halves are checked.`,
+        md`The corrected statement (for nonempty $P$) is proved from Zorn's lemma.`,
       ],
     },
   ],

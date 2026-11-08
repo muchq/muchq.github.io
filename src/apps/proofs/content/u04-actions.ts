@@ -8,7 +8,7 @@ const unit: Unit = {
   track: 'Algebra',
   prereqs: [3],
   why: md`Groups matter because they act. One counting principle — orbit–stabilizer — and one congruence
-    about $p$-groups yield every structure theorem in this unit. The same pattern returns in Unit 11, where
+    about $p$-groups yield every structure theorem in this unit. The same pattern returns in Unit 14, where
     $\Z$ acts on $\R$ and the orbit space is the circle.`,
   definitions: [
     {
