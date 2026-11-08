@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CATALOG,
+  sup,
   alternating,
   cyclic,
   dihedral,
@@ -16,10 +17,12 @@ import {
   conjugacyClasses,
   directProduct,
   elementOrder,
+  fromOperation,
   fromTable,
   generate,
   homomorphisms,
   isAbelian,
+  isHomomorphism,
   isAssociative,
   isCyclic,
   isNormal,
@@ -31,6 +34,8 @@ import {
   normalizer,
   order,
   orderStatistics,
+  pow,
+  projection,
   quotient,
   range,
   rightCosets,
@@ -49,9 +54,10 @@ describe('the catalog', () => {
     }
   })
 
-  it('names are unique and stable', () => {
+  it('names are unique, and each is the name of the group it builds', () => {
     const names = CATALOG.map(e => e.name)
     expect(new Set(names).size).toBe(names.length)
+    for (const e of CATALOG) expect(e.build().name, e.id).toBe(e.name)
     expect(names).toContain('D₄')
     expect(names).toContain('U(15)')
   })
@@ -76,6 +82,39 @@ describe('the catalog', () => {
     expect(normalSubgroups(G)).toHaveLength(normals)
     expect(conjugacyClasses(G)).toHaveLength(classes)
     expect(center(G)).toHaveLength(z)
+  })
+
+  it('isAssociative refuses a table that is not associative', () => {
+    // A Latin square with identity 0 whose operation is not associative:
+    // (1·1)·2 = 0·2 = 2 but 1·(1·2) = 1·3 = 4.
+    const latin = [
+      [0, 1, 2, 3, 4],
+      [1, 0, 3, 4, 2],
+      [2, 4, 0, 1, 3],
+      [3, 2, 4, 0, 1],
+      [4, 3, 1, 2, 0],
+    ]
+    expect(isAssociative(fromTable('latin', ['0', '1', '2', '3', '4'], latin))).toBe(false)
+    // The control: the same shape of table for ℤ₅ is associative.
+    expect(isAssociative(cyclic(5))).toBe(true)
+  })
+
+  it('fromOperation refuses sets that are not closed or repeat an element', () => {
+    expect(() => fromOperation('odd', [1, 3], (a, b) => a + b, String, String)).toThrow(/not closed/)
+    expect(() => fromOperation('dup', [0, 0], (a, b) => a + b, String, String)).toThrow(/duplicate/)
+  })
+
+  it('dihedral labels mean what they say: srᵏ is s·rᵏ', () => {
+    for (const n of [3, 4, 5, 6]) {
+      const D = dihedral(n)
+      const [r, s] = byLabel(D, 'r', 's')
+      for (let k = 0; k < n; k++) {
+        const rk = k === 0 ? '' : k === 1 ? 'r' : `r${sup(k)}`
+        expect(D.labels[pow(D, r, k)]).toBe(rk || 'e')
+        expect(D.labels[mul(D, s, pow(D, r, k))]).toBe(`s${rk}`)
+      }
+      expect(pow(D, r, -1)).toBe(D.inverses[r])
+    }
   })
 
   it('dihedral relations: rⁿ = s² = e and rs = sr⁻¹', () => {
@@ -164,6 +203,21 @@ describe('subgroups, cosets, and quotients', () => {
     expect(order(Q)).toBe(4)
     expect(isCyclic(Q)).toBe(false)
     expect(Q.labels[Q.identity]).toBe('Z')
+  })
+
+  it('the projection onto every quotient is a homomorphism with kernel N, non-abelian quotients included', () => {
+    for (const G of [symmetric(4), dihedral(4), quaternion(), dihedral(6)]) {
+      for (const N of normalSubgroups(G)) {
+        const Q = quotient(G, N)
+        const pi = projection(G, N)
+        expect(isHomomorphism(G, Q, pi), `${G.name}/${N.length}`).toBe(true)
+        expect(kernel(G, Q, pi)).toEqual(N)
+      }
+    }
+    // S₄/V₄ ≅ S₃, which is not abelian, so a product taken in the wrong order would show.
+    const S = symmetric(4)
+    const V = normalSubgroups(S).find(N => N.length === 4)!
+    expect(isAbelian(quotient(S, V))).toBe(false)
   })
 
   it('quotient refuses a non-normal subgroup', () => {

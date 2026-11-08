@@ -48,7 +48,7 @@ describe('/groups', () => {
     at('/groups/groups')
     const first = CHAPTERS[0].problems[0]
     const card = screen.getByRole('article', { name: 'Problem 1.1' })
-    await userEvent.type(within(card).getByLabelText('Your answer'), '1, 2, 4, 7, 8, 11, 13, 14{Enter}')
+    await userEvent.type(within(card).getByLabelText('Answer to problem 1.1'), '1, 2, 4, 7, 8, 11, 13, 14{Enter}')
     expect(within(card).getByText('✓ Solved')).toBeInTheDocument()
     expect(JSON.parse(localStorage.getItem(PROGRESS_KEY)!)).toEqual([first.id])
     await userEvent.click(screen.getByRole('link', { name: 'Overview' }))

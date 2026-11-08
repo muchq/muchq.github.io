@@ -204,16 +204,25 @@ export const leftCosets = (G: FiniteGroup, H: Subset): number[][] => cosets(G, g
 export const rightCosets = (G: FiniteGroup, H: Subset): number[][] => cosets(G, g => rightCoset(G, H, g))
 
 /**
- * G/N for a normal subgroup N. Each coset is labeled by its least-index
- * representative, so the identity coset reads as N itself.
+ * The natural projection G → G/N, as a map from G's elements to the
+ * elements of quotient(G, N): element i of the quotient is leftCosets(G, N)[i].
+ */
+export const projection = (G: FiniteGroup, N: Subset): number[] => {
+  const pi = new Array<number>(order(G))
+  leftCosets(G, N).forEach((C, i) => C.forEach(g => (pi[g] = i)))
+  return pi
+}
+
+/**
+ * G/N for a normal subgroup N, with (aN)(bN) = abN. Each coset is labeled
+ * by its least-index representative, so the identity coset reads as N itself.
  */
 export const quotient = (G: FiniteGroup, N: Subset, nName = 'N'): FiniteGroup => {
   if (!isSubgroup(G, N) || !isNormal(G, N)) throw new Error(`${nName} is not a normal subgroup of ${G.name}`)
   const classes = leftCosets(G, N)
-  const which = new Map<number, number>()
-  classes.forEach((C, i) => C.forEach(g => which.set(g, i)))
+  const pi = projection(G, N)
   const labels = classes.map(C => (C.includes(G.identity) ? nName : `${G.labels[C[0]]}${nName}`))
-  const table = classes.map(A => classes.map(B => which.get(G.table[A[0]][B[0]])!))
+  const table = classes.map(A => classes.map(B => pi[G.table[A[0]][B[0]]]))
   return fromTable(`${G.name}/${nName}`, labels, table)
 }
 

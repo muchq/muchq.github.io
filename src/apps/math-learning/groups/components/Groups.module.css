@@ -15,23 +15,6 @@
   padding: 80px 20px 60px;
 }
 
-.pageHeader {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.pageHeader h1 {
-  font-size: 2.4rem;
-  font-weight: 300;
-  margin: 0 0 8px;
-  letter-spacing: -0.5px;
-}
-
-.pageHeader p {
-  margin: 0;
-  color: #5a6c7d;
-}
-
 /* Course navigation */
 
 .courseNav ol {
@@ -316,11 +299,6 @@
   padding-left: 12px;
 }
 
-.drillGrid {
-  display: grid;
-  gap: 0 16px;
-}
-
 /* Overview */
 
 .chapterGrid {
@@ -414,9 +392,12 @@
   gap: 16px;
 }
 
-.toolGrid h4,
+.toolGrid h3,
+.lab h3,
 .lab h4 {
   margin: 12px 0 6px;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .facts {
@@ -534,6 +515,11 @@
   opacity: 0.75;
 }
 
+/* Full opacity on the blue: 0.75 white on #3b6fb6 falls below 4.5:1. */
+.subgroupSelected .order {
+  opacity: 1;
+}
+
 .subgroupDetails {
   margin-top: 12px;
   padding: 10px 14px;
@@ -555,8 +541,7 @@
   font-size: 0.85rem;
 }
 
-.cosetColumns h5,
-.subgroupDetails h5 {
+.subgroupDetails h4 {
   margin: 10px 0 4px;
   font-size: 0.95rem;
 }
@@ -595,10 +580,6 @@
     padding: 70px 12px 40px;
   }
 
-  .pageHeader h1 {
-    font-size: 1.8rem;
-  }
-
   .card {
     padding: 20px 16px;
   }
@@ -611,7 +592,8 @@
     flex-wrap: nowrap;
     overflow-x: auto;
     justify-content: flex-start;
-    padding-bottom: 6px;
+    /* Room for focus rings, which the scroll container would clip. */
+    padding: 4px 4px 6px;
   }
 
   .courseNav a {

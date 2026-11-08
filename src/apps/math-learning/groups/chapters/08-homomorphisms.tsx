@@ -33,7 +33,7 @@ const Body = () => (
         <ol>
           <li>φ(e) = e and φ(gⁿ) = φ(g)ⁿ for all n ∈ ℤ.</li>
           <li>If |g| is finite, |φ(g)| divides |g|.</li>
-          <li>If K ≤ G then φ(K) ≤ H; if K is abelian or cyclic, so is φ(K).</li>
+          <li>If K ≤ G then φ(K) ≤ H; if K is abelian or cyclic, so is φ(K); if φ is onto and K ◁ G, then φ(K) ◁ H.</li>
           <li>If L ≤ H then φ⁻¹(L) = {'{'}g : φ(g) ∈ L{'}'} ≤ G; if L ◁ H then φ⁻¹(L) ◁ G.</li>
           <li>ker φ ◁ G.</li>
           <li>φ(a) = φ(b) if and only if a ker φ = b ker φ. In particular φ is injective if and only if ker φ = {'{'}e{'}'}.</li>
@@ -43,7 +43,10 @@ const Body = () => (
         <ol>
           <li>As for isomorphisms (§4.2); bijectivity was not used.</li>
           <li>φ(g)<sup>|g|</sup> = φ(g<sup>|g|</sup>) = φ(e) = e, so |φ(g)| divides |g| by §1.4.</li>
-          <li>φ(a)φ(b)⁻¹ = φ(ab⁻¹), and φ(a)φ(b) = φ(ab) = φ(ba) = φ(b)φ(a) when ab = ba; if K = ⟨k⟩ then φ(K) = ⟨φ(k)⟩.</li>
+          <li>
+            φ(a)φ(b)⁻¹ = φ(ab⁻¹), and φ(a)φ(b) = φ(ab) = φ(ba) = φ(b)φ(a) when ab = ba; if K = ⟨k⟩ then φ(K) = ⟨φ(k)⟩. If φ is
+            onto, every element of H is some φ(g), and φ(g)φ(K)φ(g)⁻¹ = φ(gKg⁻¹) = φ(K).
+          </li>
           <li>
             If φ(a), φ(b) ∈ L then φ(ab⁻¹) = φ(a)φ(b)⁻¹ ∈ L. If L is normal and φ(x) ∈ L, then φ(gxg⁻¹) = φ(g)φ(x)φ(g)⁻¹ ∈ L.
           </li>
@@ -95,7 +98,7 @@ const Body = () => (
       </Theorem>
       <Proof>
         <p>
-          HN is a subgroup (Chapter 7 problems), and N ◁ HN since N ◁ G. Define φ: H → HN/N by φ(h) = hN: a homomorphism
+          HN = NH, since hN = Nh, and NH is a subgroup by a Chapter 7 problem; N ◁ HN since N ◁ G. Define φ: H → HN/N by φ(h) = hN: a homomorphism
           (the natural projection, restricted). It is onto, because hnN = hN. Its kernel is {'{'}h ∈ H : hN = N{'}'} = H ∩ N,
           which is therefore normal in H. Apply the First Isomorphism Theorem.
         </p>

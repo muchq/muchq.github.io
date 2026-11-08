@@ -1,4 +1,4 @@
-import { choice, int, set, text } from '../problems/answers'
+import { choice, dihedralElement, int, set } from '../problems/answers'
 import type { Problem } from '../problems/types'
 
 export const problems: Problem[] = [
@@ -29,7 +29,7 @@ export const problems: Problem[] = [
     id: 'gr-d4-product',
     kind: 'answer',
     prompt: <p>In D₄, compute (sr)(sr²). Write the answer as e, rᵏ, or srᵏ.</p>,
-    answer: text(['r'], 'e.g. sr² or sr^2'),
+    answer: dihedralElement('r'),
     hint: <p>Use rs = sr⁻¹ to move the middle r past s.</p>,
     solution: <p>(sr)(sr²) = s(rs)r² = s(sr⁻¹)r² = s²r = r.</p>,
   },

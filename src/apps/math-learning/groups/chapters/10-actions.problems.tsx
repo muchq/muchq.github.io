@@ -1,4 +1,4 @@
-import { int, multiset } from '../problems/answers'
+import { int, sum } from '../problems/answers'
 import type { Problem } from '../problems/types'
 
 export const problems: Problem[] = [
@@ -40,14 +40,14 @@ export const problems: Problem[] = [
     id: 'ac-d4-classeq',
     kind: 'answer',
     prompt: <p>Give the class equation of D₄: the sizes of its conjugacy classes, as a sum.</p>,
-    answer: multiset(1, 1, 2, 2, 2),
+    answer: sum(1, 1, 2, 2, 2),
     solution: <p>{'{'}e{'}'}, {'{'}r²{'}'}, {'{'}r, r³{'}'}, {'{'}s, sr²{'}'}, {'{'}sr, sr³{'}'}: 8 = 1 + 1 + 2 + 2 + 2.</p>,
   },
   {
     id: 'ac-a4-classeq',
     kind: 'answer',
     prompt: <p>Give the class equation of A₄.</p>,
-    answer: multiset(1, 3, 4, 4),
+    answer: sum(1, 3, 4, 4),
     solution: (
       <p>
         e; the three double transpositions; and the eight 3-cycles, which split into two classes of 4 in A₄ (the centralizer

@@ -41,6 +41,7 @@ const ProblemCard = ({ problem, number, solved, onSolvedChange }: ProblemCardPro
       {problem.kind === 'answer' && (
         <div className={styles.answerRow}>
           <AnswerInput
+            label={`Answer to problem ${number}`}
             answer={problem.answer}
             value={value}
             onChange={v => {
@@ -76,13 +77,8 @@ const ProblemCard = ({ problem, number, solved, onSolvedChange }: ProblemCardPro
         </div>
       </details>
       {problem.kind === 'proof' && (
-        <button
-          type="button"
-          className={`${styles.button} ${styles.secondary}`}
-          aria-pressed={solved}
-          onClick={() => onSolvedChange(!solved)}
-        >
-          {solved ? 'Done ✓' : 'Mark as done'}
+        <button type="button" className={`${styles.button} ${styles.secondary}`} onClick={() => onSolvedChange(!solved)}>
+          {solved ? 'Mark as not done' : 'Mark as done'}
         </button>
       )}
     </article>

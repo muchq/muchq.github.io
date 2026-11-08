@@ -3,9 +3,11 @@ import {
   answerInput,
   checkAnswer,
   choice,
+  dihedralElement,
   formatAnswer,
   int,
-  multiset,
+  list,
+  sum,
   normalizeText,
   perm,
   set,
@@ -28,7 +30,7 @@ describe('checkAnswer', () => {
   })
 
   it('multisets count repeats — a set would not', () => {
-    const classEquation = multiset(1, 1, 2, 2, 2)
+    const classEquation = sum(1, 1, 2, 2, 2)
     expect(checkAnswer(classEquation, '1 + 1 + 2 + 2 + 2')).toBe(true)
     expect(checkAnswer(classEquation, '2 + 1 + 2 + 1 + 2')).toBe(true)
     expect(checkAnswer(classEquation, '1 + 2 + 2 + 2')).toBe(false)
@@ -55,6 +57,13 @@ describe('checkAnswer', () => {
     expect(() => choice(['a'], 'b')).toThrow()
   })
 
+  it('dihedral elements accept the spelled-out first power and names for e', () => {
+    for (const ok of ['sr', 'sr¹', 'sr^1']) expect(checkAnswer(dihedralElement('sr'), ok), ok).toBe(true)
+    for (const ok of ['e', '1', 'id']) expect(checkAnswer(dihedralElement('e'), ok), ok).toBe(true)
+    expect(checkAnswer(dihedralElement('sr'), 'sr2')).toBe(false)
+    expect(checkAnswer(dihedralElement('r²'), 'r21')).toBe(false)
+  })
+
   it('text folds superscripts, carets, case, and spaces', () => {
     const a = text(['sr²'])
     for (const ok of ['sr²', 'sr^2', 'SR2', 's r ^ 2']) expect(checkAnswer(a, ok), ok).toBe(true)
@@ -63,10 +72,14 @@ describe('checkAnswer', () => {
   })
 
   it('the formatted answer is always accepted', () => {
-    for (const a of [int(4), set(3, 1, 2), multiset(2, 1, 2), perm(5, '(1 2)(3 4 5)'), yesNo(true), text(['r³'])]) {
+    for (const a of [int(4), set(3, 1, 2), sum(2, 1, 2), list(6, 2), perm(5, '(1 2)(3 4 5)'), yesNo(true), text(['r³'])]) {
       expect(checkAnswer(a, answerInput(a)), formatAnswer(a)).toBe(true)
     }
     expect(formatAnswer(set(3, 1, 2, 2))).toBe('{1, 2, 3}')
-    expect(formatAnswer(multiset(2, 1, 2))).toBe('1 + 2 + 2')
+    expect(formatAnswer(sum(2, 1, 2))).toBe('1 + 2 + 2')
+    // Invariant factors are a list, not a sum, though repeats count in both.
+    expect(formatAnswer(list(36, 6))).toBe('6, 36')
+    expect(checkAnswer(list(2, 2, 6), '2, 6')).toBe(false)
+    expect(checkAnswer(list(2, 2, 6), '6, 2, 2')).toBe(true)
   })
 })

@@ -1,4 +1,4 @@
-import { choice, int, multiset, yesNo } from '../problems/answers'
+import { choice, int, list, sum, yesNo } from '../problems/answers'
 import type { Problem } from '../problems/types'
 
 export const problems: Problem[] = [
@@ -6,7 +6,7 @@ export const problems: Problem[] = [
     id: 'sm-a5-classeq',
     kind: 'answer',
     prompt: <p>Give the class equation of A₅.</p>,
-    answer: multiset(1, 12, 12, 15, 20),
+    answer: sum(1, 12, 12, 15, 20),
     solution: <p>60 = 1 + 15 + 20 + 12 + 12 (§12.2).</p>,
   },
   {
@@ -34,7 +34,7 @@ export const problems: Problem[] = [
     id: 'sm-s4-factors',
     kind: 'answer',
     prompt: <p>List the orders of the composition factors of S₄.</p>,
-    answer: multiset(2, 3, 2, 2),
+    answer: list(2, 3, 2, 2),
     solution: (
       <p>
         Refine S₄ ▷ A₄ ▷ V ▷ {'{'}e{'}'} by inserting a subgroup of order 2 in V: factors of orders 2, 3, 2, 2. By

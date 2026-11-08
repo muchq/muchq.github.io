@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { checkAnswer, formatAnswer } from '../problems/answers'
 import type { Drill, Rng } from '../problems/types'
 import AnswerInput from './AnswerInput'
@@ -12,48 +12,52 @@ interface DrillCardProps {
 
 /** Endless practice: a fresh instance of the same computation on demand. */
 const DrillCard = ({ drill, rng = Math.random }: DrillCardProps) => {
+  const answerRow = useRef<HTMLDivElement>(null)
   const [item, setItem] = useState(() => drill.make(rng))
   const [value, setValue] = useState('')
   const [verdict, setVerdict] = useState<'right' | 'wrong' | null>(null)
-  const [revealed, setRevealed] = useState(false)
+  const [showing, setShowing] = useState(false)
+  // Set by showing the solution, even if it is hidden again; cleared by the next problem.
+  const [peeked, setPeeked] = useState(false)
   const [streak, setStreak] = useState(0)
 
   const check = () => {
     if (value.trim() === '' || verdict === 'right') return
     const right = checkAnswer(item.answer, value)
     setVerdict(right ? 'right' : 'wrong')
-    // A peek at the solution doesn't count toward the streak.
-    setStreak(s => (right ? (revealed ? s : s + 1) : 0))
+    setStreak(s => (right && !peeked ? s + 1 : 0))
   }
 
-  const next = () => {
+  const next = (skipped: boolean) => {
     setItem(drill.make(rng))
     setValue('')
     setVerdict(null)
-    setRevealed(false)
+    setShowing(false)
+    setPeeked(false)
+    if (skipped) setStreak(0)
+    answerRow.current?.querySelector('input')?.focus()
   }
 
   return (
     <article className={styles.drill} aria-label={`Drill: ${drill.title}`}>
       <header className={styles.problemHeader}>
         <h3>{drill.title}</h3>
-        <span className={styles.tag} aria-label={`streak ${streak}`}>
-          Streak {streak}
-        </span>
+        <span className={styles.tag}>Streak {streak}</span>
       </header>
       <p className={styles.prompt}>{item.prompt}</p>
-      <div className={styles.answerRow}>
+      <div className={styles.answerRow} ref={answerRow}>
         <AnswerInput
+          label={`Answer: ${drill.title}`}
           answer={item.answer}
           value={value}
           onChange={v => {
             setValue(v)
             if (verdict === 'wrong') setVerdict(null)
           }}
-          onSubmit={verdict === 'right' ? next : check}
+          onSubmit={verdict === 'right' ? () => next(false) : check}
         />
         {verdict === 'right' ? (
-          <button type="button" className={styles.button} onClick={next}>
+          <button type="button" className={styles.button} onClick={() => next(false)}>
             Next
           </button>
         ) : (
@@ -61,11 +65,18 @@ const DrillCard = ({ drill, rng = Math.random }: DrillCardProps) => {
             Check
           </button>
         )}
-        <button type="button" className={`${styles.button} ${styles.secondary}`} onClick={() => setRevealed(r => !r)}>
-          {revealed ? 'Hide solution' : 'Show solution'}
+        <button
+          type="button"
+          className={`${styles.button} ${styles.secondary}`}
+          onClick={() => {
+            setShowing(s => !s)
+            setPeeked(true)
+          }}
+        >
+          {showing ? 'Hide solution' : 'Show solution'}
         </button>
         {verdict !== 'right' && (
-          <button type="button" className={`${styles.button} ${styles.secondary}`} onClick={next}>
+          <button type="button" className={`${styles.button} ${styles.secondary}`} onClick={() => next(true)}>
             Skip
           </button>
         )}
@@ -73,7 +84,7 @@ const DrillCard = ({ drill, rng = Math.random }: DrillCardProps) => {
       <p role="status" className={verdict === 'right' ? styles.right : styles.wrong}>
         {verdict === 'right' ? 'Correct.' : verdict === 'wrong' ? 'Not quite.' : ''}
       </p>
-      {revealed && (
+      {showing && (
         <div className={styles.drillSolution}>
           <p>
             <strong>Answer:</strong> {formatAnswer(item.answer)}

@@ -59,8 +59,9 @@ const Body = () => (
       </Theorem>
       <Proof label="Proof sketch">
         <p>
-          Let {'{'}e{'}'} ≠ N ◁ Aₙ. One shows N contains a 3-cycle: take σ ∈ N moving as few points as possible, and if σ is
-          not a 3-cycle, conjugate it by a suitable 3-cycle τ to get a commutator στσ⁻¹τ⁻¹ ∈ N that moves fewer points. For n ≥
+          Let {'{'}e{'}'} ≠ N ◁ Aₙ. One shows N contains a 3-cycle: take σ ≠ e in N moving as few points as possible. If σ
+          is not a 3-cycle, a suitable 3-cycle τ gives a commutator στσ⁻¹τ⁻¹ = σ · (τσ⁻¹τ⁻¹) ∈ N that is not e but moves
+          fewer points than σ — contradicting minimality. For n ≥
           5, all 3-cycles are conjugate in Aₙ (conjugate in Sₙ, then fix the parity using a transposition of two points the
           3-cycle does not move), so N contains every 3-cycle, and 3-cycles generate Aₙ (Chapter 3).
         </p>

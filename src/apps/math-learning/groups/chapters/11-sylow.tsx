@@ -93,7 +93,7 @@ const Body = () => (
         </p>
       </Proof>
       <p>
-        So every group of order 15, 33, 35, 51, 65, 77, 85, 91, … is cyclic. When p | q − 1 there is also a non-abelian group
+        So every group of order 15, 33, 35, 51, 65, 69, 77, 85, 87, 91, 95, … is cyclic. When p | q − 1 there is also a non-abelian group
         of order pq: S₃ for 6, D₅ for 10, a group of order 21 inside S₇.
       </p>
       <Theorem>
@@ -129,7 +129,7 @@ const Body = () => (
     <Section title="11.5 The groups of order at most 15">
       <p>Putting the course together, here is every group of order up to 15, up to isomorphism.</p>
       <ul>
-        <li>Prime orders 2, 3, 5, 7, 11, 13: only ℤₚ (Lagrange).</li>
+        <li>1: the trivial group. Prime orders 2, 3, 5, 7, 11, 13: only ℤₚ (Lagrange).</li>
         <li>4: ℤ₄, ℤ₂ × ℤ₂ (§5.3). 9: ℤ₉, ℤ₃ × ℤ₃ (order p², §10.4).</li>
         <li>6: ℤ₆, S₃ ≅ D₃. 10: ℤ₁₀, D₅. 14: ℤ₁₄, D₇ (order 2p).</li>
         <li>15: ℤ₁₅ (order pq).</li>

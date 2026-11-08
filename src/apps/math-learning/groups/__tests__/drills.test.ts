@@ -9,17 +9,17 @@ import {
   isCyclic,
   isHomomorphism,
   kernel,
-  leftCosets,
   order,
+  projection,
   quotient,
   range,
   conjugacyClasses,
 } from '../engine/finiteGroup'
-import { gcd, partitions } from '../engine/numbers'
+import { divisors, factorize, gcd, partitions } from '../engine/numbers'
 import { allPerms, compose, cycleType, isIdentity, parseCycles, parseImages } from '../engine/permutations'
 import { answerInput, checkAnswer, type Answer } from '../problems/answers'
 import { DRILLS } from '../problems/drills'
-import { seeded } from '../problems/rng'
+import { pick, randInt, seeded, shuffle } from '../problems/rng'
 import type { Drill, DrillItem } from '../problems/types'
 
 // Each verifier reads the prompt — what the reader actually sees — and
@@ -135,8 +135,7 @@ const VERIFY: Record<string, (item: DrillItem) => string> = {
     const [a, k, n] = match(prompt, /order of (\d+) \+ ⟨(\d+)⟩ in ℤ([₀-₉]+)\//)
     const G = cyclic(digits(n))
     const N = generate(G, [Number(k)])
-    const Q = quotient(G, N)
-    return String(elementOrder(Q, leftCosets(G, N).findIndex(C => C.includes(Number(a)))))
+    return String(elementOrder(quotient(G, N), projection(G, N)[Number(a)]))
   },
   'product-quotient-size': ({ prompt }) => {
     const [group, a, b] = match(prompt, /order of \((.+)\)\/⟨\((\d+), (\d+)\)⟩/)
@@ -173,7 +172,8 @@ const VERIFY: Record<string, (item: DrillItem) => string> = {
   },
   'invariant-factors': ({ prompt, answer }) => {
     const orders = parseOrders(match(prompt, /^Write (.+) as ℤ_/)[0])
-    const given = answerInput(answer).split(' + ').map(Number)
+    if (answer.kind !== 'ints') throw new Error('expected a list of integers')
+    const given = [...answer.values].sort((a, b) => a - b)
     given.slice(1).forEach((f, i) => expect(f % given[i], prompt).toBe(0))
     const stats = (os: number[]) => {
       const counts = new Map<number, number>()
@@ -219,20 +219,14 @@ const VERIFY: Record<string, (item: DrillItem) => string> = {
   },
   'sylow-order': ({ prompt }) => {
     const [p, n] = match(prompt, /Sylow (\d+)-subgroup of a group of order (\d+)/).map(Number)
-    let pk = 1
-    while (n % (pk * p) === 0) pk *= p
-    return String(pk)
+    // The largest divisor of n that is a power of p.
+    return String(Math.max(...divisors(n).filter(d => factorize(d).every(([q]) => q === p))))
   },
   'composition-length': ({ prompt }) => {
-    let n = digits(match(prompt, /series of ℤ([₀-₉]+)/)[0])
-    let length = 0
-    for (let p = 2; n > 1; ) {
-      if (n % p === 0) {
-        n /= p
-        length++
-      } else p++
-    }
-    return String(length)
+    // The longest chain of subgroups of ℤₙ, each of prime index in the next.
+    const isPrime = (k: number) => k > 1 && divisors(k).length === 2
+    const longest = (n: number): number => Math.max(0, ...divisors(n).filter(d => isPrime(n / d)).map(d => 1 + longest(d)))
+    return String(longest(digits(match(prompt, /series of ℤ([₀-₉]+)/)[0])))
   },
 }
 
@@ -276,6 +270,7 @@ describe('drills', () => {
     const ids = allDrills.map(d => d.id)
     expect(new Set(ids).size).toBe(ids.length)
     expect(ids.filter(id => !(id in VERIFY))).toEqual([])
+    expect(Object.keys(VERIFY).filter(id => !ids.includes(id))).toEqual([])
   })
 
   it.each(allDrills.map(d => [d.id, d] as const))('%s: answers agree with brute force', (_id, drill) => {
@@ -295,5 +290,22 @@ describe('drills', () => {
       const prompts = new Set(range(20).map(s => drill.make(seeded(s + 1)).prompt))
       expect(prompts.size, drill.id).toBeGreaterThan(1)
     }
+  })
+})
+
+describe('rng', () => {
+  it('randInt covers [lo, hi] and nothing else', () => {
+    const rng = seeded(42)
+    const seen = new Set(range(2000).map(() => randInt(rng, 3, 7)))
+    expect([...seen].sort()).toEqual([3, 4, 5, 6, 7])
+  })
+
+  it('pick reaches every element; shuffle permutes', () => {
+    const rng = seeded(9)
+    expect(new Set(range(500).map(() => pick(rng, ['a', 'b', 'c']))).size).toBe(3)
+    const xs = range(10)
+    const ys = shuffle(rng, xs)
+    expect([...ys].sort((a, b) => a - b)).toEqual(xs)
+    expect(xs).toEqual(range(10)) // the input is not mutated
   })
 })

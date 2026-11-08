@@ -54,7 +54,7 @@ export const problems: Problem[] = [
     kind: 'answer',
     prompt: <p>How many Sylow 5-subgroups does A₅ have?</p>,
     answer: int(6),
-    solution: <p>A₅ has 24 five-cycles, 4 in each subgroup of order 5: 24/4 = 6. (n₅ = 1 is impossible since A₅ is simple.)</p>,
+    solution: <p>A₅ has 24 five-cycles, 4 in each subgroup of order 5: 24/4 = 6.</p>,
   },
   {
     id: 'sy-s6-order',

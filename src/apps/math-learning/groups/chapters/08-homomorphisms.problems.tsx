@@ -14,7 +14,7 @@ export const problems: Problem[] = [
     kind: 'answer',
     prompt: <p>How many homomorphisms from ℤ₂₀ onto ℤ₁₀ are there?</p>,
     answer: int(4),
-    solution: <p>φ(1) must generate ℤ₁₀, and every generator works since 10 | 20: φ(10) = 4 choices.</p>,
+    solution: <p>The image of 1 must generate ℤ₁₀, and every generator works since 10 | 20: 1, 3, 7, or 9.</p>,
   },
   {
     id: 'hm-into',
@@ -114,7 +114,7 @@ export const problems: Problem[] = [
     kind: 'proof',
     prompt: (
       <p>
-        A group is <em>simple</em> if its only normal subgroups are {'{'}e{'}'} and itself. Prove that every homomorphism out
+        A nontrivial group is <em>simple</em> if its only normal subgroups are {'{'}e{'}'} and itself. Prove that every homomorphism out
         of a simple group is either trivial or injective.
       </p>
     ),

@@ -13,7 +13,7 @@ import {
   totient,
 } from '../engine/numbers'
 import { compose, cycles, formatCycles, identityPerm, isIdentity, permOrder, sign, type Perm } from '../engine/permutations'
-import { choice, int, multiset, perm, set, text, yesNo } from './answers'
+import { choice, dihedralElement, int, list, perm, set, sum, yesNo } from './answers'
 import { pick, randInt, shuffle } from './rng'
 import type { Drill, Rng } from './types'
 
@@ -23,18 +23,21 @@ import type { Drill, Rng } from './types'
 
 const Z = (n: number) => `ℤ${sub(n)}`
 const productName = (orders: readonly number[]) => orders.map(Z).join(' × ')
-const power = (base: string | number, e: number) => (e === 1 ? `${base}` : `${base}${sup(e)}`)
-const factorText = (n: number) => factorize(n).map(([p, e]) => power(p, e)).join(' · ')
+const withExponent = (base: string | number, e: number) => (e === 1 ? `${base}` : `${base}${sup(e)}`)
+const factorText = (n: number) => factorize(n).map(([p, e]) => withExponent(p, e)).join(' · ')
 const coprimesTo = (n: number) => Array.from({ length: n }, (_, k) => k).filter(k => k > 0 && gcd(k, n) === 1)
 const factorial = (n: number): number => (n <= 1 ? 1 : n * factorial(n - 1))
 
 const totientWork = (n: number) => {
   const parts = factorize(n)
   if (parts.length === 1 && parts[0][1] === 1) return `φ(${n}) = ${n} − 1 = ${totient(n)}`
-  const terms = parts.map(([p, e]) => `φ(${power(p, e)})`).join(' · ')
+  const terms = parts.map(([p, e]) => `φ(${withExponent(p, e)})`).join(' · ')
   const values = parts.map(([p, e]) => p ** (e - 1) * (p - 1)).join(' · ')
   return `${n} = ${factorText(n)}, so φ(${n}) = ${terms} = ${values} = ${totient(n)}`
 }
+
+/** The order of a in ℤₙ. */
+const cyclicElementOrder = (a: number, n: number) => n / gcd(a, n)
 
 const randomPerm = (rng: Rng, n: number): Perm => {
   let p: Perm = identityPerm(n)
@@ -60,7 +63,7 @@ export const unitOrder: Drill = {
     return {
       prompt: `Find the order of ${a} in U(${n}).`,
       answer: int(powers.length),
-      solution: `Multiply by ${a} mod ${n} until you reach 1: ${powers.map((x, i) => `${power(a, i + 1)} ≡ ${x}`).join(', ')}. So |${a}| = ${powers.length}.`,
+      solution: `Multiply by ${a} mod ${n} until you reach 1: ${powers.map((x, i) => `${withExponent(a, i + 1)} ≡ ${x}`).join(', ')}. So |${a}| = ${powers.length}.`,
     }
   },
 }
@@ -97,7 +100,7 @@ export const dihedralProduct: Drill = {
         : `Move the rotation past s using rⁱs = sr⁻ⁱ: (${x})(${y}) = ${lead}r^${i} · s r^${j} = ${lead}${lead ? '·' : ''}s r^(${j} − ${i}) = ${result}, using ${a === 1 ? 's² = e and ' : ''}r${sup(n)} = e.`
     return {
       prompt: `In D${sub(n)}, where r${sup(n)} = s² = e and rs = sr⁻¹, compute (${x})(${y}). Write the answer as e, rᵏ, or srᵏ.`,
-      answer: text(result === 'e' ? ['e', '1', 'id'] : [result], 'e.g. sr² or sr^2'),
+      answer: dihedralElement(result),
       solution: work,
     }
   },
@@ -321,8 +324,6 @@ export const cyclicIndex: Drill = {
 
 // ── Chapter 6: direct products ────────────────────────────────────────
 
-const cyclicElementOrder = (a: number, n: number) => n / gcd(a, n)
-
 export const productElementOrder: Drill = {
   id: 'product-order',
   title: 'Orders in ℤₘ × ℤₙ',
@@ -492,7 +493,7 @@ export const abelianCount: Drill = {
       prompt: `How many abelian groups of order ${n} are there, up to isomorphism?`,
       answer: int(counts.reduce((a, b) => a * b, 1)),
       solution: `${n} = ${factorText(n)}. Each p-part is chosen independently, one per partition of its exponent: ${parts
-        .map(([p, e], i) => `p(${e}) = ${counts[i]} for ${power(p, e)}`)
+        .map(([p, e], i) => `p(${e}) = ${counts[i]} for ${withExponent(p, e)}`)
         .join('; ')}. The total is ${counts.join(' · ')} = ${counts.reduce((a, b) => a * b, 1)}.`,
     }
   },
@@ -509,7 +510,7 @@ export const toInvariantFactors: Drill = {
     const elementary = orders.flatMap(a => factorize(a).map(([p, e]) => p ** e)).sort((x, y) => x - y)
     return {
       prompt: `Write ${productName(orders)} as ℤ_{n₁} × ⋯ × ℤ_{n_k} with n₁ | n₂ | ⋯ | n_k. Enter n₁, …, n_k.`,
-      answer: multiset(...factors),
+      answer: list(...factors),
       solution: `Split into prime powers: ${productName(elementary)}. Build the last factor from the largest power of each prime, the one before from the next largest, and so on: ${productName(factors)}.`,
     }
   },
@@ -562,7 +563,7 @@ export const symmetricClassSize: Drill = {
     const multiplicity = new Map<number, number>()
     type.forEach(k => multiplicity.set(k, (multiplicity.get(k) ?? 0) + 1))
     const z = [...multiplicity].reduce((acc, [k, m]) => acc * k ** m * factorial(m), 1)
-    const zText = [...multiplicity].map(([k, m]) => `${power(k, m)}·${m}!`).join(' · ')
+    const zText = [...multiplicity].map(([k, m]) => `${withExponent(k, m)}·${m}!`).join(' · ')
     const shown = type.filter(k => k > 1).join(', ')
     return {
       prompt: `How many elements of S${sub(n)} have cycle type (${type.join(', ')}) — that is, disjoint cycles of lengths ${shown}${type.includes(1) ? ' and the rest fixed' : ''}?`,
@@ -583,7 +584,7 @@ export const dihedralClassEquation: Drill = {
         : [1, 1, ...new Array<number>(n / 2 - 1).fill(2), n / 2, n / 2]
     return {
       prompt: `Give the class equation of D${sub(n)} (order ${2 * n}): the sizes of its conjugacy classes.`,
-      answer: multiset(...sizes),
+      answer: sum(...sizes),
       solution:
         n % 2 === 1
           ? `Conjugating rᵏ gives r^(±k), so the rotations ≠ e pair off into ${(n - 1) / 2} classes {rᵏ, r⁻ᵏ}. Since n is odd, all ${n} reflections are conjugate. ${sizes.join(' + ')} = ${2 * n}.`

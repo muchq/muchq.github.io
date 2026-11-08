@@ -87,19 +87,19 @@ const PermutationCalculator = () => {
       <div className={styles.toolGrid}>
         {sigma && (
           <section aria-label="σ">
-            <h4>σ</h4>
+            <h3>σ</h3>
             <Facts name="σ" p={sigma} />
           </section>
         )}
         {tau && (
           <section aria-label="τ">
-            <h4>τ</h4>
+            <h3>τ</h3>
             <Facts name="τ" p={tau} />
           </section>
         )}
         {sigma && tau && (
           <section aria-label="Products">
-            <h4>Products</h4>
+            <h3>Products</h3>
             <dl className={styles.facts}>
               <dt>στ</dt>
               <dd>{formatCycles(compose(sigma, tau))}</dd>

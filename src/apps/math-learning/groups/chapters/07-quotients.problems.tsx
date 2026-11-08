@@ -74,8 +74,8 @@ export const problems: Problem[] = [
     solution: (
       <p>
         The quotient has order 16/2 = 8. Every element of ℤ₄ × ℤ₄ has order dividing 4, so the quotient has no element of
-        order 8. And (1, 0) + H has order 4, since 2(1, 0) = (2, 0) ∉ H. Of the abelian groups of order 8, that leaves ℤ₄ ×
-        ℤ₂.
+        order 8. And (1, 0) + H has order 4, since 2(1, 0) = (2, 0) ∉ H. That rules out ℤ₈ (which has an element of
+        order 8) and ℤ₂ × ℤ₂ × ℤ₂ (which has none of order 4), leaving ℤ₄ × ℤ₂.
       </p>
     ),
   },

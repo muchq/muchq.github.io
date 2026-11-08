@@ -83,8 +83,9 @@ export const problems: Problem[] = [
     prompt: <p>Prove that if [G : H] = 2, then aH = Ha for every a ∈ G.</p>,
     solution: (
       <p>
-        If a ∈ H, both cosets are H. If a ∉ H, the two left cosets are H and aH, so aH = G ∖ H; the same argument for
-        right cosets gives Ha = G ∖ H.
+        If a ∈ H, both cosets are H. If a ∉ H, the two left cosets are H and aH, so aH = G ∖ H. The right coset Ha is
+        disjoint from H (if ha ∈ H then a ∈ H), so Ha ⊆ G ∖ H = aH. The same applied to a⁻¹ ∉ H gives Ha⁻¹ ⊆ a⁻¹H, and
+        taking inverses of every element, aH ⊆ Ha. So aH = Ha.
       </p>
     ),
   },
@@ -111,8 +112,8 @@ export const problems: Problem[] = [
     prompt: <p>Let |G| = 2p with p an odd prime. Prove that G has an element of order p.</p>,
     hint: (
       <p>
-        Element orders lie in {'{'}1, 2, p, 2p{'}'}. What if every non-identity element had order 2? Two Chapter 1 problems
-        help.
+        Element orders lie in {'{'}1, 2, p, 2p{'}'}. What if every non-identity element had order 2? A Chapter 1 problem
+        helps.
       </p>
     ),
     solution: (

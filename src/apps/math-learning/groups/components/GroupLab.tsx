@@ -30,6 +30,24 @@ const hue = (i: number, n: number, lightness: number) => `hsl(${Math.round((i * 
 
 const setText = (G: FiniteGroup, xs: readonly number[]) => `{${xs.map(x => G.labels[x]).join(', ')}}`
 
+interface SubgroupInfo {
+  H: number[]
+  key: string
+  normal: boolean
+  name: string
+}
+
+// Per group, computed once per page load: A₅'s 59 subgroups take a moment.
+const subgroupCache = new WeakMap<FiniteGroup, SubgroupInfo[]>()
+const subgroupInfo = (G: FiniteGroup): SubgroupInfo[] => {
+  let info = subgroupCache.get(G)
+  if (!info) {
+    info = subgroups(G).map(H => ({ H, key: H.join(), normal: isNormal(G, H), name: subgroupName(G, H) }))
+    subgroupCache.set(G, info)
+  }
+  return info
+}
+
 interface GroupLabProps {
   initialGroup?: string
   /** Labels generating the subgroup to select at first, e.g. ['r²']. */
@@ -45,7 +63,7 @@ const GroupLab = ({ initialGroup = 'D4', initialSubgroup }: GroupLabProps) => {
   const id = useId()
   const [groupId, setGroupId] = useState(initialGroup)
   const G = catalogGroup(groupId)
-  const subs = useMemo(() => subgroups(G).map(H => ({ H, key: H.join(), normal: isNormal(G, H), name: subgroupName(G, H) })), [G])
+  const subs = subgroupInfo(G)
   const [subKey, setSubKey] = useState<string | null>(() =>
     initialSubgroup ? generate(G, byLabel(G, ...initialSubgroup)).join() : null
   )
@@ -110,14 +128,15 @@ const GroupLab = ({ initialGroup = 'D4', initialSubgroup }: GroupLabProps) => {
             group={G}
             order={rows}
             colorOf={colorOf}
-            caption={
+            caption={byCoset ? `Cayley table of ${G.name} by cosets of ${selected.name}` : `Cayley table of ${G.name}`}
+            description={
               byCoset
-                ? `Cayley table of ${G.name}, rows and columns grouped by the left cosets of ${selected.name}. Each color is one coset. ${
+                ? `Rows and columns are grouped by the left cosets of ${selected.name}, and each color is one coset. ${
                     selected.normal
                       ? 'The subgroup is normal, so every block is a single color: the blocks form the table of the quotient.'
                       : 'The subgroup is not normal, so some blocks mix colors: coset multiplication is not well defined.'
                   }`
-                : `Cayley table of ${G.name}: row a, column b holds a·b.`
+                : 'Row a, column b holds a·b.'
             }
           />
         </>
@@ -128,7 +147,7 @@ const GroupLab = ({ initialGroup = 'D4', initialSubgroup }: GroupLabProps) => {
       )}
 
       <section aria-label="Subgroups">
-        <h4>Subgroups {Z.length > 1 && <span className={styles.toolHint}>(center Z = {setText(G, Z)})</span>}</h4>
+        <h3>Subgroups {Z.length > 1 && <span className={styles.toolHint}>(center Z = {setText(G, Z)})</span>}</h3>
         <p className={styles.toolHint}>Pick one to see its cosets. ◁ marks the normal subgroups.</p>
         <ul className={styles.subgroupList}>
           {subs.map(s => (
@@ -150,7 +169,7 @@ const GroupLab = ({ initialGroup = 'D4', initialSubgroup }: GroupLabProps) => {
       {selected && cosets && <SubgroupDetails G={G} H={selected.H} name={selected.name} normal={selected.normal} cosets={cosets} />}
 
       <section aria-label="Elements">
-        <h4>Elements</h4>
+        <h3>Elements</h3>
         <div className={styles.tableScroll}>
           <table className={styles.facts2}>
             <thead>
@@ -197,16 +216,14 @@ const SubgroupDetails = ({
   const Q = normal && H.length < order(G) ? quotient(G, H, 'H') : null
   return (
     <section aria-label={`Subgroup ${name}`} className={styles.subgroupDetails}>
-      <h4>
-        H = {name}
-      </h4>
+      <h3>H = {name}</h3>
       <p>
         H = {setText(G, H)}, of order {H.length} and index [{G.name} : H] = {cosets.length}.{' '}
         <strong>{normal ? 'H is normal: gH = Hg for every g.' : 'H is not normal: some left coset gH differs from Hg.'}</strong>
       </p>
       <div className={styles.cosetColumns}>
         <div>
-          <h5>Left cosets gH</h5>
+          <h4>Left cosets gH</h4>
           <ul>
             {cosets.map(C => (
               <li key={C.join()}>
@@ -216,11 +233,12 @@ const SubgroupDetails = ({
           </ul>
         </div>
         <div>
-          <h5>Right cosets Hg</h5>
+          <h4>Right cosets Hg</h4>
           <ul>
             {right.map(C => (
               <li key={C.join()} className={cosets.some(L => L.join() === C.join()) ? undefined : styles.differs}>
                 H{G.labels[C[0]]} = {setText(G, C)}
+                {!cosets.some(L => L.join() === C.join()) && ' ≠ any left coset'}
               </li>
             ))}
           </ul>
@@ -228,15 +246,16 @@ const SubgroupDetails = ({
       </div>
       {Q && (
         <>
-          <h5>
+          <h4>
             The quotient {G.name}/H ({order(Q)} elements; {isCyclic(Q) ? 'cyclic' : isAbelian(Q) ? 'abelian, not cyclic' : 'non-abelian'})
-          </h5>
+          </h4>
           {order(Q) <= TABLE_LIMIT && (
             <CayleyTable
               group={Q}
               order={range(order(Q))}
               colorOf={g => hue(g, order(Q), 82)}
-              caption={`Cayley table of ${G.name}/H; each coset is named by its first element.`}
+              caption={`Cayley table of ${G.name}/H`}
+              description="Each coset is named by its first element."
             />
           )}
         </>

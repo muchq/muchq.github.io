@@ -10,13 +10,14 @@ interface BlockProps {
 }
 
 const Block = ({ kind, name, className, children }: BlockProps & { kind: string; className: string }) => (
-  <aside className={`${styles.block} ${className}`} aria-label={name ? `${kind}: ${name}` : kind}>
+  // A note, not an <aside>: these blocks are the main text, not page landmarks.
+  <div role="note" className={`${styles.block} ${className}`} aria-label={name ? `${kind}: ${name}` : kind}>
     <p className={styles.blockTitle}>
       {kind}
       {name && <span className={styles.blockName}> ({name})</span>}
     </p>
     {children}
-  </aside>
+  </div>
 )
 
 export const Definition = (props: BlockProps) => <Block kind="Definition" className={styles.definition} {...props} />

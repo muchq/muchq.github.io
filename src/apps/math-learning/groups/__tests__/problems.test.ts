@@ -21,6 +21,7 @@ import {
   leftCoset,
   leftCosets,
   normalSubgroups,
+  projection,
   order,
   orderStatistics,
   quotient,
@@ -89,8 +90,7 @@ const matchingGroup = (id: string, G: FiniteGroup) => {
   return option(id, hits[0])
 }
 
-const cosetOrder = (G: FiniteGroup, N: number[], a: number) =>
-  elementOrder(quotient(G, N), leftCosets(G, N).findIndex(C => C.includes(a)))
+const cosetOrder = (G: FiniteGroup, N: number[], a: number) => elementOrder(quotient(G, N), projection(G, N)[a])
 
 const tupleMaxOrder = (orders: number[]) =>
   orders.reduce<number[][]>((acc, n) => acc.flatMap(t => range(n).map(x => [...t, x])), [[]]).reduce(
@@ -409,7 +409,10 @@ describe('official answers', () => {
 
   it.each(answerProblems.map(q => [q.id, q] as const))('%s', (id, q) => {
     expect(checkAnswer(q.answer, answerInput(q.answer))).toBe(true)
-    if (id in VERIFY) expect(checkAnswer(q.answer, VERIFY[id]()), `engine says ${VERIFY[id]()}`).toBe(true)
+    if (id in VERIFY) {
+      const derived = VERIFY[id]()
+      expect(checkAnswer(q.answer, derived), `engine says ${derived}`).toBe(true)
+    }
   })
 
   it('a wrong answer is refused', () => {

@@ -161,13 +161,14 @@ const Body = () => (
       </Proof>
       <Theorem kind="Corollary">
         <p>
-          If |a| = n, the powers e, a, a², …, aⁿ⁻¹ are distinct, and every power of a is one of them. Also |a⁻¹| = |a|.
+          If |a| = n, the powers e, a, a², …, aⁿ⁻¹ are distinct, and every power of a is one of them. If a has infinite
+          order, all the powers aⁱ (i ∈ ℤ) are distinct. In both cases |a⁻¹| = |a|.
         </p>
       </Theorem>
       <Proof>
         <p>
-          The first two claims are the theorem with 0 ≤ i, j &lt; n. For the last, (a⁻¹)ᵏ = (aᵏ)⁻¹, which is e exactly when
-          aᵏ = e.
+          The first two claims are the theorem with 0 ≤ i, j &lt; n. If a has infinite order and aⁱ = aʲ with i &gt; j, then
+          aⁱ⁻ʲ = e with i − j ≥ 1, which is impossible. For the last, (a⁻¹)ᵏ = (aᵏ)⁻¹, which is e exactly when aᵏ = e.
         </p>
       </Proof>
     </Section>
@@ -188,8 +189,9 @@ const Body = () => (
       </Proof>
       <Remark>
         <p>
-          The converse fails: a Latin square need not be the table of a group, because associativity cannot be seen at a
-          glance. A group is abelian exactly when its table is symmetric across the main diagonal.
+          The converse fails: a Latin square need not be the table of a group, since the operation it defines can fail to be
+          associative or to have an identity — and associativity is hard to check by eye. With rows and columns listed in
+          the same order, a group is abelian exactly when its table is symmetric across the main diagonal.
         </p>
       </Remark>
     </Section>

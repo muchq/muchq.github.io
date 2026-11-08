@@ -96,36 +96,29 @@ export interface CatalogEntry {
   readonly build: () => FiniteGroup
 }
 
-// Built on first use and kept: A₅'s table is 3600 cells.
-const entry = (id: string, family: string, build: () => FiniteGroup): CatalogEntry => {
+// Built on first use and kept: A₅'s table is 3600 cells. Names are given
+// up front so the picker can list them without building every group.
+const entry = (id: string, name: string, family: string, build: () => FiniteGroup): CatalogEntry => {
   let memo: FiniteGroup | undefined
-  const lazy = () => (memo ??= build())
-  return {
-    id,
-    family,
-    build: lazy,
-    get name() {
-      return lazy().name
-    },
-  }
+  return { id, name, family, build: () => (memo ??= build()) }
 }
 
 /** The small groups the lab offers, grouped for the picker. */
 export const CATALOG: readonly CatalogEntry[] = [
-  ...[2, 3, 4, 5, 6, 7, 8, 9, 10, 12].map(n => entry(`Z${n}`, 'Cyclic', () => cyclic(n))),
-  ...[8, 9, 10, 12, 15, 16, 20].map(n => entry(`U${n}`, 'Units mod n', () => units(n))),
-  ...[3, 4, 5, 6].map(n => entry(`D${n}`, 'Dihedral', () => dihedral(n))),
-  entry('S3', 'Symmetric & alternating', () => symmetric(3)),
-  entry('S4', 'Symmetric & alternating', () => symmetric(4)),
-  entry('A4', 'Symmetric & alternating', () => alternating(4)),
-  entry('A5', 'Symmetric & alternating', () => alternating(5)),
-  entry('Q8', 'Other', quaternion),
-  entry('Z2xZ2', 'Products', () => product(2, 2)),
-  entry('Z2xZ4', 'Products', () => product(2, 4)),
-  entry('Z2xZ2xZ2', 'Products', () => product(2, 2, 2)),
-  entry('Z3xZ3', 'Products', () => product(3, 3)),
-  entry('Z2xZ6', 'Products', () => product(2, 6)),
-  entry('Z4xZ4', 'Products', () => product(4, 4)),
+  ...[2, 3, 4, 5, 6, 7, 8, 9, 10, 12].map(n => entry(`Z${n}`, `ℤ${sub(n)}`, 'Cyclic', () => cyclic(n))),
+  ...[8, 9, 10, 12, 15, 16, 20].map(n => entry(`U${n}`, `U(${n})`, 'Units mod n', () => units(n))),
+  ...[3, 4, 5, 6].map(n => entry(`D${n}`, `D${sub(n)}`, 'Dihedral', () => dihedral(n))),
+  entry('S3', 'S₃', 'Symmetric & alternating', () => symmetric(3)),
+  entry('S4', 'S₄', 'Symmetric & alternating', () => symmetric(4)),
+  entry('A4', 'A₄', 'Symmetric & alternating', () => alternating(4)),
+  entry('A5', 'A₅', 'Symmetric & alternating', () => alternating(5)),
+  entry('Q8', 'Q₈', 'Other', quaternion),
+  entry('Z2xZ2', 'ℤ₂ × ℤ₂', 'Products', () => product(2, 2)),
+  entry('Z2xZ4', 'ℤ₂ × ℤ₄', 'Products', () => product(2, 4)),
+  entry('Z2xZ2xZ2', 'ℤ₂ × ℤ₂ × ℤ₂', 'Products', () => product(2, 2, 2)),
+  entry('Z3xZ3', 'ℤ₃ × ℤ₃', 'Products', () => product(3, 3)),
+  entry('Z2xZ6', 'ℤ₂ × ℤ₆', 'Products', () => product(2, 6)),
+  entry('Z4xZ4', 'ℤ₄ × ℤ₄', 'Products', () => product(4, 4)),
 ]
 
 export const catalogGroup = (id: string): FiniteGroup => {

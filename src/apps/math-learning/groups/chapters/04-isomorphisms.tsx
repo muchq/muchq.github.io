@@ -125,7 +125,7 @@ const Body = () => (
       </Theorem>
       <Proof>
         <p>
-          φ<sub>g</sub> is a homomorphism since gxyg⁻¹ = (gxg⁻¹)(gyg⁻¹), and a bijection with inverse φ<sub>g⁻¹</sub>. Then φ<sub>g</sub>(φ<sub>h</sub>(x)) =
+          φ<sub>g</sub> preserves products since gxyg⁻¹ = (gxg⁻¹)(gyg⁻¹), and a bijection with inverse φ<sub>g⁻¹</sub>. Then φ<sub>g</sub>(φ<sub>h</sub>(x)) =
           ghxh⁻¹g⁻¹ = (gh)x(gh)⁻¹. Next, φ<sub>g</sub> = φ<sub>h</sub> ⟺ gxg⁻¹ = hxh⁻¹ for all x ⟺ (h⁻¹g)x = x(h⁻¹g) for all x ⟺ h⁻¹g ∈ Z(G).
           So the g giving the same inner automorphism as h are exactly those in hZ(G) = {'{'}hz : z ∈ Z(G){'}'}, a set of
           |Z(G)| elements, and the |G| elements of G fall into |G|/|Z(G)| such sets.
@@ -137,7 +137,7 @@ const Body = () => (
       <Proof>
         <p>
           An automorphism α of ℤₙ satisfies α(k) = kα(1), so it is determined by a = α(1), which must have order n, i.e. a ∈
-          U(n). Conversely, for a ∈ U(n), αₐ(x) = ax is a homomorphism, and a bijection because a is invertible mod n. Since
+          U(n). Conversely, for a ∈ U(n), αₐ(x) = ax preserves sums, and is a bijection because a is invertible mod n. Since
           αₐ ∘ α<sub>b</sub> = α<sub>ab</sub>, the map a ↦ αₐ is an isomorphism U(n) → Aut(ℤₙ).
         </p>
       </Proof>

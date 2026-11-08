@@ -38,7 +38,8 @@ const Body = () => (
         <p>
           (a, b) has order 5 when lcm(|a|, |b|) = 5, i.e. |a|, |b| ∈ {'{'}1, 5{'}'} and not both 1. ℤ₂₅ has 5 elements of
           order dividing 5 and ℤ₅ has 5, so there are 5 · 5 − 1 = 24 elements of order 5. Each cyclic subgroup of order 5
-          contains φ(5) = 4 of them, so there are 24/4 = 6 such subgroups.
+          contains φ(5) = 4 of them, and two distinct ones share only the identity (their intersection is a proper
+          subgroup of a group of prime order), so there are 24/4 = 6 such subgroups.
         </p>
       </Example>
     </Section>
@@ -62,7 +63,8 @@ const Body = () => (
       </Theorem>
       <Proof>
         <p>
-          Induct on k using the theorem, noting that n₁⋯nₖ₋₁ is coprime to nₖ when the nᵢ are pairwise coprime. Conversely
+          Induct on k using the theorem, noting that n₁⋯nₖ₋₁ is coprime to nₖ when the nᵢ are pairwise coprime (and that
+          replacing a factor by an isomorphic group, or regrouping factors, gives an isomorphic product). Conversely
           if two of them share a factor d &gt; 1, the lcm of all of them is less than their product, which bounds every
           element order.
         </p>

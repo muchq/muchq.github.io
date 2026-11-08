@@ -32,9 +32,20 @@ export const problems: Problem[] = [
   {
     id: 'iso-u12',
     kind: 'answer',
-    prompt: <p>U(12) is isomorphic to which group?</p>,
+    prompt: (
+      <p>
+        U(12) is isomorphic to which group? (ℤ₂ × ℤ₂, the Klein four-group, is the set of pairs of elements of ℤ₂ added
+        coordinatewise; Chapter 6 develops such products.)
+      </p>
+    ),
     answer: choice(['ℤ₄', 'ℤ₂ × ℤ₂'], 'ℤ₂ × ℤ₂'),
-    solution: <p>U(12) = {'{'}1, 5, 7, 11{'}'} and 5², 7², 11² are all ≡ 1 (mod 12): no element of order 4.</p>,
+    solution: (
+      <p>
+        U(12) = {'{'}1, 5, 7, 11{'}'} and 5², 7², 11² are all ≡ 1 (mod 12): no element of order 4, so U(12) is not ≅ ℤ₄. In
+        ℤ₂ × ℤ₂ too every non-identity element has order 2, and 1 ↦ (0, 0), 5 ↦ (1, 0), 7 ↦ (0, 1), 11 ↦ (1, 1) is an
+        isomorphism (5 · 7 = 35 ≡ 11). §5.3 shows these are the only two groups of order 4.
+      </p>
+    ),
   },
   {
     id: 'iso-d4-q8',
@@ -63,9 +74,9 @@ export const problems: Problem[] = [
   {
     id: 'iso-u5',
     kind: 'answer',
-    prompt: <p>φ: U(5) → ℤ₄ is the isomorphism with φ(2) = 1. What is φ(3)?</p>,
+    prompt: <p>ψ: U(5) → ℤ₄ is the isomorphism with ψ(2) = 1. What is ψ(3)?</p>,
     answer: int(3),
-    solution: <p>2³ = 8 ≡ 3 (mod 5), so φ(3) = φ(2³) = 3 · φ(2) = 3.</p>,
+    solution: <p>2³ = 8 ≡ 3 (mod 5), so ψ(3) = ψ(2³) = 3 · ψ(2) = 3.</p>,
   },
   {
     id: 'iso-exp',
@@ -119,7 +130,7 @@ export const problems: Problem[] = [
     prompt: <p>Prove that x ↦ x⁻¹ is an automorphism of G if and only if G is abelian.</p>,
     solution: (
       <p>
-        The map is always a bijection (it is its own inverse). It is a homomorphism exactly when (ab)⁻¹ = a⁻¹b⁻¹ for all a,
+        The map is always a bijection (it is its own inverse). It preserves products exactly when (ab)⁻¹ = a⁻¹b⁻¹ for all a,
         b, i.e. b⁻¹a⁻¹ = a⁻¹b⁻¹ for all a, b. Since every element is an inverse, this says yx = xy for all x, y.
       </p>
     ),
@@ -130,7 +141,7 @@ export const problems: Problem[] = [
     prompt: <p>Let G be a finite abelian group in which every element has odd order. Prove that x ↦ x² is an automorphism.</p>,
     solution: (
       <p>
-        It is a homomorphism because (xy)² = x²y² in an abelian group. If x² = y², then (xy⁻¹)² = x²y⁻² = e, so |xy⁻¹|
+        It preserves products because (xy)² = x²y² in an abelian group. If x² = y², then (xy⁻¹)² = x²y⁻² = e, so |xy⁻¹|
         divides 2. Being odd, it is 1: x = y. An injective map of a finite set to itself is a bijection.
       </p>
     ),

@@ -36,7 +36,8 @@ const Body = () => (
       </Theorem>
       <Proof>
         <p>
-          Let a ∈ H. All positive powers of a lie in H, which is finite, so a has finite order n. If n = 1 then a = e and
+          Let a ∈ H. The powers a, a², a³, … all lie in the finite set H, so aⁱ = aʲ for some i &lt; j, and then aʲ⁻ⁱ = e: a
+          has finite order n. If n = 1 then a = e and
           a⁻¹ = e ∈ H; otherwise a⁻¹ = aⁿ⁻¹ ∈ H. Now apply the two-step test.
         </p>
       </Proof>
@@ -165,8 +166,8 @@ const Body = () => (
       </Example>
       <Remark>
         <p>
-          In the lab, ℤ₁₂ has exactly six subgroups, one for each divisor of 12. Compare U(8) or ℤ₂ × ℤ₂, which have three
-          subgroups of order 2 — impossible in a cyclic group.
+          In the lab, ℤ₁₂ has exactly six subgroups, one for each divisor of 12. Compare U(8), which has three subgroups
+          of order 2 — impossible in a cyclic group.
         </p>
       </Remark>
       <GroupLab initialGroup="Z12" />

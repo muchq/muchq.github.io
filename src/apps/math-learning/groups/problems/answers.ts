@@ -5,8 +5,16 @@ import { parseCycles, permEquals } from '../engine/permutations'
 // read the same value.
 export type Answer =
   | { readonly kind: 'int'; readonly value: number }
-  /** A set ("list the generators") or multiset ("give the class equation"). */
-  | { readonly kind: 'ints'; readonly values: readonly number[]; readonly mode: 'set' | 'multiset' }
+  /**
+   * A set ("list the generators") or multiset (a class equation, a list of
+   * invariant factors), shown as a list or as a sum.
+   */
+  | {
+      readonly kind: 'ints'
+      readonly values: readonly number[]
+      readonly mode: 'set' | 'multiset'
+      readonly display: 'list' | 'sum'
+    }
   /** A permutation, compared as a permutation — (2 3 1) is (1 2 3). */
   | { readonly kind: 'perm'; readonly degree: number; readonly value: string }
   | { readonly kind: 'choice'; readonly options: readonly string[]; readonly correct: number }
@@ -74,9 +82,8 @@ export const formatAnswer = (answer: Answer): string => {
     case 'int':
       return String(answer.value)
     case 'ints':
-      return answer.mode === 'set'
-        ? `{${ascending([...new Set(answer.values)]).join(', ')}}`
-        : ascending(answer.values).join(' + ')
+      if (answer.mode === 'set') return `{${ascending([...new Set(answer.values)]).join(', ')}}`
+      return ascending(answer.values).join(answer.display === 'sum' ? ' + ' : ', ')
     case 'perm':
       return answer.value
     case 'choice':
@@ -95,7 +102,8 @@ export const placeholderFor = (answer: Answer): string => {
     case 'int':
       return 'An integer'
     case 'ints':
-      return answer.mode === 'set' ? 'A list, e.g. 1, 2, 4' : 'A sum, e.g. 1 + 3 + 4'
+      if (answer.mode === 'set') return 'A list, e.g. 1, 2, 4'
+      return answer.display === 'sum' ? 'A sum, e.g. 1 + 3 + 4' : 'A list with repeats, e.g. 2, 2, 6'
     case 'perm':
       return 'Cycle notation, e.g. (1 2 3)(4 5)'
     case 'choice':
@@ -106,8 +114,11 @@ export const placeholderFor = (answer: Answer): string => {
 }
 
 export const int = (value: number): Answer => ({ kind: 'int', value })
-export const set = (...values: number[]): Answer => ({ kind: 'ints', values, mode: 'set' })
-export const multiset = (...values: number[]): Answer => ({ kind: 'ints', values, mode: 'multiset' })
+export const set = (...values: number[]): Answer => ({ kind: 'ints', values, mode: 'set', display: 'list' })
+/** Repeats count, order does not; shown as a sum, as for a class equation. */
+export const sum = (...values: number[]): Answer => ({ kind: 'ints', values, mode: 'multiset', display: 'sum' })
+/** Repeats count, order does not; shown as a list, as for invariant factors. */
+export const list = (...values: number[]): Answer => ({ kind: 'ints', values, mode: 'multiset', display: 'list' })
 export const perm = (degree: number, value: string): Answer => ({ kind: 'perm', degree, value })
 export const choice = (options: readonly string[], correct: string): Answer => {
   const i = options.indexOf(correct)
@@ -116,3 +127,13 @@ export const choice = (options: readonly string[], correct: string): Answer => {
 }
 export const yesNo = (yes: boolean): Answer => choice(['Yes', 'No'], yes ? 'Yes' : 'No')
 export const text = (accept: readonly string[], placeholder?: string): Answer => ({ kind: 'text', accept, placeholder })
+
+/**
+ * A dihedral element in normal form (e, rᵏ, srᵏ), also accepting the
+ * spelled-out first power (r¹, sr^1) and the usual names for the identity.
+ */
+export const dihedralElement = (label: string): Answer =>
+  text(
+    label === 'e' ? ['e', '1', 'id'] : label.endsWith('r') ? [label, `${label}1`] : [label],
+    'e.g. sr² or sr^2'
+  )

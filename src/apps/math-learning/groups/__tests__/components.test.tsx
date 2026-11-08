@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { compose, formatCycles, parseCycles } from '../engine/permutations'
 import { answerInput, perm, yesNo } from '../problems/answers'
 import { DRILLS } from '../problems/drills'
 import { seeded } from '../problems/rng'
@@ -11,6 +11,7 @@ import GroupLab from '../components/GroupLab'
 import GroupsProgressProvider from '../components/GroupsProgressProvider'
 import PermutationCalculator from '../components/PermutationCalculator'
 import ProblemCard from '../components/ProblemCard'
+import CourseNav from '../components/CourseNav'
 import { PROGRESS_KEY, loadSolved, useGroupsProgress } from '../progress'
 
 const permProblem: Problem = {
@@ -30,10 +31,12 @@ const proofProblem: Problem = {
 }
 
 describe('ProblemCard', () => {
+  const ANSWER = 'Answer to problem 3.1'
+
   it('accepts an equivalent permutation and reports the problem solved', async () => {
     const onSolvedChange = vi.fn()
     render(<ProblemCard problem={permProblem} number="3.1" solved={false} onSolvedChange={onSolvedChange} />)
-    await userEvent.type(screen.getByLabelText('Your answer'), '(2 3 1){Enter}')
+    await userEvent.type(screen.getByLabelText(ANSWER), '(2 3 1){Enter}')
     expect(screen.getByRole('status')).toHaveTextContent('Correct.')
     expect(onSolvedChange).toHaveBeenCalledWith(true)
   })
@@ -41,7 +44,7 @@ describe('ProblemCard', () => {
   it('refuses a wrong answer without marking anything solved', async () => {
     const onSolvedChange = vi.fn()
     render(<ProblemCard problem={permProblem} number="3.1" solved={false} onSolvedChange={onSolvedChange} />)
-    await userEvent.type(screen.getByLabelText('Your answer'), '(1 3 2)')
+    await userEvent.type(screen.getByLabelText(ANSWER), '(1 3 2)')
     await userEvent.click(screen.getByRole('button', { name: 'Check' }))
     expect(screen.getByRole('status')).toHaveTextContent('Not quite')
     expect(onSolvedChange).not.toHaveBeenCalled()
@@ -74,12 +77,12 @@ describe('ProblemCard', () => {
   it('a proof is marked done, and undone, by the reader', async () => {
     const onSolvedChange = vi.fn()
     const { rerender } = render(<ProblemCard problem={proofProblem} number="1.10" solved={false} onSolvedChange={onSolvedChange} />)
-    expect(screen.queryByLabelText('Your answer')).toBeNull()
+    expect(screen.queryByRole('textbox')).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Mark as done' }))
     expect(onSolvedChange).toHaveBeenLastCalledWith(true)
     rerender(<ProblemCard problem={proofProblem} number="1.10" solved onSolvedChange={onSolvedChange} />)
     expect(screen.getByText('✓ Solved')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Done ✓' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Mark as not done' }))
     expect(onSolvedChange).toHaveBeenLastCalledWith(false)
   })
 })
@@ -87,43 +90,68 @@ describe('ProblemCard', () => {
 describe('DrillCard', () => {
   const drill = DRILLS.subgroups[0] // orders in ℤₙ
   const first = drill.make(seeded(1))
+  const ANSWER = `Answer: ${drill.title}`
 
   it('shows a reproducible problem and counts a streak of right answers', async () => {
     render(<DrillCard drill={drill} rng={seeded(1)} />)
     expect(screen.getByText(first.prompt)).toBeInTheDocument()
-    await userEvent.type(screen.getByLabelText('Your answer'), `${answerInput(first.answer)}{Enter}`)
+    await userEvent.type(screen.getByLabelText(ANSWER), `${answerInput(first.answer)}{Enter}`)
     expect(screen.getByRole('status')).toHaveTextContent('Correct.')
-    expect(screen.getByLabelText('streak 1')).toBeInTheDocument()
+    expect(screen.getByText('Streak 1')).toBeInTheDocument()
     // Enter again moves on to a fresh problem.
-    await userEvent.type(screen.getByLabelText('Your answer'), '{Enter}')
+    await userEvent.type(screen.getByLabelText(ANSWER), '{Enter}')
     expect(screen.queryByText(first.prompt)).toBeNull()
-    expect(screen.getByLabelText('Your answer')).toHaveValue('')
+    expect(screen.getByLabelText(ANSWER)).toHaveValue('')
+    expect(screen.getByText('Streak 1')).toBeInTheDocument()
   })
 
   it('a wrong answer resets the streak', async () => {
     render(<DrillCard drill={drill} rng={seeded(1)} />)
-    await userEvent.type(screen.getByLabelText('Your answer'), `${answerInput(first.answer)}{Enter}{Enter}`)
-    await userEvent.type(screen.getByLabelText('Your answer'), '-1{Enter}')
+    await userEvent.type(screen.getByLabelText(ANSWER), `${answerInput(first.answer)}{Enter}{Enter}`)
+    await userEvent.type(screen.getByLabelText(ANSWER), '-1{Enter}')
     expect(screen.getByRole('status')).toHaveTextContent('Not quite.')
-    expect(screen.getByLabelText('streak 0')).toBeInTheDocument()
+    expect(screen.getByText('Streak 0')).toBeInTheDocument()
+  })
+
+  it('skipping resets the streak, and Next keeps keyboard focus in the answer box', async () => {
+    render(<DrillCard drill={drill} rng={seeded(1)} />)
+    await userEvent.type(screen.getByLabelText(ANSWER), `${answerInput(first.answer)}{Enter}`)
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByLabelText(ANSWER)).toHaveFocus()
+    expect(screen.getByText('Streak 1')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Skip' }))
+    expect(screen.getByText('Streak 0')).toBeInTheDocument()
   })
 
   it('a right answer after peeking at the solution does not count', async () => {
     render(<DrillCard drill={drill} rng={seeded(1)} />)
     await userEvent.click(screen.getByRole('button', { name: 'Show solution' }))
     expect(screen.getByText(first.solution)).toBeInTheDocument()
-    await userEvent.type(screen.getByLabelText('Your answer'), `${answerInput(first.answer)}{Enter}`)
+    await userEvent.type(screen.getByLabelText(ANSWER), `${answerInput(first.answer)}{Enter}`)
     expect(screen.getByRole('status')).toHaveTextContent('Correct.')
-    expect(screen.getByLabelText('streak 0')).toBeInTheDocument()
+    expect(screen.getByText('Streak 0')).toBeInTheDocument()
+  })
+
+  it('hiding the solution again does not undo the peek', async () => {
+    render(<DrillCard drill={drill} rng={seeded(1)} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Show solution' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Hide solution' }))
+    expect(screen.queryByText(first.solution)).toBeNull()
+    await userEvent.type(screen.getByLabelText(ANSWER), `${answerInput(first.answer)}{Enter}`)
+    expect(screen.getByRole('status')).toHaveTextContent('Correct.')
+    expect(screen.getByText('Streak 0')).toBeInTheDocument()
   })
 })
 
 describe('PermutationCalculator', () => {
-  it('multiplies the default σ and τ the way the engine does', () => {
+  // σ = (1 2 3)(4 5), τ = (1 4). στ applies τ first: 1 → 4 → 5, 5 → 5 → 4, 4 → 1 → 2, 2 → 3, 3 → 1.
+  it('labels each product correctly for the default σ and τ', () => {
     render(<PermutationCalculator />)
-    const st = formatCycles(compose(parseCycles('(1 2 3)(4 5)', 5)!, parseCycles('(1 4)', 5)!))
     const products = screen.getByRole('region', { name: 'Products' })
-    expect(within(products).getByText(st)).toBeInTheDocument()
+    const valueOf = (term: string) => within(products).getByText(term, { selector: 'dt' }).nextElementSibling
+    expect(valueOf('στ')).toHaveTextContent('(1 5 4 2 3)')
+    expect(valueOf('τσ')).toHaveTextContent('(1 2 3 4 5)')
+    expect(valueOf('τστ⁻¹')).toHaveTextContent('(1 5)(2 3 4)')
   })
 
   it('flags input that is not a permutation instead of computing with it', async () => {
@@ -161,6 +189,8 @@ describe('GroupLab', () => {
     expect(screen.getByText(/H is not normal/)).toBeInTheDocument()
     expect(screen.queryByText(/The quotient/)).toBeNull()
     expect(screen.getByText(/some blocks mix colors/)).toBeInTheDocument()
+    // Right cosets that are no left coset are marked in words, not only in color.
+    expect(screen.getAllByText(/≠ any left coset/).length).toBeGreaterThan(0)
   })
 
   it('omits the table for groups too large to read, and resets the subgroup on a group change', async () => {
@@ -205,6 +235,22 @@ describe('progress', () => {
     expect(JSON.parse(localStorage.getItem(PROGRESS_KEY)!)).toEqual([])
   })
 
+  it('adopts what another tab saved, so its next save keeps that work', async () => {
+    localStorage.clear()
+    render(
+      <GroupsProgressProvider>
+        <Probe />
+      </GroupsProgressProvider>
+    )
+    // Another tab solves y.
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify(['y']))
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: PROGRESS_KEY }))
+    })
+    await userEvent.click(screen.getByText('solve x'))
+    expect(JSON.parse(localStorage.getItem(PROGRESS_KEY)!)).toEqual(['x', 'y'])
+  })
+
   it('shrugs off corrupt storage', () => {
     for (const junk of ['not json', '{"a":1}', '[1, "ok", null]']) {
       localStorage.setItem(PROGRESS_KEY, junk)
@@ -219,3 +265,25 @@ describe('progress', () => {
   })
 })
 
+
+describe('CourseNav', () => {
+  it('scrolls the current chapter into view', () => {
+    const scrolled: Element[] = []
+    const original = Element.prototype.scrollIntoView
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this)
+    }
+    try {
+      render(
+        <MemoryRouter initialEntries={['/groups/sylow']}>
+          <CourseNav />
+        </MemoryRouter>
+      )
+      expect(scrolled).toHaveLength(1)
+      expect(scrolled[0]).toHaveTextContent('11 · Sylow')
+      expect(scrolled[0]).toHaveAttribute('aria-current', 'page')
+    } finally {
+      Element.prototype.scrollIntoView = original
+    }
+  })
+})

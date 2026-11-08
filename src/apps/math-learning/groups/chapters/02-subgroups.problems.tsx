@@ -167,8 +167,8 @@ export const problems: Problem[] = [
     hint: <p>Every element lies in a cyclic subgroup. What if one of them is infinite?</p>,
     solution: (
       <p>
-        If some a has infinite order, ⟨a⟩ ≅ ℤ has the infinitely many distinct subgroups ⟨aⁿ⟩, n ≥ 1 — and these are
-        subgroups of G. So every element has finite order, and each ⟨a⟩ is finite. G is the union of its cyclic subgroups
+        If some a has infinite order, its powers are all distinct (§1.4), so aᵐ ∈ ⟨aⁿ⟩ only when n | m, and the subgroups
+        ⟨a⟩, ⟨a²⟩, ⟨a³⟩, … of G are all different. So every element has finite order, and each ⟨a⟩ is finite. G is the union of its cyclic subgroups
         ⟨a⟩, of which there are finitely many, each finite. So G is finite.
       </p>
     ),

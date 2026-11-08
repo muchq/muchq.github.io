@@ -181,8 +181,8 @@ const Body = () => (
     <Section title="3.5 Symmetries as permutations">
       <p>
         Number the vertices of a regular n-gon 1, …, n around the boundary. Each symmetry permutes the vertices and is
-        determined by that permutation, so Dₙ is a subgroup of Sₙ: r = (1 2 … n) and the reflection through vertex 1 is s
-        = (2 n)(3 n−1)⋯. For a square, D₄ = ⟨(1 2 3 4), (2 4)⟩ ≤ S₄, a subgroup of order 8.
+        determined by that permutation, so we may regard Dₙ as a subgroup of Sₙ (precisely: Dₙ is isomorphic to one, in the
+        language of Chapter 4). Then r = (1 2 … n) and the reflection through vertex 1 is s = (2 n)(3 n−1)⋯. For a square, D₄ = ⟨(1 2 3 4), (2 4)⟩ ≤ S₄, a subgroup of order 8.
       </p>
     </Section>
   </>
