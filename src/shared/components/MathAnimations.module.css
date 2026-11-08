@@ -76,3 +76,96 @@
     scale: 100%;
   }
 }
+/*
+ * The link to the group theory course. Three nested boxes make the spiral:
+ * .spiral turns about the page's center, .arm swings its radius out and back,
+ * and the link turns the other way so the notation stays upright. Hovering or
+ * focusing it stops everything, so it can be clicked; without motion it rests
+ * to the right of center.
+ */
+.spiral {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  z-index: 2;
+}
+
+.arm {
+  /* Radii stay under half the viewport less half the ~180px pill, so it never leaves a phone screen. */
+  transform: translateX(min(30vmin, 220px, calc(50vw - 100px)));
+}
+
+.groupsLink {
+  display: block;
+  /* Its containing boxes are 0 wide (they only carry the transforms). */
+  width: max-content;
+  translate: -50% -50%;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 4px 16px rgba(80, 60, 160, 0.25);
+  color: #4b2fa6;
+  font-size: 1.35rem;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.groupsLink:hover,
+.groupsLink:focus-visible {
+  background: white;
+  outline: 2px solid #4b2fa6;
+  outline-offset: 2px;
+}
+
+/* Undo the page-wide rule above that floats and spins every <math>. */
+.groupsLink math {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  animation: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .spiral {
+    animation: spiral-turn 36s linear infinite;
+  }
+
+  .arm {
+    animation: spiral-radius 36s ease-in-out infinite;
+  }
+
+  .groupsLink {
+    animation: spiral-upright 36s linear infinite;
+  }
+
+  .spiral:is(:hover, :focus-within),
+  .spiral:is(:hover, :focus-within) * {
+    animation-play-state: paused;
+  }
+}
+
+/* Three turns per cycle; the radius goes out and back once. */
+@keyframes spiral-turn {
+  to {
+    transform: rotate(1080deg);
+  }
+}
+
+@keyframes spiral-radius {
+  0%,
+  100% {
+    transform: translateX(6vmin);
+  }
+  50% {
+    transform: translateX(min(36vmin, 280px, calc(50vw - 100px)));
+  }
+}
+
+@keyframes spiral-upright {
+  to {
+    rotate: -1080deg;
+  }
+}
