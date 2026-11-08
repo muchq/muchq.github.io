@@ -166,7 +166,7 @@ test('both course formulas use the same scale curve as 1/π', async ({ page }) =
   expect(await scalesAt(20_000)).toEqual([1, 1, 1])
 })
 
-test('the proofs link spirals out upright from a speck at the center, landing full size', async ({ page }) => {
+test('the proofs link spins out from a speck at the center, landing full size', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await page.goto('/')
   await page.locator('a[href="/proofs"]').waitFor()
@@ -181,23 +181,25 @@ test('the proofs link spirals out upright from a speck at the center, landing fu
       return {
         shown: r.width,
         laidOut: link.offsetWidth,
-        shownAspect: r.height / r.width,
-        laidOutAspect: link.offsetHeight / link.offsetWidth,
         fromCenter: Math.hypot((r.left + r.right) / 2 - innerWidth / 2, (r.top + r.bottom) / 2 - innerHeight / 2),
         turn: getComputedStyle(link.parentElement!).rotate,
+        armScale: getComputedStyle(link.parentElement!).scale,
+        counterAnimations: link.getAnimations().length,
       }
     }, t)
   const start = await at(0)
   expect(start.shown).toBeLessThan(start.laidOut * 0.1)
   expect(start.fromCenter).toBeLessThan(15)
   expect(start.turn).toBe('720deg')
-  // Mid-spiral, and partway through a turn: a tilted pill's box would be squarer.
+  expect(start.counterAnimations).toBe(0)
   for (const t of [300, 700, 1100]) {
     const mid = await at(t)
-    expect(mid.shownAspect, `tilted at ${t} ms`).toBeCloseTo(mid.laidOutAspect, 2)
+    expect(mid.turn, `not turning at ${t} ms`).not.toBe('none')
+    // Nothing on the link turns back against its spinning ancestors.
+    expect(mid.counterAnimations).toBe(0)
   }
   const done = await at(2400)
-  expect(Math.abs(done.shown - done.laidOut)).toBeLessThan(1)
+  expect(done.armScale).toBe('none')
   expect(done.fromCenter).toBeCloseTo(190, -1)
   expect(done.turn).toBe('none')
 })
@@ -227,25 +229,14 @@ test('with the pointer elsewhere both course links keep moving', async ({ page }
   expect(moved(before[1], after[1]), '/groups stood still').toBeGreaterThan(5)
 })
 
-test('both pills are readable with black showing through them', async ({ page }) => {
+test('neither course link has a disc behind its formula', async ({ page }) => {
   await page.goto('/')
   for (const href of ['/proofs', '/groups']) {
-    const ratio = await page.locator(`a[href="${href}"]`).evaluate(el => {
-      const rgba = (c: string) => c.match(/[\d.]+/g)!.map(Number)
-      const [r, g, b] = rgba(getComputedStyle(el).color)
-      const [br, bg, bb, ba = 1] = rgba(getComputedStyle(el).backgroundColor)
-      const lum = (rgb: number[]) => {
-        const [R, G, B] = rgb.map(c => {
-          c /= 255
-          return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-        })
-        return 0.2126 * R + 0.7152 * G + 0.0722 * B
-      }
-      const text = lum([r, g, b])
-      const pill = lum([br * ba, bg * ba, bb * ba])
-      return (Math.max(text, pill) + 0.05) / (Math.min(text, pill) + 0.05)
+    const backgrounds = await page.locator(`a[href="${href}"]`).evaluate(el => {
+      const math = el.querySelector('math')!
+      return [getComputedStyle(el).backgroundColor, getComputedStyle(math).backgroundColor]
     })
-    expect(ratio, href).toBeGreaterThanOrEqual(4.5)
+    expect(backgrounds, href).toEqual(['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)'])
   }
 })
 

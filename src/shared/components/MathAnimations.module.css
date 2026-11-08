@@ -86,16 +86,13 @@
   height: 44px;
   translate: -50% -50%;
   padding: 0;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.82);
+  background: transparent;
   font-size: 0.25rem;
   white-space: nowrap;
   text-decoration: none;
 }
 
-.pill:hover,
 .pill:focus-visible {
-  background: rgba(255, 255, 255, 0.82);
   outline: 2px solid currentColor;
   outline-offset: 2px;
 }
@@ -107,8 +104,7 @@
   height: auto;
   margin: 0;
   padding: 1px 2px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.82);
+  background: transparent;
   animation: none;
   pointer-events: none;
 }
@@ -131,10 +127,9 @@
 }
 
 /*
- * The link to the group theory course. Three nested boxes make the spiral:
- * .spiral turns about the page's center, .arm swings its radius out and back,
- * and the link turns the other way so the notation stays upright. Without
- * motion it rests to the right of center.
+ * The link to the group theory course. The frame turns about the page's
+ * center while the arm swings its radius out and back. Without motion it
+ * rests to the right of center.
  */
 
 .arm {
@@ -147,11 +142,11 @@
 }
 
 /*
- * The link to the proofs course: π₁(S¹) ≅ ℤ spiraling counterclockwise while
- * the notation stays upright. It arrives as a speck at the center and spins
- * away, then keeps sweeping its radius in and out. Where it crosses the group
- * theory link it passes underneath. Without motion it rests left of center,
- * across from the group theory link.
+ * The link to the proofs course: π₁(S¹) ≅ ℤ spiraling counterclockwise. It
+ * arrives as a speck at the center and spins away, then keeps sweeping its
+ * radius in and out. Where it crosses the group theory link it passes
+ * underneath. Without motion it rests left of center, across from the group
+ * theory link.
  */
 .orbit {
   --orbit-min: 6vmin;
@@ -197,10 +192,6 @@
     animation: spiral-radius 36s ease-in-out infinite;
   }
 
-  .groupsLink {
-    animation: spiral-upright 72s linear infinite;
-  }
-
   .pill math {
     animation: course-resize 20s ease infinite;
   }
@@ -215,12 +206,6 @@
       orbit-arrive 2.4s cubic-bezier(0.2, 0.8, 0.3, 1);
   }
 
-  .proofsLink {
-    animation:
-      orbit-upright 72s linear infinite,
-      orbit-arrive-upright 2.4s cubic-bezier(0.2, 0.8, 0.3, 1);
-  }
-
   .courses:is(:hover, :focus-within) * {
     animation-play-state: paused;
   }
@@ -230,12 +215,6 @@
 @keyframes orbit-turn {
   to {
     transform: rotate(-1080deg);
-  }
-}
-
-@keyframes orbit-upright {
-  to {
-    rotate: 1080deg;
   }
 }
 
@@ -249,22 +228,11 @@
   }
 }
 
-/*
- * Scaling the arm shrinks its radius along with the pill, so the pill starts
- * at the center and spirals out as the arm turns. The link turns back by as
- * much, in step (same duration and easing), so the notation stays upright.
- */
+/* Scaling the arm shrinks its radius and formula together as it spins out. */
 @keyframes orbit-arrive {
   from {
     rotate: 720deg;
     scale: 0.05;
-  }
-}
-
-/* On transform: the link's rotate is taken by orbit-upright. */
-@keyframes orbit-arrive-upright {
-  from {
-    transform: rotate(-720deg);
   }
 }
 
@@ -282,12 +250,6 @@
   }
   50% {
     transform: translateX(var(--spiral-max));
-  }
-}
-
-@keyframes spiral-upright {
-  to {
-    rotate: -2160deg;
   }
 }
 
