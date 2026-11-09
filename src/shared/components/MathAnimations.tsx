@@ -81,7 +81,7 @@ const MathAnimations = () => {
         </div>
 
         {/*
-          π₁(S¹) ≅ ℤ going once around the circle, counterclockwise: a loop that
+          π₁(S¹) ≅ ℤ going around the circle, counterclockwise: a loop that
           generates the very group it names. The way into the proofs course.
         */}
         <div className={styles.orbit}>

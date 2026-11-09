@@ -185,19 +185,27 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .spiral {
-    animation: spiral-turn 72s linear infinite;
+    animation:
+      spiral-turn 72s linear infinite,
+      course-drift 20s ease infinite;
   }
 
   .arm {
     animation: spiral-radius 36s ease-in-out infinite;
   }
 
+  /*
+   * The 1/π's own animation, in step with it: spin, resize and colour. Its
+   * left does nothing on these static formulas; their frames drift instead.
+   */
   .pill math {
-    animation: course-resize 20s ease infinite;
+    animation: zoom-in-zoom-out 20s ease infinite;
   }
 
   .orbit {
-    animation: orbit-turn 72s linear infinite;
+    animation:
+      orbit-turn 72s linear infinite,
+      course-drift 20s ease infinite;
   }
 
   .orbitArm {
@@ -253,13 +261,13 @@
   }
 }
 
-/* Exactly the 1/π formula's perpetual scale curve. */
-@keyframes course-resize {
-  0%,
-  100% {
-    scale: 100%;
-  }
+/*
+ * The 1/π's sideways drift. It moves from left: 40% to 50% of the content
+ * column, which is the viewport up to 650px wide (HomePage .content); these
+ * frames are fixed to the viewport, so they move that length directly.
+ */
+@keyframes course-drift {
   50% {
-    scale: 550%;
+    translate: min(10vw, 65px) 0;
   }
 }
