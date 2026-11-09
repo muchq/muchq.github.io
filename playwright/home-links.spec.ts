@@ -148,23 +148,70 @@ test('without motion the proofs link rests clear of the groups link', async ({ p
   }
 })
 
-test('both course formulas use the same scale curve as 1/π', async ({ page }) => {
+/** Pause everything and show frame t of every animation on the page. */
+const showAt = (page: Page, t: number) =>
+  page.evaluate(t => {
+    document.getAnimations().forEach(a => {
+      a.pause()
+      a.currentTime = t
+    })
+  }, t)
+
+test('both course formulas spin, resize and change colour with 1/π', async ({ page }) => {
   await page.goto('/')
   await page.locator('a[href="/proofs"]').waitFor()
-  const scalesAt = (t: number) =>
-    page.evaluate(t => {
-      document.getAnimations().forEach(a => {
-        a.pause()
-        a.currentTime = t
-      })
-      const scale = (selector: string) => Number.parseFloat(getComputedStyle(document.querySelector(selector)!).scale)
-      return [scale('p math'), scale('a[href="/groups"] math'), scale('a[href="/proofs"] math')]
-    }, t)
-
-  expect(await scalesAt(0)).toEqual([1, 1, 1])
-  expect(await scalesAt(10_000)).toEqual([5.5, 5.5, 5.5])
-  expect(await scalesAt(20_000)).toEqual([1, 1, 1])
+  const looks = () =>
+    page.evaluate(() =>
+      ['p math', 'a[href="/groups"] math', 'a[href="/proofs"] math'].map(selector => {
+        const s = getComputedStyle(document.querySelector(selector)!)
+        return { transform: s.transform, scale: s.scale, color: s.color }
+      }),
+    )
+  const seen = new Set<string>()
+  for (const t of [0, 2_500, 5_000, 10_000, 15_000, 19_750]) {
+    await showAt(page, t)
+    const [oneOverPi, groups, proofs] = await looks()
+    expect(groups, `/groups at ${t} ms`).toEqual(oneOverPi)
+    expect(proofs, `/proofs at ${t} ms`).toEqual(oneOverPi)
+    seen.add(JSON.stringify(oneOverPi))
+  }
+  // Every sampled frame differs, so matching it is no accident of standing still.
+  expect(seen.size).toBe(6)
 })
+
+for (const { width, height } of [
+  { width: 390, height: 844 },
+  { width: 1280, height: 800 },
+]) {
+  test(`both course links drift sideways as far as 1/π at ${width}×${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height })
+    await page.goto('/')
+    await page.locator('a[href="/proofs"]').waitFor()
+    // 1/π moves by changing left; the course frames move by translate.
+    const offsets = () =>
+      page.evaluate(() => {
+        const frame = (href: string) => document.querySelector(`a[href="${href}"]`)!.parentElement!.parentElement!
+        const shift = (el: Element) => Number.parseFloat(getComputedStyle(el).translate) || 0
+        return {
+          oneOverPi: Number.parseFloat(getComputedStyle(document.querySelector('p math')!).left),
+          groups: shift(frame('/groups')),
+          proofs: shift(frame('/proofs')),
+        }
+      })
+    await showAt(page, 0)
+    const rest = await offsets()
+    expect(rest.groups).toBe(0)
+    expect(rest.proofs).toBe(0)
+    for (const t of [5_000, 10_000, 15_000]) {
+      await showAt(page, t)
+      const now = await offsets()
+      const drift = now.oneOverPi - rest.oneOverPi
+      expect(drift, `1/π still at ${t} ms`).toBeGreaterThan(1)
+      expect(now.groups, `/groups at ${t} ms`).toBeCloseTo(drift, 0)
+      expect(now.proofs, `/proofs at ${t} ms`).toBeCloseTo(drift, 0)
+    }
+  })
+}
 
 test('the proofs link spins out from a speck at the center, landing full size', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
@@ -178,10 +225,12 @@ test('the proofs link spins out from a speck at the center, landing full size', 
       })
       const link = document.querySelector<HTMLElement>('a[href="/proofs"]')!
       const r = link.getBoundingClientRect()
+      // The orbit's 0×0 frame, which drifts sideways with 1/π.
+      const c = link.parentElement!.parentElement!.getBoundingClientRect()
       return {
         shown: r.width,
         laidOut: link.offsetWidth,
-        fromCenter: Math.hypot((r.left + r.right) / 2 - innerWidth / 2, (r.top + r.bottom) / 2 - innerHeight / 2),
+        fromCenter: Math.hypot((r.left + r.right) / 2 - c.left, (r.top + r.bottom) / 2 - c.top),
         turn: getComputedStyle(link.parentElement!).rotate,
         armScale: getComputedStyle(link.parentElement!).scale,
         counterAnimations: link.getAnimations().length,
