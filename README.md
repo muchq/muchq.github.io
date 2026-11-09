@@ -58,6 +58,7 @@ node scripts/topology-sync.mjs --check
 | `/resilience` | Distributed-systems game |
 | `/smallcat` | Pong, moved from smallcat.dog |
 | `/groups`, `/sets`, `/top` | Math learning modules: a one-semester group theory course with problems, drills, and a group lab (`/groups/<chapter>`, `/groups/lab`); sets; Topology Quest |
+| `/hg` | Unlisted, noindex essay: a static page (`public/hg.html`) outside the SPA, served by Cloudflare's assets layer |
 | `/topology` | The deployment diagram, from MoonBase's `docs/DEPLOYMENT.md`: services and their links by kind (http, sql, logs, metrics), with each container's live status |
 
 The nav's **Hmm** menu links to apps hosted off muchq.com (see the
