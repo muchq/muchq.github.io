@@ -50,7 +50,7 @@ const MathAnimations = () => {
         </semantics>
       </math>
 
-      {/* Hovering or focusing a course link stops all, so neither can slide under the pointer. */}
+      {/* Keyboard focus pauses the courses for navigation; pointer hover keeps them moving. */}
       <div className={styles.courses}>
         <div className={styles.setsOrbit}>
           <Link to="/sets" className={`${styles.pill} ${styles.setsLink}`} aria-label="Set theory problem curriculum" title="Set theory: 500 problems">

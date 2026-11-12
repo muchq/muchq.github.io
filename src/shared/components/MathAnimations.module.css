@@ -109,7 +109,7 @@
   pointer-events: none;
 }
 
-/* The two moving course links below. */
+/* The three moving course links below. */
 .courses {
   /* The spiral's widest radius: spiral-radius swings out to it, and a tall screen's orbit fits above it. */
   --spiral-max: min(36vmin, 280px, calc(50vw - 100px), calc(50svh - 90px));
@@ -187,7 +187,7 @@
   .spiral {
     animation:
       spiral-turn 72s linear infinite,
-      course-drift 20s ease infinite;
+      course-drift 23s -7s ease infinite;
   }
 
   .arm {
@@ -195,17 +195,27 @@
   }
 
   /*
-   * The 1/π's own animation, in step with it: spin, resize and colour. Its
-   * left does nothing on these static formulas; their frames drift instead.
+   * Reuse the spin, resize and colour sequence with independent periods and
+   * phases. Left does nothing on static formulas; their frames drift instead.
    */
   .pill math {
-    animation: zoom-in-zoom-out 20s ease infinite;
+    animation: zoom-in-zoom-out 23s -7s ease infinite;
+  }
+
+  .proofsLink math {
+    animation-duration: 29s;
+    animation-delay: -13s;
+  }
+
+  .setsLink math {
+    animation-duration: 31s;
+    animation-delay: -19s;
   }
 
   .orbit {
     animation:
       orbit-turn 72s linear infinite,
-      course-drift 20s ease infinite;
+      course-drift 29s -13s ease infinite;
   }
 
   .orbitArm {
@@ -214,7 +224,7 @@
       orbit-arrive 2.4s cubic-bezier(0.2, 0.8, 0.3, 1);
   }
 
-  .courses:is(:hover, :focus-within) * {
+  .courses:focus-within * {
     animation-play-state: paused;
   }
 }
@@ -272,8 +282,25 @@
   }
 }
 
-.setsOrbit { position:fixed; left:65%; top:72%; z-index:2; animation:sets-float 22s ease-in-out infinite; }
-.setsLink { color:#bc78ff; font-size:1.1rem; width:130px; height:48px; }
-.courses:hover .setsOrbit,.courses:focus-within .setsOrbit { animation-play-state:paused; }
-@keyframes sets-float { 50% { transform:translate(-12vw,5vh) rotate(-12deg); } }
-@media(prefers-reduced-motion:reduce) { .setsOrbit { animation:none; } }
+.setsOrbit {
+  position: fixed;
+  left: 65%;
+  top: 72%;
+  z-index: 2;
+}
+
+.setsLink {
+  color: #bc78ff;
+}
+
+@keyframes sets-float {
+  50% {
+    transform: translate(-12vw, 5vh) rotate(-12deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .setsOrbit {
+    animation: sets-float 22s -5s ease-in-out infinite;
+  }
+}
