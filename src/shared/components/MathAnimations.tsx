@@ -50,8 +50,13 @@ const MathAnimations = () => {
         </semantics>
       </math>
 
-      {/* Hovering or focusing either course link stops both, so neither can slide under the pointer. */}
+      {/* Hovering or focusing a course link stops all, so neither can slide under the pointer. */}
       <div className={styles.courses}>
+        <div className={styles.setsOrbit}>
+          <Link to="/sets" className={`${styles.pill} ${styles.setsLink}`} aria-label="Set theory problem curriculum" title="Set theory: 500 problems">
+            <math><mi>|A|</mi><mo>&lt;</mo><mi>|𝒫(A)|</mi></math>
+          </Link>
+        </div>
         {/* The First Isomorphism Theorem, spiraling around the page: the way into the group theory course. */}
         <div className={styles.spiral}>
           <div className={styles.arm}>
