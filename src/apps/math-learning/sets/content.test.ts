@@ -13,6 +13,6 @@ describe('Jech curriculum import', () => {
       })
     })
     expect(guide).toContain('46 weeks')
-    expect(references).toContain('nothing here was machine-checked')
+    expect(references).toContain('not all been verified')
   })
 })

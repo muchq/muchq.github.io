@@ -1,6 +1,5 @@
 import source from './curriculum.md?raw'
 export const sections = source.split(/^## /m)
-export const introduction = sections[0].replace(/^# .*\n+/, '')
 export const guide = sections[1].replace(/^.*\n/, '')
 export const references = sections[22].replace(/^.*\n/, '')
 export const chapters = sections.slice(2, 22).map(section => {

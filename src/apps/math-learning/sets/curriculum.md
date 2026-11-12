@@ -1,22 +1,20 @@
-# Jech Set Theory: A Problem Book (Ch. 1–20)
+# Set Theory Through Problems
 
-Nov 9, 2026 · @Andy
+A companion to Jech’s *Set Theory*, Chapters 1–20.
 
-500 problems, 25 per chapter, covering Jech's *Set Theory* (3rd Millennium ed.) from the axioms through supercompact cardinals. The problems are the curriculum: the theory is developed by solving them in order.
+## Study guide
 
-## How to use this book
-
-Scope is Jech Part I (Ch. 1–12) and Part II through Ch. 20, where supercompact cardinals live. Ch. 21–26 are out of scope.
+The main sequence covers Jech Part I (Ch. 1–12) and Part II through Ch. 20. A few problems use later chapters; these are listed in the references.
 
 - Every problem is a statement to prove unless it says "find", "decide" or "give an example".
-- Work in order. Any earlier problem may be used in a later one; that is the design, as in Tkachuk.
-- Each chapter opens with the Jech sections to read and the definitions you need. Read after attempting the first five problems, not before.
+- Work in order; later problems may use earlier results.
+- Each chapter lists the corresponding chapter in Jech and prerequisite definitions. Consult the text as needed.
 - From Ch. 5 on the base theory is ZFC. Problems marked (ZF) must avoid choice.
-- No mark: routine, under 30 minutes. ★: needs an idea. ★★: a named theorem; budget an evening, and read Jech's proof only after a real attempt.
-- Write every solution out. A problem you can only do in your head is not done.
+- Difficulty: unmarked problems are introductory; ★ problems are intermediate; ★★ problems are advanced and may require several sessions or additional reading.
+- Write complete proofs, including the hypotheses used.
 - Solutions are not included. The last section says where each chapter's solutions can be checked.
 
-| Stage | Chapters | Weeks at 8–10 h | You are done when you can prove, cold |
+| Stage | Chapters | Weeks at 8–10 h | Main results |
 | --- | --- | --- | --- |
 | I. Foundations | 1–6 | 8 | König's theorem; every set is in some Vα; ℵω^ℵ₀ computations under GCH |
 | II. Combinatorics | 7–9 | 6 | Fodor, Solovay splitting, Silver's theorem, Erdős–Rado |
@@ -26,7 +24,7 @@ Scope is Jech Part I (Ch. 1–12) and Part II through Ch. 20, where supercompact
 | VI. Large cardinals and L | 17–18 | 6 | Weakly compact equivalences; Kunen inconsistency; Ramsey implies 0# exists; consequences of covering |
 | VII. Inner models, very large cardinals | 19–20 | 7 | Uniqueness of L\[U\]; supercompactness via normal fine measures; SCH above a strongly compact |
 
-Total is about 46 weeks. Stages II and III can be swapped, and Ch. 11 can be delayed until just before Ch. 14.
+The suggested schedule totals 46 weeks; individual problems may take substantially longer. Stages II and III can be swapped, and Ch. 11 can be delayed until just before Ch. 14.
 
 ## 1. Axioms of set theory
 
@@ -80,7 +78,7 @@ Read: Jech Ch. 1. Chapters 1–4 use no Choice unless stated, and Ch. 1 uses no 
 
 **1.24.** ★ On N define m E n iff the m-th binary digit of n is 1. The structure (N, E) satisfies Extensionality, Pairing, Union, Power Set and Separation.
 
-**1.25.** ★ (N, E) also satisfies Replacement and Regularity, every element is finite in the sense of the model, and Infinity fails. Conclude that Infinity is independent of the remaining axioms.
+**1.25.** ★ (N, E) also satisfies Replacement and Regularity, every element is finite in the sense of the model, and Infinity fails. Conclude that, if ZF is consistent, Infinity is independent of the remaining ZF axioms. Distinguish the model construction from the relative-consistency conclusion.
 
 ## 2. Ordinal numbers
 
@@ -224,9 +222,9 @@ Read: Jech Ch. 4. Countable Choice is allowed in this chapter; full AC only wher
 
 **4.15.** 𝒩 is homeomorphic to 𝒩 × 𝒩 and to 𝒩^ω. 2^ω is homeomorphic to the Cantor ternary set. 𝒩 is not σ-compact.
 
-**4.16.** ★ Every compact metric space is a continuous image of 2^ω.
+**4.16.** ★ Every nonempty compact metric space is a continuous image of 2^ω.
 
-**4.17.** ★ Every Polish space is a continuous image of 𝒩. Every uncountable Polish space contains a homeomorph of 2^ω.
+**4.17.** ★ Every nonempty Polish space is a continuous image of 𝒩. Every uncountable Polish space contains a homeomorph of 2^ω.
 
 **4.18.** Define Σ⁰α and Π⁰α for 1 ≤ α < ω₁. Their union is the Borel σ-algebra, and there are exactly 2^ℵ₀ Borel sets.
 
@@ -268,7 +266,7 @@ Read: Jech Ch. 5. ZFC from here on unless a problem says (ZF). Needed: AC, Zorn'
 
 **5.10.** (König) If κᵢ < λᵢ for all i ∈ I, then the sum of the κᵢ is less than the product of the λᵢ.
 
-**5.11.** Deduce from 5.10: κ < 2^κ; cf(2^κ) > κ; κ^cf κ > κ; cf(κ^λ) > λ. Hence 2^ℵ₀ ≠ ℵω.
+**5.11.** For infinite cardinals κ and λ, deduce from 5.10: κ < 2^κ; cf(2^κ) > κ; κ^cf κ > κ; cf(κ^λ) > λ. Hence 2^ℵ₀ ≠ ℵω.
 
 **5.12.** The product of n over 0 < n < ω is 2^ℵ₀. The product of ℵₙ over n < ω is ℵω^ℵ₀. The product of ℵα over α < ω₁ + ω is ℵ(ω₁+ω)^ℵ₁.
 
@@ -350,7 +348,7 @@ Read: Jech Ch. 6. Needed: transitive closure TC(x), the hierarchy Vα, rank, ∈
 
 **6.24.** (ZF) AC holds iff every Vα can be well-ordered.
 
-**6.25.** ★ (ZF without Regularity) Let F be a definable bijection of V and put x E y iff x ∈ F(y). (V, E) satisfies all axioms except possibly Regularity. Choose F so that some x has x E x and nothing else E x. Conclude Regularity is independent.
+**6.25.** ★ (ZF without Regularity) Let F be a definable bijection of V and put x E y iff x ∈ F(y). (V, E) satisfies all axioms except possibly Regularity. Choose F so that some x has x E x and nothing else E x. Conclude that, if ZF is consistent, Regularity is independent of the remaining ZF axioms.
 
 ## 7. Filters, ultrafilters and Boolean algebras
 
@@ -602,7 +600,7 @@ Read: Jech Ch. 11. Work in 𝒩 or any Polish space. Needed: Σ⁰α, Π⁰α, u
 
 **11.15.** The set of codes of linear orders of ω is closed; WO is Π¹₁; for each α < ω₁ the set of codes of order type less than α is Borel.
 
-**11.16.** ★ (Boundedness) Every Σ¹₁ subset of WO has order types bounded below ω₁. Hence WO is not Σ¹₁, and every Π¹₁ set is a continuous preimage of WO.
+**11.16.** ★ (Boundedness) Every Σ¹₁ subset of WO has order types bounded below ω₁. Hence WO is not Σ¹₁, and every Π¹₁ subset of 𝒩 is a continuous preimage of WO.
 
 **11.17.** ★ Every Π¹₁ set is a union of ℵ₁ Borel sets, and every Σ¹₁ set is an intersection of ℵ₁ Borel sets. A Π¹₁ set has cardinality at most ℵ₁ or exactly 2^ℵ₀.
 
@@ -674,7 +672,7 @@ Read: Jech Ch. 12. Needed: elementary submodel, Skolem function and hull, ultrap
 
 **12.24.** ★ Let j: M → N be elementary between transitive models of ZFC. Then j(α) ≥ α for all ordinals α ∈ M, and if j is the identity on ordinals it is the identity.
 
-**12.25.** ★ Let U be a κ-complete nonprincipal ultrafilter on κ. Define the ultrapower of V by U using Scott's trick; it is well-founded and set-like, so collapses to a transitive class M with an elementary j: V → M. Show j(α) = α for α < κ and j(κ) > κ.
+**12.25.** ★ Let κ be uncountable and U a κ-complete nonprincipal ultrafilter on κ. Define the ultrapower of V by U using Scott's trick; it is well-founded and set-like, so collapses to a transitive class M with an elementary j: V → M. Show j(α) = α for α < κ and j(κ) > κ.
 
 ## 13. Constructible sets
 
@@ -768,7 +766,7 @@ Read: Jech Ch. 14. M is a countable transitive model of ZFC, P ∈ M a notion of
 
 **14.17.** Fn(κ × ω, 2, ω) is ccc.
 
-**14.18.** ★ If κ^ℵ₀ = κ in M, then forcing with Fn(κ × ω, 2, ω) gives 2^ℵ₀ = κ. Conclude Con(ZFC + 2^ℵ₀ = ℵ₂) and Con(ZFC + 2^ℵ₀ = ℵ(ω+1)), and explain the failure for ℵω.
+**14.18.** ★ If κ^ℵ₀ = κ in M, then forcing with Fn(κ × ω, 2, ω) gives 2^ℵ₀ = κ. Starting from a model of GCH, deduce that Con(ZFC) implies each of Con(ZFC + 2^ℵ₀ = ℵ₂) and Con(ZFC + 2^ℵ₀ = ℵ(ω+1)). Explain why 2^ℵ₀ = ℵω is impossible. Give the relative-consistency argument as in 14.24.
 
 **14.19.** If P is κ-closed, M\[G\] has no new sequences of length less than κ of elements of M, so cardinals up to κ are preserved.
 
@@ -786,7 +784,7 @@ Read: Jech Ch. 14. M is a countable transitive model of ZFC, P ∈ M a notion of
 
 ## 15. Applications of forcing
 
-Read: Jech Ch. 15. This is the hardest chapter of the book to do by problems; expect it to take a third of Stage V. Needed: Add(κ, λ) = Fn(λ × κ, 2, κ), product forcing, Easton function and Easton product, Lévy collapse Col(λ, <κ), random forcing, Sacks (perfect tree) forcing and fusion, complete subalgebra.
+Read: Jech Ch. 15. Needed: Add(κ, λ) = Fn(λ × κ, 2, κ), product forcing, Easton function and Easton product, Lévy collapse Col(λ, <κ), random forcing, Sacks (perfect tree) forcing and fusion, complete subalgebra.
 
 **15.1.** Assume κ^<κ = κ and λ^κ = λ. Add(κ, λ) is κ-closed and κ⁺-cc, preserves all cardinals, and forces 2^κ = λ.
 
@@ -794,7 +792,7 @@ Read: Jech Ch. 15. This is the hardest chapter of the book to do by problems; ex
 
 **15.3.** ★★ If G × H is P × Q-generic over M, then M\[G\] ∩ M\[H\] = M.
 
-**15.4.** A product of κ-closed forcings is κ-closed. The finite-support product of countably many copies of Cohen forcing is equivalent to Cohen forcing. If T is a Suslin tree (as a forcing, reversed), then T is ccc but T × T is not.
+**15.4.** A full-support product of κ-closed forcings is κ-closed. The finite-support product of countably many copies of Cohen forcing is equivalent to Cohen forcing. If T is a Suslin tree (as a forcing, reversed), then T is ccc but T × T is not.
 
 **15.5.** ★★ (Easton's lemma) If P is κ⁺-cc and Q is κ⁺-closed, then every function from κ to M in M\[G × H\] lies in M\[G\].
 
@@ -868,7 +866,7 @@ Read: Jech Ch. 16. Needed: two-step iteration P ∗ Q, complete embedding, finit
 
 **16.13.** ★ MA(κ) is equivalent to its restriction to ccc partial orders of cardinality at most κ.
 
-**16.14.** ★ MA(ℵ₁) implies every ccc partial order has the Knaster property. Hence under MA(ℵ₁) a product of ccc partial orders is ccc.
+**16.14.** ★ MA(ℵ₁) implies every ccc partial order has the Knaster property. Hence under MA(ℵ₁) every finite product, and every finite-support product, of ccc partial orders is ccc.
 
 **16.15.** ★ MA(ℵ₁) implies there is no Suslin tree.
 
@@ -894,7 +892,7 @@ Read: Jech Ch. 16. Needed: two-step iteration P ∗ Q, complete embedding, finit
 
 ## 17. Large cardinals
 
-Read: Jech Ch. 17. Needed: the ultrapower embedding j: V → M = Ult(V, U), the infinitary language L(κ, κ), Π^m\_n-indescribable, the arrow κ → (α)^<ω, Erdős, Ramsey, Rowbottom and Jónsson cardinals, indiscernibles, the Mitchell order. U is a κ-complete nonprincipal ultrafilter on κ.
+Read: Jech Ch. 17. Needed: the ultrapower embedding j: V → M = Ult(V, U), the infinitary language L(κ, κ), Π^m\_n-indescribable, the arrow κ → (α)^<ω, Erdős, Ramsey, Rowbottom and Jónsson cardinals, indiscernibles, the Mitchell order. In problems involving U, assume κ is uncountable and U is a κ-complete nonprincipal ultrafilter on κ.
 
 **17.1.** For j: V → M = Ult(V, U): the critical point is κ; M is closed under κ-sequences; U ∉ M; 2^κ ≤ (2^κ)^M < j(κ) < (2^κ)⁺.
 
@@ -910,7 +908,7 @@ Read: Jech Ch. 17. Needed: the ultrapower embedding j: V → M = Ult(V, U), the 
 
 **17.7.** ★ For j = j\_U and a cardinal λ > κ: j(λ) > λ if cf λ = κ; j(λ) = λ if λ is a strong limit with cf λ ≠ κ. What can you say about j(κ⁺)?
 
-**17.8.** ★ j(U) is a normal measure on j(κ) in M. The ultrapower of M by j(U), composed with j, equals the ultrapower of V by U ⊗ U of 10.17.
+**17.8.** ★ Assume U is normal. Then j(U) is a normal measure on j(κ) in M. The ultrapower of M by j(U), composed with j, equals the ultrapower of V by U ⊗ U of 10.17.
 
 **17.9.** ★★ (Mitchell) For normal measures on κ put U ◁ W iff U ∈ Ult(V, W). This relation is well-founded, and each W has at most 2^κ predecessors.
 
@@ -1012,7 +1010,7 @@ Read: Jech Ch. 19. U is a normal measure on κ. Needed: L\[U\], the iterated ult
 
 **19.4.** ★★ (Gaifman) Every Mα is well-founded.
 
-**19.5.** The sequence κ^(α) is normal; i(α, β) has critical point κ^(α); and |κ^(α)| ≤ 2^κ · |α|.
+**19.5.** The sequence κ^(α) is normal. For α < β, i(α, β) has critical point κ^(α). For α > 0, |κ^(α)| ≤ 2^κ · |α|.
 
 **19.6.** ★ Every element of Mₙ has the form i(0, n)(f)(κ^(0), …, κ^(n−1)), and Mₙ is the ultrapower of V by the n-fold product of U.
 
@@ -1092,7 +1090,7 @@ Read: Jech Ch. 20. Needed: Pκ(λ), fine measure, normal fine measure, λ-strong
 
 **20.17.** ★★ (Laver) If κ is supercompact there is f: κ → Vκ such that for every x and every λ ≥ |TC(x)| some normal fine measure U on Pκ(λ) has j\_U(f)(κ) = x.
 
-**20.18.** ★ From j: V → M with critical point κ derive the (κ, λ)-extender E. Then Ult(V, E) is well-founded and j factors through it by a map that is the identity on λ.
+**20.18.** ★ Let j: V → M be elementary with critical point κ, with M transitive, and let κ < λ ≤ j(κ). Derive the (κ, λ)-extender E using finite seeds a ⊂ λ: for a of size n, put X ∈ Eₐ iff a ∈ j(X), for X ⊆ [κ]^n. Then Ult(V, E) is well-founded and j factors through it by a map that is the identity on λ.
 
 **20.19.** ★ κ is strong iff for every λ there is an extender E with critical point κ and Vλ ⊆ Ult(V, E).
 
@@ -1110,7 +1108,7 @@ Read: Jech Ch. 20. Needed: Pκ(λ), fine measure, normal fine measure, λ-strong
 
 ## Where to check your work
 
-These statements were written from memory of the standard literature, without the book open, and nothing here was machine-checked. If a problem resists for a week, suspect the statement and compare it with the source below before spending more time. No links are given because none were opened.
+This is an unofficial study companion. The statements have not all been verified against the cited texts. Consult the references below for theorem statements, hypotheses, and proofs.
 
 | Chapters | First place to look | Second |
 | --- | --- | --- |
@@ -1124,4 +1122,4 @@ These statements were written from memory of the standard literature, without th
 | 18–19 | Kanamori, Ch. 2 (§9) and Ch. 4 (§§19–20) | Jech, same chapter |
 | 20 | Kanamori, Ch. 5 | Solovay, Reinhardt and Kanamori, "Strong axioms of infinity and elementary embeddings" |
 
-Problems that reach past Ch. 1–20 of Jech, with the chapter where he treats them: 13.23–13.25 and 18.11 (Ch. 25), 15.24 (Ch. 23), 15.15–15.16 (Ch. 26). Skip them on a first pass if time is short.
+Problems that reach past Ch. 1–20 of Jech, with the chapter where he treats them: 13.23–13.25 and 18.11 (Ch. 25), 15.24 (Ch. 23), 15.15–15.16 (Ch. 26). These may be deferred until the corresponding chapters have been read.
