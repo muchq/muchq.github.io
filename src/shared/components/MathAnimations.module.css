@@ -271,3 +271,9 @@
     translate: min(10vw, 65px) 0;
   }
 }
+
+.setsOrbit { position:fixed; left:65%; top:72%; z-index:2; animation:sets-float 22s ease-in-out infinite; }
+.setsLink { color:#bc78ff; font-size:1.1rem; width:130px; height:48px; }
+.courses:hover .setsOrbit,.courses:focus-within .setsOrbit { animation-play-state:paused; }
+@keyframes sets-float { 50% { transform:translate(-12vw,5vh) rotate(-12deg); } }
+@media(prefers-reduced-motion:reduce) { .setsOrbit { animation:none; } }
