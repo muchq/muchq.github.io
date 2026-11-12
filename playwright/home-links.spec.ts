@@ -2,9 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 
 // The two moving course links on the homepage: π₁(S¹) ≅ ℤ orbiting toward
 // /proofs and the First Isomorphism Theorem spiraling toward /groups. Both
-// cycles are scrubbed by hand over their joint period (72 s), so the checks
-// cover every position either pill takes, the proofs pill's entrance
-// included, not just the frame at load.
+// orbital cycles are scrubbed by hand over 72 s, with independently timed
+// sideways drifts. Checks include the proofs pill's entrance, not just load.
 
 const PERIOD_MS = 72_000
 const STEP_MS = 250
@@ -157,61 +156,56 @@ const showAt = (page: Page, t: number) =>
     })
   }, t)
 
-test('both course formulas spin, resize and change colour with 1/π', async ({ page }) => {
+test('course formulas animate independently of each other and 1/π', async ({ page }) => {
   await page.goto('/')
-  await page.locator('a[href="/proofs"]').waitFor()
-  const looks = () =>
-    page.evaluate(() =>
-      ['p math', 'a[href="/groups"] math', 'a[href="/proofs"] math'].map(selector => {
-        const s = getComputedStyle(document.querySelector(selector)!)
-        return { transform: s.transform, scale: s.scale, color: s.color }
-      }),
-    )
-  const seen = new Set<string>()
+  const seen = [new Set<string>(), new Set<string>(), new Set<string>(), new Set<string>()]
   for (const t of [0, 2_500, 5_000, 10_000, 15_000, 19_750]) {
     await showAt(page, t)
-    const [oneOverPi, groups, proofs] = await looks()
-    expect(groups, `/groups at ${t} ms`).toEqual(oneOverPi)
-    expect(proofs, `/proofs at ${t} ms`).toEqual(oneOverPi)
-    seen.add(JSON.stringify(oneOverPi))
+    const looks = await page.evaluate(() =>
+      ['p math', 'a[href="/groups"] math', 'a[href="/proofs"] math', 'a[href="/sets"] math'].map(selector => {
+        const s = getComputedStyle(document.querySelector(selector)!)
+        return JSON.stringify({ transform: s.transform, scale: s.scale, color: s.color })
+      }),
+    )
+    expect(new Set(looks).size).toBe(4)
+    looks.forEach((look, i) => seen[i].add(look))
   }
-  // Every sampled frame differs, so matching it is no accident of standing still.
-  expect(seen.size).toBe(6)
+  seen.forEach(frames => expect(frames.size).toBe(6))
 })
 
-for (const { width, height } of [
-  { width: 390, height: 844 },
-  { width: 1280, height: 800 },
-]) {
-  test(`both course links drift sideways as far as 1/π at ${width}×${height}`, async ({ page }) => {
+for (const { width, height } of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
+  test(`course links drift independently within their sideways range at ${width}×${height}`, async ({ page }) => {
     await page.setViewportSize({ width, height })
     await page.goto('/')
-    await page.locator('a[href="/proofs"]').waitFor()
-    // 1/π moves by changing left; the course frames move by translate.
-    const offsets = () =>
-      page.evaluate(() => {
-        const frame = (href: string) => document.querySelector(`a[href="${href}"]`)!.parentElement!.parentElement!
-        const shift = (el: Element) => Number.parseFloat(getComputedStyle(el).translate) || 0
-        return {
-          oneOverPi: Number.parseFloat(getComputedStyle(document.querySelector('p math')!).left),
-          groups: shift(frame('/groups')),
-          proofs: shift(frame('/proofs')),
-        }
-      })
-    await showAt(page, 0)
-    const rest = await offsets()
-    expect(rest.groups).toBe(0)
-    expect(rest.proofs).toBe(0)
-    for (const t of [5_000, 10_000, 15_000]) {
+    const seen = [new Set<number>(), new Set<number>()]
+    for (const t of [0, 5_000, 10_000, 15_000, 20_000]) {
       await showAt(page, t)
-      const now = await offsets()
-      const drift = now.oneOverPi - rest.oneOverPi
-      expect(drift, `1/π still at ${t} ms`).toBeGreaterThan(1)
-      expect(now.groups, `/groups at ${t} ms`).toBeCloseTo(drift, 0)
-      expect(now.proofs, `/proofs at ${t} ms`).toBeCloseTo(drift, 0)
+      const offsets = await page.evaluate(() =>
+        ['/groups', '/proofs'].map(href => Number.parseFloat(getComputedStyle(
+          document.querySelector(`a[href="${href}"]`)!.parentElement!.parentElement!,
+        ).translate) || 0),
+      )
+      offsets.forEach((offset, i) => {
+        expect(offset).toBeGreaterThanOrEqual(0)
+        expect(offset).toBeLessThanOrEqual(Math.min(width * 0.1, 65))
+        seen[i].add(offset)
+      })
     }
+    seen.forEach(offsets => expect(offsets.size).toBe(5))
+    expect([...seen[0]]).not.toEqual([...seen[1]])
   })
 }
+
+test('Sets uses the same base formula size as the other courses', async ({ page }) => {
+  await page.goto('/')
+  const sizes = await page.evaluate(() =>
+    ['/sets', '/groups', '/proofs'].map(href =>
+      getComputedStyle(document.querySelector(`a[href="${href}"] math`)!).fontSize,
+    ),
+  )
+  expect(sizes[0]).toBe(sizes[1])
+  expect(sizes[0]).toBe(sizes[2])
+})
 
 test('the proofs link spins out from a speck at the center, landing full size', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
@@ -253,19 +247,41 @@ test('the proofs link spins out from a speck at the center, landing full size', 
   expect(done.turn).toBe('none')
 })
 
-for (const href of ['/proofs', '/groups']) {
-  test(`hovering ${href} stops both course links`, async ({ page }) => {
+for (const href of ['/proofs', '/groups', '/sets']) {
+  test(`hovering ${href} keeps all course animations running`, async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await landed(page)
     const b = await boxOf(page, href)
     await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2)
-    const before = [await boxOf(page, '/proofs'), await boxOf(page, '/groups')]
-    await page.waitForTimeout(500)
-    const after = [await boxOf(page, '/proofs'), await boxOf(page, '/groups')]
-    expect(moved(before[0], after[0]), '/proofs moved').toBeLessThan(1)
-    expect(moved(before[1], after[1]), '/groups moved').toBeLessThan(1)
+    const animations = await page.locator('a[href="/sets"]').evaluate(el =>
+      el.parentElement!.parentElement!.getAnimations({ subtree: true }).map(a => a.playState),
+    )
+    expect(animations.length).toBeGreaterThan(0)
+    expect(animations.every(state => state === 'running')).toBe(true)
   })
 }
+
+test('keyboard focus pauses all course animations and blur resumes them', async ({ page }) => {
+  await landed(page)
+  const states = () => page.locator('a[href="/sets"]').evaluate(el =>
+    el.parentElement!.parentElement!.getAnimations({ subtree: true }).map(a => a.playState),
+  )
+  await page.locator('a[href="/sets"]').focus()
+  const paused = await states()
+  expect(paused.length).toBeGreaterThan(0)
+  expect(paused.every(state => state === 'paused')).toBe(true)
+  await page.locator('a[href="/sets"]').evaluate(el => (el as HTMLElement).blur())
+  expect((await states()).every(state => state === 'running')).toBe(true)
+})
+
+test('reduced motion disables all course animations', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/')
+  const count = await page.locator('a[href="/sets"]').evaluate(el =>
+    el.parentElement!.parentElement!.getAnimations({ subtree: true }).length,
+  )
+  expect(count).toBe(0)
+})
 
 test('with the pointer elsewhere both course links keep moving', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
@@ -289,7 +305,7 @@ test('neither course link has a disc behind its formula', async ({ page }) => {
   }
 })
 
-test('clicking the stopped proofs link goes to /proofs', async ({ page }) => {
+test('clicking the moving proofs link goes to /proofs', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await landed(page)
   const b = await boxOf(page, '/proofs')
