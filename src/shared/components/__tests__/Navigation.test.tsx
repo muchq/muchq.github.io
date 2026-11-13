@@ -49,7 +49,7 @@ describe('Navigation', () => {
       [/^2n-1\s?\(external site\)/, 'https://2n-1.org', 'Odd-number mathematics'],
       [/^tty1\s?\(external site\)/, 'https://tty1.uk', 'Web terminal'],
       [/^里に春が来ました\s?\(external site\)/, 'https://sato-ni-haru-ga-kimashita.uk', 'Japanese sentence breakdown'],
-      [/^p2bx\s?\(external site\)/, 'https://p2bx.uk', 'Stone–Čech compactification'],
+      [/^p2bx\s?\(external site\)/, 'https://p2bx.uk', 'Čech-Stone compactification'],
       [/^iili\.uk\s?\(external site\)/, 'https://iili.uk', 'The shortener on its own domain'],
     ]
     for (const [name, href, description] of expected) {
