@@ -307,7 +307,18 @@
 }
 
 .chessLink span {
+  /* Resize the knight while keeping its link's hit target steady. */
   pointer-events: none;
+}
+
+@keyframes chess-size {
+  0%,
+  100% {
+    scale: 1;
+  }
+  50% {
+    scale: 0.1;
+  }
 }
 
 @keyframes chess-float {
@@ -326,6 +337,10 @@
 @media (prefers-reduced-motion: no-preference) {
   .chessFloat {
     animation: chess-float 17s ease-in-out infinite;
+  }
+
+  .chessLink span {
+    animation: chess-size 13s ease-in-out infinite;
   }
 
   .setsOrbit {
