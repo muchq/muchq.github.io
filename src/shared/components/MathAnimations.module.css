@@ -314,10 +314,10 @@
 @keyframes chess-size {
   0%,
   100% {
-    scale: 1;
+    scale: 0.1;
   }
   50% {
-    scale: 0.1;
+    scale: 1;
   }
 }
 
@@ -340,7 +340,7 @@
   }
 
   .chessLink span {
-    animation: chess-size 13s ease-in-out infinite;
+    animation: chess-size 26s ease-in-out infinite;
   }
 
   .setsOrbit {
