@@ -645,6 +645,18 @@ describe('ChessTable', () => {
       expect(square('g6')).toHaveAttribute('aria-pressed', 'true')
     })
 
+    it('keeps a touch drag when its square hands capture to the board', () => {
+      mountWith(view())
+      const board = screen.getByRole('group', { name: 'board' })
+      fireEvent.pointerDown(square('g6'), { pointerId: 7, pointerType: 'touch', clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerMove(square('g6'), { pointerId: 7, pointerType: 'touch', clientX: 40, clientY: 40 })
+      expect(screen.getByTestId('drag-ghost')).toBeInTheDocument()
+      fireEvent.lostPointerCapture(square('g6'), { pointerId: 7, pointerType: 'touch' })
+      expect(screen.getByTestId('drag-ghost')).toBeInTheDocument()
+      fireEvent.lostPointerCapture(board, { pointerId: 7, pointerType: 'touch' })
+      expect(screen.queryByTestId('drag-ghost')).toBeNull()
+    })
+
     it('the dragged piece is drawn outside the board, so its edge cannot clip it', () => {
       mountWith(view())
       fireEvent.pointerDown(square('g6'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })

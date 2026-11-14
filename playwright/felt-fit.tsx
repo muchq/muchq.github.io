@@ -226,7 +226,11 @@ const chessTable = {
   postChallenge: () => undefined,
 }
 
-const fixture = (new URLSearchParams(location.search).get('fixture') ?? 'spades-2') as Fixture
+const params = new URLSearchParams(location.search)
+const fixture = (params.get('fixture') ?? 'spades-2') as Fixture
+const shownChess = params.has('offturn')
+  ? { ...chessView, sideToMove: 'black' as const, currentPlayerId: 'bob', legalMoves: ['h8g7', 'h8g8'] }
+  : chessView
 
 const table =
   fixture === 'spades-2' ? (
@@ -238,10 +242,10 @@ const table =
   ) : fixture === 'rummy' ? (
     <RummyTable playerId="alice" connected view={rummyView} table={rummyTable} />
   ) : (
-    <ChessTable playerId="alice" connected view={chessView} table={chessTable} />
+    <ChessTable playerId="alice" connected view={shownChess} table={chessTable} />
   )
 
-const focused = new URLSearchParams(location.search).has('focus')
+const focused = params.has('focus')
 
 createRoot(document.getElementById('root')!).render(
   <div className={`${lobby.tableOverlay} ${focused ? lobby.focusOverlay : ''}`} data-chess-focus={focused ? 'true' : undefined} data-table-overlay data-fixture={fixture}>

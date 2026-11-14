@@ -100,3 +100,35 @@ test('desktop right drag draws an arrow and right click toggles a square', async
   await page.locator('[data-square="a1"]').click()
   await expect(page.getByTestId('annotation-arrow')).toHaveCount(0)
 })
+
+test.describe('mobile chess gestures', () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } })
+
+  const touchDrag = async (page: import('@playwright/test').Page, fromSquare: string, toSquare: string) => {
+    const from = (await page.locator(`[data-square="${fromSquare}"]`).boundingBox())!
+    const to = (await page.locator(`[data-square="${toSquare}"]`).boundingBox())!
+    const start = { x: from.x + from.width / 2, y: from.y + from.height / 2 }
+    const end = { x: to.x + to.width / 2, y: to.y + to.height / 2 }
+    const client = await page.context().newCDPSession(page)
+    await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] })
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }],
+    })
+    await client.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [end] })
+    await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  }
+
+  test('a touch drag moves a piece to its destination', async ({ page }) => {
+    await open(page, 'chess')
+    await touchDrag(page, 'e7', 'e8')
+    await expect(page.getByRole('group', { name: 'promote to' })).toBeVisible()
+  })
+
+  test('a touch drag queues a premove off turn', async ({ page }) => {
+    await page.goto('/playwright/felt-fit.html?fixture=chess&offturn')
+    await touchDrag(page, 'g6', 'f7')
+    await expect(page.getByTestId('chess-status')).toContainText('Premove queued: g6 to f7.')
+    await expect(page.getByRole('button', { name: 'Cancel premove' })).toBeVisible()
+  })
+})
