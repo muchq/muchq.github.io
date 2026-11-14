@@ -324,7 +324,19 @@
 @keyframes chess-float {
   50% {
     transform: translate(6vw, -3vh) rotate(12deg);
+  }
+}
+
+@keyframes chess-color {
+  0%,
+  100% {
+    color: #4b2fa6;
+  }
+  33% {
     color: #0b5e53;
+  }
+  66% {
+    color: #a34275;
   }
 }
 
@@ -340,7 +352,9 @@
   }
 
   .chessLink span {
-    animation: chess-size 26s ease-in-out infinite;
+    animation:
+      chess-size 26s ease-in-out infinite,
+      chess-color 60s ease-in-out infinite;
   }
 
   .setsOrbit {
