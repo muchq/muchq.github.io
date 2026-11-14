@@ -250,6 +250,23 @@ describe('LobbyGame', () => {
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
   })
 
+  it('focuses chess, exits with Escape, and restores scrolling on leaving', () => {
+    state.chess.view = { gameId: 'C1' } as ChessView
+    const { rerender } = render(<LobbyGame />)
+    fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
+    expect(screen.getByRole('button', { name: 'Exit focus' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('button', { name: 'Lobby' })).toBeNull()
+    expect(document.body.style.overflow).toBe('hidden')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.getByRole('button', { name: 'Focus game' })).toBeInTheDocument()
+    expect(document.body.style.overflow).toBe('')
+    fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
+    state.chess.view = null
+    rerender(<LobbyGame />)
+    expect(document.body.style.overflow).toBe('')
+    expect(screen.queryByRole('button', { name: 'Exit focus' })).toBeNull()
+  })
+
   it('a chess table is a table too: over the world, the panel folded', () => {
     const { rerender } = render(<LobbyGame />)
     state.chess.view = { gameId: 'K1' } as ChessView

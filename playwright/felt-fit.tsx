@@ -241,8 +241,10 @@ const table =
     <ChessTable playerId="alice" connected view={chessView} table={chessTable} />
   )
 
+const focused = new URLSearchParams(location.search).has('focus')
+
 createRoot(document.getElementById('root')!).render(
-  <div className={lobby.tableOverlay} data-table-overlay data-fixture={fixture}>
+  <div className={`${lobby.tableOverlay} ${focused ? lobby.focusOverlay : ''}`} data-chess-focus={focused ? 'true' : undefined} data-table-overlay data-fixture={fixture}>
     {table}
   </div>
 )

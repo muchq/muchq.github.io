@@ -36,6 +36,25 @@ const LobbyGame = (props: UseLobbyProps) => {
   const { history: goHistory, loadHistory: loadGoHistory } = lobby.go
   // A chess review (MoonBase#1637) takes the screen as a table does.
   const atTable = HUB_GAMES.some(game => lobby[game].view !== null) || chess.review !== null
+  const [focusGame, setFocusGame] = useState<string | null>(null)
+  if (focusGame !== null && chess.view === null) setFocusGame(null)
+  const focused = chess.view !== null && chess.view.gameId === focusGame && chess.review === null
+  useEffect(() => {
+    if (!focused) return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      setFocusGame(null)
+    }
+    window.addEventListener('keydown', escape, true)
+    return () => {
+      document.body.style.overflow = previous
+      window.removeEventListener('keydown', escape, true)
+    }
+  }, [focused])
   const tableContext: TableContext = {
     playerId,
     connected,
@@ -139,7 +158,12 @@ const LobbyGame = (props: UseLobbyProps) => {
       {HUB_GAMES.map(
         game =>
           lobby[game].view !== null && (
-            <div key={game} className={styles.tableOverlay}>
+            <div key={game} className={`${styles.tableOverlay} ${game === 'chess' && focused ? styles.focusOverlay : ''}`} data-chess-focus={game === 'chess' && focused ? 'true' : undefined}>
+              {game === 'chess' && (
+                <button type="button" className={styles.focusToggle} aria-pressed={focused} onClick={() => setFocusGame(focused ? null : chess.view!.gameId)}>
+                  {focused ? 'Exit focus' : 'Focus game'}
+                </button>
+              )}
               <GameTableView game={game} tables={lobby} context={tableContext} />
             </div>
           )
@@ -152,6 +176,7 @@ const LobbyGame = (props: UseLobbyProps) => {
         </div>
       )}
       <button
+        hidden={focused}
         ref={toggleRef}
         type="button"
         className={styles.panelToggle}
@@ -161,13 +186,13 @@ const LobbyGame = (props: UseLobbyProps) => {
       >
         {panelOpen ? 'Hide lobby' : 'Lobby'}
       </button>
-      {panelOpen && (
+      {panelOpen && !focused && (
         <div id="lobby-panel">
           <LobbyPanel lobby={lobby} roomCodeRef={roomCodeRef} onOpenChat={() => chatRef.current?.open()} />
         </div>
       )}
       {room !== null && (
-        <div className={styles.chatHost}>
+        <div className={styles.chatHost} hidden={focused} inert={focused}>
           <RoomChat
             ref={chatRef}
             messages={chat.messages}

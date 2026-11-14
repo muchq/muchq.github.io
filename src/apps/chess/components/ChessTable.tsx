@@ -113,7 +113,8 @@ const ClockRow = ({
 // The queued premove as an arrow over the board, in squares as the viewer
 // sees them: from the piece's centre to just short of the target's, so the
 // head sits on the square it points at.
-const PremoveArrow = ({ from, to, squares }: { from: string; to: string; squares: string[] }) => {
+const BoardArrow = ({ from, to, squares, annotation = false }: { from: string; to: string; squares: string[]; annotation?: boolean }) => {
+  const headId = useId()
   const centre = (square: string) => {
     const index = squares.indexOf(square)
     return [(index % 8) + 0.5, Math.floor(index / 8) + 0.5]
@@ -124,13 +125,13 @@ const PremoveArrow = ({ from, to, squares }: { from: string; to: string; squares
   const x2 = tx - ((tx - x1) / length) * 0.3
   const y2 = ty - ((ty - y1) / length) * 0.3
   return (
-    <svg className={styles.arrows} viewBox="0 0 8 8" aria-hidden="true">
+    <svg className={`${styles.arrows} ${annotation ? styles.annotation : ''}`} viewBox="0 0 8 8" aria-hidden="true">
       <defs>
-        <marker id="premove-head" viewBox="0 0 4 4" refX="2" refY="2" markerWidth="3" markerHeight="3" orient="auto">
+        <marker id={headId} viewBox="0 0 4 4" refX="2" refY="2" markerWidth="3" markerHeight="3" orient="auto">
           <path d="M0,0 L4,2 L0,4 z" className={styles.arrowHead} />
         </marker>
       </defs>
-      <line data-testid="premove-arrow" x1={x1} y1={y1} x2={x2} y2={y2} className={styles.arrow} markerEnd="url(#premove-head)" />
+      <line data-testid={annotation ? 'annotation-arrow' : 'premove-arrow'} x1={x1} y1={y1} x2={x2} y2={y2} className={styles.arrow} markerEnd={`url(#${headId})`} />
     </svg>
   )
 }
@@ -170,6 +171,10 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const [premove, setPremove] = useState<{ gameId: string; from: string; to: string } | null>(null)
   // Squares the viewer marked with a right click, for this game only.
   const [marks, setMarks] = useState<{ gameId: string; squares: string[] }>({ gameId: view.gameId, squares: [] })
+  const [arrows, setArrows] = useState<{ gameId: string; items: Array<{ from: string; to: string }> }>({ gameId: view.gameId, items: [] })
+  const annotationPress = useRef<{ id: number; from: string; gameId: string } | null>(null)
+  const [preview, setPreview] = useState<{ gameId: string; from: string; to: string } | null>(null)
+  const suppressContext = useRef(false)
   const [premoveDispatch, setPremoveDispatch] = useState<{ to: string; move?: string } | null>(null)
   const [confirmResign, setConfirmResign] = useState<ChessView | null>(null)
   const [clockChoice, setClockChoice] = useState<string | null>(null)
@@ -266,6 +271,8 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
       dragged.current = false
       return
     }
+    setMarks({ gameId: view.gameId, squares: [] })
+    setArrows({ gameId: view.gameId, items: [] })
     if (inert) return
     // A tap on the board is a new gesture: a promotion still asking is
     // abandoned, never left up to send a second move for this turn.
@@ -293,11 +300,24 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   // the square under the pointer — not the event's target, which for a
   // touch stays the square the press began on. A drop anywhere else leaves
   // the piece picked up, for a tap to finish.
-  const squareAt = (x: number, y: number) =>
-    document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-square]')?.dataset.square ?? null
+  const squareAt = (x: number, y: number) => {
+    const cell = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-square]')
+    return cell && boardRef.current?.contains(cell) ? cell.dataset.square ?? null : null
+  }
 
   const onPointerDown = (event: ReactPointerEvent, square: string) => {
     dragged.current = false
+    if (event.button === 2) {
+      suppressContext.current = true
+      annotationPress.current = { id: event.pointerId, from: square, gameId: view.gameId }
+      boardRef.current?.setPointerCapture?.(event.pointerId)
+      return
+    }
+    if (event.button === 0) {
+      annotationPress.current = null
+      setPreview(null)
+      setArrows({ gameId: view.gameId, items: [] })
+    }
     if (event.button === 0 && marked.length > 0) setMarks({ gameId: view.gameId, squares: [] })
     if (inert || event.button !== 0) return
     const piece = board.get(square)
@@ -305,12 +325,26 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     if (myTurn && targetsFrom(view.legalMoves, square).length === 0) return
     press.current = { id: event.pointerId, square, x: event.clientX, y: event.clientY, moving: false }
   }
-  const toggleMark = (event: ReactMouseEvent, square: string) => {
+  const toggleMark = (event: ReactMouseEvent) => {
     event.preventDefault()
+    // Browsers emit contextmenu either on press or release. The pointer
+    // gesture owns the annotation; contextmenu alone supports keyboards.
+    if (suppressContext.current) {
+      suppressContext.current = false
+      return
+    }
+    const square = (event.target as HTMLElement).closest<HTMLElement>('[data-square]')?.dataset.square
+    if (!square) return
     const squares = marked.includes(square) ? marked.filter(other => other !== square) : [...marked, square]
     setMarks({ gameId: view.gameId, squares })
   }
   const onPointerMove = (event: ReactPointerEvent) => {
+    const drawing = annotationPress.current
+    if (drawing?.id === event.pointerId) {
+      const to = squareAt(event.clientX, event.clientY)
+      setPreview(to && to !== drawing.from ? { gameId: drawing.gameId, from: drawing.from, to } : null)
+      return
+    }
     const held = press.current
     if (held === null || held.id !== event.pointerId) return
     if (!held.moving && Math.hypot(event.clientX - held.x, event.clientY - held.y) < DRAG_SLOP_PX) return
@@ -328,6 +362,21 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     setGhost({ piece: board.get(held.square) ?? '', x: event.clientX, y: event.clientY, size: width * 0.15 })
   }
   const onPointerUp = (event: ReactPointerEvent) => {
+    const drawing = annotationPress.current
+    if (drawing?.id === event.pointerId) {
+      annotationPress.current = null
+      setPreview(null)
+      const to = squareAt(event.clientX, event.clientY)
+      if (!to || drawing.gameId !== view.gameId) return
+      if (to === drawing.from) {
+        setMarks({ gameId: view.gameId, squares: marked.includes(to) ? marked.filter(s => s !== to) : [...marked, to] })
+      } else {
+        const items = arrows.gameId === view.gameId ? arrows.items : []
+        const exists = items.some(a => a.from === drawing.from && a.to === to)
+        setArrows({ gameId: view.gameId, items: exists ? items.filter(a => a.from !== drawing.from || a.to !== to) : [...items, { from: drawing.from, to }] })
+      }
+      return
+    }
     const held = press.current
     if (held === null || held.id !== event.pointerId) return
     press.current = null
@@ -345,6 +394,8 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     }
   }
   const onPointerCancel = () => {
+    annotationPress.current = null
+    setPreview(null)
     press.current = null
     setGhost(null)
   }
@@ -507,7 +558,12 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerCancel}
+              onLostPointerCapture={onPointerCancel}
+              onContextMenu={toggleMark}
+              title="Right-click to highlight; right-drag to draw an arrow. Left-click to clear."
             >
+              {(arrows.gameId === view.gameId ? arrows.items : []).map(a => <BoardArrow key={`${a.from}-${a.to}`} {...a} squares={squares} annotation />)}
+              {preview && preview.gameId === view.gameId && <BoardArrow {...preview} squares={squares} annotation />}
               {squares.map((square, index) => {
                 const piece = shown.get(square)
                 const mine = !watching && piece !== undefined && colorOfPiece(piece) === myColor
@@ -537,7 +593,6 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                     inert={pendingPromotion !== null}
                     onPointerDown={event => onPointerDown(event, square)}
                     onClick={() => tap(square)}
-                    onContextMenu={event => toggleMark(event, square)}
                   >
                     {index % 8 === 0 && (
                       <span className={styles.rank} aria-hidden="true" data-testid="coordinate">
@@ -561,7 +616,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
                   </button>
                 )
               })}
-              {queuedPremove !== null && <PremoveArrow from={queuedPremove.from} to={queuedPremove.to} squares={squares} />}
+              {queuedPremove !== null && <BoardArrow from={queuedPremove.from} to={queuedPremove.to} squares={squares} />}
               {/* Lichess's picker: the pieces stacked down the file from the
                   promotion square, which is always on the viewer's far rank,
                   over a dimmed board a tap on which lets the pawn go back. */}
