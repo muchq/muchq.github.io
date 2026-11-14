@@ -492,12 +492,12 @@ export const useThoughtsGame = () => {
 
         const invitationPlayers = new Set<string>()
         document.getElementById('world-challenges')?.querySelectorAll<HTMLElement>('[data-challenge-host]').forEach(marker => {
-          invitationPlayers.add(marker.dataset.challengeHost!)
           const player = gameState.players.get(marker.dataset.challengeHost!)
           const projected = player && projectToNdc(surface.place(player.position, 2.5), cameraPosition, cameraTarget, canvas.width / canvas.height, cameraUp)
           const visible = projected && projected.forward > 0.1 && Math.abs(projected.x) < .95 && Math.abs(projected.y) < .9
           marker.style.visibility = visible ? 'visible' : 'hidden'
           if (!visible) return
+          invitationPlayers.add(marker.dataset.challengeHost!)
           marker.style.left = `${(projected.x + 1) * .5 * window.innerWidth}px`
           marker.style.top = `${(1 - projected.y) * .5 * window.innerHeight}px`
         })

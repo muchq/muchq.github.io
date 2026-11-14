@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { UseLobby } from '@/hooks/useLobby'
 import { HUB_GAMES } from '@/utils/hubStream'
-import { atTable, offerFor, pairingAt, seatsOf, tableFor, tableOffer } from '../offers'
+import { atTable, offerFor, pairingAt, seatsOf, tableFor } from '../offers'
 import styles from './ChallengeDiscovery.module.css'
 
 interface Props {
@@ -15,14 +15,13 @@ interface Props {
 // creator, so anchor to a connected seated player and call them a player,
 // not a host. Sorting keeps that choice consistent across clients.
 function openChallenges(lobby: UseLobby) {
-  return (lobby.room?.games ?? []).filter(tableOfferOpen).map(table => ({
+  return (lobby.room?.games ?? []).filter(table => offerFor(lobby, table).open).map(table => ({
     table,
     anchor: lobby.room?.players
       .filter(player => player.connected && player.table?.gameId === table.gameId && player.table.game === (table.game ?? 'golf'))
       .sort((a, b) => a.playerId.localeCompare(b.playerId))[0]?.playerId
   }))
 }
-const tableOfferOpen = (table: Parameters<typeof tableOffer>[0]) => tableOffer(table).open
 
 export default function ChallengeDiscovery({ lobby, selected, onSelect }: Props) {
   const [targets, setTargets] = useState<{ world: HTMLElement | null; map: HTMLElement | null } | null>(null)
@@ -76,13 +75,19 @@ export default function ChallengeDiscovery({ lobby, selected, onSelect }: Props)
   const pair = chosen && pairingAt(lobby, chosen.table)
   const unavailable = !lobby.connected ? 'Reconnect to join a challenge.'
     : seated ? 'Leave your current table before joining another.'
-    : !chosen ? 'This challenge is no longer available. It may have filled, started, or been canceled.'
-    : !chosen.anchor ? 'Waiting for a seated player to reconnect.'
-    : !offer?.open ? 'This table is reserved for its tournament pairing.' : null
+    : !chosen ? 'This challenge is no longer available. It may have filled, started, or been canceled.' : null
   return <>
     {lobby.connected && targets?.world && createPortal(markers(false), targets.world)}
     {lobby.connected && targets?.map && createPortal(markers(true), targets.map)}
-    <aside ref={attachTargets} onKeyDown={event => event.stopPropagation()} className={styles.discovery} aria-label="Open challenges">
+    <aside ref={attachTargets} onKeyDown={event => {
+      if (event.key === 'Escape' && expanded) {
+        event.preventDefault()
+        event.stopPropagation()
+        setExpanded(false)
+      } else if (event.key !== 'Escape') {
+        event.stopPropagation()
+      }
+    }} className={styles.discovery} aria-label="Open challenges">
       <button type="button" aria-expanded={expanded} aria-controls="challenge-list" onClick={() => setExpanded(!expanded)}>
         <span aria-hidden="true">✦</span> Open challenges <b>{lobby.connected ? challenges.length : '—'}</b>
       </button>

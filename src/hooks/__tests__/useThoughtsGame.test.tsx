@@ -350,6 +350,26 @@ describe('useThoughtsGame', () => {
     map.remove()
   })
 
+  it('keeps a nearby player named when their invitation beacon is off-screen', () => {
+    const challenges = document.createElement('div')
+    challenges.id = 'world-challenges'
+    const labels = document.createElement('div')
+    labels.id = 'player-labels-container'
+    document.body.append(challenges, labels)
+    start()
+    attached!.addPlayer('bob', [15, 0, 0], [1, 1, 1], 0)
+    frame()
+    const label = labels.querySelector<HTMLElement>('.player-label')!
+    expect(label.textContent).toBe('bob')
+    expect(label.style.opacity).not.toBe('0')
+    const marker = document.createElement('button')
+    marker.dataset.challengeHost = 'bob'
+    challenges.appendChild(marker)
+    frame(32)
+    expect(marker.style.visibility).toBe('hidden')
+    expect(label.style.opacity).not.toBe('0')
+  })
+
   // A room is a look, not a size: the hub takes any radius from 2 to
   // 1000, and whatever it names is the world the client stands on and
   // draws — drawing a plane instead would have every move refused.

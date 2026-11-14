@@ -5,6 +5,7 @@ import { expect, test, type WebSocketRoute } from '@playwright/test'
 for (const geometry of [{ plane: {} }, { sphere: { radius: 53 } }]) {
   for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
     test(`room invitations project and join at ${viewport.width}px on ${'sphere' in geometry ? 'sphere' : 'plane'}`, async ({ page }) => {
+      test.slow()
       await page.setViewportSize(viewport)
       await page.emulateMedia({ reducedMotion: 'reduce' })
       await page.addInitScript(() => localStorage.setItem('lobby.panel', 'hidden'))
@@ -38,11 +39,19 @@ for (const geometry of [{ plane: {} }, { sphere: { radius: 53 } }]) {
       const marker = page.locator('#map-challenges button')
       await expect(beacon).toBeVisible()
       await expect(marker).toBeVisible()
+      if (viewport.width <= 1024) {
+        const discovery = (await page.getByRole('complementary', { name: 'Open challenges' }).boundingBox())!
+        const joystick = (await page.locator('#right-joystick').boundingBox())!
+        const disjoint = discovery.x + discovery.width <= joystick.x
+          || joystick.x + joystick.width <= discovery.x
+          || discovery.y + discovery.height <= joystick.y
+          || joystick.y + joystick.height <= discovery.y
+        expect(disjoint).toBe(true)
+      }
       await marker.click()
       const preview = page.getByRole('region', { name: 'Challenge preview' })
       await expect(preview).toBeVisible()
       await expect(preview).toContainText('Play with bob')
-      await page.screenshot({ path: `test-results/challenges-${viewport.width}-${'sphere' in geometry ? 'sphere' : 'plane'}.png` })
       const box = (await preview.boundingBox())!
       expect(box.x).toBeGreaterThanOrEqual(0)
       expect(box.y).toBeGreaterThan(60)

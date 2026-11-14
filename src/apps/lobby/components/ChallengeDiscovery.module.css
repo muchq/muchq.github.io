@@ -8,7 +8,7 @@
   box-shadow: 0 12px 40px #140c2866;
   font-family: 'Lexend Deca', sans-serif;
 }
-.discovery { right: 12px; bottom: 76px; width: min(290px, calc(100vw - 24px)); }
+.discovery { right: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); width: min(290px, calc(100vw - 24px)); }
 .discovery button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; }
 .discovery b { margin-left: auto; color: #c9f5d8; }
 .discovery button, .preview button { min-height: 44px; padding: 10px 14px; border: 0; border-radius: 14px; background: transparent; color: inherit; cursor: pointer; }
@@ -16,7 +16,7 @@
 .list button { flex-direction: column; align-items: flex-start; gap: 4px; }
 .list span { font-size: 12px; color: #d0c5df; }
 .list p { padding: 0 10px; font-size: 14px; }
-.preview { right: 12px; bottom: 132px; width: min(340px, calc(100vw - 24px)); padding: 22px; box-sizing: border-box; max-height: calc(100dvh - 220px); overflow: auto; animation: arrive .2s ease-out; z-index: 32; }
+.preview { right: 12px; bottom: calc(132px + env(safe-area-inset-bottom, 0px)); width: min(340px, calc(100vw - 24px)); padding: 22px; box-sizing: border-box; max-height: calc(100dvh - 220px); overflow: auto; animation: arrive .2s ease-out; z-index: 32; }
 .preview h2 { margin: 8px 0; text-transform: capitalize; }
 .preview p { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
 .preview .eyebrow { color: #c9f5d8; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding-right: 24px; }
@@ -33,7 +33,10 @@
 .beacon:focus-visible, .mapMarker:focus-visible, .discovery button:focus-visible, .preview button:focus-visible { outline: 3px solid #ffdc94; outline-offset: 3px; }
 @keyframes arrive { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
 @media (prefers-reduced-motion: reduce) { .preview { animation: none; } }
+@media (max-width: 1024px) {
+  .discovery { bottom: calc(176px + env(safe-area-inset-bottom, 0px)); }
+}
 @media (max-width: 700px) {
-  .discovery { bottom: 12px; right: 82px; width: min(250px, calc(100vw - 94px)); }
-  .preview { bottom: 72px; max-height: calc(100dvh - 150px); }
+  .discovery { right: 82px; width: min(250px, calc(100vw - 94px)); }
+  .preview { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); max-height: calc(100dvh - 150px); }
 }
