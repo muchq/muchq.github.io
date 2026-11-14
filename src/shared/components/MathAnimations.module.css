@@ -311,6 +311,10 @@
   pointer-events: none;
 }
 
+.chessLink svg {
+  display: block;
+}
+
 @keyframes chess-size {
   0%,
   100% {
