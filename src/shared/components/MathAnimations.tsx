@@ -54,12 +54,7 @@ const MathAnimations = () => {
       <div className={styles.courses}>
         <div className={styles.chessFloat}>
           <Link to="/games?play=chess" className={`${styles.pill} ${styles.chessLink}`} aria-label="Play chess" title="Play chess">
-            <span aria-hidden="true">
-              <svg viewBox="0 0 48 48" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 38c0-8 4-13 11-18l-7 3-5-1-3-5L20 8l1-5 5 4c11 2 15 12 12 23l-2 8M20 8l6 3M23 20c4-3 6-5 6-8M12 38h24l3 6H9l3-6Z" />
-                <circle cx="20" cy="14" r="0.8" fill="currentColor" stroke="none" />
-              </svg>
-            </span>
+            <span aria-hidden="true">♘</span>
           </Link>
         </div>
         <div className={styles.setsOrbit}>
