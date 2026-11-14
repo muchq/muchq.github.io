@@ -293,6 +293,30 @@
   color: #bc78ff;
 }
 
+.chessFloat {
+  position: fixed;
+  left: 25%;
+  top: 82%;
+  z-index: 3;
+}
+
+.chessLink {
+  color: #4b2fa6;
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.chessLink span {
+  pointer-events: none;
+}
+
+@keyframes chess-float {
+  50% {
+    transform: translate(6vw, -3vh) rotate(12deg);
+    color: #0b5e53;
+  }
+}
+
 @keyframes sets-float {
   50% {
     transform: translate(-12vw, 5vh) rotate(-12deg);
@@ -300,6 +324,10 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  .chessFloat {
+    animation: chess-float 17s ease-in-out infinite;
+  }
+
   .setsOrbit {
     animation: sets-float 22s -5s ease-in-out infinite;
   }

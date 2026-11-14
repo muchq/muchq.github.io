@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import Navigation from '@/shared/components/Navigation'
 import ConnectionStatus from '@/shared/components/nav/ConnectionStatus'
 import NavStat from '@/shared/components/nav/NavStat'
@@ -10,12 +10,14 @@ import LobbyGame from '../components/LobbyGame'
 // share links resolve room, then table (MoonBase#1490).
 const LobbyPage = () => {
   const { roomId, gameId } = useParams<{ roomId?: string; gameId?: string }>()
+  const [searchParams] = useSearchParams()
   const [playerId, setPlayerId] = useState<string | null>(null)
   const [connected, setConnected] = useState(false)
 
   return (
     <div>
       <LobbyGame
+        quickChess={!roomId && searchParams.get('play') === 'chess'}
         permalinkRoomId={isValidId(roomId) ? roomId : null}
         permalinkGameId={isValidId(gameId) ? gameId : null}
         onPlayerIdChange={setPlayerId}

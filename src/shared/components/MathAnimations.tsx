@@ -52,6 +52,11 @@ const MathAnimations = () => {
 
       {/* Keyboard focus pauses the courses for navigation; pointer hover keeps them moving. */}
       <div className={styles.courses}>
+        <div className={styles.chessFloat}>
+          <Link to="/games?play=chess" className={`${styles.pill} ${styles.chessLink}`} aria-label="Play chess" title="Play chess">
+            <span aria-hidden="true">♞</span>
+          </Link>
+        </div>
         <div className={styles.setsOrbit}>
           <Link to="/sets" className={`${styles.pill} ${styles.setsLink}`} aria-label="Set theory problem curriculum" title="Set theory: 500 problems">
             <math><mi>|A|</mi><mo>&lt;</mo><mi>|𝒫(A)|</mi></math>

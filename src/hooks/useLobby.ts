@@ -45,6 +45,8 @@ export interface LobbyChat {
 }
 
 export interface UseLobbyProps {
+  // Open a chess table once admitted, preserving any existing seat.
+  quickChess?: boolean
   // The share link's room, joined once the session is ready, and the
   // table in it to sit at once the room is in hand.
   permalinkRoomId?: string | null
@@ -105,6 +107,7 @@ const knownGames = (room: HubRoom): HubRoom => ({
 })
 
 export const useLobby = ({
+  quickChess = false,
   permalinkRoomId = null,
   permalinkGameId = null,
   onConnectionChange,
@@ -122,6 +125,9 @@ export const useLobby = ({
   const [chat, setChat] = useState<LobbyChat>({ messages: [], replayUpTo: 0, rejection: null })
 
   const streamRef = useRef<HubStream | null>(null)
+  // Capture the entry intent before room navigation replaces the query string.
+  const quickChessPending = useRef(quickChess && !permalinkRoomId)
+  const quickChessRoomAsked = useRef(false)
   const noticeTimeoutRef = useRef<number | null>(null)
   // The stream's callbacks are created once; anything they consult
   // rides a ref so the closure never goes stale.
@@ -287,6 +293,10 @@ export const useLobby = ({
       // A resumed room's world waits for its roomState, which names the
       // surface; handleRoom enters it once that has landed.
       if (here === null) enterWorld(null)
+      if (here === null && quickChessPending.current && !quickChessRoomAsked.current) {
+        quickChessRoomAsked.current = true
+        streamRef.current?.createRoom()
+      }
     },
     [clearTables, enterWorld, navigate, onPlayerIdChange, resetChat, voice, world]
   )
@@ -331,6 +341,11 @@ export const useLobby = ({
       setRoom(knownGames(next))
       enterWorld(next.roomId)
       sitAtPendingTable(next)
+      if (quickChessPending.current) {
+        quickChessPending.current = false
+        const me = next.players.find(player => player.playerId === streamRef.current?.playerId)
+        if (me?.table === undefined) tablesRef.current.chess.createTable()
+      }
     },
     [enterWorld, navigate, resetChat, sitAtPendingTable]
   )
@@ -353,6 +368,7 @@ export const useLobby = ({
 
   const handleRejected = useCallback(
     (reason: string) => {
+      quickChessPending.current = false
       // Whatever was refused, nothing a table asked for arrived.
       for (const game of HUB_GAMES) tablesRef.current[game].handleRejected?.()
       voice.rejected(reason)

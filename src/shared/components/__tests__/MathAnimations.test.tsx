@@ -12,9 +12,18 @@ describe('MathAnimations', () => {
           <Route path="/" element={<MathAnimations />} />
           <Route path="/groups" element={<p>the course</p>} />
           <Route path="/proofs" element={<p>the proofs course</p>} />
+          <Route path="/games" element={<p>the games</p>} />
         </Routes>
       </MemoryRouter>
     )
+
+  it('the knight opens the chess shortcut in one click', async () => {
+    home()
+    const link = screen.getByRole('link', { name: 'Play chess' })
+    expect(link).toHaveAttribute('href', '/games?play=chess')
+    await userEvent.click(link)
+    expect(screen.getByText('the games')).toBeInTheDocument()
+  })
 
   it('the spiraling isomorphism theorem links to the group theory course', async () => {
     home()
