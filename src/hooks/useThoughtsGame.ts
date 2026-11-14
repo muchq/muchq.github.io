@@ -437,6 +437,15 @@ export const useThoughtsGame = () => {
           miniMapPlayer.style.transform = `translate(-50%, -50%) rotate(${directionDegrees}deg)`
         }
 
+        document.getElementById('map-challenges')?.querySelectorAll<HTMLElement>('[data-challenge-host]').forEach(marker => {
+          const player = gameState.players.get(marker.dataset.challengeHost!)
+          marker.style.visibility = player ? 'visible' : 'hidden'
+          if (!player) return
+          const [x, y] = worldToMiniMap(player.position)
+          marker.style.left = `${x}px`
+          marker.style.top = `${y}px`
+        })
+
         // Update other players
         const allPlayers = Array.from(gameState.players.values())
         const miniMapContent = document.getElementById('mini-map-content')
@@ -481,6 +490,17 @@ export const useThoughtsGame = () => {
         const localPlayer = gameState.getLocalPlayer()
         if (!localPlayer) return
 
+        const invitationPlayers = new Set<string>()
+        document.getElementById('world-challenges')?.querySelectorAll<HTMLElement>('[data-challenge-host]').forEach(marker => {
+          invitationPlayers.add(marker.dataset.challengeHost!)
+          const player = gameState.players.get(marker.dataset.challengeHost!)
+          const projected = player && projectToNdc(surface.place(player.position, 2.5), cameraPosition, cameraTarget, canvas.width / canvas.height, cameraUp)
+          const visible = projected && projected.forward > 0.1 && Math.abs(projected.x) < .95 && Math.abs(projected.y) < .9
+          marker.style.visibility = visible ? 'visible' : 'hidden'
+          if (!visible) return
+          marker.style.left = `${(projected.x + 1) * .5 * window.innerWidth}px`
+          marker.style.top = `${(1 - projected.y) * .5 * window.innerHeight}px`
+        })
         const labelsContainer = document.getElementById('player-labels-container')
         if (!labelsContainer) return
 
@@ -491,6 +511,13 @@ export const useThoughtsGame = () => {
           if (player.id === gameState.localPlayerId) return // Skip local player
 
           currentOtherPlayerIds.add(player.id)
+          // The invitation already names this player; a second label
+          // would paint across its title and intercept its visual space.
+          if (invitationPlayers.has(player.id)) {
+            const label = playerLabelElements.get(player.id)
+            if (label) label.style.opacity = '0'
+            return
+          }
 
           // Calculate distance to player
           const dx = player.position[0] - localPlayer.position[0]
