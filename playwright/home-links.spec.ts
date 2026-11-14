@@ -40,6 +40,106 @@ interface Box {
   bottom: number
 }
 
+interface GreetingFrame {
+  boxes: Box[]
+  fontSize: number
+  animationCount: number
+  pointerEvents: string
+}
+
+const greetingAt = (page: Page, time: number): Promise<GreetingFrame> =>
+  page.locator('h1[aria-label="Hello"]').evaluate((heading, time) => {
+    const animations = heading.getAnimations({ subtree: true })
+    animations.forEach(animation => {
+      animation.pause()
+      animation.currentTime = time
+    })
+    const boxes = [...heading.querySelectorAll('span')].map(letter => {
+      const box = letter.getBoundingClientRect()
+      return { left: box.left, top: box.top, right: box.right, bottom: box.bottom }
+    })
+    return {
+      boxes,
+      fontSize: Number.parseFloat(getComputedStyle(heading).fontSize),
+      animationCount: animations.length,
+      pointerEvents: getComputedStyle(heading).pointerEvents,
+    }
+  }, time)
+
+for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
+  test(`Hello scatters, assembles, and stays on screen at ${viewport.width}×${viewport.height}`, async ({ page }) => {
+    await page.setViewportSize(viewport)
+    await page.goto('/')
+    await page.evaluate(() => document.fonts.ready)
+    const heading = page.getByRole('heading', { name: 'Hello', level: 1 })
+    await expect(heading).toBeVisible()
+    await expect(heading.locator('span')).toHaveCount(5)
+
+    const times = [0, 5_120, 10_240, 14_080, 15_000, 20_000, 20_480, 24_320, 28_160, 32_000]
+    const frames = await Promise.all(times.map(time => greetingAt(page, time)))
+    for (const frame of frames) {
+      expect(frame.animationCount).toBe(5)
+      expect(frame.pointerEvents).toBe('none')
+      for (const box of frame.boxes) {
+        expect(box.left).toBeGreaterThanOrEqual(0)
+        expect(box.top).toBeGreaterThanOrEqual(NAV_PX)
+        expect(box.right).toBeLessThanOrEqual(viewport.width)
+        expect(box.bottom).toBeLessThanOrEqual(viewport.height)
+      }
+    }
+
+    const initial = frames[0]
+    expect(Math.max(...initial.boxes.map(box => box.top)) - Math.min(...initial.boxes.map(box => box.top))).toBeGreaterThan(initial.fontSize * 2)
+    const joined = frames[4]
+    const held = frames[5]
+    const joinedCenters = joined.boxes.map(box => (box.left + box.right) / 2)
+    expect(joinedCenters).toEqual([...joinedCenters].sort((a, b) => a - b))
+    for (let index = 1; index < joinedCenters.length; index++) {
+      expect(joinedCenters[index] - joinedCenters[index - 1]).toBeGreaterThan(joined.fontSize * 0.2)
+    }
+    expect(Math.max(...joined.boxes.map(box => box.top)) - Math.min(...joined.boxes.map(box => box.top))).toBeLessThanOrEqual(1)
+    const joinedWidth = Math.max(...joined.boxes.map(box => box.right)) - Math.min(...joined.boxes.map(box => box.left))
+    expect(joinedWidth).toBeGreaterThan(joined.fontSize * 1.5)
+    expect(joinedWidth).toBeLessThan(joined.fontSize * 3)
+    joined.boxes.forEach((box, index) => {
+      expect(held.boxes[index].left).toBeCloseTo(box.left, 1)
+      expect(held.boxes[index].top).toBeCloseTo(box.top, 1)
+    })
+    const dispersed = frames[7]
+    expect(Math.max(...dispersed.boxes.map(box => box.top)) - Math.min(...dispersed.boxes.map(box => box.top))).toBeGreaterThan(dispersed.fontSize * 2)
+    for (let letter = 0; letter < 5; letter++) {
+      const positions = [frames[0], frames[1], frames[2], frames[7], frames[8]]
+        .map(frame => `${frame.boxes[letter].left.toFixed(1)},${frame.boxes[letter].top.toFixed(1)}`)
+      expect(new Set(positions).size).toBe(positions.length)
+    }
+  })
+}
+
+test('reduced motion leaves one assembled Hello', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  for (const viewport of [{ width: 320, height: 568 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/')
+    await page.evaluate(() => document.fonts.ready)
+    const frame = await greetingAt(page, 16_000)
+    expect(frame.animationCount).toBe(0)
+    expect(frame.pointerEvents).toBe('none')
+    expect(frame.boxes).toHaveLength(5)
+    for (const box of frame.boxes) {
+      expect(box.left).toBeGreaterThanOrEqual(0)
+      expect(box.top).toBeGreaterThanOrEqual(NAV_PX)
+      expect(box.right).toBeLessThanOrEqual(viewport.width)
+      expect(box.bottom).toBeLessThanOrEqual(viewport.height)
+    }
+    const centers = frame.boxes.map(box => (box.left + box.right) / 2)
+    expect(centers).toEqual([...centers].sort((a, b) => a - b))
+    for (let index = 1; index < centers.length; index++) {
+      expect(centers[index] - centers[index - 1]).toBeGreaterThan(frame.fontSize * 0.2)
+    }
+    expect(Math.max(...frame.boxes.map(box => box.top)) - Math.min(...frame.boxes.map(box => box.top))).toBeLessThanOrEqual(1)
+  }
+})
+
 interface Sweep {
   /** Lowest bottom edge of the proofs pill, and highest top edge of the groups pill, over the whole sweep. */
   proofsLowest: number
