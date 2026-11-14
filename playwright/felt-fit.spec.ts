@@ -70,3 +70,33 @@ test('chess fits and stays centered under the overlay', async ({ page }) => {
   expect(m.centered, 'chess table not centered in overlay').toBe(true)
   expect(m.ring).toBeNull()
 })
+
+for (const size of [{ width: 390, height: 844 }, { width: 375, height: 667 }, { width: 844, height: 390 }]) {
+  test(`chess focus fits ${size.width}×${size.height}`, async ({ page }) => {
+    await page.setViewportSize(size)
+    await page.goto('/playwright/felt-fit.html?fixture=chess&focus')
+    const board = page.getByRole('group', { name: 'board' })
+    await expect(board).toBeVisible()
+    const box = await board.boundingBox()
+    expect(box!.width).toBeGreaterThanOrEqual(240)
+    expect(Math.abs(box!.width - box!.height)).toBeLessThanOrEqual(1)
+    expect(box!.x).toBeGreaterThanOrEqual(0)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(size.width)
+    expect((await overlayMetrics(page)).scroll).toBeLessThanOrEqual(1)
+  })
+}
+
+test('desktop right drag draws an arrow and right click toggles a square', async ({ page }) => {
+  await open(page, 'chess')
+  const from = await page.locator('[data-square="g6"]').boundingBox()
+  const to = await page.locator('[data-square="f7"]').boundingBox()
+  await page.mouse.move(from!.x + from!.width / 2, from!.y + from!.height / 2)
+  await page.mouse.down({ button: 'right' })
+  await page.mouse.move(to!.x + to!.width / 2, to!.y + to!.height / 2, { steps: 5 })
+  await page.mouse.up({ button: 'right' })
+  await expect(page.getByTestId('annotation-arrow')).toHaveCount(1)
+  await page.locator('[data-square="d4"]').click({ button: 'right' })
+  await expect(page.locator('[data-square="d4"]')).toHaveAttribute('data-marked', 'true')
+  await page.locator('[data-square="a1"]').click()
+  await expect(page.getByTestId('annotation-arrow')).toHaveCount(0)
+})

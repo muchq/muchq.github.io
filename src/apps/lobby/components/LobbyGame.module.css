@@ -73,3 +73,28 @@
 .chatHost {
   --chat-ground: rgba(20, 12, 40, 0.82);
 }
+
+.focusToggle {
+  position: absolute;
+  top: 8px;
+  right: max(0.75rem, env(safe-area-inset-right));
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 0.5rem;
+  background: #231737;
+  color: white;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.focusOverlay {
+  top: 0;
+  z-index: 1050;
+  background: #2b1d4f;
+  padding: calc(3.5rem + env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right)) max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
+}
+
+.focusOverlay .focusToggle {
+  top: calc(4px + env(safe-area-inset-top));
+}

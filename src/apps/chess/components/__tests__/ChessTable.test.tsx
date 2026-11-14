@@ -541,6 +541,42 @@ describe('ChessTable', () => {
     })
   })
 
+  describe('analysis arrows', () => {
+    const draw = (from: string, to: string | null) => {
+      fireEvent.pointerDown(square(from), { pointerId: 7, button: 2 })
+      Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => to ? square(to) : null })
+      fireEvent.pointerMove(square(from), { pointerId: 7, clientX: 40, clientY: 40 })
+      fireEvent.pointerUp(square(from), { pointerId: 7, button: 2, clientX: 40, clientY: 40 })
+      fireEvent.contextMenu(square(from))
+    }
+
+    it('toggles arrows and highlights without playing, and clears them on left click', () => {
+      const { t } = mountWith(view())
+      draw('g6', 'f7')
+      expect(screen.getAllByTestId('annotation-arrow')).toHaveLength(1)
+      expect(square('g6')).not.toHaveAttribute('data-marked')
+      draw('g6', 'f7')
+      expect(screen.queryByTestId('annotation-arrow')).toBeNull()
+      draw('d4', 'd4')
+      expect(square('d4')).toHaveAttribute('data-marked', 'true')
+      draw('g6', 'f7')
+      fireEvent.click(square('a1'))
+      expect(screen.queryByTestId('annotation-arrow')).toBeNull()
+      expect(square('d4')).not.toHaveAttribute('data-marked')
+      expect(t.play).not.toHaveBeenCalled()
+    })
+
+    it('allows spectators to annotate, cancels outside drops, and resets for a new game', () => {
+      const { rerender } = mountWith(view(), {}, 'carol')
+      draw('g6', null)
+      expect(screen.queryByTestId('annotation-arrow')).toBeNull()
+      draw('g6', 'f7')
+      expect(screen.getByTestId('annotation-arrow')).toBeInTheDocument()
+      rerender(view({ gameId: 'G2' }))
+      expect(screen.queryByTestId('annotation-arrow')).toBeNull()
+    })
+  })
+
   // A drag is a press that moves: the piece follows the pointer, the
   // squares it reaches show, and letting go on one plays it. Mouse and touch
   // alike are pointer events; where it lands is the square under the
