@@ -94,6 +94,33 @@ describe('useLobby', () => {
 
   const lobbyFrames = (ws: FakeWebSocket) => ws.sentFrames().filter(frame => frame.event === 'lobby')
 
+  it('the chess shortcut creates a room and opens exactly one table after arrival', async () => {
+    const { ws } = await open({ quickChess: true }, '/games?play=chess')
+    expect(ws.sentFrames().filter(frame => frame.event === 'createRoom')).toHaveLength(1)
+    expect(ws.sentFrames().filter(frame => frame.event === 'chess')).toHaveLength(0)
+    act(() => ws.receive('roomState', roomState('R1')))
+    act(() => ws.receive('roomState', roomState('R1')))
+    expect(ws.sentFrames().filter(frame => frame.event === 'chess')).toEqual([
+      { event: 'chess', payload: { move: { createGame: {} } } }
+    ])
+  })
+
+  it('the chess shortcut uses a resumed room without creating another', async () => {
+    const { ws } = await open({ quickChess: true }, '/games?play=chess', 'R1')
+    act(() => ws.receive('roomState', roomState('R1')))
+    expect(ws.sentFrames().filter(frame => frame.event === 'createRoom')).toHaveLength(0)
+    expect(ws.lastSent()).toEqual({ event: 'chess', payload: { move: { createGame: {} } } })
+  })
+
+  it('the chess shortcut preserves an existing seat, even after it is left', async () => {
+    const { ws } = await open({ quickChess: true }, '/games?play=chess', 'R1')
+    const seated = roomState('R1')
+    seated.players[0].table = { game: 'castle', gameId: 'G1' }
+    act(() => ws.receive('roomState', seated))
+    act(() => ws.receive('roomState', roomState('R1')))
+    expect(ws.sentFrames().filter(frame => frame.event === 'chess')).toHaveLength(0)
+  })
+
   it("dials with golf's identity and joins the plaza's world once the session is ready", async () => {
     localStorage.setItem(HUB_RESUME_TOKEN_KEY, 'rt-golf')
     const onPlayerIdChange = vi.fn()

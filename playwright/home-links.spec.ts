@@ -10,6 +10,29 @@ const STEP_MS = 250
 // The nav bar: 60px and a 1px border.
 const NAV_PX = 61
 
+test('the chess shortcut stays visible on phone and desktop, with keyboard and reduced-motion support', async ({ page }) => {
+  for (const viewport of [{ width: 320, height: 568 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/')
+    const knight = page.getByRole('link', { name: 'Play chess' })
+    await expect(knight).toHaveAttribute('href', '/games?play=chess')
+    for (const t of [0, 4250, 8500, 12750, 17000]) {
+      await showAt(page, t)
+      const b = (await knight.boundingBox())!
+      expect(b.x).toBeGreaterThanOrEqual(0)
+      expect(b.y).toBeGreaterThan(NAV_PX)
+      expect(b.x + b.width).toBeLessThanOrEqual(viewport.width)
+      expect(b.y + b.height).toBeLessThanOrEqual(viewport.height)
+    }
+  }
+  await page.goto('/')
+  const knight = page.getByRole('link', { name: 'Play chess' })
+  await knight.focus()
+  expect(await knight.evaluate(el => el.parentElement!.getAnimations().every(a => a.playState === 'paused'))).toBe(true)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  expect(await knight.evaluate(el => el.parentElement!.getAnimations().length)).toBe(0)
+})
+
 interface Box {
   left: number
   top: number
