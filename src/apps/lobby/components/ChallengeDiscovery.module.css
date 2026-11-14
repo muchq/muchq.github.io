@@ -1,0 +1,42 @@
+.discovery, .preview {
+  position: fixed;
+  z-index: 8;
+  color: #f7f3ff;
+  background: rgba(24, 16, 40, .96);
+  border: 1px solid #b9a2e7;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px #140c2866;
+  font-family: 'Lexend Deca', sans-serif;
+}
+.discovery { right: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); width: min(290px, calc(100vw - 24px)); }
+.discovery button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; }
+.discovery b { margin-left: auto; color: #c9f5d8; }
+.discovery button, .preview button { min-height: 44px; padding: 10px 14px; border: 0; border-radius: 14px; background: transparent; color: inherit; cursor: pointer; }
+.list { max-height: 30dvh; overflow: auto; padding: 4px; border-top: 1px solid #66547c; }
+.list button { flex-direction: column; align-items: flex-start; gap: 4px; }
+.list span { font-size: 12px; color: #d0c5df; }
+.list p { padding: 0 10px; font-size: 14px; }
+.preview { right: 12px; bottom: calc(132px + env(safe-area-inset-bottom, 0px)); width: min(340px, calc(100vw - 24px)); padding: 22px; box-sizing: border-box; max-height: calc(100dvh - 220px); overflow: auto; animation: arrive .2s ease-out; z-index: 32; }
+.preview h2 { margin: 8px 0; text-transform: capitalize; }
+.preview p { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.preview .eyebrow { color: #c9f5d8; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding-right: 24px; }
+.preview .close { position: absolute; right: 6px; top: 6px; font-size: 24px; }
+.terms { padding: 12px; background: #ffffff0c; border-radius: 8px; }
+.preview .join { width: 100%; background: #c9f5d8; color: #1a3022; font-weight: 700; }
+.preview button:disabled { opacity: .55; cursor: default; }
+.beacon, .mapMarker { position: absolute; pointer-events: auto; background: #281b40; color: #d5ffe2; border: 1px solid #bcefd0; cursor: pointer; box-shadow: 0 0 16px #bcefd044; }
+.beacon { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 14px 14px 14px 0; transform: translate(-50%, -100%); min-height: 44px; white-space: nowrap; }
+.beacon span:first-child { font-size: 22px; }
+.beacon small { display: block; font-size: 10px; color: white; }
+.mapMarker { width: 24px; height: 24px; padding: 0; border-radius: 50%; transform: translate(-50%, -50%); font-size: 17px; z-index: 4; }
+.beacon:hover, .mapMarker:hover, .discovery button:hover { background: #493162; }
+.beacon:focus-visible, .mapMarker:focus-visible, .discovery button:focus-visible, .preview button:focus-visible { outline: 3px solid #ffdc94; outline-offset: 3px; }
+@keyframes arrive { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .preview { animation: none; } }
+@media (max-width: 1024px) {
+  .discovery { bottom: calc(176px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 700px) {
+  .discovery { right: 82px; width: min(250px, calc(100vw - 94px)); }
+  .preview { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); max-height: calc(100dvh - 150px); }
+}

@@ -227,13 +227,15 @@ const VoiceStatus = ({ voice }: { voice: VoiceMesh }) => {
 
 export interface LobbyPanelProps {
   lobby: UseLobby
+  // Opens the same preview as a world or minimap invitation.
+  onPreviewChallenge?: (gameId: string) => void
   // The room code field, for the command menu's "Join a room by code".
   roomCodeRef?: Ref<HTMLInputElement>
   // Opens the room's chat; the row offers no Chat button without it.
   onOpenChat?: () => void
 }
 
-const LobbyPanel = ({ lobby, roomCodeRef, onOpenChat }: LobbyPanelProps) => {
+const LobbyPanel = ({ lobby, roomCodeRef, onOpenChat, onPreviewChallenge }: LobbyPanelProps) => {
   const { room, connected, playerId } = lobby
 
   if (room === null) {
@@ -349,11 +351,11 @@ const LobbyPanel = ({ lobby, roomCodeRef, onOpenChat }: LobbyPanelProps) => {
                     <button
                       type="button"
                       className={styles.secondary}
-                      onClick={() => tableFor(lobby, game).joinTable(table.gameId)}
+                      onClick={() => onPreviewChallenge ? onPreviewChallenge(table.gameId) : tableFor(lobby, game).joinTable(table.gameId)}
                       disabled={!offer.open || !connected || busy}
-                      aria-label={`${offer.label} ${game} ${table.gameId}`}
+                      aria-label={`${onPreviewChallenge && offer.open ? 'Preview' : offer.label} ${game} ${table.gameId}`}
                     >
-                      {offer.label}
+                      {onPreviewChallenge && offer.open ? 'Preview' : offer.label}
                     </button>
                   </span>
                 </li>

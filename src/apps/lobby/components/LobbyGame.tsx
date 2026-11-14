@@ -8,6 +8,7 @@ import { CommandRegistry } from '@/utils/commandRegistry'
 import { lobbyTablePath, useLobby } from '@/hooks/useLobby'
 import type { RoomLink, UseLobby, UseLobbyProps } from '@/hooks/useLobby'
 import LobbyPanel from './LobbyPanel'
+import ChallengeDiscovery from './ChallengeDiscovery'
 import { GAME_TABLES } from '../games'
 import type { GameTable, LobbyTables, TableContext } from '../games'
 import type { HubGameName } from '@/utils/hubStream'
@@ -31,7 +32,13 @@ const panelWanted = (): boolean => safeLocalStorage.get(PANEL_KEY) !== 'hidden' 
 
 const LobbyGame = (props: UseLobbyProps) => {
   const lobby = useLobby(props)
+  const [challenge, setChallenge] = useState<string | null>(null)
   const { chess, chat, connected, playerId, notice, room } = lobby
+  const [challengeRoom, setChallengeRoom] = useState(room?.roomId)
+  if (challengeRoom !== room?.roomId) {
+    setChallengeRoom(room?.roomId)
+    setChallenge(null)
+  }
   const { history: chessHistory, loadHistory: loadChessHistory } = chess
   const { history: goHistory, loadHistory: loadGoHistory } = lobby.go
   // A chess review (MoonBase#1637) takes the screen as a table does.
@@ -155,6 +162,7 @@ const LobbyGame = (props: UseLobbyProps) => {
   return (
     <>
       <ThoughtsGame link={lobby.world} commands={commands} onTripleTap={openMenu} />
+      <ChallengeDiscovery key={room?.roomId ?? 'plaza'} lobby={lobby} selected={challenge} onSelect={setChallenge} />
       {HUB_GAMES.map(
         game =>
           lobby[game].view !== null && (
@@ -188,7 +196,7 @@ const LobbyGame = (props: UseLobbyProps) => {
       </button>
       {panelOpen && !focused && (
         <div id="lobby-panel">
-          <LobbyPanel lobby={lobby} roomCodeRef={roomCodeRef} onOpenChat={() => chatRef.current?.open()} />
+          <LobbyPanel onPreviewChallenge={setChallenge} lobby={lobby} roomCodeRef={roomCodeRef} onOpenChat={() => chatRef.current?.open()} />
         </div>
       )}
       {room !== null && (

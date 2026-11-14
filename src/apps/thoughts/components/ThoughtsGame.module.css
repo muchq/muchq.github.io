@@ -361,3 +361,6 @@
     top: 160px;
   }
 }
+
+/* Invitations stay under lobby sheets and never intercept the world outside a button. */
+.challengeContainer { position: fixed; inset: 0; pointer-events: none; z-index: 6; }

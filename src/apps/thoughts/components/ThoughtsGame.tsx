@@ -40,6 +40,7 @@ const ThoughtsGame = ({ link, commands, onTripleTap }: ThoughtsGameProps) => {
       
       <div id="tape-wall-container" className={styles.tapeWallContainer}></div>
 
+      <div id="world-challenges" className={styles.challengeContainer}></div>
       <div id="player-labels-container" className={styles.playerLabelsContainer}></div>
       
       <div id="fps-counter" className={styles.fpsCounter}>FPS: --</div>
@@ -59,6 +60,7 @@ const ThoughtsGame = ({ link, commands, onTripleTap }: ThoughtsGameProps) => {
             <text id="mini-map-north-label" className={styles.miniMapNorth} x="0" y="0">N</text>
             <text id="mini-map-south-label" className={styles.miniMapSouth} x="0" y="0">S</text>
           </svg>
+          <div id="map-challenges"></div>
           <div className={styles.miniMapPlayer} id="mini-map-player"></div>
         </div>
       </div>
