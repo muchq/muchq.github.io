@@ -10,7 +10,11 @@ const HomePage = () => {
       <Navigation floating />
 
       <main className={styles.content}>
-        <h1>Hello</h1>
+        <h1 className={styles.greeting} aria-label="Hello">
+          {'Hello'.split('').map((letter, index) => (
+            <span key={index} aria-hidden="true">{letter}</span>
+          ))}
+        </h1>
         <MathAnimations />
       </main>
     </div>

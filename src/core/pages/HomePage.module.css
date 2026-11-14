@@ -19,9 +19,130 @@
   z-index: 1;
 }
 
-.content h1 {
+.greeting {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  margin: 0;
   line-height: 1.2;
+  font-size: clamp(2.5rem, 8vmin, 5.5rem);
   font-weight: 300;
+  pointer-events: none;
+}
+
+.greeting span {
+  position: absolute;
+  left: calc(50% + var(--joined-x));
+  top: max(118px, 28%);
+  display: block;
+  line-height: 1;
+  translate: -50% -50%;
+}
+
+.greeting span:nth-child(1) {
+  --joined-x: -0.95em;
+  --x0: 14%;
+  --y0: max(116px, 20%);
+  --x1: 76%;
+  --y1: 35%;
+  --x2: 26%;
+  --y2: 78%;
+  --x3: 84%;
+  --y3: 58%;
+  --x4: 38%;
+  --y4: 30%;
+}
+
+.greeting span:nth-child(2) {
+  --joined-x: -0.32em;
+  --x0: 84%;
+  --y0: 26%;
+  --x1: 22%;
+  --y1: 50%;
+  --x2: 72%;
+  --y2: 74%;
+  --x3: 18%;
+  --y3: 32%;
+  --x4: 66%;
+  --y4: 82%;
+}
+
+.greeting span:nth-child(3) {
+  --joined-x: 0.12em;
+  --x0: 24%;
+  --y0: 78%;
+  --x1: 62%;
+  --y1: max(116px, 20%);
+  --x2: 86%;
+  --y2: 52%;
+  --x3: 34%;
+  --y3: 72%;
+  --x4: 16%;
+  --y4: 44%;
+}
+
+.greeting span:nth-child(4) {
+  --joined-x: 0.4em;
+  --x0: 72%;
+  --y0: 72%;
+  --x1: 34%;
+  --y1: 28%;
+  --x2: 16%;
+  --y2: 58%;
+  --x3: 75%;
+  --y3: max(116px, 22%);
+  --x4: 52%;
+  --y4: 80%;
+}
+
+.greeting span:nth-child(5) {
+  --joined-x: 0.82em;
+  --x0: 50%;
+  --y0: 50%;
+  --x1: 84%;
+  --y1: 76%;
+  --x2: 42%;
+  --y2: max(116px, 22%);
+  --x3: 14%;
+  --y3: 66%;
+  --x4: 82%;
+  --y4: 42%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .greeting span {
+    animation: greeting-wander 32s ease-in-out infinite;
+    will-change: left, top;
+  }
+}
+
+@keyframes greeting-wander {
+  0%,
+  100% {
+    left: var(--x0);
+    top: var(--y0);
+  }
+  16% {
+    left: var(--x1);
+    top: var(--y1);
+  }
+  32% {
+    left: var(--x2);
+    top: var(--y2);
+  }
+  44%,
+  64% {
+    left: calc(50% + var(--joined-x));
+    top: max(118px, 28%);
+  }
+  76% {
+    left: var(--x3);
+    top: var(--y3);
+  }
+  88% {
+    left: var(--x4);
+    top: var(--y4);
+  }
 }
 
 .content p {
