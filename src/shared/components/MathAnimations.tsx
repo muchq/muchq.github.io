@@ -54,7 +54,7 @@ const MathAnimations = () => {
       <div className={styles.courses}>
         <div className={styles.chessFloat}>
           <Link to="/games?play=chess" className={`${styles.pill} ${styles.chessLink}`} aria-label="Play chess" title="Play chess">
-            <span aria-hidden="true">♞</span>
+            <span aria-hidden="true">♘</span>
           </Link>
         </div>
         <div className={styles.setsOrbit}>
