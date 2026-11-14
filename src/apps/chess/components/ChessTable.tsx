@@ -399,6 +399,12 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     press.current = null
     setGhost(null)
   }
+  const onLostPointerCapture = (event: ReactPointerEvent) => {
+    // Touch starts with implicit capture on the pressed square. Moving
+    // capture to the board makes that square's lost event bubble here;
+    // only the board losing its own capture cancels the gesture.
+    if (event.target === event.currentTarget) onPointerCancel()
+  }
 
   const cancelPromotion = () => {
     if (pendingPromotion !== null) refocus.current = { square: pendingPromotion.from }
@@ -558,7 +564,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerCancel}
-              onLostPointerCapture={onPointerCancel}
+              onLostPointerCapture={onLostPointerCapture}
               onContextMenu={toggleMark}
               title="Right-click to highlight; right-drag to draw an arrow. Left-click to clear."
             >
