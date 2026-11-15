@@ -42,8 +42,9 @@ export function bindJuliaPointer(
     onMove(juliaCFromClient(pointer.clientX, pointer.clientY, window.innerWidth, window.innerHeight))
   }
 
-  target.addEventListener('pointermove', handlePointer)
-  target.addEventListener('pointerdown', handlePointer)
+  // Passive so a drag never cancels scrolling or steals clicks from homepage links.
+  target.addEventListener('pointermove', handlePointer, { passive: true })
+  target.addEventListener('pointerdown', handlePointer, { passive: true })
 
   return () => {
     target.removeEventListener('pointermove', handlePointer)

@@ -331,3 +331,47 @@ test('clicking the fading proofs link goes to /proofs', async ({ page }) => {
   await page.mouse.up()
   await expect(page).toHaveURL(/\/proofs$/)
 })
+
+test('homepage links still work after a finger-style Julia drag', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const destinations = [
+    { href: '/proofs', path: /\/proofs$/ },
+    { href: '/groups', path: /\/groups$/ },
+    { href: '/sets', path: /\/sets$/ },
+    { href: '/games?play=chess', path: /\/games\?play=chess$/ },
+  ] as const
+
+  const dragJulia = () =>
+    page.evaluate(() => {
+      const fire = (type: string, x: number, y: number) => {
+        document.dispatchEvent(new PointerEvent(type, {
+          clientX: x,
+          clientY: y,
+          bubbles: true,
+          cancelable: true,
+          pointerType: 'touch',
+        }))
+      }
+      fire('pointerdown', 40, 280)
+      for (const x of [70, 110, 150, 190, 230]) fire('pointermove', x, 300)
+      fire('pointerup', 230, 300)
+    })
+
+  for (const destination of destinations) {
+    await page.goto('/')
+    await page.locator(`a[href="${destination.href}"]`).waitFor()
+    await dragJulia()
+    // Course pills keep animating opacity; click through the hit target directly
+    // instead of waiting for Playwright's "stable" visibility check.
+    const box = await boxOf(page, destination.href)
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.up()
+    await expect(page).toHaveURL(destination.path)
+  }
+
+  await page.goto('/')
+  await dragJulia()
+  await page.locator('a.nav-logo').click()
+  await expect(page).toHaveURL(/\/$/)
+})

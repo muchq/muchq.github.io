@@ -77,4 +77,27 @@ describe('bindJuliaPointer', () => {
     target.dispatchEvent(new PointerEvent('pointerdown', { clientX: 10, clientY: 10 }))
     expect(onMove).not.toHaveBeenCalled()
   })
+
+  it('registers passive pointer listeners so homepage links keep working', () => {
+    const onMove = vi.fn()
+    const target = new EventTarget()
+    const add = vi.spyOn(target, 'addEventListener')
+    const stop = bindJuliaPointer(onMove, target)
+
+    expect(add).toHaveBeenCalledWith('pointermove', expect.any(Function), { passive: true })
+    expect(add).toHaveBeenCalledWith('pointerdown', expect.any(Function), { passive: true })
+
+    const down = new PointerEvent('pointerdown', {
+      clientX: 40,
+      clientY: 60,
+      pointerType: 'touch',
+      cancelable: true,
+      bubbles: true,
+    })
+    target.dispatchEvent(down)
+    expect(onMove).toHaveBeenCalled()
+    expect(down.defaultPrevented).toBe(false)
+
+    stop()
+  })
 })
