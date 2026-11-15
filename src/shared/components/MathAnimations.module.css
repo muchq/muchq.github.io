@@ -109,7 +109,7 @@
   pointer-events: none;
 }
 
-/* Keep the course links distributed around the page with only a gentle bob. */
+/* Keep the course links distributed around the page with a soft opacity pulse. */
 .groupsBob,
 .proofsBob,
 .setsBob {
@@ -117,6 +117,7 @@
   width: 0;
   height: 0;
   z-index: 2;
+  opacity: 1;
 }
 
 .groupsBob {
@@ -144,35 +145,40 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .groupsBob {
-    animation: course-bob 24s -4s ease-in-out infinite;
+    animation: course-fade 18s -0s ease-in-out infinite;
   }
 
   .proofsBob {
-    animation: course-bob-reverse 27s -11s ease-in-out infinite;
+    animation: course-fade 18s -6s ease-in-out infinite;
+  }
+
+  .setsBob {
+    animation: course-fade 18s -12s ease-in-out infinite;
   }
 
   .courses:focus-within * {
     animation-play-state: paused;
   }
-}
 
-@keyframes course-bob {
-  0%,
-  100% {
-    transform: translate(0, 0);
-  }
-  50% {
-    transform: translate(5px, -7px);
+  .courses:focus-within .groupsBob,
+  .courses:focus-within .proofsBob,
+  .courses:focus-within .setsBob {
+    opacity: 1;
   }
 }
 
-@keyframes course-bob-reverse {
+@keyframes course-fade {
   0%,
+  18%,
   100% {
-    transform: translate(0, 0);
+    opacity: 0.08;
   }
-  50% {
-    transform: translate(-5px, 7px);
+  33% {
+    opacity: 0.92;
+  }
+  48%,
+  82% {
+    opacity: 0.08;
   }
 }
 
@@ -236,9 +242,5 @@
     animation:
       chess-size 26s ease-in-out infinite,
       chess-color 60s ease-in-out infinite;
-  }
-
-  .setsBob {
-    animation: course-bob 30s -17s ease-in-out infinite;
   }
 }

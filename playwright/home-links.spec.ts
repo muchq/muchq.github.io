@@ -43,7 +43,7 @@ interface GreetingFrame {
   boxes: Box[]
   colors: string[]
   durations: number[]
-  weights: string[]
+  families: string[]
   fontSize: number
   animationCount: number
   pointerEvents: string
@@ -64,7 +64,7 @@ const greetingAt = (page: Page, time: number): Promise<GreetingFrame> =>
       boxes,
       colors: [...heading.querySelectorAll('span')].map(letter => getComputedStyle(letter).color),
       durations: animations.map(animation => Number(animation.effect?.getTiming().duration)),
-      weights: [...heading.querySelectorAll('span')].map(letter => getComputedStyle(letter).fontWeight),
+      families: [...heading.querySelectorAll('span')].map(letter => getComputedStyle(letter).fontFamily),
       fontSize: Number.parseFloat(getComputedStyle(heading).fontSize),
       animationCount: animations.length,
       pointerEvents: getComputedStyle(heading).pointerEvents,
@@ -72,7 +72,7 @@ const greetingAt = (page: Page, time: number): Promise<GreetingFrame> =>
   }, time)
 
 for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
-  test(`Hello stays fixed while its muted color and type change at ${viewport.width}×${viewport.height}`, async ({ page }) => {
+  test(`Hello stays fixed while its muted color and font family change at ${viewport.width}×${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport)
     await page.goto('/')
     await page.evaluate(() => document.fonts.ready)
@@ -94,7 +94,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     }
 
     const joined = frames[0]
-    expect(joined.durations.filter(duration => duration === 96_000)).toHaveLength(5)
+    expect(joined.durations.filter(duration => duration >= 72_000 && duration <= 108_000)).toHaveLength(5)
     expect(joined.durations.filter(duration => duration >= 28_000 && duration <= 40_000)).toHaveLength(5)
     const joinedCenters = joined.boxes.map(box => (box.left + box.right) / 2)
     expect(joinedCenters).toEqual([...joinedCenters].sort((a, b) => a - b))
@@ -119,7 +119,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
         expect(center(frame).y).toBeCloseTo(initial.y, 1)
       })
       expect(new Set(frames.map(frame => frame.colors[letter])).size).toBeGreaterThan(3)
-      expect(new Set(frames.map(frame => frame.weights[letter])).size).toBeGreaterThan(1)
+      expect(new Set(frames.map(frame => frame.families[letter])).size).toBeGreaterThan(2)
     }
   })
 }
@@ -159,7 +159,6 @@ async function landed(page: Page) {
 
 const boxOf = async (page: Page, href: string) => (await page.locator(`a[href="${href}"]`).boundingBox())!
 const courseHrefs = ['/proofs', '/groups', '/sets'] as const
-const courseDurations = { '/proofs': 27_000, '/groups': 24_000, '/sets': 30_000 } as const
 
 /** Pause everything and show frame t of every animation on the page. */
 const showAt = (page: Page, t: number) =>
@@ -171,11 +170,11 @@ const showAt = (page: Page, t: number) =>
   }, t)
 
 for (const { width, height } of [{ width: 320, height: 568 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
-  test(`course links bob slowly within a subtle range at ${width}×${height}`, async ({ page }) => {
+  test(`course links fade mostly invisible with alternating visibility at ${width}×${height}`, async ({ page }) => {
     await page.setViewportSize({ width, height })
     await page.goto('/')
-    const positions = courseHrefs.map(() => [] as { x: number; y: number }[])
-    for (const t of [0, 6_000, 12_000, 18_000, 24_000, 30_000]) {
+    const opacities = courseHrefs.map(() => [] as number[])
+    for (const t of [0, 3_000, 6_000, 9_000, 12_000, 15_000, 18_000]) {
       await showAt(page, t)
       for (const [index, href] of courseHrefs.entries()) {
         const box = await boxOf(page, href)
@@ -183,24 +182,35 @@ for (const { width, height } of [{ width: 320, height: 568 }, { width: 844, heig
         expect(box.y).toBeGreaterThan(NAV_PX)
         expect(box.x + box.width).toBeLessThanOrEqual(width)
         expect(box.y + box.height).toBeLessThanOrEqual(height)
-        positions[index].push({ x: box.x, y: box.y })
+        const opacity = await page.locator(`a[href="${href}"]`).evaluate(el =>
+          Number.parseFloat(getComputedStyle(el.parentElement!).opacity),
+        )
+        opacities[index].push(opacity)
       }
     }
-    positions.forEach(frames => {
-      const xs = frames.map(frame => frame.x)
-      const ys = frames.map(frame => frame.y)
-      expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(1)
-      expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(1)
-      expect(Math.max(...xs) - Math.min(...xs)).toBeLessThanOrEqual(6)
-      expect(Math.max(...ys) - Math.min(...ys)).toBeLessThanOrEqual(8)
+    opacities.forEach(frames => {
+      expect(Math.min(...frames)).toBeLessThan(0.2)
+      expect(Math.max(...frames)).toBeGreaterThan(0.7)
+      expect(frames.filter(opacity => opacity < 0.2).length).toBeGreaterThan(frames.filter(opacity => opacity > 0.7).length)
     })
+    for (const t of [0, 6_000, 12_000]) {
+      await showAt(page, t)
+      const visible = []
+      for (const href of courseHrefs) {
+        const opacity = await page.locator(`a[href="${href}"]`).evaluate(el =>
+          Number.parseFloat(getComputedStyle(el.parentElement!).opacity),
+        )
+        if (opacity > 0.5) visible.push(href)
+      }
+      expect(visible.length).toBeLessThanOrEqual(1)
+    }
     for (const href of courseHrefs) {
       const motion = await page.locator(`a[href="${href}"]`).evaluate(el => ({
         formulaAnimations: el.querySelector('math')!.getAnimations().length,
         wrapperDuration: Number(el.parentElement!.getAnimations()[0]?.effect?.getTiming().duration),
       }))
       expect(motion.formulaAnimations).toBe(0)
-      expect(motion.wrapperDuration).toBe(courseDurations[href])
+      expect(motion.wrapperDuration).toBe(18_000)
     }
   })
 }
@@ -288,7 +298,7 @@ test('neither course link has a disc behind its formula', async ({ page }) => {
   }
 })
 
-test('clicking the bobbing proofs link goes to /proofs', async ({ page }) => {
+test('clicking the fading proofs link goes to /proofs', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await landed(page)
   const b = await boxOf(page, '/proofs')
