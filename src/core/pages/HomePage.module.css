@@ -19,9 +19,109 @@
   z-index: 1;
 }
 
-.content h1 {
+.greeting {
+  --joined-left: max(1.5em, 9vw);
+  --joined-top: max(calc(61px + 0.6em), 14%);
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  margin: 0;
   line-height: 1.2;
+  font-size: clamp(2.5rem, 8vmin, 5.5rem);
   font-weight: 300;
+  pointer-events: none;
+}
+
+.greeting span {
+  position: absolute;
+  left: calc(var(--joined-left) + var(--joined-x));
+  top: var(--joined-top);
+  display: block;
+  line-height: 1;
+  color: #5f6875;
+  font-family: 'Lexend Deca', sans-serif;
+  font-weight: 200;
+  translate: -50% -50%;
+}
+
+.greeting span:nth-child(1) {
+  --color-duration: 28s;
+  --family-duration: 72s;
+  --joined-x: -0.95em;
+}
+
+.greeting span:nth-child(2) {
+  --color-duration: 31s;
+  --family-duration: 81s;
+  --joined-x: -0.32em;
+}
+
+.greeting span:nth-child(3) {
+  --color-duration: 34s;
+  --family-duration: 90s;
+  --joined-x: 0.12em;
+}
+
+.greeting span:nth-child(4) {
+  --color-duration: 37s;
+  --family-duration: 99s;
+  --joined-x: 0.4em;
+}
+
+.greeting span:nth-child(5) {
+  --color-duration: 40s;
+  --family-duration: 108s;
+  --joined-x: 0.82em;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .greeting span {
+    animation:
+      greeting-colors var(--color-duration) linear infinite,
+      greeting-family var(--family-duration) steps(1, end) infinite;
+    will-change: color, font-family;
+  }
+}
+
+@keyframes greeting-colors {
+  0%,
+  100% {
+    color: #5f6875;
+  }
+  20% {
+    color: #71677b;
+  }
+  40% {
+    color: #806b64;
+  }
+  60% {
+    color: #58746d;
+  }
+  80% {
+    color: #70785f;
+  }
+}
+
+@keyframes greeting-family {
+  0%,
+  100% {
+    font-family: 'Lexend Deca', sans-serif;
+  }
+  16.666% {
+    font-family: 'Source Serif 4', serif;
+  }
+  33.333% {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  50% {
+    font-family: Fraunces, serif;
+  }
+  66.666% {
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+  83.333% {
+    font-family: Lexend, sans-serif;
+  }
 }
 
 .content p {

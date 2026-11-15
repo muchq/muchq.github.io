@@ -81,13 +81,13 @@
   position: relative;
   display: grid;
   place-items: center;
-  /* A steady hit target surrounds the formula while the formula itself zooms. */
-  width: 44px;
+  width: max-content;
+  min-width: 44px;
   height: 44px;
   translate: -50% -50%;
-  padding: 0;
+  padding: 0 4px;
   background: transparent;
-  font-size: 0.25rem;
+  font-size: 1rem;
   white-space: nowrap;
   text-decoration: none;
 }
@@ -109,184 +109,77 @@
   pointer-events: none;
 }
 
-/* The three moving course links below. */
-.courses {
-  /* The spiral's widest radius: spiral-radius swings out to it, and a tall screen's orbit fits above it. */
-  --spiral-max: min(36vmin, 280px, calc(50vw - 100px), calc(50svh - 90px));
-}
-
-/* Each centers a 0×0 frame on the page; everything inside only carries transforms. */
-.spiral,
-.orbit {
+/* Keep the course links distributed around the page with a soft opacity pulse. */
+.groupsBob,
+.proofsBob,
+.setsBob {
   position: fixed;
-  top: 50%;
-  left: 50%;
   width: 0;
   height: 0;
   z-index: 2;
+  opacity: 1;
 }
 
-/*
- * The link to the group theory course. The frame turns about the page's
- * center while the arm swings its radius out and back. Without motion it
- * rests to the right of center.
- */
+.groupsBob {
+  top: 52%;
+  left: 70%;
+}
 
-.arm {
-  /* Radii stay under half the viewport less half the ~180px pill, so it never leaves a phone screen. */
-  transform: translateX(min(30vmin, 220px, calc(50vw - 100px)));
+.proofsBob {
+  top: 52%;
+  left: 30%;
+}
+
+.setsBob {
+  left: 65%;
+  top: 72%;
 }
 
 .groupsLink {
   color: #4b2fa6;
 }
 
-/*
- * The link to the proofs course: π₁(S¹) ≅ ℤ spiraling counterclockwise. It
- * arrives as a speck at the center and spins away, then keeps sweeping its
- * radius in and out. Where it crosses the group theory link it passes
- * underneath. Without motion it rests left of center, across from the group
- * theory link.
- */
-.orbit {
-  --orbit-min: 6vmin;
-  --orbit-max: min(30vmin, 190px, calc(50vw - 100px), calc(50svh - 90px));
-  z-index: 1;
-}
-
-.orbitArm {
-  transform: translateX(calc(-1 * var(--orbit-max)));
-  /* The box is the pill's height, but orbit-arrive must turn and scale about the center. */
-  transform-origin: 0 0;
-}
-
 .proofsLink {
   color: #0b5e53;
 }
 
-/*
- * On a narrow screen the spiral sweeps the whole width, so a circle around the
- * center would keep running into it. A tall screen (3:4 or taller) has room
- * above the spiral: orbit there instead. The circle's center sits 90px + r
- * down, so the ~47px pill at its top clears the 61px nav by 5px. Its diameter
- * fits what is left above the spiral's highest point (50svh − spiral-max; svh
- * because the spiral centers on the visible page, toolbars out): 90px above,
- * a pill's height where the two would meet, and 13px to spare, 150px in all.
- * From 3:4 that leaves r ≥ 0 on any screen over 300px wide.
- */
-@media (max-aspect-ratio: 3/4) {
-  .orbit {
-    --orbit-r: max(0px, min(11vmin, calc((50svh - var(--spiral-max) - 150px) / 2)));
-    --orbit-min: min(4vmin, var(--orbit-r));
-    --orbit-max: var(--orbit-r);
-    top: calc(90px + var(--orbit-r));
-  }
-}
-
 @media (prefers-reduced-motion: no-preference) {
-  .spiral {
-    animation:
-      spiral-turn 72s linear infinite,
-      course-drift 23s -7s ease infinite;
+  .groupsBob {
+    animation: course-fade 18s -0s ease-in-out infinite;
   }
 
-  .arm {
-    animation: spiral-radius 36s ease-in-out infinite;
+  .proofsBob {
+    animation: course-fade 18s -6s ease-in-out infinite;
   }
 
-  /*
-   * Reuse the spin, resize and colour sequence with independent periods and
-   * phases. Left does nothing on static formulas; their frames drift instead.
-   */
-  .pill math {
-    animation: zoom-in-zoom-out 23s -7s ease infinite;
-  }
-
-  .proofsLink math {
-    animation-duration: 29s;
-    animation-delay: -13s;
-  }
-
-  .setsLink math {
-    animation-duration: 31s;
-    animation-delay: -19s;
-  }
-
-  .orbit {
-    animation:
-      orbit-turn 72s linear infinite,
-      course-drift 29s -13s ease infinite;
-  }
-
-  .orbitArm {
-    animation:
-      orbit-radius 24s 2.4s ease-in-out infinite,
-      orbit-arrive 2.4s cubic-bezier(0.2, 0.8, 0.3, 1);
+  .setsBob {
+    animation: course-fade 18s -12s ease-in-out infinite;
   }
 
   .courses:focus-within * {
     animation-play-state: paused;
   }
-}
 
-/* Three turns counterclockwise per cycle: still a generator, now a wilder one. */
-@keyframes orbit-turn {
-  to {
-    transform: rotate(-1080deg);
+  .courses:focus-within .groupsBob,
+  .courses:focus-within .proofsBob,
+  .courses:focus-within .setsBob {
+    opacity: 1;
   }
 }
 
-@keyframes orbit-radius {
+@keyframes course-fade {
   0%,
+  18%,
   100% {
-    transform: translateX(calc(-1 * var(--orbit-max)));
+    opacity: 0.08;
   }
-  50% {
-    transform: translateX(calc(-1 * var(--orbit-min)));
+  33% {
+    opacity: 0.92;
   }
-}
-
-/* Scaling the arm shrinks its radius and formula together as it spins out. */
-@keyframes orbit-arrive {
-  from {
-    rotate: 720deg;
-    scale: 0.05;
+  48%,
+  82% {
+    opacity: 0.08;
   }
-}
-
-/* Six turns per cycle; the radius goes out and back once. */
-@keyframes spiral-turn {
-  to {
-    transform: rotate(2160deg);
-  }
-}
-
-@keyframes spiral-radius {
-  0%,
-  100% {
-    transform: translateX(6vmin);
-  }
-  50% {
-    transform: translateX(var(--spiral-max));
-  }
-}
-
-/*
- * The 1/π's sideways drift. It moves from left: 40% to 50% of the content
- * column, which is the viewport up to 650px wide (HomePage .content); these
- * frames are fixed to the viewport, so they move that length directly.
- */
-@keyframes course-drift {
-  50% {
-    translate: min(10vw, 65px) 0;
-  }
-}
-
-.setsOrbit {
-  position: fixed;
-  left: 65%;
-  top: 72%;
-  z-index: 2;
 }
 
 .setsLink {
@@ -340,12 +233,6 @@
   }
 }
 
-@keyframes sets-float {
-  50% {
-    transform: translate(-12vw, 5vh) rotate(-12deg);
-  }
-}
-
 @media (prefers-reduced-motion: no-preference) {
   .chessFloat {
     animation: chess-float 17s ease-in-out infinite;
@@ -355,9 +242,5 @@
     animation:
       chess-size 26s ease-in-out infinite,
       chess-color 60s ease-in-out infinite;
-  }
-
-  .setsOrbit {
-    animation: sets-float 22s -5s ease-in-out infinite;
   }
 }
