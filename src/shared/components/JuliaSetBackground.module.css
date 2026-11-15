@@ -4,6 +4,11 @@
    and the default white background read as a big blank band. */
 :global(html:has(#julia-canvas)) {
   background-color: #e39583;
+  overscroll-behavior: none;
+}
+
+:global(html:has(#julia-canvas) body) {
+  overscroll-behavior: none;
 }
 
 .juliaCanvas {

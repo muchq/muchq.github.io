@@ -4,6 +4,10 @@
   width: 100vw;
   position: relative;
   overflow: hidden;
+  /* The page does not scroll; keep finger-drags for the Julia set instead of
+     iOS pull-to-refresh / overscroll rubber-banding. Links still receive taps. */
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 /* Floating nav animation lives in shared/components/NavigationFloating.css */
