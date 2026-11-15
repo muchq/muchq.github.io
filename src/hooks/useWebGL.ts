@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { bindJuliaPointer } from '@/utils/juliaPointer'
 
 const vertexShaderSource = `#version 300 es
   in vec2 a_position;
@@ -192,26 +193,14 @@ export const useWebGL = () => {
     const juliaCLocation = gl.getUniformLocation(program, 'u_juliaC')
     const timeLocation = gl.getUniformLocation(program, 'u_time')
 
-    // Mouse tracking with default interesting values
-    let mouseX = -0.4
-    let mouseY = 0.6
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const normalizedX = e.clientX / window.innerWidth
-      const normalizedY = -((e.clientY / window.innerHeight) * 2.0 - 1.0)
-
-      const scaledX = normalizedX * 0.75
-      const scaledY = normalizedY * 0.75
-
-      const angle = Math.atan2(scaledY, scaledX)
-      const radius = Math.sqrt(scaledX * scaledX + scaledY * scaledY)
-      const biasedRadius = Math.min(radius * 0.8 + 0.2, 0.7)
-
-      mouseX = Math.cos(angle) * biasedRadius
-      mouseY = Math.sin(angle) * biasedRadius
-    }
-
-    document.addEventListener('mousemove', handleMouseMove)
+    // Pointer tracking with default interesting values. Desktop hover and
+    // phone finger-drags both update through the same pointer listeners.
+    let juliaX = -0.4
+    let juliaY = 0.6
+    const stopPointer = bindJuliaPointer(point => {
+      juliaX = point.x
+      juliaY = point.y
+    })
 
     // Size the drawing buffer to the element's on-screen size. The element is
     // viewport-sized via CSS, and mobile viewports resize as browser chrome
@@ -250,7 +239,7 @@ export const useWebGL = () => {
       gl.bindVertexArray(vao)
 
       gl.uniform2f(resolutionLocation, canvas.width, canvas.height)
-      gl.uniform2f(juliaCLocation, mouseX, mouseY)
+      gl.uniform2f(juliaCLocation, juliaX, juliaY)
       gl.uniform1f(timeLocation, time * 0.001)
 
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
@@ -263,7 +252,7 @@ export const useWebGL = () => {
 
     // Cleanup function
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
+      stopPointer()
       window.removeEventListener('resize', resizeCanvas)
       resizeObserver.disconnect()
       document.documentElement.style.removeProperty('background-color')
