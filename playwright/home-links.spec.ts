@@ -77,7 +77,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     await expect(heading).toBeVisible()
     await expect(heading.locator('span')).toHaveCount(5)
 
-    const times = [0, 5_120, 10_240, 14_720, 15_000, 17_500, 17_920, 21_760, 26_240, 32_000]
+    const times = [0, 7_500, 11_840, 16_320, 20_800, 25_300, 28_000, 32_320, 36_800, 40_000]
     const frames = await Promise.all(times.map(time => greetingAt(page, time)))
     for (const frame of frames) {
       expect(frame.animationCount).toBe(10)
@@ -91,9 +91,20 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     }
 
     const initial = frames[0]
-    expect(Math.max(...initial.boxes.map(box => box.top)) - Math.min(...initial.boxes.map(box => box.top))).toBeGreaterThan(initial.fontSize * 2)
-    const joined = frames[4]
-    const held = frames[5]
+    const delayed = frames[1]
+    initial.boxes.forEach((box, index) => {
+      expect(delayed.boxes[index].left).toBeCloseTo(box.left, 1)
+      expect(delayed.boxes[index].top).toBeCloseTo(box.top, 1)
+      expect(delayed.colors[index]).toBe(initial.colors[index])
+    })
+    const scattered = frames[2]
+    expect(Math.max(...scattered.boxes.map(box => box.top)) - Math.min(...scattered.boxes.map(box => box.top))).toBeGreaterThan(scattered.fontSize * 2)
+    const joined = frames[5]
+    const held = frames[6]
+    initial.boxes.forEach((box, index) => {
+      expect(box.left).toBeCloseTo(joined.boxes[index].left, 1)
+      expect(box.top).toBeCloseTo(joined.boxes[index].top, 1)
+    })
     const joinedCenters = joined.boxes.map(box => (box.left + box.right) / 2)
     expect(joinedCenters).toEqual([...joinedCenters].sort((a, b) => a - b))
     for (let index = 1; index < joinedCenters.length; index++) {
@@ -111,7 +122,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     const dispersed = frames[7]
     expect(Math.max(...dispersed.boxes.map(box => box.top)) - Math.min(...dispersed.boxes.map(box => box.top))).toBeGreaterThan(dispersed.fontSize * 2)
     for (let letter = 0; letter < 5; letter++) {
-      const positions = [frames[0], frames[1], frames[2], frames[7], frames[8]]
+      const positions = [frames[2], frames[3], frames[4], frames[7], frames[8]]
         .map(frame => `${frame.boxes[letter].left.toFixed(1)},${frame.boxes[letter].top.toFixed(1)}`)
       expect(new Set(positions).size).toBe(positions.length)
       expect(new Set(frames.map(frame => frame.colors[letter])).size).toBeGreaterThan(3)
