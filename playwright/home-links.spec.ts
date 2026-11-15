@@ -42,6 +42,7 @@ interface Box {
 
 interface GreetingFrame {
   boxes: Box[]
+  colors: string[]
   fontSize: number
   animationCount: number
   pointerEvents: string
@@ -60,6 +61,7 @@ const greetingAt = (page: Page, time: number): Promise<GreetingFrame> =>
     })
     return {
       boxes,
+      colors: [...heading.querySelectorAll('span')].map(letter => getComputedStyle(letter).color),
       fontSize: Number.parseFloat(getComputedStyle(heading).fontSize),
       animationCount: animations.length,
       pointerEvents: getComputedStyle(heading).pointerEvents,
@@ -75,10 +77,10 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     await expect(heading).toBeVisible()
     await expect(heading.locator('span')).toHaveCount(5)
 
-    const times = [0, 5_120, 10_240, 14_080, 15_000, 20_000, 20_480, 24_320, 28_160, 32_000]
+    const times = [0, 5_120, 10_240, 14_720, 15_000, 17_500, 17_920, 21_760, 26_240, 32_000]
     const frames = await Promise.all(times.map(time => greetingAt(page, time)))
     for (const frame of frames) {
-      expect(frame.animationCount).toBe(5)
+      expect(frame.animationCount).toBe(10)
       expect(frame.pointerEvents).toBe('none')
       for (const box of frame.boxes) {
         expect(box.left).toBeGreaterThanOrEqual(0)
@@ -101,6 +103,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     const joinedWidth = Math.max(...joined.boxes.map(box => box.right)) - Math.min(...joined.boxes.map(box => box.left))
     expect(joinedWidth).toBeGreaterThan(joined.fontSize * 1.5)
     expect(joinedWidth).toBeLessThan(joined.fontSize * 3)
+    expect(new Set(joined.colors).size).toBeGreaterThan(2)
     joined.boxes.forEach((box, index) => {
       expect(held.boxes[index].left).toBeCloseTo(box.left, 1)
       expect(held.boxes[index].top).toBeCloseTo(box.top, 1)
@@ -111,6 +114,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
       const positions = [frames[0], frames[1], frames[2], frames[7], frames[8]]
         .map(frame => `${frame.boxes[letter].left.toFixed(1)},${frame.boxes[letter].top.toFixed(1)}`)
       expect(new Set(positions).size).toBe(positions.length)
+      expect(new Set(frames.map(frame => frame.colors[letter])).size).toBeGreaterThan(3)
     }
   })
 }

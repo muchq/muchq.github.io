@@ -36,10 +36,12 @@
   top: max(118px, 28%);
   display: block;
   line-height: 1;
+  color: #5f6875;
   translate: -50% -50%;
 }
 
 .greeting span:nth-child(1) {
+  --color-delay: 0s;
   --joined-x: -0.95em;
   --x0: 14%;
   --y0: max(116px, 20%);
@@ -54,6 +56,7 @@
 }
 
 .greeting span:nth-child(2) {
+  --color-delay: -1.8s;
   --joined-x: -0.32em;
   --x0: 84%;
   --y0: 26%;
@@ -68,6 +71,7 @@
 }
 
 .greeting span:nth-child(3) {
+  --color-delay: -3.6s;
   --joined-x: 0.12em;
   --x0: 24%;
   --y0: 78%;
@@ -82,6 +86,7 @@
 }
 
 .greeting span:nth-child(4) {
+  --color-delay: -5.4s;
   --joined-x: 0.4em;
   --x0: 72%;
   --y0: 72%;
@@ -96,6 +101,7 @@
 }
 
 .greeting span:nth-child(5) {
+  --color-delay: -7.2s;
   --joined-x: 0.82em;
   --x0: 50%;
   --y0: 50%;
@@ -111,8 +117,10 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .greeting span {
-    animation: greeting-wander 32s ease-in-out infinite;
-    will-change: left, top;
+    animation:
+      greeting-wander 32s ease-in-out infinite,
+      greeting-colors 9s linear var(--color-delay) infinite;
+    will-change: left, top, color;
   }
 }
 
@@ -130,18 +138,37 @@
     left: var(--x2);
     top: var(--y2);
   }
-  44%,
-  64% {
+  46%,
+  56% {
     left: calc(50% + var(--joined-x));
     top: max(118px, 28%);
   }
-  76% {
+  68% {
     left: var(--x3);
     top: var(--y3);
   }
-  88% {
+  82% {
     left: var(--x4);
     top: var(--y4);
+  }
+}
+
+@keyframes greeting-colors {
+  0%,
+  100% {
+    color: #5f6875;
+  }
+  20% {
+    color: #71677b;
+  }
+  40% {
+    color: #806b64;
+  }
+  60% {
+    color: #58746d;
+  }
+  80% {
+    color: #70785f;
   }
 }
 
