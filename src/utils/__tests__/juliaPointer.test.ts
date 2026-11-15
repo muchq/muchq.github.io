@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
-import { bindJuliaPointer, juliaCFromClient } from '../juliaPointer'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { bindJuliaPointer, isJuliaInteractiveTarget, juliaCFromClient } from '../juliaPointer'
 
 describe('juliaCFromClient', () => {
   it('preserves the previous desktop mapping goldens on a 1000×800 viewport', () => {
@@ -28,7 +28,28 @@ describe('juliaCFromClient', () => {
   })
 })
 
+describe('isJuliaInteractiveTarget', () => {
+  it('treats links and buttons as interactive, and bare nodes as background', () => {
+    const link = document.createElement('a')
+    link.href = '/proofs'
+    const nested = document.createElement('span')
+    link.append(nested)
+    const button = document.createElement('button')
+    const background = document.createElement('div')
+
+    expect(isJuliaInteractiveTarget(link)).toBe(true)
+    expect(isJuliaInteractiveTarget(nested)).toBe(true)
+    expect(isJuliaInteractiveTarget(button)).toBe(true)
+    expect(isJuliaInteractiveTarget(background)).toBe(false)
+    expect(isJuliaInteractiveTarget(null)).toBe(false)
+  })
+})
+
 describe('bindJuliaPointer', () => {
+  afterEach(() => {
+    document.body.replaceChildren()
+  })
+
   it('updates from pointermove the same way desktop hover always has', () => {
     const onMove = vi.fn()
     const target = new EventTarget()
@@ -78,25 +99,69 @@ describe('bindJuliaPointer', () => {
     expect(onMove).not.toHaveBeenCalled()
   })
 
-  it('registers passive pointer listeners so homepage links keep working', () => {
+  it('blocks overscroll only for background finger-drags, not link taps', () => {
     const onMove = vi.fn()
-    const target = new EventTarget()
-    const add = vi.spyOn(target, 'addEventListener')
-    const stop = bindJuliaPointer(onMove, target)
+    const add = vi.spyOn(document, 'addEventListener')
+    const stop = bindJuliaPointer(onMove, document)
 
-    expect(add).toHaveBeenCalledWith('pointermove', expect.any(Function), { passive: true })
+    expect(add).toHaveBeenCalledWith('pointermove', expect.any(Function), { passive: false })
+    expect(add).toHaveBeenCalledWith('touchmove', expect.any(Function), { passive: false })
     expect(add).toHaveBeenCalledWith('pointerdown', expect.any(Function), { passive: true })
 
-    const down = new PointerEvent('pointerdown', {
+    const background = document.createElement('div')
+    const link = document.createElement('a')
+    link.href = '/proofs'
+    document.body.append(background, link)
+
+    background.dispatchEvent(new PointerEvent('pointerdown', {
+      bubbles: true,
+      cancelable: true,
       clientX: 40,
       clientY: 60,
       pointerType: 'touch',
-      cancelable: true,
+    }))
+    const backgroundMove = new PointerEvent('pointermove', {
       bubbles: true,
+      cancelable: true,
+      clientX: 40,
+      clientY: 120,
+      pointerType: 'touch',
     })
-    target.dispatchEvent(down)
-    expect(onMove).toHaveBeenCalled()
-    expect(down.defaultPrevented).toBe(false)
+    const backgroundTouchMove = new TouchEvent('touchmove', {
+      bubbles: true,
+      cancelable: true,
+      touches: [{ clientX: 40, clientY: 120 } as Touch],
+    })
+    background.dispatchEvent(backgroundMove)
+    document.dispatchEvent(backgroundTouchMove)
+    expect(backgroundMove.defaultPrevented).toBe(true)
+    expect(backgroundTouchMove.defaultPrevented).toBe(true)
+
+    document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerType: 'touch' }))
+
+    link.dispatchEvent(new PointerEvent('pointerdown', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 80,
+      clientY: 80,
+      pointerType: 'touch',
+    }))
+    const linkMove = new PointerEvent('pointermove', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 84,
+      clientY: 84,
+      pointerType: 'touch',
+    })
+    const linkTouchMove = new TouchEvent('touchmove', {
+      bubbles: true,
+      cancelable: true,
+      touches: [{ clientX: 84, clientY: 84 } as Touch],
+    })
+    link.dispatchEvent(linkMove)
+    document.dispatchEvent(linkTouchMove)
+    expect(linkMove.defaultPrevented).toBe(false)
+    expect(linkTouchMove.defaultPrevented).toBe(false)
 
     stop()
   })

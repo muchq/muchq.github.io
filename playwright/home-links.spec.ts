@@ -332,6 +332,28 @@ test('clicking the fading proofs link goes to /proofs', async ({ page }) => {
   await expect(page).toHaveURL(/\/proofs$/)
 })
 
+test('homepage suppresses iOS overscroll while keeping links clickable', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+  const shell = await page.evaluate(() => {
+    const home = document.querySelector('.homePage, [class*="homePage"]') as HTMLElement | null
+    // CSS modules hash the class; find the fixed full-viewport shell under main's parent.
+    const root = document.querySelector('#root')?.firstElementChild as HTMLElement | null
+    const target = home ?? root
+    if (!target) return null
+    const style = getComputedStyle(target)
+    return {
+      overscroll: style.overscrollBehavior,
+      touchAction: style.touchAction,
+      htmlOverscroll: getComputedStyle(document.documentElement).overscrollBehavior,
+    }
+  })
+  expect(shell).not.toBeNull()
+  expect(shell!.touchAction).toBe('none')
+  expect(shell!.overscroll).toMatch(/none/)
+  expect(shell!.htmlOverscroll).toMatch(/none/)
+})
+
 test('homepage links still work after a finger-style Julia drag', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const destinations = [
