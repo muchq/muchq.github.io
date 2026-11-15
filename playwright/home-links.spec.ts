@@ -157,7 +157,13 @@ async function landed(page: Page) {
   await page.locator('a[href="/proofs"]').waitFor()
 }
 
-const boxOf = async (page: Page, href: string) => (await page.locator(`a[href="${href}"]`).boundingBox())!
+const boxOf = async (page: Page, href: string) => {
+  const box = await page.locator(`a[href="${href}"]`).evaluate(el => {
+    const rect = el.getBoundingClientRect()
+    return { x: rect.left, y: rect.top, width: rect.width, height: rect.height }
+  })
+  return box
+}
 const courseHrefs = ['/proofs', '/groups', '/sets'] as const
 
 /** Pause everything and show frame t of every animation on the page. */
@@ -173,45 +179,60 @@ for (const { width, height } of [{ width: 320, height: 568 }, { width: 844, heig
   test(`course links fade mostly invisible with alternating visibility at ${width}×${height}`, async ({ page }) => {
     await page.setViewportSize({ width, height })
     await page.goto('/')
-    const opacities = courseHrefs.map(() => [] as number[])
-    for (const t of [0, 3_000, 6_000, 9_000, 12_000, 15_000, 18_000]) {
-      await showAt(page, t)
-      for (const [index, href] of courseHrefs.entries()) {
-        const box = await boxOf(page, href)
-        expect(box.x).toBeGreaterThanOrEqual(0)
-        expect(box.y).toBeGreaterThan(NAV_PX)
-        expect(box.x + box.width).toBeLessThanOrEqual(width)
-        expect(box.y + box.height).toBeLessThanOrEqual(height)
-        const opacity = await page.locator(`a[href="${href}"]`).evaluate(el =>
-          Number.parseFloat(getComputedStyle(el.parentElement!).opacity),
-        )
-        opacities[index].push(opacity)
+    await page.locator('a[href="/sets"]').waitFor()
+    const sample = await page.evaluate(({ times, hrefs }) => {
+      const measure = (time: number) => {
+        for (const href of hrefs) {
+          const wrapper = document.querySelector(`a[href="${href}"]`)!.parentElement!
+          wrapper.getAnimations().forEach(animation => {
+            animation.pause()
+            animation.currentTime = time
+          })
+        }
+        return hrefs.map(href => {
+          const link = document.querySelector(`a[href="${href}"]`)!
+          const wrapper = link.parentElement!
+          const rect = link.getBoundingClientRect()
+          return {
+            href,
+            left: rect.left,
+            top: rect.top,
+            right: rect.right,
+            bottom: rect.bottom,
+            opacity: Number.parseFloat(getComputedStyle(wrapper).opacity),
+            formulaAnimations: link.querySelector('math')!.getAnimations().length,
+            wrapperDuration: Number(wrapper.getAnimations()[0]?.effect?.getTiming().duration),
+          }
+        })
       }
+      return {
+        frames: times.map(measure),
+        peaks: [0, 6_000, 12_000].map(measure),
+      }
+    }, { times: [0, 3_000, 6_000, 9_000, 12_000, 15_000, 18_000], hrefs: [...courseHrefs] })
+
+    const opacities = courseHrefs.map(() => [] as number[])
+    for (const frame of sample.frames) {
+      frame.forEach((entry, index) => {
+        expect(entry.left).toBeGreaterThanOrEqual(0)
+        expect(entry.top).toBeGreaterThan(NAV_PX)
+        expect(entry.right).toBeLessThanOrEqual(width)
+        expect(entry.bottom).toBeLessThanOrEqual(height)
+        opacities[index].push(entry.opacity)
+      })
     }
     opacities.forEach(frames => {
       expect(Math.min(...frames)).toBeLessThan(0.2)
       expect(Math.max(...frames)).toBeGreaterThan(0.7)
       expect(frames.filter(opacity => opacity < 0.2).length).toBeGreaterThan(frames.filter(opacity => opacity > 0.7).length)
     })
-    for (const t of [0, 6_000, 12_000]) {
-      await showAt(page, t)
-      const visible = []
-      for (const href of courseHrefs) {
-        const opacity = await page.locator(`a[href="${href}"]`).evaluate(el =>
-          Number.parseFloat(getComputedStyle(el.parentElement!).opacity),
-        )
-        if (opacity > 0.5) visible.push(href)
-      }
-      expect(visible.length).toBeLessThanOrEqual(1)
+    for (const peak of sample.peaks) {
+      expect(peak.filter(entry => entry.opacity > 0.5)).toHaveLength(1)
     }
-    for (const href of courseHrefs) {
-      const motion = await page.locator(`a[href="${href}"]`).evaluate(el => ({
-        formulaAnimations: el.querySelector('math')!.getAnimations().length,
-        wrapperDuration: Number(el.parentElement!.getAnimations()[0]?.effect?.getTiming().duration),
-      }))
-      expect(motion.formulaAnimations).toBe(0)
-      expect(motion.wrapperDuration).toBe(18_000)
-    }
+    sample.frames[0].forEach(entry => {
+      expect(entry.formulaAnimations).toBe(0)
+      expect(entry.wrapperDuration).toBe(18_000)
+    })
   })
 }
 
