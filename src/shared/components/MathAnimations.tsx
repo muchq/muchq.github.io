@@ -57,67 +57,60 @@ const MathAnimations = () => {
             <span aria-hidden="true">♘</span>
           </Link>
         </div>
-        <div className={styles.setsOrbit}>
+        <div className={styles.setsBob}>
           <Link to="/sets" className={`${styles.pill} ${styles.setsLink}`} aria-label="Set theory problem curriculum" title="Set theory: 500 problems">
             <math><mi>|A|</mi><mo>&lt;</mo><mi>|𝒫(A)|</mi></math>
           </Link>
         </div>
-        {/* The First Isomorphism Theorem, spiraling around the page: the way into the group theory course. */}
-        <div className={styles.spiral}>
-          <div className={styles.arm}>
-            <Link
-              to="/groups"
-              className={`${styles.pill} ${styles.groupsLink}`}
-              aria-label="Group theory course"
-              title="Group theory: a first course"
-            >
-              <math>
-                <mi>G</mi>
-                <mo>/</mo>
-                <mrow>
-                  <mi>ker</mi>
-                  <mo rspace="0.2em">⁡</mo>
-                  <mi>φ</mi>
-                </mrow>
-                <mo>≅</mo>
-                <mrow>
-                  <mi>im</mi>
-                  <mo rspace="0.2em">⁡</mo>
-                  <mi>φ</mi>
-                </mrow>
-              </math>
-            </Link>
-          </div>
+        {/* The First Isomorphism Theorem: the way into the group theory course. */}
+        <div className={styles.groupsBob}>
+          <Link
+            to="/groups"
+            className={`${styles.pill} ${styles.groupsLink}`}
+            aria-label="Group theory course"
+            title="Group theory: a first course"
+          >
+            <math>
+              <mi>G</mi>
+              <mo>/</mo>
+              <mrow>
+                <mi>ker</mi>
+                <mo rspace="0.2em">⁡</mo>
+                <mi>φ</mi>
+              </mrow>
+              <mo>≅</mo>
+              <mrow>
+                <mi>im</mi>
+                <mo rspace="0.2em">⁡</mo>
+                <mi>φ</mi>
+              </mrow>
+            </math>
+          </Link>
         </div>
 
-        {/*
-          π₁(S¹) ≅ ℤ going around the circle, counterclockwise: a loop that
-          generates the very group it names. The way into the proofs course.
-        */}
-        <div className={styles.orbit}>
-          <div className={styles.orbitArm}>
-            <Link
-              to="/proofs"
-              className={`${styles.pill} ${styles.proofsLink}`}
-              aria-label="Algebra and topology, by proof"
-              title="Algebra and topology, by proof"
-            >
-              <math>
-                <msub>
-                  <mi>π</mi>
-                  <mn>1</mn>
-                </msub>
-                <mo>(</mo>
-                <msup>
-                  <mi>S</mi>
-                  <mn>1</mn>
-                </msup>
-                <mo>)</mo>
-                <mo>≅</mo>
-                <mi>ℤ</mi>
-              </math>
-            </Link>
-          </div>
+        {/* π₁(S¹) ≅ ℤ: the way into the proofs course. */}
+        <div className={styles.proofsBob}>
+          <Link
+            to="/proofs"
+            className={`${styles.pill} ${styles.proofsLink}`}
+            aria-label="Algebra and topology, by proof"
+            title="Algebra and topology, by proof"
+          >
+            <math>
+              <msub>
+                <mi>π</mi>
+                <mn>1</mn>
+              </msub>
+              <mo>(</mo>
+              <msup>
+                <mi>S</mi>
+                <mn>1</mn>
+              </msup>
+              <mo>)</mo>
+              <mo>≅</mo>
+              <mi>ℤ</mi>
+            </math>
+          </Link>
         </div>
       </div>
     </>

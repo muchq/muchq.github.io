@@ -25,7 +25,7 @@ describe('MathAnimations', () => {
     expect(screen.getByText('the games')).toBeInTheDocument()
   })
 
-  it('the spiraling isomorphism theorem links to the group theory course', async () => {
+  it('the isomorphism theorem links to the group theory course', async () => {
     home()
     const link = screen.getByRole('link', { name: 'Group theory course' })
     expect(link).toHaveAttribute('href', '/groups')
@@ -35,7 +35,7 @@ describe('MathAnimations', () => {
     expect(screen.getByText('the course')).toBeInTheDocument()
   })
 
-  it('the orbiting fundamental group of the circle links to the proofs course', async () => {
+  it('the fundamental group of the circle links to the proofs course', async () => {
     home()
     const link = screen.getByRole('link', { name: 'Algebra and topology, by proof' })
     expect(link).toHaveAttribute('href', '/proofs')

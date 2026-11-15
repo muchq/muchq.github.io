@@ -43,123 +43,36 @@
 }
 
 .greeting span:nth-child(1) {
-  --color-duration: 7.6s;
+  --color-duration: 28s;
   --joined-x: -0.95em;
-  --x0: 14%;
-  --y0: max(116px, 20%);
-  --x1: 76%;
-  --y1: 35%;
-  --x2: 26%;
-  --y2: 78%;
-  --x3: 84%;
-  --y3: 58%;
-  --x4: 38%;
-  --y4: 30%;
 }
 
 .greeting span:nth-child(2) {
-  --color-duration: 8.3s;
+  --color-duration: 31s;
   --joined-x: -0.32em;
-  --x0: 84%;
-  --y0: 26%;
-  --x1: 22%;
-  --y1: 50%;
-  --x2: 72%;
-  --y2: 74%;
-  --x3: 18%;
-  --y3: 32%;
-  --x4: 66%;
-  --y4: 82%;
 }
 
 .greeting span:nth-child(3) {
-  --color-duration: 9s;
+  --color-duration: 34s;
   --joined-x: 0.12em;
-  --x0: 24%;
-  --y0: 78%;
-  --x1: 62%;
-  --y1: max(116px, 20%);
-  --x2: 86%;
-  --y2: 52%;
-  --x3: 34%;
-  --y3: 72%;
-  --x4: 16%;
-  --y4: 44%;
 }
 
 .greeting span:nth-child(4) {
-  --color-duration: 9.7s;
+  --color-duration: 37s;
   --joined-x: 0.4em;
-  --x0: 72%;
-  --y0: 72%;
-  --x1: 34%;
-  --y1: 28%;
-  --x2: 16%;
-  --y2: 58%;
-  --x3: 75%;
-  --y3: max(116px, 22%);
-  --x4: 52%;
-  --y4: 80%;
 }
 
 .greeting span:nth-child(5) {
-  --color-duration: 10.4s;
+  --color-duration: 40s;
   --joined-x: 0.82em;
-  --x0: 50%;
-  --y0: 50%;
-  --x1: 84%;
-  --y1: 76%;
-  --x2: 42%;
-  --y2: max(116px, 22%);
-  --x3: 14%;
-  --y3: 66%;
-  --x4: 82%;
-  --y4: 42%;
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .greeting span {
     animation:
-      greeting-wander 32s ease-in-out infinite,
-      greeting-colors var(--color-duration) linear infinite;
-    animation-delay: 8s;
-    will-change: left, top, color;
-  }
-}
-
-@keyframes greeting-wander {
-  0% {
-    left: calc(var(--joined-left) + var(--joined-x));
-    top: var(--joined-top);
-  }
-  12% {
-    left: var(--x0);
-    top: var(--y0);
-  }
-  26% {
-    left: var(--x1);
-    top: var(--y1);
-  }
-  40% {
-    left: var(--x2);
-    top: var(--y2);
-  }
-  54%,
-  64% {
-    left: calc(var(--joined-left) + var(--joined-x));
-    top: var(--joined-top);
-  }
-  76% {
-    left: var(--x3);
-    top: var(--y3);
-  }
-  90% {
-    left: var(--x4);
-    top: var(--y4);
-  }
-  100% {
-    left: calc(var(--joined-left) + var(--joined-x));
-    top: var(--joined-top);
+      greeting-colors var(--color-duration) linear infinite,
+      greeting-type 96s ease-in-out infinite;
+    will-change: color, font-weight;
   }
 }
 
@@ -179,6 +92,16 @@
   }
   80% {
     color: #70785f;
+  }
+}
+
+@keyframes greeting-type {
+  0%,
+  100% {
+    font-weight: 300;
+  }
+  50% {
+    font-weight: 500;
   }
 }
 
