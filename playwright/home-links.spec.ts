@@ -44,6 +44,7 @@ interface GreetingFrame {
   colors: string[]
   durations: number[]
   families: string[]
+  weights: string[]
   fontSize: number
   animationCount: number
   pointerEvents: string
@@ -65,6 +66,7 @@ const greetingAt = (page: Page, time: number): Promise<GreetingFrame> =>
       colors: [...heading.querySelectorAll('span')].map(letter => getComputedStyle(letter).color),
       durations: animations.map(animation => Number(animation.effect?.getTiming().duration)),
       families: [...heading.querySelectorAll('span')].map(letter => getComputedStyle(letter).fontFamily),
+      weights: [...heading.querySelectorAll('span')].map(letter => getComputedStyle(letter).fontWeight),
       fontSize: Number.parseFloat(getComputedStyle(heading).fontSize),
       animationCount: animations.length,
       pointerEvents: getComputedStyle(heading).pointerEvents,
@@ -94,6 +96,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     }
 
     const joined = frames[0]
+    expect(joined.weights.every(weight => weight === '200')).toBe(true)
     expect(joined.durations.filter(duration => duration >= 72_000 && duration <= 108_000)).toHaveLength(5)
     expect(joined.durations.filter(duration => duration >= 28_000 && duration <= 40_000)).toHaveLength(5)
     const joinedCenters = joined.boxes.map(box => (box.left + box.right) / 2)
