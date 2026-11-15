@@ -20,6 +20,8 @@
 }
 
 .greeting {
+  --joined-left: max(1.5em, 9vw);
+  --joined-top: max(calc(61px + 0.6em), 14%);
   position: fixed;
   inset: 0;
   z-index: 1;
@@ -32,8 +34,8 @@
 
 .greeting span {
   position: absolute;
-  left: calc(50% + var(--joined-x));
-  top: max(118px, 28%);
+  left: calc(var(--joined-left) + var(--joined-x));
+  top: var(--joined-top);
   display: block;
   line-height: 1;
   color: #5f6875;
@@ -127,8 +129,8 @@
 
 @keyframes greeting-wander {
   0% {
-    left: calc(50% + var(--joined-x));
-    top: max(118px, 28%);
+    left: calc(var(--joined-left) + var(--joined-x));
+    top: var(--joined-top);
   }
   12% {
     left: var(--x0);
@@ -144,8 +146,8 @@
   }
   54%,
   64% {
-    left: calc(50% + var(--joined-x));
-    top: max(118px, 28%);
+    left: calc(var(--joined-left) + var(--joined-x));
+    top: var(--joined-top);
   }
   76% {
     left: var(--x3);
@@ -156,8 +158,8 @@
     top: var(--y4);
   }
   100% {
-    left: calc(50% + var(--joined-x));
-    top: max(118px, 28%);
+    left: calc(var(--joined-left) + var(--joined-x));
+    top: var(--joined-top);
   }
 }
 

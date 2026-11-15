@@ -114,6 +114,9 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     const joinedWidth = Math.max(...joined.boxes.map(box => box.right)) - Math.min(...joined.boxes.map(box => box.left))
     expect(joinedWidth).toBeGreaterThan(joined.fontSize * 1.5)
     expect(joinedWidth).toBeLessThan(joined.fontSize * 3)
+    expect(Math.min(...joined.boxes.map(box => box.left))).toBeLessThan(viewport.width * 0.1)
+    expect(Math.max(...joined.boxes.map(box => box.right))).toBeLessThan(viewport.width * 0.4)
+    expect(Math.max(...joined.boxes.map(box => box.bottom))).toBeLessThan(viewport.height * 0.4)
     expect(new Set(joined.colors).size).toBeGreaterThan(2)
     joined.boxes.forEach((box, index) => {
       expect(held.boxes[index].left).toBeCloseTo(box.left, 1)
@@ -152,6 +155,9 @@ test('reduced motion leaves one assembled Hello', async ({ page }) => {
       expect(centers[index] - centers[index - 1]).toBeGreaterThan(frame.fontSize * 0.2)
     }
     expect(Math.max(...frame.boxes.map(box => box.top)) - Math.min(...frame.boxes.map(box => box.top))).toBeLessThanOrEqual(1)
+    expect(Math.min(...frame.boxes.map(box => box.left))).toBeLessThan(viewport.width * 0.1)
+    expect(Math.max(...frame.boxes.map(box => box.right))).toBeLessThan(viewport.width * 0.4)
+    expect(Math.max(...frame.boxes.map(box => box.bottom))).toBeLessThan(viewport.height * 0.4)
   }
 })
 
