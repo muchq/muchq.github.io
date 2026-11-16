@@ -566,7 +566,6 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
               onPointerCancel={onPointerCancel}
               onLostPointerCapture={onLostPointerCapture}
               onContextMenu={toggleMark}
-              title="Right-click to highlight; right-drag to draw an arrow. Left-click to clear."
             >
               {(arrows.gameId === view.gameId ? arrows.items : []).map(a => <BoardArrow key={`${a.from}-${a.to}`} {...a} squares={squares} annotation />)}
               {preview && preview.gameId === view.gameId && <BoardArrow {...preview} squares={squares} annotation />}

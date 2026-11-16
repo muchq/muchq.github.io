@@ -550,6 +550,17 @@ describe('ChessTable', () => {
       fireEvent.contextMenu(square(from))
     }
 
+    // Native title tooltips on the board (or its squares) pop up on every
+    // desktop hover and obscure play; keep the hint out of title=.
+    it('does not put a title tooltip on the board or its squares', () => {
+      mountWith(view())
+      const board = screen.getByRole('group', { name: 'board' })
+      expect(board).not.toHaveAttribute('title')
+      for (const cell of within(board).getAllByRole('button')) {
+        expect(cell).not.toHaveAttribute('title')
+      }
+    })
+
     it('toggles arrows and highlights without playing, and clears them on left click', () => {
       const { t } = mountWith(view())
       draw('g6', 'f7')
