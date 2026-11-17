@@ -225,6 +225,31 @@ describe('ChessTable', () => {
       expect(square('g6')).toHaveAttribute('aria-pressed', 'true')
     })
 
+    // Focus was on chrome outside the board (or restored after the
+    // window was elsewhere): the first press on a piece must still select.
+    it('selects on the first press after focus was outside the board', () => {
+      mountWith(view())
+      screen.getByRole('button', { name: 'Resign' }).focus()
+      expect(screen.getByRole('button', { name: 'Resign' })).toHaveFocus()
+      document.elementFromPoint = () => square('g6')
+      fireEvent.pointerDown(square('g6'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerUp(square('g6'), { pointerId: 1, clientX: 10, clientY: 10 })
+      expect(square('g6')).toHaveAttribute('aria-pressed', 'true')
+      expect(square('f7')).toHaveAccessibleDescription('a move')
+    })
+
+    it('selects on a fresh press after a mid-gesture cancel', () => {
+      mountWith(view())
+      fireEvent.pointerDown(square('g6'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerCancel(screen.getByRole('group', { name: 'board' }), { pointerId: 1 })
+      expect(square('g6')).toHaveAttribute('aria-pressed', 'false')
+      document.elementFromPoint = () => square('g6')
+      fireEvent.pointerDown(square('g6'), { pointerId: 2, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerUp(square('g6'), { pointerId: 2, clientX: 10, clientY: 10 })
+      expect(square('g6')).toHaveAttribute('aria-pressed', 'true')
+    })
+
+
     it('a tap on a square no move reaches lets the piece go and plays nothing', () => {
       const { t } = mountWith(view())
       fireEvent.click(square('g6'))
