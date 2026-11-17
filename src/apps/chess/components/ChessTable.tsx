@@ -182,7 +182,12 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
   const [botElo, setBotElo] = useState(BOT_STRENGTHS[1].elo)
   const press = useRef<{ id: number; square: string; x: number; y: number; moving: boolean } | null>(null)
   const dragged = useRef(false)
-  const [ghost, setGhost] = useState<{ piece: string; x: number; y: number; size: number } | null>(null)
+  // Ghost mount is React state; its pixel position is not — every mousemove
+  // rewriting left/top through setState re-rendered the whole table and made
+  // desktop drag feel sticky.
+  const ghostRef = useRef<HTMLImageElement | null>(null)
+  const ghostPos = useRef({ x: 0, y: 0 })
+  const [ghost, setGhost] = useState<{ piece: string; size: number } | null>(null)
 
   const me = view.players.find(player => player.playerId === playerId)
   const watching = me === undefined
@@ -265,12 +270,9 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     else setPromoting({ view, from: start, to: square, moves })
   }
 
-  const tap = (square: string) => {
-    // The click a release fires after a drag is the drag's, already done.
-    if (dragged.current) {
-      dragged.current = false
-      return
-    }
+  // Pick up, put down, or play — shared by a real click and by pointerup
+  // when the press never became a drag.
+  const act = (square: string) => {
     setMarks({ gameId: view.gameId, squares: [] })
     setArrows({ gameId: view.gameId, items: [] })
     if (inert) return
@@ -293,6 +295,16 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     // Another of the viewer's pieces with a move picks it up; anything
     // else lets go.
     setPicked(movable && square !== from ? { view, square } : null)
+  }
+
+  const tap = (square: string) => {
+    // The click a release fires after a drag — or after pointerup already
+    // acted for a tap — is that gesture's, already done.
+    if (dragged.current) {
+      dragged.current = false
+      return
+    }
+    act(square)
   }
 
   // A drag: a press on a piece with moves that travels past the slop. The
@@ -348,6 +360,7 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     const held = press.current
     if (held === null || held.id !== event.pointerId) return
     if (!held.moving && Math.hypot(event.clientX - held.x, event.clientY - held.y) < DRAG_SLOP_PX) return
+    ghostPos.current = { x: event.clientX, y: event.clientY }
     if (!held.moving) {
       held.moving = true
       setPromoting(null)
@@ -355,11 +368,14 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
       // Past the slop, not on the press: captured at once, a tap's click
       // would land on the board rather than its square.
       boardRef.current?.setPointerCapture?.(event.pointerId)
+      // A size up from the board's own pieces, which fill a square: an eighth
+      // of its width. Mount once; further moves only write the img's style.
+      const width = boardRef.current?.getBoundingClientRect().width ?? 0
+      setGhost({ piece: board.get(held.square) ?? '', size: width * 0.15 })
+    } else if (ghostRef.current !== null) {
+      ghostRef.current.style.left = `${event.clientX}px`
+      ghostRef.current.style.top = `${event.clientY}px`
     }
-    // A size up from the board's own pieces, which fill a square: an eighth
-    // of its width.
-    const width = boardRef.current?.getBoundingClientRect().width ?? 0
-    setGhost({ piece: board.get(held.square) ?? '', x: event.clientX, y: event.clientY, size: width * 0.15 })
   }
   const onPointerUp = (event: ReactPointerEvent) => {
     const drawing = annotationPress.current
@@ -381,7 +397,21 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
     if (held === null || held.id !== event.pointerId) return
     press.current = null
     setGhost(null)
-    if (!held.moving) return
+    if (!held.moving) {
+      // Act on the square that was pressed. Waiting for click fails when
+      // release drifts onto a neighbour — browsers then fire no click.
+      // Only arm the click-suppressor when release stayed on that square
+      // (a click may follow); a drifted release fires none, and must not
+      // swallow a later keyboard activation. Drifting off a piece already
+      // selected keeps it — the old clickless behavior.
+      const releasedOn =
+        squareAt(event.clientX, event.clientY) ??
+        (event.target instanceof Element ? event.target.closest<HTMLElement>('[data-square]')?.dataset.square ?? null : null)
+      if (from === held.square && releasedOn !== held.square) return
+      act(held.square)
+      if (releasedOn === held.square) dragged.current = true
+      return
+    }
     dragged.current = true
     const square = squareAt(event.clientX, event.clientY)
     const piece = square === null ? undefined : board.get(square)
@@ -671,9 +701,10 @@ const ChessTable = ({ playerId, connected, view, table }: ChessTableProps) => {
           {ghost !== null &&
             createPortal(
               <img
+                ref={ghostRef}
                 className={styles.ghost}
                 src={pieceImage(ghost.piece)}
-                style={{ left: ghost.x, top: ghost.y, width: ghost.size, height: ghost.size }}
+                style={{ left: ghostPos.current.x, top: ghostPos.current.y, width: ghost.size, height: ghost.size }}
                 alt=""
                 data-testid="drag-ghost"
               />,

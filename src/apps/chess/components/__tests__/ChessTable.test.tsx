@@ -190,6 +190,66 @@ describe('ChessTable', () => {
       expect(t.play).toHaveBeenCalledWith('g6f7')
     })
 
+    // Browsers suppress click when mousedown and mouseup land on different
+    // squares. On an 8×8 grid that is a common near-edge slip; the press
+    // still names the piece, so pointerup must select it without waiting
+    // for click — and a click that does follow must not toggle it off.
+    it('selects the pressed piece when release drifts onto another square', () => {
+      const { t } = mountWith(view())
+      document.elementFromPoint = () => square('f6')
+      fireEvent.pointerDown(square('g6'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerUp(square('f6'), { pointerId: 1, clientX: 12, clientY: 11 })
+      expect(square('g6')).toHaveAttribute('aria-pressed', 'true')
+      // No click followed: a keyboard activation on the destination must work.
+      fireEvent.click(square('f7'))
+      expect(t.play).toHaveBeenCalledWith('g6f7')
+    })
+
+    it('keeps an already-selected piece when release drifts off it', () => {
+      mountWith(view())
+      fireEvent.click(square('g6'))
+      expect(square('g6')).toHaveAttribute('aria-pressed', 'true')
+      document.elementFromPoint = () => square('g7')
+      fireEvent.pointerDown(square('g6'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerUp(square('g7'), { pointerId: 1, clientX: 12, clientY: 11 })
+      expect(square('g6')).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    it('swallows the click that follows a same-square pointerup tap', () => {
+      mountWith(view())
+      document.elementFromPoint = () => square('g6')
+      fireEvent.pointerDown(square('g6'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerUp(square('g6'), { pointerId: 1, clientX: 10, clientY: 10 })
+      expect(square('g6')).toHaveAttribute('aria-pressed', 'true')
+      fireEvent.click(square('g6'))
+      expect(square('g6')).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    // Focus was on chrome outside the board (or restored after the
+    // window was elsewhere): the first press on a piece must still select.
+    it('selects on the first press after focus was outside the board', () => {
+      mountWith(view())
+      screen.getByRole('button', { name: 'Resign' }).focus()
+      expect(screen.getByRole('button', { name: 'Resign' })).toHaveFocus()
+      document.elementFromPoint = () => square('g6')
+      fireEvent.pointerDown(square('g6'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerUp(square('g6'), { pointerId: 1, clientX: 10, clientY: 10 })
+      expect(square('g6')).toHaveAttribute('aria-pressed', 'true')
+      expect(square('f7')).toHaveAccessibleDescription('a move')
+    })
+
+    it('selects on a fresh press after a mid-gesture cancel', () => {
+      mountWith(view())
+      fireEvent.pointerDown(square('g6'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerCancel(screen.getByRole('group', { name: 'board' }), { pointerId: 1 })
+      expect(square('g6')).toHaveAttribute('aria-pressed', 'false')
+      document.elementFromPoint = () => square('g6')
+      fireEvent.pointerDown(square('g6'), { pointerId: 2, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerUp(square('g6'), { pointerId: 2, clientX: 10, clientY: 10 })
+      expect(square('g6')).toHaveAttribute('aria-pressed', 'true')
+    })
+
+
     it('a tap on a square no move reaches lets the piece go and plays nothing', () => {
       const { t } = mountWith(view())
       fireEvent.click(square('g6'))
@@ -685,10 +745,24 @@ describe('ChessTable', () => {
       fireEvent.pointerMove(square('g6'), { pointerId: 1, clientX: 13, clientY: 12 })
       expect(screen.queryByTestId('drag-ghost')).toBeNull()
       fireEvent.pointerUp(square('g6'), { pointerId: 1, clientX: 13, clientY: 12 })
+      expect(square('g6')).toHaveAttribute('aria-pressed', 'true')
+      // A click the browser still emits on the origin must not toggle off.
       fireEvent.click(square('g6'))
       expect(square('g6')).toHaveAttribute('aria-pressed', 'true')
       fireEvent.click(square('f7'))
       expect(t.play).toHaveBeenCalledWith('g6f7')
+    })
+
+    it('moves the drag ghost across further pointer moves without dropping it', () => {
+      mountWith(view())
+      fireEvent.pointerDown(square('g6'), { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+      fireEvent.pointerMove(square('g6'), { pointerId: 1, clientX: 40, clientY: 40 })
+      const ghost = screen.getByTestId('drag-ghost')
+      expect(ghost.style.left).toBe('40px')
+      fireEvent.pointerMove(square('g6'), { pointerId: 1, clientX: 70, clientY: 55 })
+      expect(ghost.style.left).toBe('70px')
+      expect(ghost.style.top).toBe('55px')
+      expect(screen.getByTestId('drag-ghost')).toBe(ghost)
     })
 
     it('a promotion dropped asks for its piece', () => {
