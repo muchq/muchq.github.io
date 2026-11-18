@@ -115,6 +115,30 @@ for (const size of [{ width: 390, height: 844 }, { width: 375, height: 667 }]) {
   })
 }
 
+// LobbyGame drops focus on end; the harness still forces the focus CSS with
+// ending chrome so a regression there cannot crop the board again.
+for (const size of [{ width: 390, height: 844 }, { width: 375, height: 667 }]) {
+  test(`chess focus+ended CSS keeps a full square board at ${size.width}×${size.height}`, async ({ page }) => {
+    await page.setViewportSize(size)
+    await page.goto('/playwright/felt-fit.html?fixture=chess&focus&ended')
+    const board = page.getByRole('group', { name: 'board' })
+    await expect(board).toBeVisible()
+    const box = await board.boundingBox()
+    expect(Math.abs(box!.width - box!.height)).toBeLessThanOrEqual(2)
+    const corners = await page.evaluate(() => {
+      const inView = (square: string) => {
+        const el = document.querySelector(`[data-square="${square}"]`)
+        if (!(el instanceof HTMLElement)) return false
+        const r = el.getBoundingClientRect()
+        return r.width > 0 && r.top >= -1 && r.left >= -1 && r.bottom <= window.innerHeight + 1 && r.right <= window.innerWidth + 1
+      }
+      return { a1: inView('a1'), h1: inView('h1'), a8: inView('a8'), h8: inView('h8'), focus: document.querySelector('[data-chess-focus="true"]') !== null }
+    })
+    expect(corners.focus).toBe(true)
+    expect({ a1: corners.a1, h1: corners.h1, a8: corners.a8, h8: corners.h8 }).toEqual({ a1: true, h1: true, a8: true, h8: true })
+  })
+}
+
 test('desktop right drag draws an arrow and right click toggles a square', async ({ page }) => {
   await open(page, 'chess')
   const from = await page.locator('[data-square="g6"]').boundingBox()

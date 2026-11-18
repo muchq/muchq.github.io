@@ -48,8 +48,11 @@ const LobbyGame = (props: UseLobbyProps) => {
   // Focus is for play: body scroll locks and the foot shrinks. The ending's
   // chrome needs that space, and keeping the lock while autofocus lands on
   // Next game has left iOS Safari's visual viewport stuck zoomed on phones.
+  // phase === 'playing' is on focused itself so the first ended render drops
+  // the overlay — clearing focusGame alone would still paint one focus+ended frame.
   if (focusGame !== null && chess.view !== null && chess.view.phase !== 'playing') setFocusGame(null)
-  const focused = chess.view !== null && chess.view.gameId === focusGame && chess.review === null
+  const focused =
+    chess.view !== null && chess.view.gameId === focusGame && chess.review === null && chess.view.phase === 'playing'
   useEffect(() => {
     if (!focused) return
     const previous = document.body.style.overflow

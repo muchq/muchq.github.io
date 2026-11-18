@@ -607,7 +607,10 @@
   display: none;
 }
 
-:global([data-chess-focus='true']) .foot {
+/* Only while playing: Resign alone fits in 2.75rem. The ending's result,
+   review link and next-game row need the normal foot reservation — a
+   focus+ended paint with the shrunken foot was the cropped-board report. */
+:global([data-chess-focus='true']) .table[data-phase='playing'] .foot {
   min-height: 2.75rem;
 }
 

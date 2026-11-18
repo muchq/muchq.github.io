@@ -272,12 +272,16 @@ describe('LobbyGame', () => {
   // ends keeps iOS from pinching the visual viewport into a stuck zoom.
   it('leaves chess focus when the game ends, and restores scrolling', () => {
     state.chess.view = { gameId: 'C1', phase: 'playing' } as ChessView
-    const { rerender } = render(<LobbyGame />)
+    const { rerender, container } = render(<LobbyGame />)
     fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
     expect(screen.getByRole('button', { name: 'Exit focus' })).toHaveAttribute('aria-pressed', 'true')
     expect(document.body.style.overflow).toBe('hidden')
+    expect(container.querySelector('[data-chess-focus="true"]')).toBeTruthy()
     state.chess.view = { gameId: 'C1', phase: 'ended' } as ChessView
     rerender(<LobbyGame />)
+    // Same render as the ending: no focus overlay, or the first paint would
+    // still be the cropped focus+ended layout from the report.
+    expect(container.querySelector('[data-chess-focus="true"]')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Exit focus' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Focus game' })).toBeNull()
     expect(document.body.style.overflow).toBe('')
