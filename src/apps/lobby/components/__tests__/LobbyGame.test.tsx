@@ -251,7 +251,7 @@ describe('LobbyGame', () => {
   })
 
   it('focuses chess, exits with Escape, and restores scrolling on leaving', () => {
-    state.chess.view = { gameId: 'C1' } as ChessView
+    state.chess.view = { gameId: 'C1', phase: 'playing' } as ChessView
     const { rerender } = render(<LobbyGame />)
     fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
     expect(screen.getByRole('button', { name: 'Exit focus' })).toHaveAttribute('aria-pressed', 'true')
@@ -265,6 +265,29 @@ describe('LobbyGame', () => {
     rerender(<LobbyGame />)
     expect(document.body.style.overflow).toBe('')
     expect(screen.queryByRole('button', { name: 'Exit focus' })).toBeNull()
+  })
+
+  // Focus mode locks body scroll and shrinks the foot for play; the
+  // ending's chrome needs that space back. Leaving focus when the game
+  // ends keeps iOS from pinching the visual viewport into a stuck zoom.
+  it('leaves chess focus when the game ends, and restores scrolling', () => {
+    state.chess.view = { gameId: 'C1', phase: 'playing' } as ChessView
+    const { rerender } = render(<LobbyGame />)
+    fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
+    expect(screen.getByRole('button', { name: 'Exit focus' })).toHaveAttribute('aria-pressed', 'true')
+    expect(document.body.style.overflow).toBe('hidden')
+    state.chess.view = { gameId: 'C1', phase: 'ended' } as ChessView
+    rerender(<LobbyGame />)
+    expect(screen.queryByRole('button', { name: 'Exit focus' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Focus game' })).toBeNull()
+    expect(document.body.style.overflow).toBe('')
+  })
+
+  it('offers no chess focus toggle while the table is not in play', () => {
+    state.chess.view = { gameId: 'C1', phase: 'waiting' } as ChessView
+    render(<LobbyGame />)
+    expect(screen.queryByRole('button', { name: 'Focus game' })).toBeNull()
+    expect(document.body.style.overflow).toBe('')
   })
 
   it('a chess table is a table too: over the world, the panel folded', () => {

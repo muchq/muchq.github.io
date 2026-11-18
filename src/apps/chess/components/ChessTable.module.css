@@ -74,6 +74,9 @@
 .setupPick {
   min-width: 0;
   max-width: 10rem;
+  /* Without this, the ending picker computes under 16px on phones and
+     iOS Safari zooms the visual viewport when it is focused. */
+  font-size: 16px;
 }
 
 .play {
@@ -86,14 +89,19 @@
 
 /* What the clocks, header and actions leave, measured rather than
    budgeted: the board is the larger square that fits it. Below 15rem
-   the overlay scrolls rather than shrink the squares past a tap. */
+   the overlay scrolls rather than shrink the squares past a tap.
+   height: 0 lets flex assign a definite height so size containment's
+   cqh resolves on WebKit; without it, a short slot after the ending
+   chrome appears can leave the board sized to an stale/indefinite cqh. */
 .boardSlot {
   flex: 1 1 0;
+  height: 0;
   min-height: 15rem;
   container-type: size;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 /* The pieces are sized from the board, not the screen, so they always
@@ -102,8 +110,10 @@
   position: relative;
   container-type: inline-size;
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   width: min(100cqw, 100cqh);
+  max-width: 100%;
+  max-height: 100%;
   aspect-ratio: 1;
   border: 2px solid rgba(0, 0, 0, 0.5);
   border-radius: 4px;
@@ -112,6 +122,8 @@
 
 .square {
   position: relative;
+  min-width: 0;
+  min-height: 0;
   aspect-ratio: 1;
   display: flex;
   align-items: center;

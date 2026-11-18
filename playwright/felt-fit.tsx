@@ -212,6 +212,18 @@ const chessView: ChessView = {
   clock: { whiteMs: 180_000, blackMs: 175_000, initialMs: 180_000, incrementMs: 2_000 },
 }
 
+const chessEndedView: ChessView = {
+  ...chessView,
+  phase: 'ended',
+  sideToMove: undefined,
+  currentPlayerId: undefined,
+  legalMoves: [],
+  fen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1',
+  result: { ending: 'timeout', winner: 'bob', winnerColor: 'black' },
+  scoreSheet: [{ winner: 'bob', ending: 'timeout' }],
+  clock: { whiteMs: 0, blackMs: 33_000, initialMs: 180_000, incrementMs: 2_000 },
+}
+
 const chessTable = {
   opening: false,
   seating: false,
@@ -228,9 +240,11 @@ const chessTable = {
 
 const params = new URLSearchParams(location.search)
 const fixture = (params.get('fixture') ?? 'spades-2') as Fixture
-const shownChess = params.has('offturn')
-  ? { ...chessView, sideToMove: 'black' as const, currentPlayerId: 'bob', legalMoves: ['h8g7', 'h8g8'] }
-  : chessView
+const shownChess = params.has('ended')
+  ? chessEndedView
+  : params.has('offturn')
+    ? { ...chessView, sideToMove: 'black' as const, currentPlayerId: 'bob', legalMoves: ['h8g7', 'h8g8'] }
+    : chessView
 
 const table =
   fixture === 'spades-2' ? (
