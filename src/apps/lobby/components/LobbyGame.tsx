@@ -45,7 +45,14 @@ const LobbyGame = (props: UseLobbyProps) => {
   const atTable = HUB_GAMES.some(game => lobby[game].view !== null) || chess.review !== null
   const [focusGame, setFocusGame] = useState<string | null>(null)
   if (focusGame !== null && chess.view === null) setFocusGame(null)
-  const focused = chess.view !== null && chess.view.gameId === focusGame && chess.review === null
+  // Focus is for play: body scroll locks and the foot shrinks. The ending's
+  // chrome needs that space, and keeping the lock while autofocus lands on
+  // Next game has left iOS Safari's visual viewport stuck zoomed on phones.
+  // phase === 'playing' is on focused itself so the first ended render drops
+  // the overlay — clearing focusGame alone would still paint one focus+ended frame.
+  if (focusGame !== null && chess.view !== null && chess.view.phase !== 'playing') setFocusGame(null)
+  const focused =
+    chess.view !== null && chess.view.gameId === focusGame && chess.review === null && chess.view.phase === 'playing'
   useEffect(() => {
     if (!focused) return
     const previous = document.body.style.overflow
@@ -167,7 +174,7 @@ const LobbyGame = (props: UseLobbyProps) => {
         game =>
           lobby[game].view !== null && (
             <div key={game} className={`${styles.tableOverlay} ${game === 'chess' && focused ? styles.focusOverlay : ''}`} data-chess-focus={game === 'chess' && focused ? 'true' : undefined}>
-              {game === 'chess' && (
+              {game === 'chess' && chess.view?.phase === 'playing' && (
                 <button type="button" className={styles.focusToggle} aria-pressed={focused} onClick={() => setFocusGame(focused ? null : chess.view!.gameId)}>
                   {focused ? 'Exit focus' : 'Focus game'}
                 </button>
