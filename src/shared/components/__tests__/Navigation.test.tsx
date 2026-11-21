@@ -51,7 +51,7 @@ describe('Navigation', () => {
       [/^里に春が来ました\s?\(external site\)/, 'https://sato-ni-haru-ga-kimashita.uk', 'Japanese sentence breakdown'],
       [/^p2bx\s?\(external site\)/, 'https://p2bx.uk', 'Čech-Stone compactification'],
       [/^iili\.uk\s?\(external site\)/, 'https://iili.uk', 'The shortener on its own domain'],
-      [/^ast\.lol\s?\(external site\)/, 'https://ast.lol', 'Interactive guide to abstract syntax trees'],
+      [/^ast\.lol\s?\(external site\)/, 'https://ast.lol', 'Abstract syntax trees'],
     ]
     for (const [name, href, description] of expected) {
       const link = group.getByRole('link', { name })

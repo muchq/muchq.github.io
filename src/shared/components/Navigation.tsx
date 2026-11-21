@@ -73,7 +73,7 @@ const MENU: MenuGroup[] = [
       { label: '里に春が来ました', to: 'https://sato-ni-haru-ga-kimashita.uk', external: true, description: 'Japanese sentence breakdown' },
       { label: 'HoverCrap', to: 'https://hovercrap.com', external: true, description: 'ASCII hovercraft' },
       { label: 'iili.uk', to: 'https://iili.uk', external: true, description: 'The shortener on its own domain' },
-      { label: 'ast.lol', to: 'https://ast.lol', external: true, description: 'Interactive guide to abstract syntax trees' },
+      { label: 'ast.lol', to: 'https://ast.lol', external: true, description: 'Abstract syntax trees' },
     ],
   },
 ]
