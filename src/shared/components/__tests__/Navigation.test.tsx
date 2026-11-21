@@ -51,6 +51,7 @@ describe('Navigation', () => {
       [/^里に春が来ました\s?\(external site\)/, 'https://sato-ni-haru-ga-kimashita.uk', 'Japanese sentence breakdown'],
       [/^p2bx\s?\(external site\)/, 'https://p2bx.uk', 'Čech-Stone compactification'],
       [/^iili\.uk\s?\(external site\)/, 'https://iili.uk', 'The shortener on its own domain'],
+      [/^ast\.lol\s?\(external site\)/, 'https://ast.lol', 'Interactive guide to abstract syntax trees'],
     ]
     for (const [name, href, description] of expected) {
       const link = group.getByRole('link', { name })
@@ -66,7 +67,7 @@ describe('Navigation', () => {
     const dropdown = groupEl.querySelector('div')
     if (!dropdown) throw new Error('Hmm dropdown not found')
     const links = within(dropdown).getAllByRole('link')
-    expect(links).toHaveLength(10)
+    expect(links).toHaveLength(11)
     for (const link of links) {
       expect(link.getAttribute('target')).toBe('_blank')
       const rel = (link.getAttribute('rel') ?? '').split(/\s+/)
