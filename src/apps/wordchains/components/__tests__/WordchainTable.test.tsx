@@ -18,6 +18,7 @@ const view = (over: Partial<WordchainView> = {}): WordchainView => ({
     { playerId: 'bob', words: 3, left: false, wins: 2 }
   ],
   racesPlayed: 0,
+  practice: false,
   ...over
 })
 
@@ -102,17 +103,49 @@ describe('WordchainTable', () => {
     })
   })
 
-  it('starts nothing until a second seat, then a race of the letters picked', () => {
+  it('offers practice alone, then a race of the letters picked once a second seat comes', () => {
     const alone = view({ phase: 'waiting', start: undefined, target: undefined, par: undefined, runners: [{ playerId: 'alice', words: 0, left: false, wins: 0 }] })
     const { held, rerender } = mount({ view: alone })
-    expect(screen.getByText('Waiting for a second seat.')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Start the race' })).toHaveProperty('disabled', true)
+    expect(screen.getByText('Waiting for a second seat, or practice alone.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Start the race' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Practice' }))
+    expect(held.startTable).toHaveBeenCalledWith(4)
 
     const two = { ...alone, runners: [...alone.runners, { playerId: 'bob', words: 0, left: false, wins: 0 }] }
     rerender(<WordchainTable playerId="alice" connected view={two} table={held} />)
+    expect(screen.queryByRole('button', { name: 'Practice' })).toBeNull()
     fireEvent.change(screen.getByRole('combobox', { name: 'Race' }), { target: { value: '5' } })
     fireEvent.click(screen.getByRole('button', { name: 'Start the race' }))
-    expect(held.startTable).toHaveBeenCalledWith(5)
+    expect(held.startTable).toHaveBeenLastCalledWith(5)
+  })
+
+  describe('practice', () => {
+    const solo = (over: Partial<WordchainView> = {}) =>
+      view({ practice: true, runners: [{ playerId: 'alice', words: 1, left: false, ladder: ['cord'], wins: 0 }], ...over })
+
+    it('says how the practice went, naming no winner, and practises again', () => {
+      const done = solo({
+        phase: 'over',
+        runners: [{ playerId: 'alice', words: 3, left: false, ladder: ['cord', 'word', 'warm'], finishedAtMs: NOW + 1, wins: 0 }],
+        result: { ending: 'finished', winners: ['alice'], standings: ['alice'] }
+      })
+      const { held } = mount({ view: done })
+      expect(screen.getByText('Finished in 3 steps (par 4).')).toBeTruthy()
+      expect(screen.queryByText(/won/)).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Practice again' }))
+      expect(held.startTable).toHaveBeenCalledWith(4)
+    })
+
+    it('says so while racing alone', () => {
+      mount({ view: solo() })
+      expect(screen.getByText('Practice: one letter at a time, every rung a word: cold to warm.')).toBeTruthy()
+    })
+
+    it('leaves at once, with nothing to give up', () => {
+      const { held } = mount({ view: solo() })
+      fireEvent.click(screen.getByRole('button', { name: 'Leave table' }))
+      expect(held.leaveTable).toHaveBeenCalledTimes(1)
+    })
   })
 
   it('shows the puzzle with par in steps, its own ladder, and others only as counts', () => {

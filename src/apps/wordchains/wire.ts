@@ -1,7 +1,8 @@
 // The word ladder race's vocabulary on the room stream (MoonBase#1719),
 // mirroring model/wordchain.smithy. Two to four seats climb the same
 // puzzle against one clock, each on their own ladder; while a race runs a
-// seat sees its own ladder and only everyone else's word count.
+// seat sees its own ladder and only everyone else's word count. A lone
+// seat races alone for practice (MoonBase#1727).
 
 // over: between races; closed: too few seats remain.
 export type WordchainPhase = 'waiting' | 'racing' | 'over' | 'closed'
@@ -48,6 +49,9 @@ export interface WordchainView {
   runners: WordchainRunner[]
   result?: WordchainResult
   racesPlayed: number
+  // A lone seat racing for practice: nobody wins and nothing is recorded.
+  // A join ends it, and the table waits for a real race.
+  practice: boolean
 }
 
 export interface WordchainUpdate {
@@ -64,8 +68,8 @@ export type WordchainLetters = 3 | 4 | 5
 export interface WordchainMovePayloads {
   createGame: undefined
   joinGame: { gameId: string }
-  // The first race once two are seated, and each next once the last is
-  // over; absent fields take 4 letters and 180 seconds.
+  // The first race (practice, with one seated), and each next once the
+  // last is over; absent fields take 4 letters and 180 seconds.
   startGame: { letters?: WordchainLetters; seconds?: number }
   leaveGame: undefined
   play: { word: string }
