@@ -1,10 +1,32 @@
 .hoverableWord {
   cursor: pointer;
   position: relative;
+  border: none;
+  font-family: inherit;
   transition: all 0.2s ease;
 }
 
-.hoverableWord:hover {
+.hoverableWord:not(.plain):hover {
   transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+}
+
+.plain {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 0.2em;
+}
+
+.plain:hover {
+  text-decoration-style: solid;
+}
+
+.hoverableWord:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
 }

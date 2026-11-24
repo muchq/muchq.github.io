@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import styles from './WordDefinitionModal.module.css'
 
 interface WordDefinitionModalProps {
@@ -16,6 +16,11 @@ const WordDefinitionModal = ({ word, onClose }: WordDefinitionModalProps) => {
   const [definition, setDefinition] = useState<Definition | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const titleId = useId()
+  const closeRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    closeRef.current?.focus()
+  }, [])
 
   useEffect(() => {
     const fetchDefinition = async () => {
@@ -71,10 +76,12 @@ const WordDefinitionModal = ({ word, onClose }: WordDefinitionModalProps) => {
 
   return (
     <div className={styles.backdrop} onClick={handleBackdropClick}>
-      <div className={styles.modal}>
+      <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className={styles.header}>
-          <h2 className={styles.word}>{word}</h2>
-          <button className={styles.closeButton} onClick={onClose}>
+          <h2 id={titleId} className={styles.word}>
+            {word}
+          </h2>
+          <button ref={closeRef} type="button" className={styles.closeButton} onClick={onClose} aria-label="Close">
             ✕
           </button>
         </div>
