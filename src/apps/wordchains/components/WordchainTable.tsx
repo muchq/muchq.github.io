@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { WordchainTableActions } from '@/hooks/useWordchainTable'
 import type { WordchainLetters, WordchainRunner, WordchainView } from '../wire'
+import { useSoundSetting, useWordchainSounds } from '../useWordchainSounds'
 import { clockText, describePractice, describeResult, parSteps, steps, you } from '../race'
 import felt from '@/apps/cards/felt.module.css'
 import GameEnding from '@/apps/cards/GameEnding'
@@ -18,7 +19,7 @@ export interface WordchainTableProps {
   playerId: string
   connected: boolean
   view: WordchainView
-  table: WordchainTableActions & { opening: boolean; sending: boolean }
+  table: WordchainTableActions & { opening: boolean; sending: boolean; refusals: number }
 }
 
 const LETTER_OPTIONS = [
@@ -43,6 +44,8 @@ const RaceClock = ({ deadlineMs }: { deadlineMs: number }) => {
 
 const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProps) => {
   const { opening, sending } = table
+  const [sound, setSound] = useSoundSetting()
+  useWordchainSounds({ view, refusals: table.refusals, playerId, on: sound })
   const headingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     headingRef.current?.focus()
@@ -143,6 +146,10 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
             {hint}
           </p>
         </div>
+        <label className={styles.sound}>
+          <input type="checkbox" checked={sound} onChange={event => setSound(event.target.checked)} />
+          Sound effects
+        </label>
         {view.phase !== 'closed' &&
           (confirmingLeave ? (
             <span className={styles.confirm}>

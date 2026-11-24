@@ -89,4 +89,17 @@ describe('useWordchainTable', () => {
     expect(result.current.view).toBeNull()
     expect(onLeft).toHaveBeenCalledTimes(2)
   })
+
+  it('counts a refused word or take-back, and nothing else the hub refuses', () => {
+    const { result, receive } = mount()
+    receive({ gameState: { view: view() } })
+    act(() => result.current.handleRejected())
+    expect(result.current.refusals).toBe(0)
+    act(() => result.current.play('qzqz'))
+    act(() => result.current.handleRejected())
+    expect(result.current.refusals).toBe(1)
+    act(() => result.current.retract())
+    act(() => result.current.handleRejected())
+    expect(result.current.refusals).toBe(2)
+  })
 })
