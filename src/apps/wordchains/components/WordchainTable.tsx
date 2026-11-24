@@ -68,6 +68,10 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
   // clears it.
   const race = `${view.start}|${view.target}|${view.startedAtMs}`
   const [draft, setDraft] = useState('')
+  // The race whose shortest ladder the viewer asked to see: a new race
+  // hides it again.
+  const [solvedRace, setSolvedRace] = useState<string | null>(null)
+  const solution = racing ? undefined : view.solution
   const [held, setHeld] = useState({ race, rungs: ladder.length })
   if (held.race !== race || held.rungs !== ladder.length) {
     if (held.race !== race) setLetters(lettersOf(view.start))
@@ -183,6 +187,28 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
       <p className={felt.ending} role="status">
         {view.result === undefined ? '' : view.practice ? describePractice(view, playerId) : describeResult(view.result, view, playerId)}
       </p>
+      {solution !== undefined && solution.length > 0 && (
+        <section className={styles.solution}>
+          {solvedRace === race ? (
+            <>
+              <ol className={styles.ladder} aria-label="a shortest ladder">
+                {solution.map((word, i) => (
+                  <li key={i} className={styles.rung}>
+                    <HoverableWord word={word} />
+                  </li>
+                ))}
+              </ol>
+              <button type="button" className={felt.link} onClick={() => setSolvedRace(null)}>
+                Hide the ladder
+              </button>
+            </>
+          ) : (
+            <button type="button" className={felt.link} onClick={() => setSolvedRace(race)}>
+              Show a shortest ladder
+            </button>
+          )}
+        </section>
+      )}
 
       {view.start !== undefined && view.target !== undefined && (
         <section className={styles.puzzle} aria-label="puzzle">

@@ -278,4 +278,36 @@ describe('WordchainTable', () => {
     mount()
     expect(screen.getByRole('checkbox', { name: 'Sound effects' })).not.toBeChecked()
   })
+
+  describe('a shortest ladder', () => {
+    const over = (solution?: string[]) =>
+      view({ phase: 'over', result: { ending: 'timeout', winners: [], standings: [] }, ...(solution ? { solution } : {}) })
+
+    it('shows one once the race is over, only when asked', () => {
+      mount({ view: over(['cold', 'cord', 'card', 'ward', 'warm']) })
+      expect(screen.queryByRole('list', { name: 'a shortest ladder' })).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Show a shortest ladder' }))
+      const ladder = within(screen.getByRole('list', { name: 'a shortest ladder' }))
+      expect(ladder.getAllByRole('listitem').map(item => item.textContent)).toEqual(['cold', 'cord', 'card', 'ward', 'warm'])
+      expect(ladder.getByRole('button', { name: 'Define card' })).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: 'Hide the ladder' }))
+      expect(screen.queryByRole('list', { name: 'a shortest ladder' })).toBeNull()
+    })
+
+    it('offers none while racing, or when the hub sent none', () => {
+      mount()
+      expect(screen.queryByRole('button', { name: 'Show a shortest ladder' })).toBeNull()
+      cleanup()
+      mount({ view: over() })
+      expect(screen.queryByRole('button', { name: 'Show a shortest ladder' })).toBeNull()
+    })
+
+    it('hides the last race’s ladder when the next one ends', () => {
+      const { held, rerender } = mount({ view: over(['cold', 'cord', 'card', 'ward', 'warm']) })
+      fireEvent.click(screen.getByRole('button', { name: 'Show a shortest ladder' }))
+      const next = view({ phase: 'over', start: 'heat', target: 'cool', startedAtMs: NOW + 200_000, result: { ending: 'timeout', winners: [], standings: [] }, solution: ['heat', 'head', 'held', 'hold', 'cold', 'cool'] })
+      rerender(<WordchainTable playerId="alice" connected view={next} table={held} />)
+      expect(screen.queryByRole('list', { name: 'a shortest ladder' })).toBeNull()
+    })
+  })
 })
