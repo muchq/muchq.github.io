@@ -397,7 +397,7 @@ describe('useLobby', () => {
     act(() => ws.receive('roomState', roomState('R1')))
     act(() => result.current.wordchain.createTable())
     expect(ws.lastSent()).toEqual({ event: 'wordchain', payload: { move: { createGame: {} } } })
-    const wordchainView = { gameId: 'W1', phase: 'racing', start: 'cold', target: 'warm', par: 5, runners: [], racesPlayed: 0 }
+    const wordchainView = { gameId: 'W1', phase: 'racing', start: 'cold', target: 'warm', par: 5, runners: [], racesPlayed: 0, practice: false }
     act(() => ws.receive('wordchain', { update: { gameJoined: { view: wordchainView } } }))
     expect(result.current.wordchain.view?.gameId).toBe('W1')
     expect(pathname()).toBe('/games/room/R1/table/W1')

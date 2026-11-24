@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clockText, describeResult, parSteps, steps } from '../../race'
+import { clockText, describePractice, describeResult, parSteps, steps } from '../../race'
 import type { WordchainView } from '../../wire'
 
 const view = (over: Partial<WordchainView> = {}): WordchainView => ({
@@ -12,6 +12,7 @@ const view = (over: Partial<WordchainView> = {}): WordchainView => ({
     { playerId: 'cat', words: 2, left: false, wins: 0 }
   ],
   racesPlayed: 1,
+  practice: false,
   ...over
 })
 
@@ -34,6 +35,14 @@ describe('race words', () => {
     )
     expect(describeResult({ ending: 'finished', winners: ['alice', 'bob'], standings: [] }, v, 'alice')).toBe('You and bob share the win in 4 steps.')
     expect(describeResult({ ending: 'leave', winners: [], standings: [] }, v, 'cat')).toBe('Too few seats stayed: nobody finished.')
+  })
+
+  it('says a practice race’s steps against par, or that time ran out', () => {
+    const alone = (finished: boolean) =>
+      view({ practice: true, runners: [{ playerId: 'alice', words: 3, left: false, wins: 0, ...(finished ? { finishedAtMs: 1 } : {}) }] })
+    expect(describePractice(alone(true), 'alice')).toBe('Finished in 3 steps (par 4).')
+    expect(describePractice(alone(false), 'alice')).toBe('Time ran out.')
+    expect(describePractice({ ...alone(true), par: undefined }, 'alice')).toBe('Finished in 3 steps.')
   })
 
   it('counts the clock down in m:ss and stops at zero', () => {

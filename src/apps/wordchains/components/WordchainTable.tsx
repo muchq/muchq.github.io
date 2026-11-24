@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { WordchainTableActions } from '@/hooks/useWordchainTable'
 import type { WordchainLetters, WordchainRunner, WordchainView } from '../wire'
-import { clockText, describeResult, parSteps, steps, you } from '../race'
+import { clockText, describePractice, describeResult, parSteps, steps, you } from '../race'
 import felt from '@/apps/cards/felt.module.css'
 import GameEnding from '@/apps/cards/GameEnding'
 import AboutGame from '@/apps/lobby/components/AboutGame'
@@ -105,11 +105,13 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
 
   const par = parSteps(view)
   const seated = view.runners.filter(runner => !runner.left).length
+  // Alone, a start is practice: the hub races one seat and records nothing.
+  const alone = seated < 2
   const hint = (() => {
-    if (view.phase === 'waiting') return seated < 2 ? 'Waiting for a second seat.' : `${seated} seated: start when everyone’s here.`
-    if (climbing) return `One letter at a time, every rung a word: ${view.start} to ${view.target}.`
+    if (view.phase === 'waiting') return alone ? 'Waiting for a second seat, or practice alone.' : `${seated} seated: start when everyone’s here.`
+    if (climbing) return `${view.practice ? 'Practice: o' : 'O'}ne letter at a time, every rung a word: ${view.start} to ${view.target}.`
     if (racing && finished) return `You reached ${view.target} in ${steps(ladder.length)}. Waiting for the others.`
-    if (view.phase === 'over') return 'Anyone can start the next race.'
+    if (view.phase === 'over') return view.practice ? 'Practice again when you’re ready.' : 'Anyone can start the next race.'
     return ''
   })()
 
@@ -121,7 +123,7 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
       onChange={setLetters}
       action={action}
       onAction={value => table.startTable(Number(value) as WordchainLetters)}
-      disabled={!connected || seated < 2}
+      disabled={!connected}
     />
   )
 
@@ -163,7 +165,7 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
               ref={leaveRef}
               type="button"
               className={felt.link}
-              onClick={racing && me !== undefined ? () => setConfirmingLeave(true) : table.leaveTable}
+              onClick={racing && me !== undefined && !view.practice ? () => setConfirmingLeave(true) : table.leaveTable}
               disabled={!connected}
             >
               Leave table
@@ -171,7 +173,7 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
           ))}
       </div>
       <p className={felt.ending} role="status">
-        {view.result === undefined ? '' : describeResult(view.result, view, playerId)}
+        {view.result === undefined ? '' : view.practice ? describePractice(view, playerId) : describeResult(view.result, view, playerId)}
       </p>
 
       {view.start !== undefined && view.target !== undefined && (
@@ -248,10 +250,10 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
         {view.phase === 'waiting' && (
           <>
             <AboutGame game="wordchain" className={felt.hint} />
-            {startPicker('Start the race')}
+            {startPicker(alone ? 'Practice' : 'Start the race')}
           </>
         )}
-        {view.phase === 'over' && startPicker('Next race')}
+        {view.phase === 'over' && startPicker(view.practice ? 'Practice again' : 'Next race')}
         {view.phase === 'closed' && <GameEnding onPlayAgain={table.playAgain} onBack={table.leaveTable} opening={opening} connected={connected} />}
       </div>
     </div>

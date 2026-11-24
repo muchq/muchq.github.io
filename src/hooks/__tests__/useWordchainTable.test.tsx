@@ -16,6 +16,7 @@ const view = (over: Partial<WordchainView> = {}): WordchainView => ({
     { playerId: 'bob', words: 0, left: false, wins: 0 }
   ],
   racesPlayed: 0,
+  practice: false,
   ...over
 })
 

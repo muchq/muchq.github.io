@@ -29,6 +29,15 @@ export function describeResult(result: WordchainResult, view: WordchainView, pla
   return `${why}${opened} ${verb}${how}.`
 }
 
+// A practice race's end, naming no winner: "Finished in 3 steps (par 4).",
+// or "Time ran out."
+export function describePractice(view: WordchainView, playerId: string): string {
+  const me = runnerOf(view, playerId)
+  if (me?.finishedAtMs === undefined) return 'Time ran out.'
+  const par = parSteps(view)
+  return `Finished in ${steps(me.words)}${par === undefined ? '' : ` (par ${par})`}.`
+}
+
 // m:ss left on the clock, never below zero.
 export function clockText(ms: number): string {
   const seconds = Math.max(0, Math.ceil(ms / 1000))

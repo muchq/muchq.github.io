@@ -67,7 +67,8 @@ export const CATALOG: readonly CatalogEntry[] = [
     game: 'wordchain',
     label: 'Word chains',
     family: 'Board',
-    seats: { min: 2, max: 4 },
+    // One practises alone; two to four race.
+    seats: { min: 1, max: 4 },
     blurb: 'Race up a word ladder, one letter at a time, every rung a word. Fewest steps wins; on the clock.',
     variants: '3, 4 or 5 letters'
   },
