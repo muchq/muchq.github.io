@@ -5,7 +5,7 @@ import type { HubGameName } from '@/utils/hubStream'
 // A new game is also a name in HUB_GAMES and an entry in games.tsx (its
 // table hook and its table).
 
-export type GameFamily = 'Cards' | 'Board' | 'Arcade'
+export type GameFamily = 'Cards' | 'Board' | 'Words' | 'Arcade'
 
 export interface CatalogEntry {
   game: HubGameName
@@ -64,6 +64,14 @@ export const CATALOG: readonly CatalogEntry[] = [
     variants: '9×9, 13×13 or 19×19'
   },
   {
+    game: 'wordchain',
+    label: 'Word chains',
+    family: 'Words',
+    seats: { min: 2, max: 4 },
+    blurb: 'Race up a word ladder, one letter at a time, every rung a word. Fewest steps wins; on the clock.',
+    variants: '3, 4 or 5 letters'
+  },
+  {
     game: 'pong',
     label: 'Pong',
     family: 'Arcade',
@@ -80,6 +88,7 @@ export const FAMILIES: readonly GameFamily[] = [...new Set(CATALOG.map(entry => 
 export const FAMILY_NOUNS: Record<GameFamily, { singular: string; plural: string }> = {
   Cards: { singular: 'Card', plural: 'cards' },
   Board: { singular: 'Board', plural: 'board' },
+  Words: { singular: 'Word', plural: 'words' },
   Arcade: { singular: 'Arcade', plural: 'arcade' }
 }
 
