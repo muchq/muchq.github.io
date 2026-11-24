@@ -7,6 +7,7 @@ import felt from '@/apps/cards/felt.module.css'
 import GameEnding from '@/apps/cards/GameEnding'
 import AboutGame from '@/apps/lobby/components/AboutGame'
 import VariantPicker from '@/apps/lobby/components/VariantPicker'
+import HoverableWord from './HoverableWord'
 import styles from './WordchainTable.module.css'
 
 // A word ladder race at a lobby table (MoonBase#1719): everyone climbs
@@ -185,9 +186,13 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
 
       {view.start !== undefined && view.target !== undefined && (
         <section className={styles.puzzle} aria-label="puzzle">
-          <span className={styles.word}>{view.start}</span>
+          <span className={styles.word}>
+            <HoverableWord word={view.start} />
+          </span>
           <span aria-hidden="true">→</span>
-          <span className={styles.word}>{view.target}</span>
+          <span className={styles.word}>
+            <HoverableWord word={view.target} />
+          </span>
           {par !== undefined && <span className={felt.muted}>par {steps(par)}</span>}
           {racing && view.deadlineMs !== undefined && <RaceClock deadlineMs={view.deadlineMs} />}
         </section>
@@ -196,10 +201,14 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
       {racing && me !== undefined && (
         <section className={styles.mine} aria-label="your ladder">
           <ol className={styles.ladder}>
-            <li className={styles.rung}>{view.start}</li>
+            {view.start !== undefined && (
+              <li className={styles.rung}>
+                <HoverableWord word={view.start} />
+              </li>
+            )}
             {ladder.map((word, i) => (
               <li key={i} className={styles.rung}>
-                {word}
+                <HoverableWord word={word} />
               </li>
             ))}
           </ol>
@@ -244,7 +253,14 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
               <td>
                 {runnerLine(runner)}
                 {!racing && runner.ladder !== undefined && runner.ladder.length > 0 && (
-                  <span className={styles.shown}>{[view.start, ...runner.ladder].join(' → ')}</span>
+                  <span className={styles.shown}>
+                    {(view.start === undefined ? runner.ladder : [view.start, ...runner.ladder]).map((word, i) => (
+                      <span key={i}>
+                        {i > 0 && ' → '}
+                        <HoverableWord word={word} />
+                      </span>
+                    ))}
+                  </span>
                 )}
               </td>
               <td>{runner.wins}</td>

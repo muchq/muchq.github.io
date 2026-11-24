@@ -243,6 +243,20 @@ describe('WordchainTable', () => {
     ])
     fireEvent.click(screen.getByRole('button', { name: 'Next race' }))
     expect(held.startTable).toHaveBeenCalledWith(4)
+    // Every ladder's words, and the puzzle's, can be looked up.
+    for (const word of ['cold', 'cord', 'word', 'ward', 'warm']) {
+      expect(runners().getAllByRole('button', { name: `Define ${word}` }).length).toBeGreaterThan(0)
+    }
+    const puzzle = within(screen.getByRole('region', { name: 'puzzle' }))
+    expect(puzzle.getByRole('button', { name: 'Define cold' })).toBeTruthy()
+    expect(puzzle.getByRole('button', { name: 'Define warm' })).toBeTruthy()
+  })
+
+  it('looks up the words on the viewer’s own ladder while racing, and nobody else’s', () => {
+    mount()
+    const ladder = within(screen.getByRole('region', { name: 'your ladder' }))
+    expect(ladder.getByRole('button', { name: 'Define cord' })).toBeTruthy()
+    expect(runners().queryAllByRole('button')).toEqual([])
   })
 
   it('offers another table or the room once closed', () => {
