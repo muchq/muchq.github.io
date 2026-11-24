@@ -25,6 +25,7 @@ const view = (over: Partial<WordchainView> = {}): WordchainView => ({
 const table = (over: Partial<WordchainTableProps['table']> = {}): WordchainTableProps['table'] => ({
   opening: false,
   sending: false,
+  refusals: 0,
   startTable: vi.fn(),
   leaveTable: vi.fn(),
   playAgain: vi.fn(),
@@ -50,6 +51,7 @@ const rows = () =>
 
 afterEach(() => {
   cleanup()
+  localStorage.clear()
   vi.useRealTimers()
 })
 
@@ -250,5 +252,16 @@ describe('WordchainTable', () => {
     expect(held.playAgain).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole('button', { name: 'Back to the room' }))
     expect(held.leaveTable).toHaveBeenCalledTimes(1)
+  })
+
+  it('turns sound effects off and on, remembered on this device', () => {
+    mount()
+    const toggle = screen.getByRole('checkbox', { name: 'Sound effects' })
+    expect(toggle).toBeChecked()
+    fireEvent.click(toggle)
+    expect(toggle).not.toBeChecked()
+    cleanup()
+    mount()
+    expect(screen.getByRole('checkbox', { name: 'Sound effects' })).not.toBeChecked()
   })
 })

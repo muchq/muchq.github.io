@@ -24,6 +24,8 @@ export interface UseWordchainTable extends WordchainTableActions {
   // A word or a retract sent and not yet answered: the next view, or a
   // refusal, lets it go.
   sending: boolean
+  // The hub's refusals of a word or take-back this seat sent, counted.
+  refusals: number
   handleUpdate: (update: WordchainUpdate) => void
   handleRejected: () => void
   clear: () => void
@@ -40,6 +42,7 @@ export const useWordchainTable = ({ playerId, move, showNotice, onLeft }: UseWor
   const [view, setView] = useState<WordchainView | null>(null)
   const [opening, setOpening] = useState(false)
   const [sending, setSending] = useState(false)
+  const [refusals, setRefusals] = useState(0)
 
   const settle = useCallback(() => {
     setOpening(false)
@@ -70,6 +73,11 @@ export const useWordchainTable = ({ playerId, move, showNotice, onLeft }: UseWor
     },
     [clear, onLeft, playerId, settle, showNotice]
   )
+
+  const rejected = useCallback(() => {
+    if (sending) setRefusals(count => count + 1)
+    settle()
+  }, [sending, settle])
 
   const createTable = useCallback(() => move('createGame'), [move])
   const joinTable = useCallback(
@@ -105,5 +113,5 @@ export const useWordchainTable = ({ playerId, move, showNotice, onLeft }: UseWor
     move('retract')
   }, [move])
 
-  return { view, opening, sending, handleUpdate, handleRejected: settle, clear, createTable, joinTable, startTable, leaveTable, playAgain, play, retract }
+  return { view, opening, sending, refusals, handleUpdate, handleRejected: rejected, clear, createTable, joinTable, startTable, leaveTable, playAgain, play, retract }
 }
