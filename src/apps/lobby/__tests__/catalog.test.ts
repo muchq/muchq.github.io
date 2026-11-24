@@ -29,7 +29,7 @@ describe('the game catalog', () => {
     expect(seatsLine(catalogEntry('castle'))).toBe('2–4 players')
     expect(seatsLine(catalogEntry('spades'))).toBe('2–4 players · partners or cutthroat, chosen at the table')
     expect(seatsLine(catalogEntry('go'))).toBe('2 players · 9×9, 13×13 or 19×19, chosen at the table')
-    expect(seatsLine(catalogEntry('wordchain'))).toBe('2–4 players · 3, 4 or 5 letters, chosen at the table')
+    expect(seatsLine(catalogEntry('wordchain'))).toBe('1–4 players · 3, 4 or 5 letters, chosen at the table')
     expect(seatsLine(catalogEntry('pong'))).toBe('2 players · 2D or 3D, chosen at the table')
     expect(seatsLine(catalogEntry('rummy'))).toBe('2–4 players · 7-card, 10-card or gin, chosen at the table')
   })

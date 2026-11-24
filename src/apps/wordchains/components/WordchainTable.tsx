@@ -111,7 +111,7 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
     if (view.phase === 'waiting') return alone ? 'Waiting for a second seat, or practice alone.' : `${seated} seated: start when everyone’s here.`
     if (climbing) return `${view.practice ? 'Practice: o' : 'O'}ne letter at a time, every rung a word: ${view.start} to ${view.target}.`
     if (racing && finished) return `You reached ${view.target} in ${steps(ladder.length)}. Waiting for the others.`
-    if (view.phase === 'over') return 'Anyone can start the next race.'
+    if (view.phase === 'over') return view.practice ? 'Practice again when you’re ready.' : 'Anyone can start the next race.'
     return ''
   })()
 

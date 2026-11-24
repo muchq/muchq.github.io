@@ -42,6 +42,7 @@ describe('race words', () => {
       view({ practice: true, runners: [{ playerId: 'alice', words: 3, left: false, wins: 0, ...(finished ? { finishedAtMs: 1 } : {}) }] })
     expect(describePractice(alone(true), 'alice')).toBe('Finished in 3 steps (par 4).')
     expect(describePractice(alone(false), 'alice')).toBe('Time ran out.')
+    expect(describePractice({ ...alone(true), par: undefined }, 'alice')).toBe('Finished in 3 steps.')
   })
 
   it('counts the clock down in m:ss and stops at zero', () => {

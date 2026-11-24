@@ -131,6 +131,8 @@ describe('WordchainTable', () => {
       })
       const { held } = mount({ view: done })
       expect(screen.getByText('Finished in 3 steps (par 4).')).toBeTruthy()
+      expect(screen.getByText('Practice again when you’re ready.')).toBeTruthy()
+      expect(screen.queryByText('Anyone can start the next race.')).toBeNull()
       expect(screen.queryByText(/won/)).toBeNull()
       fireEvent.click(screen.getByRole('button', { name: 'Practice again' }))
       expect(held.startTable).toHaveBeenCalledWith(4)
