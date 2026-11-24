@@ -8,7 +8,7 @@ import { HUB_GAMES } from '@/utils/hubStream'
 describe('the game catalog', () => {
   it('names each game once, families in the order the picker shows them', () => {
     expect(CATALOG.map(entry => entry.game)).toEqual(['castle', 'golf', 'rummy', 'spades', 'chess', 'go', 'wordchain', 'pong'])
-    expect(CATALOG.map(entry => entry.family)).toEqual(['Cards', 'Cards', 'Cards', 'Cards', 'Board', 'Board', 'Words', 'Arcade'])
+    expect(CATALOG.map(entry => entry.family)).toEqual(['Cards', 'Cards', 'Cards', 'Cards', 'Board', 'Board', 'Board', 'Arcade'])
   })
 
   // A game the hub hosts but the catalog lacks is one no room can open.

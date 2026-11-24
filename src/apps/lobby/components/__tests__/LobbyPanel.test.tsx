@@ -260,11 +260,11 @@ describe('LobbyPanel', () => {
   // grouped by family, and the chosen one described under it.
   // One picker: Cards or Board, whose game is picked beside it, or Pong. What a
   // game is, its table says once open; the lobby only offers.
-  it('opens a table of whichever game is picked: a family and its game, word chains, or pong', () => {
+  it('opens a table of whichever game is picked: a family and its game, or pong', () => {
     const hook = lobby({ room: room() })
     render(<LobbyPanel lobby={hook} />)
     const picker = screen.getByRole('combobox', { name: 'Game' })
-    expect(within(picker).getAllByRole('option').map(option => option.textContent)).toEqual(['Cards', 'Board', 'Word chains', 'Pong'])
+    expect(within(picker).getAllByRole('option').map(option => option.textContent)).toEqual(['Cards', 'Board', 'Pong'])
     const cards = screen.getByRole('combobox', { name: 'Card game' })
     expect(within(cards).getAllByRole('option').map(option => option.textContent)).toEqual(['Castle', 'Golf', 'Rummy', 'Spades'])
     expect(screen.getAllByRole('button', { name: /^Open a table/ })).toHaveLength(1)
@@ -280,14 +280,14 @@ describe('LobbyPanel', () => {
     fireEvent.change(picker, { target: { value: 'board' } })
     expect(screen.queryByRole('combobox', { name: 'Card game' })).toBeNull()
     const boards = screen.getByRole('combobox', { name: 'Board game' })
-    expect(within(boards).getAllByRole('option').map(option => option.textContent)).toEqual(['Chess', 'Go'])
+    expect(within(boards).getAllByRole('option').map(option => option.textContent)).toEqual(['Chess', 'Go', 'Word chains'])
     fireEvent.click(screen.getByRole('button', { name: 'Open a table: chess' }))
     expect(hook.chess.createTable).toHaveBeenCalledTimes(1)
     fireEvent.change(boards, { target: { value: 'go' } })
     fireEvent.click(screen.getByRole('button', { name: 'Open a table: go' }))
     expect(hook.go.createTable).toHaveBeenCalledTimes(1)
     expect(hook.castle.createTable).toHaveBeenCalledTimes(1)
-    fireEvent.change(picker, { target: { value: 'wordchain' } })
+    fireEvent.change(boards, { target: { value: 'wordchain' } })
     fireEvent.click(screen.getByRole('button', { name: 'Open a table: wordchain' }))
     expect(hook.wordchain.createTable).toHaveBeenCalledTimes(1)
     fireEvent.change(picker, { target: { value: 'pong' } })
