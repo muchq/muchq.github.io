@@ -49,6 +49,7 @@ const lobby = (over: Partial<UseLobby> = {}): UseLobby =>
     golf: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['golf'],
     rummy: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['rummy'],
     spades: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['spades'],
+    wordchain: { createTable: vi.fn(), joinTable: vi.fn() } as unknown as UseLobby['wordchain'],
     chess: { createTable: vi.fn(), joinTable: vi.fn(), watchTable: vi.fn(), history: null, loadHistory: vi.fn(), roundRobins: [], loadRoundRobins: vi.fn() } as unknown as UseLobby['chess'],
     go: goHook(),
     pong: pong(),
@@ -279,13 +280,16 @@ describe('LobbyPanel', () => {
     fireEvent.change(picker, { target: { value: 'board' } })
     expect(screen.queryByRole('combobox', { name: 'Card game' })).toBeNull()
     const boards = screen.getByRole('combobox', { name: 'Board game' })
-    expect(within(boards).getAllByRole('option').map(option => option.textContent)).toEqual(['Chess', 'Go'])
+    expect(within(boards).getAllByRole('option').map(option => option.textContent)).toEqual(['Chess', 'Go', 'Word chains'])
     fireEvent.click(screen.getByRole('button', { name: 'Open a table: chess' }))
     expect(hook.chess.createTable).toHaveBeenCalledTimes(1)
     fireEvent.change(boards, { target: { value: 'go' } })
     fireEvent.click(screen.getByRole('button', { name: 'Open a table: go' }))
     expect(hook.go.createTable).toHaveBeenCalledTimes(1)
     expect(hook.castle.createTable).toHaveBeenCalledTimes(1)
+    fireEvent.change(boards, { target: { value: 'wordchain' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Open a table: wordchain' }))
+    expect(hook.wordchain.createTable).toHaveBeenCalledTimes(1)
     fireEvent.change(picker, { target: { value: 'pong' } })
     fireEvent.click(screen.getByRole('button', { name: 'Open a table: pong' }))
     expect(hook.pong.createTable).toHaveBeenCalledTimes(1)

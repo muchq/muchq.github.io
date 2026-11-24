@@ -6,6 +6,7 @@ import GolfTable from '@/apps/golf/components/GolfTable'
 import PongTable from '@/apps/pong/components/PongTable'
 import RummyTable from '@/apps/rummy/components/RummyTable'
 import SpadesTable from '@/apps/spades/components/SpadesTable'
+import WordchainTable from '@/apps/wordchains/components/WordchainTable'
 import { useCastleTable } from '@/hooks/useCastleTable'
 import { useChessTable } from '@/hooks/useChessTable'
 import { useGoTable } from '@/hooks/useGoTable'
@@ -13,6 +14,7 @@ import { useGolfTable } from '@/hooks/useGolfTable'
 import { usePongTable } from '@/hooks/usePongTable'
 import { useRummyTable } from '@/hooks/useRummyTable'
 import { useSpadesTable } from '@/hooks/useSpadesTable'
+import { useWordchainTable } from '@/hooks/useWordchainTable'
 import type { HubGameName } from '@/utils/hubStream'
 
 // Each game's table in the lobby: the hook that speaks its envelope and
@@ -116,6 +118,11 @@ export const GAME_TABLES = {
     useTable: useSpadesTable,
     Table: ({ table, context }) =>
       table.view && <SpadesTable playerId={context.playerId} connected={context.connected} view={table.view} table={table} />
+  }),
+  wordchain: entry({
+    useTable: useWordchainTable,
+    Table: ({ table, context }) =>
+      table.view && <WordchainTable playerId={context.playerId} connected={context.connected} view={table.view} table={table} />
   })
 } satisfies { [G in HubGameName]: GameTable<TableHook> }
 

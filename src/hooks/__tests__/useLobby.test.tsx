@@ -392,6 +392,25 @@ describe('useLobby', () => {
     expect(result.current.spades.view).toBeNull()
   })
 
+  it('a wordchain table swaps in on its own envelope, and its words and refusals ride it', async () => {
+    const { result, ws, pathname } = await open()
+    act(() => ws.receive('roomState', roomState('R1')))
+    act(() => result.current.wordchain.createTable())
+    expect(ws.lastSent()).toEqual({ event: 'wordchain', payload: { move: { createGame: {} } } })
+    const wordchainView = { gameId: 'W1', phase: 'racing', start: 'cold', target: 'warm', par: 5, runners: [], racesPlayed: 0 }
+    act(() => ws.receive('wordchain', { update: { gameJoined: { view: wordchainView } } }))
+    expect(result.current.wordchain.view?.gameId).toBe('W1')
+    expect(pathname()).toBe('/games/room/R1/table/W1')
+    act(() => result.current.wordchain.play('cord'))
+    expect(ws.lastSent()).toEqual({ event: 'wordchain', payload: { move: { play: { word: 'cord' } } } })
+    act(() => result.current.wordchain.retract())
+    expect(ws.lastSent()).toEqual({ event: 'wordchain', payload: { move: { retract: {} } } })
+    act(() => ws.receive('commandRejected', { reason: '"cxrd" is not a word here' }))
+    expect(result.current.wordchain.sending).toBe(false)
+    act(() => ws.receive('roomLeft', { roomId: 'R1' }))
+    expect(result.current.wordchain.view).toBeNull()
+  })
+
   it('a share link to a spades table sits at it in spades’ envelope', async () => {
     const { ws } = await open({ permalinkRoomId: 'R1', permalinkGameId: 'S1' }, '/games/room/R1/table/S1')
     act(() => ws.receive('roomState', roomState('R1', [{ gameId: 'S1', game: 'spades', status: 'waiting', playerCount: 1 }])))

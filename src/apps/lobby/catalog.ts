@@ -64,6 +64,14 @@ export const CATALOG: readonly CatalogEntry[] = [
     variants: '9×9, 13×13 or 19×19'
   },
   {
+    game: 'wordchain',
+    label: 'Word chains',
+    family: 'Board',
+    seats: { min: 2, max: 4 },
+    blurb: 'Race up a word ladder, one letter at a time, every rung a word. Fewest steps wins; on the clock.',
+    variants: '3, 4 or 5 letters'
+  },
+  {
     game: 'pong',
     label: 'Pong',
     family: 'Arcade',

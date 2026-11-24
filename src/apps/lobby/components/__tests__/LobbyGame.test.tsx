@@ -9,6 +9,7 @@ import type { ChessReview, ChessView } from '@/apps/chess/wire'
 import type { PongView } from '@/apps/pong/wire'
 import type { GoView } from '@/apps/go/wire'
 import type { SpadesView } from '@/apps/spades/wire'
+import type { WordchainView } from '@/apps/wordchains/wire'
 import type { GameState } from '@/types/golf'
 import type { CommandRegistry } from '@/utils/commandRegistry'
 import { COMMAND_HOTKEY } from '@/utils/hotkeys'
@@ -43,7 +44,8 @@ const state = {
   chess: { view: null as ChessView | null, opening: false, history: null, review: null as ChessReview | null, closeReview: vi.fn(), loadHistory: vi.fn(), roundRobins: [], loadRoundRobins: vi.fn() },
   pong: { view: null as PongView | null, opening: false, roundRobins: [], loadRoundRobins: vi.fn(), latestFrame: () => null },
   spades: { view: null as SpadesView | null, opening: false },
-  go: { view: null as GoView | null, opening: false, history: null, loadHistory: vi.fn() }
+  go: { view: null as GoView | null, opening: false, history: null, loadHistory: vi.fn() },
+  wordchain: { view: null as WordchainView | null, opening: false }
 } as unknown as UseLobby
 
 vi.mock('@/hooks/useLobby', async importOriginal => ({
@@ -73,6 +75,7 @@ vi.mock('@/apps/chess/components/ChessTable', () => ({ default: () => <div>chess
 vi.mock('@/apps/pong/components/PongTable', () => ({ default: () => <div>pong table</div> }))
 vi.mock('@/apps/spades/components/SpadesTable', () => ({ default: () => <div>spades table</div> }))
 vi.mock('@/apps/go/components/GoTable', () => ({ default: () => <div>go table</div> }))
+vi.mock('@/apps/wordchains/components/WordchainTable', () => ({ default: () => <div>wordchain table</div> }))
 vi.mock('@/apps/chess/components/GameReview', () => ({
   default: ({ review, onClose }: { review: ChessReview; onClose: () => void }) => (
     <button type="button" onClick={onClose}>
