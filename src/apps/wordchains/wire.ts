@@ -45,6 +45,9 @@ export interface WordchainView {
   startedAtMs?: number
   deadlineMs?: number
   lexicon?: string
+  // A shortest ladder, start and target included, once the race is over;
+  // absent before, and for races stored before puzzles kept one.
+  solution?: string[]
   // In the order they joined.
   runners: WordchainRunner[]
   result?: WordchainResult
