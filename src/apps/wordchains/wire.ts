@@ -53,7 +53,7 @@ export interface WordchainView {
 export interface WordchainUpdate {
   gameJoined?: { view: WordchainView }
   gameState?: { view: WordchainView }
-  gameCreated?: { gameId: string; createdBy?: string }
+  gameCreated?: { gameId: string; createdBy: string }
   gameStarted?: Record<string, never>
   gameEnded?: { result: WordchainResult }
   gameLeft?: { gameId: string }

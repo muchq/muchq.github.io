@@ -37,9 +37,7 @@ const RaceClock = ({ deadlineMs }: { deadlineMs: number }) => {
     return () => window.clearInterval(timer)
   }, [])
   return (
-    <span className={styles.clock} aria-label="time left">
-      {clockText(deadlineMs - now)}
-    </span>
+    <span className={styles.clock}>{`${clockText(deadlineMs - now)} left`}</span>
   )
 }
 
@@ -57,20 +55,46 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
   const racing = view.phase === 'racing'
   const climbing = racing && me !== undefined && !finished
   const able = connected && !sending
-  const lastLetters = String(view.start?.length ?? 4) as (typeof LETTER_OPTIONS)[number]['value']
-  const [letters, setLetters] = useState<(typeof LETTER_OPTIONS)[number]['value']>(lastLetters)
+  const lettersOf = (word: string | undefined) => String(word?.length ?? 4) as (typeof LETTER_OPTIONS)[number]['value']
+  // The picker offers the last race's letters until someone picks others.
+  const [letters, setLetters] = useState(() => lettersOf(view.start))
 
   // The word typed stays until the hub takes it, so a refused word can be
-  // fixed rather than retyped; a rung added or taken back clears it.
+  // fixed rather than retyped; a rung added or taken back, or a new race,
+  // clears it.
+  const race = `${view.start}|${view.target}|${view.startedAtMs}`
   const [draft, setDraft] = useState('')
-  const [heldRungs, setHeldRungs] = useState(ladder.length)
-  if (heldRungs !== ladder.length) {
-    setHeldRungs(ladder.length)
+  const [held, setHeld] = useState({ race, rungs: ladder.length })
+  if (held.race !== race || held.rungs !== ladder.length) {
+    if (held.race !== race) setLetters(lettersOf(view.start))
+    setHeld({ race, rungs: ladder.length })
     setDraft('')
   }
+  // Focus follows the word box while climbing; when it goes (a finish or
+  // the race's end), the heading takes focus rather than the page.
+  const wasClimbing = useRef(climbing)
   useEffect(() => {
     if (climbing) inputRef.current?.focus()
+    else if (wasClimbing.current) headingRef.current?.focus()
+    wasClimbing.current = climbing
   }, [climbing, ladder.length])
+
+  // Leaving mid-race gives the race up, so it is asked twice; staying puts
+  // the button, and focus, back.
+  const [confirmingLeave, setConfirmingLeave] = useState(false)
+  if (confirmingLeave && !racing) setConfirmingLeave(false)
+  const leaveRef = useRef<HTMLButtonElement>(null)
+  const confirmRef = useRef<HTMLButtonElement>(null)
+  const stayed = useRef(false)
+  useEffect(() => {
+    if (confirmingLeave) {
+      confirmRef.current?.focus()
+      return
+    }
+    if (!stayed.current) return
+    stayed.current = false
+    leaveRef.current?.focus()
+  }, [confirmingLeave])
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -117,11 +141,34 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
             {hint}
           </p>
         </div>
-        {view.phase !== 'closed' && (
-          <button type="button" className={felt.link} onClick={table.leaveTable} disabled={!connected}>
-            Leave table
-          </button>
-        )}
+        {view.phase !== 'closed' &&
+          (confirmingLeave ? (
+            <span className={styles.confirm}>
+              <button ref={confirmRef} type="button" className={felt.secondary} onClick={table.leaveTable} disabled={!connected}>
+                Leave the race
+              </button>
+              <button
+                type="button"
+                className={felt.link}
+                onClick={() => {
+                  stayed.current = true
+                  setConfirmingLeave(false)
+                }}
+              >
+                Stay
+              </button>
+            </span>
+          ) : (
+            <button
+              ref={leaveRef}
+              type="button"
+              className={felt.link}
+              onClick={racing && me !== undefined ? () => setConfirmingLeave(true) : table.leaveTable}
+              disabled={!connected}
+            >
+              Leave table
+            </button>
+          ))}
       </div>
       <p className={felt.ending} role="status">
         {view.result === undefined ? '' : describeResult(view.result, view, playerId)}

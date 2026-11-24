@@ -13,7 +13,7 @@ export const you = (id: string, playerId: string): string => (id === playerId ? 
 const list = (names: string[]): string =>
   names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
 
-export const runnerOf = (view: WordchainView, id: string): WordchainRunner | undefined => view.runners.find(runner => runner.playerId === id)
+const runnerOf = (view: WordchainView, id: string): WordchainRunner | undefined => view.runners.find(runner => runner.playerId === id)
 
 // "You won in 4 steps.", "alice and bob share the win in 5 steps.",
 // "Time ran out: nobody finished."

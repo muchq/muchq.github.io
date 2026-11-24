@@ -40,12 +40,68 @@ const mount = (props: Partial<WordchainTableProps> = {}) => {
 
 const runners = () => within(screen.getByRole('table', { name: 'Runners' }))
 
+// Each runner's row as its cells read: name, climb, wins.
+const rows = () =>
+  runners()
+    .getAllByRole('row')
+    .slice(1)
+    .map(row => [...row.querySelectorAll('th, td')].map(cell => cell.textContent))
+
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
 })
 
 describe('WordchainTable', () => {
+  // A new race is a new puzzle: what was typed for the last one, and the
+  // letters picked before it, give way to the race the hub started.
+  describe('between races', () => {
+    it('drops a word typed and never sent when the next race starts', () => {
+      const fresh = (over: Partial<WordchainView>) =>
+        view({ runners: [{ playerId: 'alice', words: 0, left: false, ladder: [], wins: 0 }, view().runners[1]], ...over })
+      const { held, rerender } = mount({ view: fresh({}) })
+      fireEvent.change(screen.getByRole('textbox', { name: 'next word' }), { target: { value: 'cot' } })
+      rerender(<WordchainTable playerId="alice" connected view={fresh({ start: 'heat', target: 'cool', startedAtMs: NOW + 200_000 })} table={held} />)
+      expect(screen.getByRole('textbox', { name: 'next word' })).toHaveValue('')
+    })
+
+    it('offers the last race’s letters for the next', () => {
+      const over = (start: string) => view({ phase: 'over', start, result: { ending: 'timeout', winners: [], standings: [] } })
+      const { held, rerender } = mount({ view: over('cold') })
+      expect(screen.getByRole('combobox', { name: 'Race' })).toHaveValue('4')
+      rerender(<WordchainTable playerId="alice" connected view={over('heats')} table={held} />)
+      expect(screen.getByRole('combobox', { name: 'Race' })).toHaveValue('5')
+    })
+  })
+
+  describe('focus and leaving', () => {
+    it('moves focus to the heading when the word box goes at a finish', () => {
+      const { held, rerender } = mount()
+      expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'next word' }))
+      const done = view({ runners: [{ playerId: 'alice', words: 1, left: false, ladder: ['warm'], finishedAtMs: NOW + 1, wins: 0 }, view().runners[1]] })
+      rerender(<WordchainTable playerId="alice" connected view={done} table={held} />)
+      expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Word chains · W1' }))
+    })
+
+    it('asks before leaving a race, and Stay puts the button and focus back', () => {
+      const { held } = mount()
+      fireEvent.click(screen.getByRole('button', { name: 'Leave table' }))
+      expect(held.leaveTable).not.toHaveBeenCalled()
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Leave the race' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Stay' }))
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Leave table' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Leave table' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Leave the race' }))
+      expect(held.leaveTable).toHaveBeenCalledTimes(1)
+    })
+
+    it('leaves at once between races', () => {
+      const { held } = mount({ view: view({ phase: 'over', result: { ending: 'timeout', winners: [], standings: [] } }) })
+      fireEvent.click(screen.getByRole('button', { name: 'Leave table' }))
+      expect(held.leaveTable).toHaveBeenCalledTimes(1)
+    })
+  })
+
   it('starts nothing until a second seat, then a race of the letters picked', () => {
     const alone = view({ phase: 'waiting', start: undefined, target: undefined, par: undefined, runners: [{ playerId: 'alice', words: 0, left: false, wins: 0 }] })
     const { held, rerender } = mount({ view: alone })
@@ -67,7 +123,10 @@ describe('WordchainTable', () => {
     expect(puzzle.getByText('par 4 steps')).toBeTruthy()
     const ladder = within(screen.getByRole('region', { name: 'your ladder' }))
     expect(ladder.getAllByRole('listitem').map(item => item.textContent)).toEqual(['cold', 'cord'])
-    expect(runners().getByRole('row', { name: /bob/ }).textContent).toContain('3 steps')
+    expect(rows()).toEqual([
+      ['you', '1 step', '0'],
+      ['bob', '3 steps', '2']
+    ])
   })
 
   it('plays the word typed, trimmed and lowercased, on Enter', () => {
@@ -119,9 +178,14 @@ describe('WordchainTable', () => {
   it('counts down to the hub’s deadline', () => {
     vi.useFakeTimers({ now: NOW })
     mount()
-    expect(screen.getByLabelText('time left').textContent).toBe('3:00')
+    expect(screen.getByText('3:00 left')).toBeTruthy()
     act(() => vi.advanceTimersByTime(61_000))
-    expect(screen.getByLabelText('time left').textContent).toBe('1:59')
+    expect(screen.getByText('1:59 left')).toBeTruthy()
+  })
+
+  it('shows no clock once the race is over', () => {
+    mount({ view: view({ phase: 'over', result: { ending: 'timeout', winners: [], standings: ['alice', 'bob'] } }) })
+    expect(screen.queryByText(/ left$/)).toBeNull()
   })
 
   it('shows every ladder and the result once over, and starts the next race on the same letters', () => {
@@ -136,8 +200,10 @@ describe('WordchainTable', () => {
     const { held } = mount({ view: over })
     expect(screen.getByText('bob won in 4 steps.')).toBeTruthy()
     expect(screen.queryByRole('region', { name: 'your ladder' })).toBeNull()
-    expect(runners().getByText('cold → word → ward → warm')).toBeTruthy()
-    expect(runners().getByText('cold → cord')).toBeTruthy()
+    expect(rows()).toEqual([
+      ['you', '1 stepcold → cord', '0'],
+      ['bob', 'finished in 4 stepscold → word → ward → warm', '3']
+    ])
     fireEvent.click(screen.getByRole('button', { name: 'Next race' }))
     expect(held.startTable).toHaveBeenCalledWith(4)
   })
