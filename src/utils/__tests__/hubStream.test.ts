@@ -59,7 +59,7 @@ describe('HubStream', () => {
 
   it('mints a session, then dials with the ticket and the JSON subprotocol', async () => {
     const [hub, ws] = await connect()
-    expect(fetchMock).toHaveBeenCalledWith('https://api.muchq.com/games/v2/session', expect.objectContaining({ method: 'POST' }))
+    expect(fetchMock).toHaveBeenCalledWith('https://api.muchq.com/games/v2/session?client=web', expect.objectContaining({ method: 'POST' }))
     expect(ws.url).toBe('wss://api.muchq.com/games/v2/play?ticket=t-123')
     expect(ws.protocol).toBe('smithy.eventstream.v1+json')
     expect(hub.isConnected).toBe(true)

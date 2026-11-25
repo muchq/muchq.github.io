@@ -32,8 +32,10 @@ function hubHttpBase(playUrl: string): string {
   return `${protocol}//${play.host}`
 }
 
+// The mint names who asks, for the hub's metrics (MoonBase client_tag.h):
+// the web, which always runs its latest deploy, carries no version.
 export function hubSessionUrl(playUrl: string): string {
-  return `${hubHttpBase(playUrl)}/games/v2/session`
+  return `${hubHttpBase(playUrl)}/games/v2/session?client=web`
 }
 
 // The public chess feed (MoonBase#1637): every game that ended in a
