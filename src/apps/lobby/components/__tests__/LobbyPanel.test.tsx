@@ -42,6 +42,9 @@ const lobby = (over: Partial<UseLobby> = {}): UseLobby =>
     joinRoom: vi.fn(),
     leaveRoom: vi.fn(),
     sendChat: vi.fn(),
+    displayName: '',
+    setDisplayName: vi.fn(),
+    nameOf: (id: string) => id,
     reconnect: vi.fn(),
     world: {} as UseLobby['world'],
     voice: fakeVoiceMesh() as unknown as UseLobby['voice'],
@@ -934,6 +937,32 @@ describe('LobbyPanel', () => {
     it('refreshes only while connected', () => {
       render(<LobbyPanel lobby={lobby({ connected: false, room: room(), go: goHook([], [goGame()]) })} />)
       expect((within(screen.getByRole('region', { name: 'Go games' })).getByRole('button', { name: 'Refresh go games' }) as HTMLButtonElement).disabled).toBe(true)
+    })
+  })
+
+  describe('display names', () => {
+    const named = room({
+      players: [
+        { playerId: 'alice', name: 'Ann', connected: true, gamesPlayed: 0, gamesWon: 0, totalScore: 0 },
+        { playerId: 'bob', connected: true, gamesPlayed: 0, gamesWon: 0, totalScore: 0 }
+      ]
+    })
+
+    it('lists players by name, the viewer marked as you, and anyone unnamed by id', () => {
+      render(<LobbyPanel lobby={lobby({ room: named, nameOf: id => (id === 'alice' ? 'Ann' : id) })} />)
+      const players = within(screen.getByRole('region', { name: 'Players' }))
+      expect(players.getByText('Ann (you)')).toBeTruthy()
+      expect(players.getByText('bob')).toBeTruthy()
+    })
+
+    it('saves the name typed, and shows the one kept', () => {
+      const held = lobby({ room: named, displayName: 'Ann' })
+      render(<LobbyPanel lobby={held} />)
+      const field = screen.getByRole('textbox', { name: 'Your name' })
+      expect(field).toHaveValue('Ann')
+      fireEvent.change(field, { target: { value: 'Annie' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Save name' }))
+      expect(held.setDisplayName).toHaveBeenCalledWith('Annie')
     })
   })
 })

@@ -58,6 +58,8 @@ export interface HubTable {
 
 export interface HubRoomPlayer {
   playerId: string
+  // The name the player chose; absent until they choose one.
+  name?: string
   connected: boolean
   gamesPlayed: number
   gamesWon: number
@@ -122,7 +124,7 @@ type HubFrame =
   | { event: 'voice'; payload: { update: VoiceUpdate } }
   | { event?: undefined; exception: string; payload: { message?: string } }
 
-type HubCommand = 'createRoom' | 'joinRoom' | 'leaveRoom' | 'getRoomState' | 'chat' | 'lobby' | 'voice' | HubGameName
+type HubCommand = 'createRoom' | 'joinRoom' | 'leaveRoom' | 'getRoomState' | 'chat' | 'setName' | 'lobby' | 'voice' | HubGameName
 
 export interface HubStreamCallbacks {
   onConnection?: (connected: boolean) => void
@@ -359,6 +361,12 @@ export class HubStream {
   // The server trims, validates, and authorizes; this only ships the text.
   chat(text: string): void {
     this.send('chat', { text })
+  }
+
+  // The name shown beside this player's id; empty clears it. The hub
+  // trims and validates it.
+  setName(name: string): void {
+    this.send('setName', { name })
   }
 
   // One move in a game's envelope: {"move": {"<name>": payload}}.

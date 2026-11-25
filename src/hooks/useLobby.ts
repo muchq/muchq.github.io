@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { ChatMessage } from '@/types/roomChat'
 import { mergeChatMessages } from '@/types/roomChat'
 import { HUB_RESUME_TOKEN_KEY } from '@/utils/hubSession'
+import { nameIn, storeDisplayName, storedDisplayName } from '@/utils/displayName'
 import { HUB_GAMES, HubStream, hubPlayUrl, isHubGame } from '@/utils/hubStream'
 import type { HubGameName, HubRoom, HubSessionReady } from '@/utils/hubStream'
 import { HubWorldLink } from '@/utils/hubWorldLink'
@@ -81,6 +82,12 @@ export interface UseLobby extends LobbyTables {
   joinRoom: () => void
   leaveRoom: () => void
   sendChat: (text: string) => void
+  // The name this device shows beside its id (MoonBase#1519): kept here,
+  // sent to the hub on every session; empty for none.
+  displayName: string
+  setDisplayName: (name: string) => void
+  // A player as people read them: the name the room lists, else the id.
+  nameOf: (playerId: string) => string
   world: HubWorldLink
   voice: VoiceMesh
 }
@@ -125,6 +132,8 @@ export const useLobby = ({
   const [chat, setChat] = useState<LobbyChat>({ messages: [], replayUpTo: 0, rejection: null })
 
   const streamRef = useRef<HubStream | null>(null)
+  const [displayName, setDisplayNameState] = useState(storedDisplayName)
+  const displayNameRef = useRef(displayName)
   // Capture the entry intent before room navigation replaces the query string.
   const quickChessPending = useRef(quickChess && !permalinkRoomId)
   const quickChessRoomAsked = useRef(false)
@@ -256,6 +265,8 @@ export const useLobby = ({
     (ready: HubSessionReady) => {
       setPlayerId(ready.playerId)
       onPlayerIdChange?.(ready.playerId)
+      // The hub keeps a name per session: a new one hears it again.
+      if (displayNameRef.current !== '') streamRef.current?.setName(displayNameRef.current)
       // A seat that survived the disconnect comes back as a gameJoined
       // after this; one that did not sends nothing, and the old table
       // must not linger.
@@ -474,6 +485,14 @@ export const useLobby = ({
   }, [roomCode, showNotice])
   const leaveRoom = useCallback(() => streamRef.current?.leaveRoom(), [])
   const sendChat = useCallback((text: string) => streamRef.current?.chat(text), [])
+  const setDisplayName = useCallback((typed: string) => {
+    const name = typed.trim()
+    displayNameRef.current = name
+    setDisplayNameState(name)
+    storeDisplayName(name)
+    streamRef.current?.setName(name)
+  }, [])
+  const nameOf = useCallback((id: string) => nameIn(room, id), [room])
   // Takes the seat back from the other window, which is told in turn.
   const playHere = useCallback(() => {
     setSuperseded(false)
@@ -513,6 +532,9 @@ export const useLobby = ({
     joinRoom,
     leaveRoom,
     sendChat,
+    displayName,
+    setDisplayName,
+    nameOf,
     world,
     voice,
     ...(tables as LobbyTables)

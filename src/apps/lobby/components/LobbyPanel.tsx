@@ -216,6 +216,26 @@ const VoiceControls = ({ voice, connected }: { voice: VoiceMesh; connected: bool
 
 // Under the share-and-voice row, outside the buttons' group so joining
 // moves no button; always there, so its first words are heard.
+// The name this device shows beside its id; saved on submit, empty
+// clears it. The hub has the last word on what a name may be.
+const NameForm = ({ current, onSave, connected }: { current: string; onSave: (name: string) => void; connected: boolean }) => {
+  const [draft, setDraft] = useState(current)
+  return (
+    <form
+      className={styles.actions}
+      onSubmit={event => {
+        event.preventDefault()
+        onSave(draft)
+      }}
+    >
+      <input aria-label="Your name" value={draft} maxLength={24} onChange={event => setDraft(event.target.value)} placeholder="Your name" />
+      <button type="submit" className={styles.secondary} disabled={!connected || draft.trim() === current}>
+        Save name
+      </button>
+    </form>
+  )
+}
+
 const VoiceStatus = ({ voice }: { voice: VoiceMesh }) => {
   const view = useSyncExternalStore(voice.subscribe, voice.view)
   return (
@@ -299,11 +319,12 @@ const LobbyPanel = ({ lobby, roomCodeRef, onOpenChat, onPreviewChallenge }: Lobb
       </div>
       <section className={styles.section} aria-labelledby="lobby-players">
         <h2 id="lobby-players">Players</h2>
+        <NameForm current={lobby.displayName} onSave={lobby.setDisplayName} connected={connected} />
         <ul className={styles.list}>
           {room.players.map(player => (
             <li key={player.playerId} className={styles.row}>
               <span>
-                {player.playerId === playerId ? `${player.playerId} (you)` : player.playerId}{' '}
+                <span>{player.playerId === playerId ? `${lobby.nameOf(player.playerId)} (you)` : lobby.nameOf(player.playerId)}</span>{' '}
                 <span role="img" aria-label={player.connected ? 'connected' : 'away'}>
                   {player.connected ? '🟢' : '🔴'}
                 </span>

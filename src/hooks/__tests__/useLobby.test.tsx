@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { useLobby } from '../useLobby'
 import type { UseLobbyProps } from '../useLobby'
 import { FakeWebSocket, admitted, flushAsync, installFakeHub } from '@/test/fakeHub'
+import { DISPLAY_NAME_KEY } from '@/utils/displayName'
 import { GameState, GAME_CONFIG } from '@/utils/gameClasses'
 import { HUB_RESUME_TOKEN_KEY } from '@/utils/hubSession'
 import { ShapeType } from '@/types/game'
@@ -1000,5 +1001,44 @@ describe('useLobby', () => {
     act(() => ws.close())
     expect(result.current.world.isConnected).toBe(false)
     expect(gameState.players.has('bob')).toBe(false)
+  })
+
+  describe('display names', () => {
+    const setNames = (ws: FakeWebSocket) => ws.sentFrames().filter(frame => frame.event === 'setName').map(frame => frame.payload)
+
+    it('sends the name this device keeps once the session is ready, and none when it keeps none', async () => {
+      localStorage.setItem(DISPLAY_NAME_KEY, 'Ann')
+      const { ws } = await open()
+      expect(setNames(ws)).toEqual([{ name: 'Ann' }])
+      localStorage.clear()
+      const fresh = await open()
+      expect(setNames(fresh.ws)).toEqual([])
+    })
+
+    it('keeps a name set here on this device and sends it trimmed; an empty one clears it', async () => {
+      const { result, ws } = await open()
+      act(() => result.current.setDisplayName('  Ann  '))
+      expect(result.current.displayName).toBe('Ann')
+      expect(localStorage.getItem(DISPLAY_NAME_KEY)).toBe('Ann')
+      act(() => result.current.setDisplayName(''))
+      expect(localStorage.getItem(DISPLAY_NAME_KEY)).toBeNull()
+      expect(setNames(ws)).toEqual([{ name: 'Ann' }, { name: '' }])
+    })
+
+    it('names a room member by the name the room lists, and anyone else by their id', async () => {
+      const { result, ws } = await open()
+      act(() =>
+        ws.receive('roomState', {
+          ...roomState('R1'),
+          players: [
+            { playerId: 'alice', name: 'Ann', connected: true, gamesPlayed: 0, gamesWon: 0, totalScore: 0 },
+            { playerId: 'bob', connected: true, gamesPlayed: 0, gamesWon: 0, totalScore: 0 }
+          ]
+        })
+      )
+      expect(result.current.nameOf('alice')).toBe('Ann')
+      expect(result.current.nameOf('bob')).toBe('bob')
+      expect(result.current.nameOf('microgpt')).toBe('microgpt')
+    })
   })
 })
