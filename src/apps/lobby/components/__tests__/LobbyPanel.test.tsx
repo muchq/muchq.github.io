@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { QUICK_ROOM_ID } from '@/apps/wordchains/wire'
 import LobbyPanel from '../LobbyPanel'
 import type { UseLobby } from '@/hooks/useLobby'
 import type { HubRoom } from '@/utils/hubStream'
@@ -39,6 +40,7 @@ const lobby = (over: Partial<UseLobby> = {}): UseLobby =>
     roomCode: '',
     setRoomCode: vi.fn(),
     createRoom: vi.fn(),
+    quickRace: vi.fn(),
     joinRoom: vi.fn(),
     leaveRoom: vi.fn(),
     sendChat: vi.fn(),
@@ -154,6 +156,38 @@ const roundRobinRoom = (over: Partial<HubRoom> = {}): HubRoom =>
 
 describe('LobbyPanel', () => {
   beforeEach(() => cleanup())
+
+  // MoonBase#1736: one opponent from the hub's pool, on the letters picked.
+  it('in the plaza, offers a quick race on any letters or the ones picked', () => {
+    const hook = lobby()
+    render(<LobbyPanel lobby={hook} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Quick race' }))
+    expect(hook.quickRace).toHaveBeenLastCalledWith(undefined)
+    fireEvent.change(screen.getByLabelText('Quick race letters'), { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Quick race' }))
+    expect(hook.quickRace).toHaveBeenLastCalledWith(5)
+  })
+
+  it('in the plaza, a quick race is not asked for twice while one is on its way', () => {
+    render(<LobbyPanel lobby={lobby({ wordchain: { opening: true } as unknown as UseLobby['wordchain'] })} />)
+    expect(screen.getByRole('button', { name: 'Quick race' })).toBeDisabled()
+  })
+
+  // The pool has no tables of one's choosing, no chat and no code to share.
+  it('in the quick race pool, offers only another seek or leaving', () => {
+    const hook = lobby({
+      room: { roomId: QUICK_ROOM_ID, players: [], games: [{ gameId: 'W9', game: 'wordchain', status: 'waiting', playerCount: 1 }] }
+    })
+    render(<LobbyPanel lobby={hook} onOpenChat={vi.fn()} />)
+    expect(screen.getByRole('heading', { name: 'Quick race' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /share room/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Chat' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /join/i })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Quick race' }))
+    expect(hook.quickRace).toHaveBeenCalledWith(undefined)
+    fireEvent.click(screen.getByRole('button', { name: 'Leave' }))
+    expect(hook.leaveRoom).toHaveBeenCalled()
+  })
 
   it('in the plaza, offers a room to create or join by code', () => {
     const hook = lobby()

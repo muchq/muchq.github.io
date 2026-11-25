@@ -4,6 +4,8 @@ import type { UseLobby } from '@/hooks/useLobby'
 import { lobbyRoomPath } from '@/hooks/useLobby'
 import type { HubGameName, HubRoomPlayer } from '@/utils/hubStream'
 import type { ChessGameSummary } from '@/apps/chess/wire'
+import { QUICK_ROOM_ID } from '@/apps/wordchains/wire'
+import type { WordchainLetters } from '@/apps/wordchains/wire'
 import type { GoGameSummary } from '@/apps/go/wire'
 import { nameOf as goNameOf } from '@/apps/go/terms'
 import { nameOf } from '@/apps/chess/rules'
@@ -255,6 +257,34 @@ export interface LobbyPanelProps {
   onOpenChat?: () => void
 }
 
+// One opponent from the hub's public pool (MoonBase#1736), on any
+// letters or the ones picked.
+const QuickRace = ({ lobby }: { lobby: UseLobby }) => {
+  const [letters, setLetters] = useState('')
+  return (
+    <div className={styles.picker}>
+      <select
+        aria-label="Quick race letters"
+        value={letters}
+        onChange={event => setLetters(event.target.value)}
+      >
+        <option value="">Any letters</option>
+        <option value="3">3 letters</option>
+        <option value="4">4 letters</option>
+        <option value="5">5 letters</option>
+      </select>
+      <button
+        type="button"
+        className={styles.secondary}
+        onClick={() => lobby.quickRace(letters === '' ? undefined : (Number(letters) as WordchainLetters))}
+        disabled={!lobby.connected || lobby.wordchain.opening}
+      >
+        Quick race
+      </button>
+    </div>
+  )
+}
+
 const LobbyPanel = ({ lobby, roomCodeRef, onOpenChat, onPreviewChallenge }: LobbyPanelProps) => {
   const { room, connected, playerId } = lobby
 
@@ -283,8 +313,26 @@ const LobbyPanel = ({ lobby, roomCodeRef, onOpenChat, onPreviewChallenge }: Lobb
               Join
             </button>
           </div>
+          <p className={styles.muted}>Or race one random player up a word ladder.</p>
+          <QuickRace lobby={lobby} />
         </div>
         {COMMAND_HINT}
+      </aside>
+    )
+  }
+
+  // The quick race pool (MoonBase#1736) has no tables of one's choosing,
+  // no chat and no code to share: only another seek, or out.
+  if (room.roomId === QUICK_ROOM_ID) {
+    return (
+      <aside className={styles.panel} aria-label="lobby">
+        <div className={styles.header}>
+          <h1 className={styles.title}>Quick race</h1>
+          <button type="button" className={styles.link} onClick={lobby.leaveRoom} disabled={!connected}>
+            Leave
+          </button>
+        </div>
+        <QuickRace lobby={lobby} />
       </aside>
     )
   }

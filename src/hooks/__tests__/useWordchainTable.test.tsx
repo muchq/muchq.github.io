@@ -21,11 +21,11 @@ const view = (over: Partial<WordchainView> = {}): WordchainView => ({
 })
 
 describe('useWordchainTable', () => {
-  const mount = (playerId = 'alice') => {
+  const mount = (playerId = 'alice', inQuickRace = () => false) => {
     const move = vi.fn()
     const onLeft = vi.fn()
     const showNotice = vi.fn()
-    const hook = renderHook(() => useWordchainTable({ playerId, move, showNotice, onLeft }))
+    const hook = renderHook(() => useWordchainTable({ playerId, move, showNotice, onLeft, inQuickRace }))
     const receive = (update: Parameters<typeof hook.result.current.handleUpdate>[0]) => act(() => hook.result.current.handleUpdate(update))
     return { ...hook, move, onLeft, showNotice, receive }
   }
@@ -51,6 +51,35 @@ describe('useWordchainTable', () => {
     expect(move).toHaveBeenLastCalledWith('play', { word: 'cord' })
     act(() => result.current.retract())
     expect(move).toHaveBeenLastCalledWith('retract')
+  })
+
+  // A quick race (MoonBase#1736): the letters asked for, or any, and a
+  // table that waits on the hub's answer.
+  it('seeks a quick race on the letters asked for, or any', () => {
+    const { result, move } = mount()
+    act(() => result.current.seek(5))
+    expect(move).toHaveBeenLastCalledWith('seek', { letters: 5 })
+    expect(result.current.opening).toBe(true)
+    act(() => result.current.seek())
+    expect(move).toHaveBeenLastCalledWith('seek', {})
+  })
+
+  // Where the table is decides, not what this tab remembers: after a
+  // reload into the pool, or a room's table after a quick race.
+  it('plays again in the pool by seeking again, on the last letters or any', () => {
+    const pool = mount('alice', () => true)
+    act(() => pool.result.current.playAgain())
+    expect(pool.move).toHaveBeenLastCalledWith('seek', {})
+    act(() => pool.result.current.seek(3))
+    act(() => pool.result.current.playAgain())
+    expect(pool.move).toHaveBeenLastCalledWith('seek', { letters: 3 })
+  })
+
+  it('plays again at a room’s table by opening one, even after a quick race', () => {
+    const { result, move } = mount()
+    act(() => result.current.seek(3))
+    act(() => result.current.playAgain())
+    expect(move).toHaveBeenLastCalledWith('createGame')
   })
 
   it('holds a word until the next view, or its refusal, answers it', () => {

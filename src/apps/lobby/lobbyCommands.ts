@@ -1,5 +1,6 @@
 import type { UseLobby } from '@/hooks/useLobby'
 import { lobbyRoomPath } from '@/hooks/useLobby'
+import { QUICK_ROOM_ID } from '@/apps/wordchains/wire'
 import type { Command } from '@/utils/commandRegistry'
 import { CATALOG } from './catalog'
 import { atTable, offerFor, seatsOf, tableFor } from './offers'
@@ -30,6 +31,9 @@ export function lobbyCommands(lobby: UseLobby, ui: LobbyUi): Command[] {
       commands.push({ id: 'create-room', label: 'Create a room', run: lobby.createRoom })
       commands.push({ id: 'join-room', label: 'Join a room by code', run: ui.askRoomCode })
     }
+  } else if (room.roomId === QUICK_ROOM_ID) {
+    // The quick race pool has no chat and no code to share (MoonBase#1736).
+    if (connected) commands.push({ id: 'leave-room', label: 'Leave the quick race', run: lobby.leaveRoom })
   } else {
     const url = `${window.location.origin}${lobbyRoomPath(room.roomId)}`
     commands.push({ id: 'open-chat', label: 'Open chat', run: ui.openChat })

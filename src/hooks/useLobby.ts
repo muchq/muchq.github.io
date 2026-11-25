@@ -13,6 +13,8 @@ import type { VoiceDevice } from '@/utils/voiceMesh'
 import { browserVoiceDevice } from '@/utils/voiceDevice'
 import { GAME_TABLES } from '@/apps/lobby/games'
 import type { JoinedUpdate, LobbyTables, TableHook, TableHookProps } from '@/apps/lobby/games'
+import { QUICK_ROOM_ID } from '@/apps/wordchains/wire'
+import type { WordchainLetters } from '@/apps/wordchains/wire'
 
 // The lobby (MoonBase#1490): the one page for the games hub. One stream
 // carries the room, its chat, the world, and the tables. The world is
@@ -30,9 +32,13 @@ import type { JoinedUpdate, LobbyTables, TableHook, TableHookProps } from '@/app
 // Voice is the room's too: leaving the room, a dropped socket and a new
 // session each take this session out of it at the hub, and here.
 
-export const lobbyRoomPath = (roomId: string) => `/games/room/${encodeURIComponent(roomId)}`
+// The quick race's pool has no code to share: its URL, and its tables
+// are the shortcut's own, which resumes the seat on a reload.
+const QUICK_RACE_PATH = '/games?play=wordchain'
+export const lobbyRoomPath = (roomId: string) =>
+  roomId === QUICK_ROOM_ID ? QUICK_RACE_PATH : `/games/room/${encodeURIComponent(roomId)}`
 export const lobbyTablePath = (roomId: string, gameId: string) =>
-  `${lobbyRoomPath(roomId)}/table/${encodeURIComponent(gameId)}`
+  roomId === QUICK_ROOM_ID ? QUICK_RACE_PATH : `${lobbyRoomPath(roomId)}/table/${encodeURIComponent(gameId)}`
 
 const NOTICE_MS = 3000
 
@@ -48,6 +54,8 @@ export interface LobbyChat {
 export interface UseLobbyProps {
   // Open a chess table once admitted, preserving any existing seat.
   quickChess?: boolean
+  // Seek a quick word chains race once admitted to no room (MoonBase#1736).
+  quickWordchain?: boolean
   // The share link's room, joined once the session is ready, and the
   // table in it to sit at once the room is in hand.
   permalinkRoomId?: string | null
@@ -81,6 +89,8 @@ export interface UseLobby extends LobbyTables {
   createRoom: () => void
   joinRoom: () => void
   leaveRoom: () => void
+  // A quick word chains race, from the plaza (MoonBase#1736).
+  quickRace: (letters?: WordchainLetters) => void
   sendChat: (text: string) => void
   // The name this device shows beside its id (MoonBase#1519): kept here,
   // sent to the hub on every session; empty for none.
@@ -115,6 +125,7 @@ const knownGames = (room: HubRoom): HubRoom => ({
 
 export const useLobby = ({
   quickChess = false,
+  quickWordchain = false,
   permalinkRoomId = null,
   permalinkGameId = null,
   onConnectionChange,
@@ -137,6 +148,7 @@ export const useLobby = ({
   // Capture the entry intent before room navigation replaces the query string.
   const quickChessPending = useRef(quickChess && !permalinkRoomId)
   const quickChessRoomAsked = useRef(false)
+  const quickWordchainPending = useRef(quickWordchain && !permalinkRoomId)
   const noticeTimeoutRef = useRef<number | null>(null)
   // The stream's callbacks are created once; anything they consult
   // rides a ref so the closure never goes stale.
@@ -215,13 +227,19 @@ export const useLobby = ({
     setRoomLink(null)
     // On the way to another room, the URL already names it.
     if (switchRef.current !== null) return
+    // The pool has nothing to stay for once its table is gone.
+    if (roomIdRef.current === QUICK_ROOM_ID) {
+      streamRef.current?.leaveRoom()
+      return
+    }
     if (roomIdRef.current !== null) navigate(lobbyRoomPath(roomIdRef.current), { replace: true })
   }, [navigate])
+  const inQuickRace = useCallback(() => roomIdRef.current === QUICK_ROOM_ID, [])
   const tables = {} as Record<HubGameName, TableHook>
   for (const game of HUB_GAMES) {
     // HUB_GAMES is a module constant: the same hooks, in the same order,
     // every render.
-    tables[game] = GAME_TABLES[game].useTable({ playerId, move: moves[game], showNotice, onLeft: onTableLeft })
+    tables[game] = GAME_TABLES[game].useTable({ playerId, move: moves[game], showNotice, onLeft: onTableLeft, inQuickRace })
   }
   const tablesRef = useRef(tables)
   tablesRef.current = tables
@@ -304,6 +322,13 @@ export const useLobby = ({
       // A resumed room's world waits for its roomState, which names the
       // surface; handleRoom enters it once that has landed.
       if (here === null) enterWorld(null)
+      // The shortcut's one chance: from no room, a seek; resumed anywhere,
+      // the seat already says where the session is.
+      if (here === null && quickWordchainPending.current) {
+        const { wordchain } = tablesRef.current as LobbyTables
+        wordchain.seek()
+      }
+      quickWordchainPending.current = false
       if (here === null && quickChessPending.current && !quickChessRoomAsked.current) {
         quickChessRoomAsked.current = true
         streamRef.current?.createRoom()
@@ -380,6 +405,7 @@ export const useLobby = ({
   const handleRejected = useCallback(
     (reason: string) => {
       quickChessPending.current = false
+      quickWordchainPending.current = false
       // Whatever was refused, nothing a table asked for arrived.
       for (const game of HUB_GAMES) tablesRef.current[game].handleRejected?.()
       voice.rejected(reason)
@@ -484,6 +510,7 @@ export const useLobby = ({
     streamRef.current?.joinRoom(code)
   }, [roomCode, showNotice])
   const leaveRoom = useCallback(() => streamRef.current?.leaveRoom(), [])
+  const quickRace = useCallback((letters?: WordchainLetters) => (tablesRef.current as LobbyTables).wordchain.seek(letters), [])
   const sendChat = useCallback((text: string) => streamRef.current?.chat(text), [])
   const setDisplayName = useCallback((typed: string) => {
     const name = typed.trim()
@@ -531,6 +558,7 @@ export const useLobby = ({
     createRoom,
     joinRoom,
     leaveRoom,
+    quickRace,
     sendChat,
     displayName,
     setDisplayName,

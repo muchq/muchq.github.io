@@ -13,6 +13,7 @@ import { sphereGeometry } from '@/utils/surface'
 import type { CastleView } from '@/apps/castle/wire'
 import type { GolfView } from '@/apps/golf/wire'
 import { HUB_GAMES } from '@/utils/hubStream'
+import { QUICK_ROOM_ID } from '@/apps/wordchains/wire'
 import type { HubRoom } from '@/utils/hubStream'
 import { FakeVoiceDevice } from '@/test/fakeVoice'
 
@@ -56,7 +57,7 @@ describe('useLobby', () => {
   })
 
   const mount = (props: UseLobbyProps = {}, path = '/games') => {
-    let location = { pathname: path }
+    let location = { pathname: path, search: '' }
     const Probe = () => {
       location = useLocation()
       return null
@@ -68,7 +69,7 @@ describe('useLobby', () => {
       </MemoryRouter>
     )
     const hook = renderHook(() => useLobby(props), { wrapper })
-    return { ...hook, pathname: () => location.pathname }
+    return { ...hook, pathname: () => location.pathname, search: () => location.search }
   }
 
   // The renderer's canvas: a GameState with the local player spawned,
@@ -120,6 +121,75 @@ describe('useLobby', () => {
     act(() => ws.receive('roomState', seated))
     act(() => ws.receive('roomState', roomState('R1')))
     expect(ws.sentFrames().filter(frame => frame.event === 'chess')).toHaveLength(0)
+  })
+
+  // A quick race (MoonBase#1736): the hub seats the seeker in its public
+  // pool, which no room code reaches, so its URL is the shortcut's own.
+  describe('quick race', () => {
+    const poolState = (games: HubRoom['games'] = []) => roomState(QUICK_ROOM_ID, games)
+    const seeks = (ws: FakeWebSocket) =>
+      ws.sentFrames().filter(frame => frame.event === 'wordchain' && 'seek' in (frame.payload as { move: object }).move)
+
+    it('the wordchain shortcut seeks once, from no room, without a room of its own', async () => {
+      const { ws } = await open({ quickWordchain: true }, '/games?play=wordchain')
+      expect(seeks(ws)).toEqual([{ event: 'wordchain', payload: { move: { seek: {} } } }])
+      act(() => ws.receive('roomState', poolState()))
+      act(() => ws.receive('roomState', poolState()))
+      expect(seeks(ws)).toHaveLength(1)
+      expect(ws.sentFrames().filter(frame => frame.event === 'createRoom')).toHaveLength(0)
+    })
+
+    it('the wordchain shortcut leaves a room of one’s own alone', async () => {
+      const { ws } = await open({ quickWordchain: true }, '/games?play=wordchain', 'R1')
+      act(() => ws.receive('roomState', roomState('R1')))
+      expect(seeks(ws)).toHaveLength(0)
+    })
+
+    it('the pool keeps the shortcut’s URL, at its table too', async () => {
+      const { ws, pathname, search } = await open({ quickWordchain: true }, '/games?play=wordchain')
+      act(() => ws.receive('roomState', poolState()))
+      const seeking = { gameId: 'W1', phase: 'waiting', runners: [], racesPlayed: 0, practice: false, seek: { deadlineMs: 1, expired: false } }
+      act(() => ws.receive('wordchain', { update: { gameJoined: { view: seeking } } }))
+      expect(pathname()).toBe('/games')
+      expect(search()).toBe('?play=wordchain')
+    })
+
+    // A reload resumes the seat: the shortcut has nothing more to do, then
+    // or on any later session.
+    it('resumed in the pool, the shortcut sends no seek', async () => {
+      const { ws } = await open({ quickWordchain: true }, '/games?play=wordchain', QUICK_ROOM_ID)
+      act(() => ws.receive('roomState', poolState()))
+      expect(seeks(ws)).toHaveLength(0)
+    })
+
+    it('in the pool after a reload, Play again seeks rather than opening a table', async () => {
+      const { result, ws } = await open({}, '/games?play=wordchain', QUICK_ROOM_ID)
+      act(() => ws.receive('roomState', poolState()))
+      const closed = { gameId: 'W1', phase: 'closed', runners: [], racesPlayed: 1, practice: false }
+      act(() => ws.receive('wordchain', { update: { gameJoined: { view: closed } } }))
+      act(() => result.current.wordchain.playAgain())
+      expect(ws.lastSent()).toEqual({ event: 'wordchain', payload: { move: { seek: {} } } })
+    })
+
+    it('a quick race from the plaza seeks on the letters asked for', async () => {
+      const { result, ws } = await open()
+      act(() => result.current.quickRace(4))
+      expect(ws.lastSent()).toEqual({ event: 'wordchain', payload: { move: { seek: { letters: 4 } } } })
+    })
+
+    // The pool has nothing to stay for once its table is gone.
+    it('getting up from a pool table leaves the pool; from a room table, only the table', async () => {
+      const { ws } = await open({ quickWordchain: true }, '/games?play=wordchain')
+      act(() => ws.receive('roomState', poolState()))
+      act(() => ws.receive('wordchain', { update: { gameLeft: { gameId: 'W1' } } }))
+      expect(ws.lastSent()).toEqual({ event: 'leaveRoom', payload: {} })
+
+      const other = await open({}, '/games', 'R1')
+      act(() => other.ws.receive('roomState', roomState('R1')))
+      const before = other.ws.sentFrames().length
+      act(() => other.ws.receive('wordchain', { update: { gameLeft: { gameId: 'W2' } } }))
+      expect(other.ws.sentFrames().slice(before).filter(frame => frame.event === 'leaveRoom')).toHaveLength(0)
+    })
   })
 
   it("dials with golf's identity and joins the plaza's world once the session is ready", async () => {

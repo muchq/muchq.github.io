@@ -14,6 +14,7 @@ import type { GameTable, LobbyTables, TableContext } from '../games'
 import type { HubGameName } from '@/utils/hubStream'
 import { HUB_GAMES } from '@/utils/hubStream'
 import { safeLocalStorage } from '@/utils/safeLocalStorage'
+import { QUICK_ROOM_ID } from '@/apps/wordchains/wire'
 import styles from './LobbyGame.module.css'
 
 // The lobby: the world as the main view, the panel beside it, the room's
@@ -206,7 +207,8 @@ const LobbyGame = (props: UseLobbyProps) => {
           <LobbyPanel onPreviewChallenge={setChallenge} lobby={lobby} roomCodeRef={roomCodeRef} onOpenChat={() => chatRef.current?.open()} />
         </div>
       )}
-      {room !== null && (
+      {/* The quick race's pool has no chat: the hub refuses it. */}
+      {room !== null && room.roomId !== QUICK_ROOM_ID && (
         <div className={styles.chatHost} hidden={focused} inert={focused}>
           <RoomChat
             ref={chatRef}

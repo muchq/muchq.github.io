@@ -3,6 +3,7 @@ import type { UseLobby } from '@/hooks/useLobby'
 import type { HubRoom } from '@/utils/hubStream'
 import { fakeVoiceMesh as voiceIn } from '@/test/fakeVoice'
 import { lobbyCommands, type LobbyUi } from '../lobbyCommands'
+import { QUICK_ROOM_ID } from '@/apps/wordchains/wire'
 
 // The lobby's verbs as the command menu lists them. The panel's buttons
 // grey out; here an unavailable verb is simply not offered, by the same
@@ -70,6 +71,15 @@ describe('lobbyCommands', () => {
     expect(lobby.createRoom).toHaveBeenCalledTimes(1)
     run(lobby, 'Join a room by code')
     expect(ui.askRoomCode).toHaveBeenCalledTimes(1)
+  })
+
+  // MoonBase#1736: the pool has no chat, no link and no tables of one's
+  // choosing.
+  it('in the quick race pool: only leaving it', () => {
+    const lobby = lobbyWith({ room: room({ roomId: QUICK_ROOM_ID, games: [] }) })
+    expect(labels(lobby)).toEqual(['Leave the quick race', 'Hide lobby panel'])
+    run(lobby, 'Leave the quick race')
+    expect(lobby.leaveRoom).toHaveBeenCalledTimes(1)
   })
 
   it('off the hub, nothing that needs it', () => {
