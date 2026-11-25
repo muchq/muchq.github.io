@@ -101,6 +101,7 @@ vi.mock('@/apps/golf/components/GolfTable', () => ({
   default: ({ shareUrl }: { shareUrl: string | null }) => <div>golf table {shareUrl}</div>
 }))
 
+import { QUICK_ROOM_ID } from '@/apps/wordchains/wire'
 import LobbyGame from '../LobbyGame'
 
 const view = { gameId: 'G1', phase: 'waiting', players: [], drawPileCount: 0, pileCount: 0, run: [], finished: [] } as unknown as CastleView
@@ -166,6 +167,13 @@ describe('LobbyGame', () => {
     expect(screen.getByText('chat')).toBeTruthy()
     state.room = null
     rerender(<LobbyGame />)
+    expect(screen.queryByText('chat')).toBeNull()
+  })
+
+  // The quick race's pool has no chat (MoonBase#1736): the hub refuses it.
+  it('chat stays down in the quick race pool', () => {
+    state.room = { roomId: QUICK_ROOM_ID, players: [], games: [] }
+    render(<LobbyGame />)
     expect(screen.queryByText('chat')).toBeNull()
   })
 
@@ -634,7 +642,7 @@ describe('LobbyGame', () => {
       openMenu()
       expect(screen.queryByRole('option', { name: 'Open chat' })).toBeNull()
       expect(screen.queryByRole('option', { name: 'Ask the bot' })).toBeNull()
-      fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
+      fireEvent.keyDown(screen.getByRole('combobox', { name: 'Command' }), { key: 'Escape' })
       state.room = { roomId: 'R1', players: [], games: [] }
       rerender(<LobbyGame />)
       openMenu()
@@ -653,7 +661,7 @@ describe('LobbyGame', () => {
       const { rerender } = render(<LobbyGame />)
       openMenu()
       expect(screen.queryByRole('option', { name: 'Ask the bot' })).toBeNull()
-      fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
+      fireEvent.keyDown(screen.getByRole('combobox', { name: 'Command' }), { key: 'Escape' })
       state.room = { roomId: 'R1', players: [], games: [] }
       rerender(<LobbyGame />)
       openMenu()

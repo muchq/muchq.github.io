@@ -43,3 +43,19 @@ export function clockText(ms: number): string {
   const seconds = Math.max(0, Math.ceil(ms / 1000))
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 }
+
+// What a quick race's table says on this clock (MoonBase#1736): still
+// looking and for how long, expired, or matched and counting down to the
+// first word; nothing for a room table or a race under way.
+export type QuickStatus = { kind: 'looking'; msLeft: number } | { kind: 'expired' } | { kind: 'starting'; count: number }
+
+export function quickStatus(view: WordchainView, nowMs: number): QuickStatus | null {
+  if (view.phase === 'waiting' && view.seek !== undefined) {
+    if (view.seek.expired || nowMs >= view.seek.deadlineMs) return { kind: 'expired' }
+    return { kind: 'looking', msLeft: view.seek.deadlineMs - nowMs }
+  }
+  if (view.phase === 'racing' && view.startedAtMs !== undefined && nowMs < view.startedAtMs) {
+    return { kind: 'starting', count: Math.ceil((view.startedAtMs - nowMs) / 1000) }
+  }
+  return null
+}

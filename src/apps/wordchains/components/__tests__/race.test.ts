@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clockText, describePractice, describeResult, parSteps, steps } from '../../race'
+import { clockText, describePractice, describeResult, parSteps, quickStatus, steps } from '../../race'
 import type { WordchainView } from '../../wire'
 
 const view = (over: Partial<WordchainView> = {}): WordchainView => ({
@@ -50,5 +50,33 @@ describe('race words', () => {
     expect(clockText(61_001)).toBe('1:02')
     expect(clockText(999)).toBe('0:01')
     expect(clockText(-5)).toBe('0:00')
+  })
+})
+
+// A quick race's table, as its status line reads it on this clock
+// (MoonBase#1736): looking and for how long, expired, or counting down.
+describe('quick race status', () => {
+  const T0 = 1_700_000_000_000
+  const seeking = (over: Partial<NonNullable<WordchainView['seek']>> = {}): WordchainView =>
+    view({ phase: 'waiting', runners: [{ playerId: 'alice', words: 0, left: false, wins: 0 }], seek: { deadlineMs: T0 + 90_000, expired: false, ...over } })
+  const matched = (startedAtMs = T0 + 3000): WordchainView =>
+    view({ phase: 'racing', startedAtMs, deadlineMs: startedAtMs + 180_000 })
+
+  it('looks until the hub’s deadline', () => {
+    expect(quickStatus(seeking(), T0 + 17_500)).toEqual({ kind: 'looking', msLeft: 72_500 })
+    expect(quickStatus(seeking(), T0 + 90_000)).toEqual({ kind: 'expired' })
+    expect(quickStatus(seeking({ expired: true }), T0)).toEqual({ kind: 'expired' })
+  })
+
+  it('counts a matched race down to its first word', () => {
+    expect(quickStatus(matched(), T0)).toEqual({ kind: 'starting', count: 3 })
+    expect(quickStatus(matched(), T0 + 2001)).toEqual({ kind: 'starting', count: 1 })
+    expect(quickStatus(matched(), T0 + 3000)).toBeNull()
+  })
+
+  // A room table, or a race already under way, has nothing to say.
+  it('says nothing for a room table or a race under way', () => {
+    expect(quickStatus(view({ phase: 'waiting' }), T0)).toBeNull()
+    expect(quickStatus(view(), T0)).toBeNull()
   })
 })

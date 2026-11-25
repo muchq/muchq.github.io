@@ -13,6 +13,8 @@ export interface WordchainTableActions {
   playAgain: () => void
   play: (word: string) => void
   retract: () => void
+  // A quick race on these letters, or any (MoonBase#1736).
+  seek: (letters?: WordchainLetters) => void
 }
 
 export interface UseWordchainTable extends WordchainTableActions {
@@ -36,13 +38,17 @@ export interface UseWordchainTableProps {
   move: <N extends WordchainMoveName>(name: N, payload?: WordchainMovePayloads[N]) => void
   showNotice: (message: string) => void
   onLeft?: () => void
+  inQuickRace?: () => boolean
 }
 
-export const useWordchainTable = ({ playerId, move, showNotice, onLeft }: UseWordchainTableProps): UseWordchainTable => {
+export const useWordchainTable = ({ playerId, move, showNotice, onLeft, inQuickRace }: UseWordchainTableProps): UseWordchainTable => {
   const [view, setView] = useState<WordchainView | null>(null)
   const [opening, setOpening] = useState(false)
   const [sending, setSending] = useState(false)
   const [refusals, setRefusals] = useState(0)
+  // The letters the last quick race sought, for the next; any after a
+  // reload.
+  const [soughtLetters, setSoughtLetters] = useState<WordchainLetters | undefined>(undefined)
 
   const settle = useCallback(() => {
     setOpening(false)
@@ -97,10 +103,23 @@ export const useWordchainTable = ({ playerId, move, showNotice, onLeft }: UseWor
     clear()
     onLeft?.()
   }, [clear, move, onLeft, view])
+  const seek = useCallback(
+    (letters?: WordchainLetters) => {
+      setSoughtLetters(letters)
+      setOpening(true)
+      move('seek', letters === undefined ? {} : { letters })
+    },
+    [move]
+  )
+  // The pool has no tables of one's choosing: there, another seek.
   const playAgain = useCallback(() => {
+    if (inQuickRace?.()) {
+      seek(soughtLetters)
+      return
+    }
     setOpening(true)
     move('createGame')
-  }, [move])
+  }, [inQuickRace, move, seek, soughtLetters])
   const play = useCallback(
     (word: string) => {
       setSending(true)
@@ -113,5 +132,5 @@ export const useWordchainTable = ({ playerId, move, showNotice, onLeft }: UseWor
     move('retract')
   }, [move])
 
-  return { view, opening, sending, refusals, handleUpdate, handleRejected: rejected, clear, createTable, joinTable, startTable, leaveTable, playAgain, play, retract }
+  return { view, opening, sending, refusals, handleUpdate, handleRejected: rejected, clear, createTable, joinTable, startTable, leaveTable, playAgain, play, retract, seek }
 }

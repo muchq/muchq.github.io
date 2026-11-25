@@ -55,7 +55,22 @@ export interface WordchainView {
   // A lone seat racing for practice: nobody wins and nothing is recorded.
   // A join ends it, and the table waits for a real race.
   practice: boolean
+  // A quick race's table looking for its second seat (MoonBase#1736).
+  seek?: WordchainSeekState
 }
+
+// A seek as its table shows it.
+export interface WordchainSeekState {
+  // Absent is any.
+  letters?: WordchainLetters
+  // When the pool stops offering it, in epoch ms; the hub's.
+  deadlineMs: number
+  // Past its deadline unmatched: out of the pool, the seat kept.
+  expired: boolean
+}
+
+// The hub's public pool a quick race waits in; no room code reaches it.
+export const QUICK_ROOM_ID = 'quick-wordchain'
 
 export interface WordchainUpdate {
   gameJoined?: { view: WordchainView }
@@ -78,6 +93,9 @@ export interface WordchainMovePayloads {
   play: { word: string }
   // Takes back the sender's last rung, until they finish.
   retract: undefined
+  // A quick race: one opponent from the hub's pool, on these letters or
+  // any; from one's own expired seek, a fresh look.
+  seek: { letters?: WordchainLetters }
 }
 
 export type WordchainMoveName = keyof WordchainMovePayloads

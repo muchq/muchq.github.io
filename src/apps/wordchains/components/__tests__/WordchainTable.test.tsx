@@ -31,6 +31,7 @@ const table = (over: Partial<WordchainTableProps['table']> = {}): WordchainTable
   playAgain: vi.fn(),
   play: vi.fn(),
   retract: vi.fn(),
+  seek: vi.fn(),
   ...over
 })
 
@@ -308,6 +309,91 @@ describe('WordchainTable', () => {
       const next = view({ phase: 'over', start: 'heat', target: 'cool', startedAtMs: NOW + 200_000, result: { ending: 'timeout', winners: [], standings: [] }, solution: ['heat', 'head', 'held', 'hold', 'cold', 'cool'] })
       rerender(<WordchainTable playerId="alice" connected view={next} table={held} />)
       expect(screen.queryByRole('list', { name: 'a shortest ladder' })).toBeNull()
+    })
+  })
+
+  // A quick race's table (MoonBase#1736): a status line on the hub's
+  // deadline, and only the choices a seeker has.
+  describe('quick race', () => {
+    const seeking = (over: Partial<NonNullable<WordchainView['seek']>> = {}) =>
+      view({
+        phase: 'waiting',
+        start: undefined,
+        target: undefined,
+        startedAtMs: undefined,
+        deadlineMs: undefined,
+        runners: [{ playerId: 'alice', words: 0, left: false, wins: 0 }],
+        seek: { letters: 5, deadlineMs: NOW + 72_500, expired: false, ...over }
+      })
+
+    it('says how long it looks, offers Stop, and no start of its own', () => {
+      vi.useFakeTimers({ now: NOW })
+      const { held } = mount({ view: seeking() })
+      // The time left rides outside the live region, which says only what
+      // is happening.
+      expect(screen.getAllByRole('status')[0]).toHaveTextContent(/^Looking for a player…$/)
+      expect(screen.getByText('1:13')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /start|practi[cs]e/i })).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Stop' }))
+      expect(held.leaveTable).toHaveBeenCalled()
+    })
+
+    it('once expired, keeps looking on the same letters or stops', () => {
+      vi.useFakeTimers({ now: NOW })
+      const { held } = mount({ view: seeking({ expired: true }) })
+      expect(screen.getByText('Nobody came. Keep looking?')).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Keep looking' }))
+      expect(held.seek).toHaveBeenCalledWith(5)
+    })
+
+    it('puts focus on the table’s heading when Keep looking’s new seek arrives', () => {
+      vi.useFakeTimers({ now: NOW })
+      const { held, rerender } = mount({ view: seeking({ expired: true }) })
+      screen.getByRole('button', { name: 'Keep looking' }).focus()
+      rerender(<WordchainTable playerId="alice" connected view={seeking({ deadlineMs: NOW + 90_000 })} table={held} />)
+      expect(screen.getByRole('heading', { name: /Word chains/ })).toHaveFocus()
+    })
+
+    // The seek's buttons go as the match arrives, and the word box waits
+    // for the start: focus lands on the heading, not the page.
+    it('puts focus on the table’s heading when a match starts counting down', () => {
+      vi.useFakeTimers({ now: NOW })
+      const { held, rerender } = mount({ view: seeking() })
+      screen.getByRole('button', { name: 'Stop' }).focus()
+      rerender(<WordchainTable playerId="alice" connected view={view({ startedAtMs: NOW + 3000, deadlineMs: NOW + 183_000 })} table={held} />)
+      expect(screen.getByRole('heading', { name: /Word chains/ })).toHaveFocus()
+    })
+
+    // A race over with both still seated is the hub's to run again: the
+    // next race at the same table is the rematch.
+    it('offers the next race at a quick race’s table once it is over', () => {
+      const { held } = mount({
+        view: view({ phase: 'over', result: { ending: 'finished', winners: ['bob'], standings: ['bob', 'alice'] } })
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Next race' }))
+      expect(held.startTable).toHaveBeenCalled()
+    })
+
+    // A render that lands past the start before the next tick must not stop
+    // the clock short of it, leaving the race with no word box.
+    it('a render past the start between ticks does not strand the countdown', () => {
+      vi.useFakeTimers({ now: NOW })
+      const matched = view({ startedAtMs: NOW + 3000, deadlineMs: NOW + 183_000 })
+      const { held, rerender } = mount({ view: matched })
+      act(() => vi.advanceTimersByTime(2900))
+      vi.setSystemTime(NOW + 3010)
+      rerender(<WordchainTable playerId="alice" connected view={matched} table={held} />)
+      act(() => vi.advanceTimersByTime(250))
+      expect(screen.getByRole('textbox', { name: 'next word' })).toBeInTheDocument()
+    })
+
+    it('counts a matched race down, with no word to type until it starts', () => {
+      vi.useFakeTimers({ now: NOW })
+      mount({ view: view({ startedAtMs: NOW + 3000, deadlineMs: NOW + 183_000 }) })
+      expect(screen.getByText('Starting in 3')).toBeInTheDocument()
+      expect(screen.queryByRole('textbox', { name: 'next word' })).toBeNull()
+      act(() => vi.advanceTimersByTime(3000))
+      expect(screen.getByRole('textbox', { name: 'next word' })).toBeInTheDocument()
     })
   })
 })

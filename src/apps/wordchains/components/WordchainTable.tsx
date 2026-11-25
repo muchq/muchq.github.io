@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { WordchainTableActions } from '@/hooks/useWordchainTable'
 import type { WordchainLetters, WordchainRunner, WordchainView } from '../wire'
 import { useSoundSetting, useWordchainSounds } from '../useWordchainSounds'
-import { clockText, describePractice, describeResult, parSteps, steps, you } from '../race'
+import { clockText, describePractice, describeResult, parSteps, quickStatus, steps, you } from '../race'
 import felt from '@/apps/cards/felt.module.css'
 import GameEnding from '@/apps/cards/GameEnding'
 import AboutGame from '@/apps/lobby/components/AboutGame'
@@ -43,6 +43,37 @@ const RaceClock = ({ deadlineMs }: { deadlineMs: number }) => {
   )
 }
 
+// This device's clock, ticking only while `on`: a quick race's seek and
+// countdown read it.
+const useNow = (on: boolean): number => {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!on) return
+    // Caught up at once, then every tick.
+    const tick = () => setNow(Date.now())
+    const first = window.setTimeout(tick, 0)
+    const timer = window.setInterval(tick, TICK_MS)
+    return () => {
+      window.clearTimeout(first)
+      window.clearInterval(timer)
+    }
+  }, [on])
+  return now
+}
+
+// What the status line says: the time left rides beside it, outside the
+// live region, or a screen reader would read every second of it.
+const quickLine = (status: NonNullable<ReturnType<typeof quickStatus>>): string => {
+  switch (status.kind) {
+    case 'looking':
+      return 'Looking for a player…'
+    case 'expired':
+      return 'Nobody came. Keep looking?'
+    case 'starting':
+      return `Starting in ${status.count}`
+  }
+}
+
 const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProps) => {
   const { opening, sending } = table
   const [sound, setSound] = useSoundSetting()
@@ -53,11 +84,32 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
   }, [])
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // A quick race's seek or countdown (MoonBase#1736), on this clock.
+  // Ticks until a tick has passed the start, so a render between ticks
+  // can never stop the clock short of it.
+  const [lastNow, setLastNow] = useState(() => Date.now())
+  const now = useNow(view.seek !== undefined || (view.phase === 'racing' && (view.startedAtMs ?? 0) > lastNow))
+  if (now !== lastNow) setLastNow(now)
+  const quick = quickStatus(view, now)
+  // The seek's buttons go as a new seek or a match arrives, and the word
+  // box waits for the start: focus lands on the heading rather than the
+  // page.
+  const lastKind = useRef(quick?.kind)
+  useEffect(() => {
+    const was = lastKind.current
+    const now = quick?.kind
+    lastKind.current = now
+    if ((was === 'expired' && now === 'looking') || ((was === 'looking' || was === 'expired') && now === 'starting')) {
+      headingRef.current?.focus()
+    }
+  }, [quick?.kind])
+
   const me = view.runners.find(runner => runner.playerId === playerId)
   const ladder = me?.ladder ?? []
   const finished = me?.finishedAtMs !== undefined
   const racing = view.phase === 'racing'
-  const climbing = racing && me !== undefined && !finished
+  // No word before the countdown's end: the hub would refuse it.
+  const climbing = racing && me !== undefined && !finished && quick?.kind !== 'starting'
   const able = connected && !sending
   const lettersOf = (word: string | undefined) => String(word?.length ?? 4) as (typeof LETTER_OPTIONS)[number]['value']
   // The picker offers the last race's letters until someone picks others.
@@ -116,6 +168,7 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
   // Alone, a start is practice: the hub races one seat and records nothing.
   const alone = seated < 2
   const hint = (() => {
+    if (quick !== null) return quickLine(quick)
     if (view.phase === 'waiting') return alone ? 'Waiting for a second seat, or practice alone.' : `${seated} seated: start when everyone’s here.`
     if (climbing) return `${view.practice ? 'Practice: o' : 'O'}ne letter at a time, every rung a word: ${view.start} to ${view.target}.`
     if (racing && finished) return `You reached ${view.target} in ${steps(ladder.length)}. Waiting for the others.`
@@ -150,6 +203,7 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
           <p className={felt.hint} role="status">
             {hint}
           </p>
+          {quick?.kind === 'looking' && <span className={styles.clock}>{clockText(quick.msLeft)}</span>}
         </div>
         <label className={styles.sound}>
           <input type="checkbox" checked={sound} onChange={event => setSound(event.target.checked)} />
@@ -296,7 +350,21 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
       </table>
 
       <div className={felt.actions}>
-        {view.phase === 'waiting' && (
+        {view.phase === 'waiting' && view.seek !== undefined && (
+          // A seek starts itself once matched: its choices are to look
+          // again once expired, or to stop.
+          <>
+            {quick?.kind === 'expired' && (
+              <button type="button" className={felt.primary} onClick={() => table.seek(view.seek?.letters)} disabled={!connected || opening}>
+                Keep looking
+              </button>
+            )}
+            <button type="button" className={felt.secondary} onClick={table.leaveTable} disabled={!connected}>
+              Stop
+            </button>
+          </>
+        )}
+        {view.phase === 'waiting' && view.seek === undefined && (
           <>
             <AboutGame game="wordchain" className={felt.hint} />
             {startPicker(alone ? 'Practice' : 'Start the race')}

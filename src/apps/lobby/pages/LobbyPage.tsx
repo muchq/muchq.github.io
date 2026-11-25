@@ -18,6 +18,7 @@ const LobbyPage = () => {
     <div>
       <LobbyGame
         quickChess={!roomId && searchParams.get('play') === 'chess'}
+        quickWordchain={!roomId && searchParams.get('play') === 'wordchain'}
         permalinkRoomId={isValidId(roomId) ? roomId : null}
         permalinkGameId={isValidId(gameId) ? gameId : null}
         onPlayerIdChange={setPlayerId}

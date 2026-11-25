@@ -28,6 +28,9 @@ export interface TableHookProps {
   move: (name: string, payload?: unknown) => void
   showNotice: (message: string) => void
   onLeft?: () => void
+  // In the hub's quick race pool (MoonBase#1736), where another table is
+  // another seek.
+  inQuickRace?: () => boolean
 }
 
 // What the lobby asks of every table hook.
