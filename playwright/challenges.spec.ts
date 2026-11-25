@@ -35,17 +35,25 @@ for (const geometry of [{ plane: {} }, { sphere: { radius: 53 } }]) {
         send('roomState', room)
       })
       await page.goto('/games/room/R1')
+      // Sphere WebGL bring-up can stall the main thread past the default 5s
+      // expect budget; test.slow() only stretches the test timeout. Wait for
+      // the lobby sheet first, then separate portal attach from projection.
+      const ready = 30_000
+      const discovery = page.getByRole('complementary', { name: 'Open challenges' })
+      await expect(discovery).toContainText('1', { timeout: ready })
       const beacon = page.locator('#world-challenges button')
       const marker = page.locator('#map-challenges button')
-      await expect(beacon).toBeVisible()
-      await expect(marker).toBeVisible()
+      await expect(beacon).toBeAttached({ timeout: ready })
+      await expect(marker).toBeAttached({ timeout: ready })
+      await expect(beacon).toBeVisible({ timeout: ready })
+      await expect(marker).toBeVisible({ timeout: ready })
       if (viewport.width <= 1024) {
-        const discovery = (await page.getByRole('complementary', { name: 'Open challenges' }).boundingBox())!
+        const discoveryBox = (await discovery.boundingBox())!
         const joystick = (await page.locator('#right-joystick').boundingBox())!
-        const disjoint = discovery.x + discovery.width <= joystick.x
-          || joystick.x + joystick.width <= discovery.x
-          || discovery.y + discovery.height <= joystick.y
-          || joystick.y + joystick.height <= discovery.y
+        const disjoint = discoveryBox.x + discoveryBox.width <= joystick.x
+          || joystick.x + joystick.width <= discoveryBox.x
+          || discoveryBox.y + discoveryBox.height <= joystick.y
+          || joystick.y + joystick.height <= discoveryBox.y
         expect(disjoint).toBe(true)
       }
       await marker.click()
