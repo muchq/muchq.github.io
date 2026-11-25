@@ -29,6 +29,12 @@ import styles from './LobbyGame.module.css'
 // opens where there is room for it beside the world.
 const PANEL_KEY = 'lobby.panel'
 
+// The games whose tables can take the screen, and while: chess while a
+// game is played, word chains while a race runs.
+const FOCUS_WHILE: Partial<Record<HubGameName, string>> = { chess: 'playing', wordchain: 'racing' }
+const focusable = (game: HubGameName, view: { phase?: string } | null): boolean =>
+  view !== null && FOCUS_WHILE[game] !== undefined && view.phase === FOCUS_WHILE[game]
+
 const panelWanted = (): boolean => safeLocalStorage.get(PANEL_KEY) !== 'hidden' && window.innerWidth > 700
 
 const LobbyGame = (props: UseLobbyProps) => {
@@ -44,16 +50,21 @@ const LobbyGame = (props: UseLobbyProps) => {
   const { history: goHistory, loadHistory: loadGoHistory } = lobby.go
   // A chess review (MoonBase#1637) takes the screen as a table does.
   const atTable = HUB_GAMES.some(game => lobby[game].view !== null) || chess.review !== null
-  const [focusGame, setFocusGame] = useState<string | null>(null)
-  if (focusGame !== null && chess.view === null) setFocusGame(null)
-  // Focus is for play: body scroll locks and the foot shrinks. The ending's
-  // chrome needs that space, and keeping the lock while autofocus lands on
-  // Next game has left iOS Safari's visual viewport stuck zoomed on phones.
-  // phase === 'playing' is on focused itself so the first ended render drops
-  // the overlay — clearing focusGame alone would still paint one focus+ended frame.
-  if (focusGame !== null && chess.view !== null && chess.view.phase !== 'playing') setFocusGame(null)
-  const focused =
-    chess.view !== null && chess.view.gameId === focusGame && chess.review === null && chess.view.phase === 'playing'
+  // Focus is for play: body scroll locks and the table takes the screen.
+  // The ending's chrome needs that space, and keeping the lock while
+  // autofocus lands on Next game has left iOS Safari's visual viewport
+  // stuck zoomed on phones. In play is part of focusedGame itself so the
+  // first ended render drops the overlay — clearing focus alone would still
+  // paint one focus+ended frame.
+  const [focus, setFocus] = useState<{ game: HubGameName; gameId: string } | null>(null)
+  const focusedGame = ((): HubGameName | null => {
+    if (focus === null || chess.review !== null) return null
+    const view = lobby[focus.game].view as { gameId: string; phase?: string } | null
+    if (view === null || view.gameId !== focus.gameId || !focusable(focus.game, view)) return null
+    return focus.game
+  })()
+  if (focus !== null && focusedGame === null) setFocus(null)
+  const focused = focusedGame !== null
   useEffect(() => {
     if (!focused) return
     const previous = document.body.style.overflow
@@ -62,7 +73,7 @@ const LobbyGame = (props: UseLobbyProps) => {
       if (event.key !== 'Escape') return
       event.preventDefault()
       event.stopImmediatePropagation()
-      setFocusGame(null)
+      setFocus(null)
     }
     window.addEventListener('keydown', escape, true)
     return () => {
@@ -174,10 +185,17 @@ const LobbyGame = (props: UseLobbyProps) => {
       {HUB_GAMES.map(
         game =>
           lobby[game].view !== null && (
-            <div key={game} className={`${styles.tableOverlay} ${game === 'chess' && focused ? styles.focusOverlay : ''}`} data-chess-focus={game === 'chess' && focused ? 'true' : undefined}>
-              {game === 'chess' && chess.view?.phase === 'playing' && (
-                <button type="button" className={styles.focusToggle} aria-pressed={focused} onClick={() => setFocusGame(focused ? null : chess.view!.gameId)}>
-                  {focused ? 'Exit focus' : 'Focus game'}
+            <div key={game} className={`${styles.tableOverlay} ${focusedGame === game ? styles.focusOverlay : ''}`} data-table-focus={focusedGame === game ? game : undefined}>
+              {focusable(game, lobby[game].view as { phase?: string }) && (
+                <button
+                  type="button"
+                  className={styles.focusToggle}
+                  aria-pressed={focusedGame === game}
+                  onClick={() =>
+                    setFocus(focusedGame === game ? null : { game, gameId: (lobby[game].view as { gameId: string }).gameId })
+                  }
+                >
+                  {focusedGame === game ? 'Exit focus' : 'Focus game'}
                 </button>
               )}
               <GameTableView game={game} tables={lobby} context={tableContext} />

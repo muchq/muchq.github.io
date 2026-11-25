@@ -262,7 +262,7 @@ const table =
 const focused = params.has('focus')
 
 createRoot(document.getElementById('root')!).render(
-  <div className={`${lobby.tableOverlay} ${focused ? lobby.focusOverlay : ''}`} data-chess-focus={focused ? 'true' : undefined} data-table-overlay data-fixture={fixture}>
+  <div className={`${lobby.tableOverlay} ${focused ? lobby.focusOverlay : ''}`} data-table-focus={focused ? 'chess' : undefined} data-table-overlay data-fixture={fixture}>
     {table}
   </div>
 )

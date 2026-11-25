@@ -132,7 +132,7 @@ for (const size of [{ width: 390, height: 844 }, { width: 375, height: 667 }]) {
         const r = el.getBoundingClientRect()
         return r.width > 0 && r.top >= -1 && r.left >= -1 && r.bottom <= window.innerHeight + 1 && r.right <= window.innerWidth + 1
       }
-      return { a1: inView('a1'), h1: inView('h1'), a8: inView('a8'), h8: inView('h8'), focus: document.querySelector('[data-chess-focus="true"]') !== null }
+      return { a1: inView('a1'), h1: inView('h1'), a8: inView('a8'), h8: inView('h8'), focus: document.querySelector('[data-table-focus="chess"]') !== null }
     })
     expect(corners.focus).toBe(true)
     expect({ a1: corners.a1, h1: corners.h1, a8: corners.a8, h8: corners.h8 }).toEqual({ a1: true, h1: true, a8: true, h8: true })

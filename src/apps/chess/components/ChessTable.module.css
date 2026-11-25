@@ -594,33 +594,33 @@
   fill: rgba(230, 151, 30, 0.85);
 }
 
-:global([data-chess-focus='true']) .table {
+:global([data-table-focus='chess']) .table {
   gap: 0.35rem;
 }
 
-:global([data-chess-focus='true']) .heading {
+:global([data-table-focus='chess']) .heading {
   font-size: 1rem;
   margin: 0;
 }
 
-:global([data-chess-focus='true']) .setupName {
+:global([data-table-focus='chess']) .setupName {
   display: none;
 }
 
 /* Only while playing: Resign alone fits in 2.75rem. The ending's result,
    review link and next-game row need the normal foot reservation — a
    focus+ended paint with the shrunken foot was the cropped-board report. */
-:global([data-chess-focus='true']) .table[data-phase='playing'] .foot {
+:global([data-table-focus='chess']) .table[data-phase='playing'] .foot {
   min-height: 2.75rem;
 }
 
 @media (min-aspect-ratio: 4/3) {
-  :global([data-chess-focus='true']) .boardSlot {
+  :global([data-table-focus='chess']) .boardSlot {
     width: min(100dvh - 4.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom), 55vw, 50rem);
     height: min(100dvh - 4.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom), 55vw, 50rem);
   }
 }
 
-:global([data-chess-focus='true']) .notepadSlot {
+:global([data-table-focus='chess']) .notepadSlot {
   display: none;
 }

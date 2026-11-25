@@ -121,3 +121,13 @@
   align-items: center;
   gap: 0.5rem;
 }
+
+/* Focus (the lobby's Focus game): the race alone. The focus toggle sits
+   where the sound setting would, and the climb wants the room. */
+:global([data-table-focus='wordchain']) .table {
+  gap: 0.5rem;
+}
+
+:global([data-table-focus='wordchain']) .sound {
+  display: none;
+}
