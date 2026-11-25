@@ -9,7 +9,7 @@ for (const geometry of [{ plane: {} }, { sphere: { radius: 53 } }]) {
       await page.setViewportSize(viewport)
       await page.emulateMedia({ reducedMotion: 'reduce' })
       await page.addInitScript(() => localStorage.setItem('lobby.panel', 'hidden'))
-      await page.route('**/games/v2/session', route => route.fulfill({ json: { playerId: 'alice', ticket: 'test', resumeToken: 'test' } }))
+      await page.route('**/games/v2/session?client=web', route => route.fulfill({ json: { playerId: 'alice', ticket: 'test', resumeToken: 'test' } }))
       let socket: WebSocketRoute
       let joins = 0
       const room = {
