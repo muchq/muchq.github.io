@@ -4,6 +4,7 @@ import type { UseLobby } from '@/hooks/useLobby'
 import { HUB_GAMES } from '@/utils/hubStream'
 import { atTable, offerFor, pairingAt, seatsOf, tableFor } from '../offers'
 import styles from './ChallengeDiscovery.module.css'
+import { QUICK_ROOM_ID } from '@/apps/wordchains/wire'
 
 interface Props {
   lobby: UseLobby
@@ -61,7 +62,8 @@ export default function ChallengeDiscovery({ lobby, selected, onSelect }: Props)
     onSelect(null)
     if (opener.current?.isConnected) opener.current.focus()
   }
-  if (lobby.room === null || viewing) return null
+  // The quick race pool's tables are found by seeking (MoonBase#1736).
+  if (lobby.room === null || lobby.room.roomId === QUICK_ROOM_ID || viewing) return null
   const markers = (map: boolean) => challenges.filter(item => item.anchor).map(({ table, anchor }) => (
     <button key={table.gameId} type="button" className={map ? styles.mapMarker : styles.beacon}
       data-challenge-host={anchor} style={{ visibility: 'hidden' }}

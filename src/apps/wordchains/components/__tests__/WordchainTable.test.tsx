@@ -354,6 +354,26 @@ describe('WordchainTable', () => {
       expect(screen.getByRole('heading', { name: /Word chains/ })).toHaveFocus()
     })
 
+    // The seek's buttons go as the match arrives, and the word box waits
+    // for the start: focus lands on the heading, not the page.
+    it('puts focus on the table’s heading when a match starts counting down', () => {
+      vi.useFakeTimers({ now: NOW })
+      const { held, rerender } = mount({ view: seeking() })
+      screen.getByRole('button', { name: 'Stop' }).focus()
+      rerender(<WordchainTable playerId="alice" connected view={view({ startedAtMs: NOW + 3000, deadlineMs: NOW + 183_000 })} table={held} />)
+      expect(screen.getByRole('heading', { name: /Word chains/ })).toHaveFocus()
+    })
+
+    // A race over with both still seated is the hub's to run again: the
+    // next race at the same table is the rematch.
+    it('offers the next race at a quick race’s table once it is over', () => {
+      const { held } = mount({
+        view: view({ phase: 'over', result: { ending: 'finished', winners: ['bob'], standings: ['bob', 'alice'] } })
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Next race' }))
+      expect(held.startTable).toHaveBeenCalled()
+    })
+
     // A render that lands past the start before the next tick must not stop
     // the clock short of it, leaving the race with no word box.
     it('a render past the start between ticks does not strand the countdown', () => {

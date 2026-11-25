@@ -91,12 +91,17 @@ const WordchainTable = ({ playerId, connected, view, table }: WordchainTableProp
   const now = useNow(view.seek !== undefined || (view.phase === 'racing' && (view.startedAtMs ?? 0) > lastNow))
   if (now !== lastNow) setLastNow(now)
   const quick = quickStatus(view, now)
-  // Keep looking goes as the new seek arrives: focus lands on the heading
-  // rather than the page.
-  const wasExpired = useRef(false)
+  // The seek's buttons go as a new seek or a match arrives, and the word
+  // box waits for the start: focus lands on the heading rather than the
+  // page.
+  const lastKind = useRef(quick?.kind)
   useEffect(() => {
-    if (wasExpired.current && quick?.kind === 'looking') headingRef.current?.focus()
-    wasExpired.current = quick?.kind === 'expired'
+    const was = lastKind.current
+    const now = quick?.kind
+    lastKind.current = now
+    if ((was === 'expired' && now === 'looking') || ((was === 'looking' || was === 'expired') && now === 'starting')) {
+      headingRef.current?.focus()
+    }
   }, [quick?.kind])
 
   const me = view.runners.find(runner => runner.playerId === playerId)

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { UseLobby } from '@/hooks/useLobby'
 import { HUB_GAMES } from '@/utils/hubStream'
 import ChallengeDiscovery from '../ChallengeDiscovery'
+import { QUICK_ROOM_ID } from '@/apps/wordchains/wire'
 
 function fixture(): UseLobby {
   return {
@@ -44,6 +45,27 @@ describe('shared room challenges', () => {
     expect(screen.getByText(/no longer available/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Accept chess' })).not.toBeInTheDocument()
   })
+  // The quick race pool's tables are found by seeking (MoonBase#1736),
+  // never offered to join: not even in the moment before a seek's table
+  // arrives, or after Stop while the leave is on its way.
+  it('offers no challenges in the quick race pool', () => {
+    const lobby = fixture()
+    render(
+      <View
+        lobby={{
+          ...lobby,
+          room: {
+            roomId: QUICK_ROOM_ID,
+            players: [{ playerId: 'bob', connected: true, table: { game: 'wordchain', gameId: 'W1' } }],
+            games: [{ game: 'wordchain', gameId: 'W1', status: 'waiting', playerCount: 1 }]
+          }
+        } as unknown as UseLobby}
+      />
+    )
+    expect(document.querySelectorAll('[data-challenge-host]')).toHaveLength(0)
+    expect(screen.queryByRole('button', { name: /Open challenges/ })).toBeNull()
+  })
+
   it('locks repeated joins until rejection and exposes the server reason', () => {
     const lobby = fixture()
     const { rerender } = render(<View lobby={lobby} />)
