@@ -265,90 +265,107 @@ describe('LobbyGame', () => {
     expect(screen.getByRole('complementary', { name: 'lobby' })).toBeTruthy()
   })
 
-  it('focuses chess, exits with Escape, and restores scrolling on leaving', () => {
-    state.chess.view = { gameId: 'C1', phase: 'playing' } as ChessView
-    const { rerender } = render(<LobbyGame />)
-    fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
-    expect(screen.getByRole('button', { name: 'Exit focus' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.queryByRole('button', { name: 'Lobby' })).toBeNull()
-    expect(document.body.style.overflow).toBe('hidden')
-    fireEvent.keyDown(window, { key: 'Escape' })
-    expect(screen.getByRole('button', { name: 'Focus game' })).toBeInTheDocument()
-    expect(document.body.style.overflow).toBe('')
-    fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
-    state.chess.view = null
-    rerender(<LobbyGame />)
-    expect(document.body.style.overflow).toBe('')
-    expect(screen.queryByRole('button', { name: 'Exit focus' })).toBeNull()
-  })
+  describe('focus mode', () => {
+    it('focuses chess, exits with Escape, and restores scrolling on leaving', () => {
+      state.chess.view = { gameId: 'C1', phase: 'playing' } as ChessView
+      const { rerender } = render(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
+      expect(screen.getByRole('button', { name: 'Exit focus' })).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.queryByRole('button', { name: 'Lobby' })).toBeNull()
+      expect(document.body.style.overflow).toBe('hidden')
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(screen.getByRole('button', { name: 'Focus game' })).toBeInTheDocument()
+      expect(document.body.style.overflow).toBe('')
+      fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
+      state.chess.view = null
+      rerender(<LobbyGame />)
+      expect(document.body.style.overflow).toBe('')
+      expect(screen.queryByRole('button', { name: 'Exit focus' })).toBeNull()
+    })
 
-  // Focus mode locks body scroll and shrinks the foot for play; the
-  // ending's chrome needs that space back. Leaving focus when the game
-  // ends keeps iOS from pinching the visual viewport into a stuck zoom.
-  it('leaves chess focus when the game ends, and restores scrolling', () => {
-    state.chess.view = { gameId: 'C1', phase: 'playing' } as ChessView
+    // Focus mode locks body scroll and shrinks the foot for play; the
+    // ending's chrome needs that space back. Leaving focus when the game
+    // ends keeps iOS from pinching the visual viewport into a stuck zoom.
+    it('leaves chess focus when the game ends, and restores scrolling', () => {
+      state.chess.view = { gameId: 'C1', phase: 'playing' } as ChessView
+      const { rerender, container } = render(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
+      expect(screen.getByRole('button', { name: 'Exit focus' })).toHaveAttribute('aria-pressed', 'true')
+      expect(document.body.style.overflow).toBe('hidden')
+      expect(container.querySelector('[data-table-focus="chess"]')).toBeTruthy()
+      state.chess.view = { gameId: 'C1', phase: 'ended' } as ChessView
+      rerender(<LobbyGame />)
+      // Same render as the ending: no focus overlay, or the first paint would
+      // still be the cropped focus+ended layout from the report.
+      expect(container.querySelector('[data-table-focus]')).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Exit focus' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Focus game' })).toBeNull()
+      expect(document.body.style.overflow).toBe('')
+    })
+
+    // A word chains race takes focus as a chess game does: the world, the
+    // panel and chat give way while it runs, and Escape gives them back.
+    it('focuses a word chains race, exits with Escape, and restores scrolling', () => {
+      state.wordchain.view = { gameId: 'W1', phase: 'racing' } as WordchainView
+      const { container } = render(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
+      expect(screen.getByRole('button', { name: 'Exit focus' })).toHaveAttribute('aria-pressed', 'true')
+      expect(container.querySelector('[data-table-focus="wordchain"]')).toBeTruthy()
+      expect(screen.queryByRole('button', { name: 'Lobby' })).toBeNull()
+      expect(document.body.style.overflow).toBe('hidden')
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(screen.getByRole('button', { name: 'Focus game' })).toBeInTheDocument()
+      expect(container.querySelector('[data-table-focus]')).toBeNull()
+      expect(document.body.style.overflow).toBe('')
+    })
+
+    // Between races the result, the shortest ladder and Next race need the
+    // room back, as a chess ending does.
+    it('leaves word chains focus when the race is over', () => {
+      state.wordchain.view = { gameId: 'W1', phase: 'racing' } as WordchainView
+      const { rerender, container } = render(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
+      state.wordchain.view = { gameId: 'W1', phase: 'over' } as WordchainView
+      rerender(<LobbyGame />)
+      expect(container.querySelector('[data-table-focus]')).toBeNull()
+      expect(screen.queryByRole('button', { name: /focus/i })).toBeNull()
+      expect(document.body.style.overflow).toBe('')
+    })
+
+    it('offers no word chains focus toggle while the table waits', () => {
+      state.wordchain.view = { gameId: 'W1', phase: 'waiting' } as WordchainView
+      render(<LobbyGame />)
+      expect(screen.queryByRole('button', { name: 'Focus game' })).toBeNull()
+    })
+
+    // Only the games focus was built for offer it.
+    it('offers no focus toggle at a game without a focus mode', () => {
+      state.castle.view = { gameId: 'G1', phase: 'playing' } as CastleView
+      render(<LobbyGame />)
+      expect(screen.queryByRole('button', { name: 'Focus game' })).toBeNull()
+    })
+
+    it('offers no chess focus toggle while the table is not in play', () => {
+      state.chess.view = { gameId: 'C1', phase: 'waiting' } as ChessView
+      render(<LobbyGame />)
+      expect(screen.queryByRole('button', { name: 'Focus game' })).toBeNull()
+      expect(document.body.style.overflow).toBe('')
+    })
+
+  // A chess review takes the screen over any table, a focused race's too.
+  it('a chess review takes the screen from a focused race', () => {
+    state.wordchain.view = { gameId: 'W1', phase: 'racing' } as WordchainView
     const { rerender, container } = render(<LobbyGame />)
     fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
-    expect(screen.getByRole('button', { name: 'Exit focus' })).toHaveAttribute('aria-pressed', 'true')
-    expect(document.body.style.overflow).toBe('hidden')
-    expect(container.querySelector('[data-table-focus="chess"]')).toBeTruthy()
-    state.chess.view = { gameId: 'C1', phase: 'ended' } as ChessView
-    rerender(<LobbyGame />)
-    // Same render as the ending: no focus overlay, or the first paint would
-    // still be the cropped focus+ended layout from the report.
-    expect(container.querySelector('[data-table-focus]')).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Exit focus' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Focus game' })).toBeNull()
-    expect(document.body.style.overflow).toBe('')
+    try {
+      state.chess.review = { summary: { gameId: 'K1' } } as ChessReview
+      rerender(<LobbyGame />)
+      expect(container.querySelector('[data-table-focus]')).toBeNull()
+      expect(document.body.style.overflow).toBe('')
+    } finally {
+      state.chess.review = null
+    }
   })
-
-  // A word chains race takes focus as a chess game does: the world, the
-  // panel and chat give way while it runs, and Escape gives them back.
-  it('focuses a word chains race, exits with Escape, and restores scrolling', () => {
-    state.wordchain.view = { gameId: 'W1', phase: 'racing' } as WordchainView
-    const { container } = render(<LobbyGame />)
-    fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
-    expect(screen.getByRole('button', { name: 'Exit focus' })).toHaveAttribute('aria-pressed', 'true')
-    expect(container.querySelector('[data-table-focus="wordchain"]')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Lobby' })).toBeNull()
-    expect(document.body.style.overflow).toBe('hidden')
-    fireEvent.keyDown(window, { key: 'Escape' })
-    expect(screen.getByRole('button', { name: 'Focus game' })).toBeInTheDocument()
-    expect(container.querySelector('[data-table-focus]')).toBeNull()
-    expect(document.body.style.overflow).toBe('')
-  })
-
-  // Between races the result, the shortest ladder and Next race need the
-  // room back, as a chess ending does.
-  it('leaves word chains focus when the race is over', () => {
-    state.wordchain.view = { gameId: 'W1', phase: 'racing' } as WordchainView
-    const { rerender, container } = render(<LobbyGame />)
-    fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
-    state.wordchain.view = { gameId: 'W1', phase: 'over' } as WordchainView
-    rerender(<LobbyGame />)
-    expect(container.querySelector('[data-table-focus]')).toBeNull()
-    expect(screen.queryByRole('button', { name: /focus/i })).toBeNull()
-    expect(document.body.style.overflow).toBe('')
-  })
-
-  it('offers no word chains focus toggle while the table waits', () => {
-    state.wordchain.view = { gameId: 'W1', phase: 'waiting' } as WordchainView
-    render(<LobbyGame />)
-    expect(screen.queryByRole('button', { name: 'Focus game' })).toBeNull()
-  })
-
-  // Only the games focus was built for offer it.
-  it('offers no focus toggle at a game without a focus mode', () => {
-    state.castle.view = { gameId: 'G1', phase: 'playing' } as CastleView
-    render(<LobbyGame />)
-    expect(screen.queryByRole('button', { name: 'Focus game' })).toBeNull()
-  })
-
-  it('offers no chess focus toggle while the table is not in play', () => {
-    state.chess.view = { gameId: 'C1', phase: 'waiting' } as ChessView
-    render(<LobbyGame />)
-    expect(screen.queryByRole('button', { name: 'Focus game' })).toBeNull()
-    expect(document.body.style.overflow).toBe('')
   })
 
   it('a chess table is a table too: over the world, the panel folded', () => {
