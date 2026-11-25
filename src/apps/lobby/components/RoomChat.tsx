@@ -46,6 +46,8 @@ interface RoomChatProps {
   // composer reacts once per seq and only to the server's "slow down".
   rejection: { seq: number; reason: string } | null
   onSend: (text: string) => void
+  // A sender as people read them; the id by default.
+  nameOf?: (playerId: string) => string
   // The commands the slash menu offers; the hub's by default.
   slashCommands?: SlashCommand[]
   ref?: Ref<RoomChatHandle>
@@ -94,7 +96,6 @@ const botCompletionFor = (draft: string): string | null => {
   return null
 }
 
-const senderLabel = (message: ChatMessage): string => message.playerId
 
 // Highlight the leading `@bot` or slash command the hub will answer. Only
 // that span is styled; both halves stay React text nodes — no markdown,
@@ -142,6 +143,8 @@ const messageTextNodes = (message: ChatMessage) => {
   return message.text
 }
 
+const byId = (playerId: string): string => playerId
+
 const RoomChat = ({
   messages,
   playerId,
@@ -149,6 +152,7 @@ const RoomChat = ({
   replayUpTo,
   rejection,
   onSend,
+  nameOf = byId,
   slashCommands = SLASH_COMMANDS,
   ref
 }: RoomChatProps) => {
@@ -198,7 +202,7 @@ const RoomChat = ({
     const last = messages[messages.length - 1]
     const entry =
       latestId > announced.upTo && last && last.messageId > replayUpTo
-        ? { id: last.messageId, text: `${senderLabel(last)}: ${last.text}` }
+        ? { id: last.messageId, text: `${nameOf(last.playerId)}: ${last.text}` }
         : latestId < announced.upTo
           ? null
           : announced.entry
@@ -457,14 +461,14 @@ const RoomChat = ({
             data-bot={message.bot ? 'true' : undefined}
           >
             <div className={styles.messageMeta}>
-              <span className={styles.sender}>{senderLabel(message)}</span>
+              <span className={styles.sender}>{nameOf(message.playerId)}</span>
               <span className={styles.timestamp}>{timeFormat.format(message.sentAtUnixMillis)}</span>
             </div>
             <div className={styles.messageText}>{messageTextNodes(message)}</div>
           </div>
         )
       }),
-    [messages, playerId]
+    [messages, nameOf, playerId]
   )
 
   const rootClass = [

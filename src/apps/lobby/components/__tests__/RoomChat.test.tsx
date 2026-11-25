@@ -637,4 +637,12 @@ describe('RoomChat', () => {
     expect(options()).toEqual(['wordchain'])
     expect(screen.getByPlaceholderText(/\/ for commands/)).toBeTruthy()
   })
+
+  it('names a sender by their room name, and anyone the room does not name by id', () => {
+    render(
+      <RoomChat {...baseProps} messages={[msg(1, 'bob', 'hi'), msg(2, 'carol', 'yo')]} nameOf={id => (id === 'bob' ? 'Bobby' : id)} />
+    )
+    const senders = [...screen.getByTestId('chat-messages').querySelectorAll('[class*="sender"]')].map(node => node.textContent)
+    expect(senders).toEqual(['Bobby', 'carol'])
+  })
 })

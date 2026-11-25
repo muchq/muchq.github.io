@@ -216,6 +216,7 @@ const LobbyGame = (props: UseLobbyProps) => {
             replayUpTo={chat.replayUpTo}
             rejection={chat.rejection}
             onSend={lobby.sendChat}
+            nameOf={lobby.nameOf}
           />
         </div>
       )}
