@@ -204,6 +204,65 @@
   pointer-events: none;
 }
 
+.wordchainFloat {
+  position: fixed;
+  left: 77%;
+  top: max(118px, 30%);
+  z-index: 3;
+}
+
+.wordchainLink {
+  height: auto;
+  padding: 4px;
+  gap: 4px;
+  color: #0b5e53;
+  border-radius: 6px;
+}
+
+.wordLadder {
+  display: grid;
+  gap: 3px;
+  pointer-events: none;
+}
+
+.wordRung {
+  display: flex;
+  gap: 3px;
+}
+
+.wordRung > span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid #0b5e5340;
+  border-radius: 4px;
+  background: #ffffffd9;
+  font: 500 16px/1 monospace;
+}
+
+.wordRung .changedLetter {
+  color: #fff;
+  background: #0b5e53;
+  border-color: #0b5e53;
+}
+
+.raceLabel {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+@keyframes wordchain-float {
+  50% {
+    transform: translate(-3vw, 1vh);
+  }
+}
+
+@keyframes letter-lift {
+  0%, 65%, 100% { transform: translateY(0); }
+  80% { transform: translateY(-3px); }
+}
+
 @keyframes chess-size {
   0%,
   100% {
@@ -234,6 +293,18 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  .wordchainFloat {
+    animation: wordchain-float 19s ease-in-out infinite;
+  }
+
+  .changedLetter {
+    animation: letter-lift 4s ease-in-out infinite;
+  }
+
+  .wordRung:last-child .changedLetter {
+    animation-delay: 1.5s;
+  }
+
   .chessFloat {
     animation: chess-float 17s ease-in-out infinite;
   }

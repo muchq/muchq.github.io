@@ -32,6 +32,77 @@ test('the chess shortcut stays visible on phone and desktop, with keyboard and r
   expect(await knight.evaluate(el => el.parentElement!.getAnimations().length)).toBe(0)
 })
 
+test('the wordchains shortcut animates within the viewport, pauses on focus, and respects reduced motion', async ({ page }) => {
+  for (const viewport of [{ width: 320, height: 568 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/')
+    const link = page.getByRole('link', { name: 'Wordchains quick race' })
+    await expect(link).toBeVisible()
+    await expect(link).toHaveAttribute('href', '/games?play=wordchain')
+    const positions = []
+    for (const time of [0, 4750, 9500, 14250, 19000]) {
+      await showAt(page, time)
+      const box = (await link.boundingBox())!
+      expect(box.x).toBeGreaterThanOrEqual(0)
+      expect(box.y).toBeGreaterThan(NAV_PX)
+      expect(box.x + box.width).toBeLessThanOrEqual(viewport.width)
+      expect(box.y + box.height).toBeLessThanOrEqual(viewport.height)
+      expect(box.width).toBeGreaterThanOrEqual(44)
+      expect(box.height).toBeGreaterThanOrEqual(44)
+      for (const href of [...courseHrefs, '/games?play=chess']) {
+        const other = await boxOf(page, href)
+        expect(box.x + box.width < other.x || other.x + other.width < box.x
+          || box.y + box.height < other.y || other.y + other.height < box.y,
+        `Wordchains overlaps ${href} at ${viewport.width}×${viewport.height}`).toBe(true)
+      }
+      positions.push(box.x)
+    }
+    expect(Math.max(...positions) - Math.min(...positions)).toBeGreaterThan(viewport.width * 0.02)
+  }
+  await page.goto('/')
+  const link = page.getByRole('link', { name: 'Wordchains quick race' })
+  const animations = () => link.evaluate(el => el.parentElement!.getAnimations({ subtree: true }).map(a => a.playState))
+  await link.focus()
+  expect(await animations()).toEqual(['paused', 'paused', 'paused'])
+  await link.evaluate(el => (el as HTMLElement).blur())
+  expect(await animations()).toEqual(['running', 'running', 'running'])
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  expect(await animations()).toEqual([])
+  await expect(link.locator('[data-word]')).toHaveText(['COLD', 'CORD', 'CARD'])
+})
+
+test('the homepage wordchains shortcut seeks an opponent and opens the waiting table', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.route('**/games/v2/session?client=web', route => route.fulfill({ json: { playerId: 'alice', ticket: 'test', resumeToken: 'test' } }))
+  const moves: unknown[] = []
+  await page.routeWebSocket('**/games/v2/play?*', socket => {
+    socket.onMessage(raw => {
+      const message = JSON.parse(String(raw))
+      if (message.event !== 'wordchain') return
+      moves.push(message.payload.move)
+      if (!message.payload.move.seek) return
+      socket.send(JSON.stringify({ event: 'roomState', payload: {
+        roomId: 'quick-wordchain', players: [], games: []
+      } }))
+      socket.send(JSON.stringify({ event: 'wordchain', payload: { update: { gameJoined: { view: {
+        gameId: 'Q1', phase: 'waiting', practice: false, racesPlayed: 0,
+        runners: [{ playerId: 'alice', words: 0, left: false, wins: 0 }],
+        seek: { deadlineMs: Date.now() + 90_000, expired: false }
+      } } } } }))
+    })
+    socket.send(JSON.stringify({ event: 'sessionReady', payload: { playerId: 'alice', resumed: false } }))
+  })
+  await page.goto('/')
+  const link = page.getByRole('link', { name: 'Wordchains quick race' })
+  await link.focus()
+  await link.press('Enter')
+  await expect(page).toHaveURL(/\/games\?play=wordchain$/)
+  await expect(page.getByRole('heading', { name: /Word chains/ })).toBeVisible()
+  await expect(page.getByText('Looking for a player…', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible()
+  expect(moves).toEqual([{ seek: {} }])
+})
+
 interface Box {
   left: number
   top: number
@@ -361,6 +432,7 @@ test('homepage links still work after a finger-style Julia drag', async ({ page 
     { href: '/groups', path: /\/groups$/ },
     { href: '/sets', path: /\/sets$/ },
     { href: '/games?play=chess', path: /\/games\?play=chess$/ },
+    { href: '/games?play=wordchain', path: /\/games\?play=wordchain$/ },
   ] as const
 
   const dragJulia = () =>
