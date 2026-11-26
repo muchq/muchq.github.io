@@ -53,9 +53,17 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 844, height: 390 }
         const { x, y, width, height } = element.getBoundingClientRect()
         return { x, y, width, height }
       }
-      return [0, 4750, 9500, 14250, 19000].map(time => {
+      const wordStep = link.querySelector('span')!
+      const times = Array.from({ length: 23 }, (_, index) => index * 4_000)
+      return times.map(time => {
         animations.forEach(animation => { animation.currentTime = time })
-        return { time, box: boxOf(link), neighbours: neighbours.map(boxOf) }
+        return {
+          time,
+          box: boxOf(link),
+          neighbours: neighbours.map(boxOf),
+          opacity: Number(getComputedStyle(link).opacity),
+          rotation: Number.parseFloat(getComputedStyle(wordStep).rotate),
+        }
       })
     }, [...courseHrefs, '/games?play=chess'])
     for (const { time, box, neighbours } of frames) {
@@ -64,15 +72,28 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 844, height: 390 }
       expect(box.x + box.width).toBeLessThanOrEqual(viewport.width)
       expect(box.y + box.height).toBeLessThanOrEqual(viewport.height)
       expect(box.width).toBeGreaterThanOrEqual(44)
-      expect(box.height).toBeGreaterThanOrEqual(44)
+      expect(box.height).toBeCloseTo(44)
       for (const [index, other] of neighbours.entries()) {
         expect(box.x + box.width < other.x || other.x + other.width < box.x
           || box.y + box.height < other.y || other.y + other.height < box.y,
         `Wordchains overlaps ${[...courseHrefs, '/games?play=chess'][index]} at ${viewport.width}×${viewport.height}, ${time}ms`).toBe(true)
       }
     }
-    const positions = frames.map(frame => frame.box.x)
-    expect(Math.max(...positions) - Math.min(...positions)).toBeGreaterThan(viewport.width * 0.02)
+    const fadeFrames = frames.filter(({ time }) => time <= 48_000 && time % 12_000 === 0)
+    const [start, rising, peak, falling, end] = fadeFrames.map(frame => frame.opacity)
+    expect(start).toBe(0)
+    expect(rising).toBeGreaterThan(start)
+    expect(peak).toBeGreaterThan(rising)
+    expect(falling).toBeLessThan(peak)
+    expect(end).toBe(0)
+
+    const xs = frames.map(frame => frame.box.x)
+    const ys = frames.map(frame => frame.box.y)
+    const rotations = frames.map(frame => frame.rotation)
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(viewport.width * 0.02)
+    expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(viewport.height * 0.03)
+    expect(Math.min(...rotations)).toBeLessThan(-5)
+    expect(Math.max(...rotations)).toBeGreaterThan(5)
   })
 }
 
@@ -82,11 +103,13 @@ test('the wordchains shortcut pauses on focus and respects reduced motion', asyn
   const animations = () => link.evaluate(el => el.parentElement!.getAnimations({ subtree: true }).map(a => a.playState))
   await link.focus()
   expect(await animations()).toEqual(['paused', 'paused', 'paused'])
+  await expect(link).toHaveCSS('opacity', '1')
   await link.evaluate(el => (el as HTMLElement).blur())
-  expect(await animations()).toEqual(['running', 'running', 'running'])
+  expect(await animations()).toEqual(['running', 'running', 'running', 'running'])
   await page.emulateMedia({ reducedMotion: 'reduce' })
   expect(await animations()).toEqual([])
-  await expect(link.locator('[data-word]')).toHaveText(['COLD', 'CORD', 'CARD'])
+  await expect(link).toHaveCSS('opacity', '1')
+  await expect(link).toHaveText('COLD → CORD')
 })
 
 test('the homepage wordchains shortcut seeks an opponent and opens the waiting table', async ({ page }) => {

@@ -29,7 +29,7 @@ describe('MathAnimations', () => {
     home()
     const link = screen.getByRole('link', { name: 'Wordchains quick race' })
     expect(link).toHaveAttribute('href', '/games?play=wordchain')
-    expect([...link.querySelectorAll('[data-word]')].map(row => row.textContent)).toEqual(['COLD', 'CORD', 'CARD'])
+    expect(link).toHaveTextContent('COLD → CORD')
     await userEvent.click(link)
     expect(screen.getByText('the games')).toBeInTheDocument()
   })
