@@ -48,7 +48,7 @@ test('the wordchains shortcut animates within the viewport, pauses on focus, and
       expect(box.x + box.width).toBeLessThanOrEqual(viewport.width)
       expect(box.y + box.height).toBeLessThanOrEqual(viewport.height)
       expect(box.width).toBeGreaterThanOrEqual(44)
-      expect(box.height).toBeGreaterThanOrEqual(44)
+      expect(box.height).toBe((await boxOf(page, '/groups')).height)
       for (const href of [...courseHrefs, '/games?play=chess']) {
         const other = await boxOf(page, href)
         expect(box.x + box.width < other.x || other.x + other.width < box.x
@@ -63,12 +63,12 @@ test('the wordchains shortcut animates within the viewport, pauses on focus, and
   const link = page.getByRole('link', { name: 'Wordchains quick race' })
   const animations = () => link.evaluate(el => el.parentElement!.getAnimations({ subtree: true }).map(a => a.playState))
   await link.focus()
-  expect(await animations()).toEqual(['paused', 'paused', 'paused'])
+  expect(await animations()).toEqual(['paused', 'paused'])
   await link.evaluate(el => (el as HTMLElement).blur())
-  expect(await animations()).toEqual(['running', 'running', 'running'])
+  expect(await animations()).toEqual(['running', 'running'])
   await page.emulateMedia({ reducedMotion: 'reduce' })
   expect(await animations()).toEqual([])
-  await expect(link.locator('[data-word]')).toHaveText(['COLD', 'CORD', 'CARD'])
+  await expect(link).toHaveText('COLD → CORD')
 })
 
 test('the homepage wordchains shortcut seeks an opponent and opens the waiting table', async ({ page }) => {

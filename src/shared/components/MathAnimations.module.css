@@ -212,44 +212,16 @@
 }
 
 .wordchainLink {
-  height: auto;
-  padding: 4px;
-  gap: 4px;
   color: #0b5e53;
-  border-radius: 6px;
 }
 
-.wordLadder {
-  display: grid;
-  gap: 3px;
+.wordStep {
   pointer-events: none;
 }
 
-.wordRung {
-  display: flex;
-  gap: 3px;
-}
-
-.wordRung > span {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border: 1px solid #0b5e5340;
-  border-radius: 4px;
-  background: #ffffffd9;
-  font: 500 16px/1 monospace;
-}
-
-.wordRung .changedLetter {
-  color: #fff;
-  background: #0b5e53;
-  border-color: #0b5e53;
-}
-
-.raceLabel {
-  font-size: 14px;
-  line-height: 1.4;
+.changedLetter {
+  display: inline-block;
+  font-weight: 600;
 }
 
 @keyframes wordchain-float {
@@ -299,10 +271,6 @@
 
   .changedLetter {
     animation: letter-lift 4s ease-in-out infinite;
-  }
-
-  .wordRung:last-child .changedLetter {
-    animation-delay: 1.5s;
   }
 
   .chessFloat {
