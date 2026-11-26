@@ -8,11 +8,13 @@ import RummyTable from '@/apps/rummy/components/RummyTable'
 import type { Card as RummyCard, RummyPlayer, RummyView } from '@/apps/rummy/wire'
 import SpadesTable from '@/apps/spades/components/SpadesTable'
 import type { Card as SpadesCard, SpadesPlayer, SpadesView } from '@/apps/spades/wire'
+import WordchainTable from '@/apps/wordchains/components/WordchainTable'
+import type { WordchainView } from '@/apps/wordchains/wire'
 
 // One page, many fixtures via ?fixture=. Layout tests mount each under
 // the real lobby overlay and measure fit.
 
-export type Fixture = 'spades-2' | 'spades-4' | 'castle' | 'rummy' | 'chess'
+export type Fixture = 'spades-2' | 'spades-4' | 'castle' | 'rummy' | 'chess' | 'wordchain'
 
 const spadesCard = (spelled: string): SpadesCard => ({ rank: spelled.slice(0, -1), suit: spelled.slice(-1) })
 const rummyCard = (spelled: string): RummyCard => ({ rank: spelled.slice(0, -1), suit: spelled.slice(-1) })
@@ -239,6 +241,24 @@ const chessTable = {
 }
 
 const params = new URLSearchParams(location.search)
+const wordchainView: WordchainView = {
+  gameId: 'W1', phase: 'racing', start: 'cold', target: 'warm', par: 5,
+  startedAtMs: Date.now(), deadlineMs: Date.now() + 180_000,
+  runners: [
+    { playerId: 'alice', words: 1, left: false, ladder: ['cord'], wins: 0 },
+    { playerId: 'bob', words: 3, left: false, wins: 2 }
+  ],
+  racesPlayed: 0, practice: false
+}
+const wordchainTable = {
+  opening: false, sending: false, refusals: 0,
+  startTable: () => undefined,
+  leaveTable: () => undefined,
+  playAgain: () => undefined,
+  play: () => undefined,
+  retract: () => undefined,
+  seek: () => undefined,
+}
 const fixture = (params.get('fixture') ?? 'spades-2') as Fixture
 const shownChess = params.has('ended')
   ? chessEndedView
@@ -255,6 +275,8 @@ const table =
     <CastleTable playerId="alice" connected view={castleView} table={castleTable} />
   ) : fixture === 'rummy' ? (
     <RummyTable playerId="alice" connected view={rummyView} table={rummyTable} />
+  ) : fixture === 'wordchain' ? (
+    <WordchainTable playerId="alice" connected view={wordchainView} table={wordchainTable} />
   ) : (
     <ChessTable playerId="alice" connected view={shownChess} table={chessTable} />
   )
@@ -262,7 +284,12 @@ const table =
 const focused = params.has('focus')
 
 createRoot(document.getElementById('root')!).render(
-  <div className={`${lobby.tableOverlay} ${focused ? lobby.focusOverlay : ''}`} data-chess-focus={focused ? 'true' : undefined} data-table-overlay data-fixture={fixture}>
+  <div className={`${lobby.tableOverlay} ${focused ? lobby.focusOverlay : ''}`} data-table-focus={focused ? fixture : undefined} data-table-overlay data-fixture={fixture}>
     {table}
+    {fixture === 'wordchain' && (
+      <button type="button" className={lobby.focusToggle} aria-pressed={focused}>
+        {focused ? 'Exit focus' : 'Focus game'}
+      </button>
+    )}
   </div>
 )
