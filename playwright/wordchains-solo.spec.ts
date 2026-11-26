@@ -1,6 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
 
-test.use({ timezoneId: 'UTC' })
+import { createDictionary } from '../server/wordchains/puzzles'
+import { endpoints, words } from '../server/wordchains/words'
+import { SOLO_API } from '../src/apps/wordchains/solo/contract'
+
+const dictionary = createDictionary(words, endpoints)
 
 const submit = async (page: Page, word: string) => {
   const input = page.getByRole('textbox', { name: 'Next word' })
@@ -14,38 +18,46 @@ const openEasy = async (page: Page, mode: string) => {
   await page.getByRole('button', { name: 'Play', exact: true }).click()
 }
 
-test('the shipped dictionary gives a repeatable daily puzzle from the Yep menu', async ({ page }) => {
-  await page.clock.setFixedTime(new Date('2026-11-26T12:00:00Z'))
+test('the server gives a repeatable daily puzzle from the Yep menu', async ({ page }) => {
   await page.goto('/top/sets')
   await page.getByRole('link', { name: 'Yep', exact: true }).click()
   await page.getByRole('link', { name: 'Wordchains', exact: true }).click()
   await expect(page).toHaveURL(/\/wordchains$/)
   await openEasy(page, 'Daily Challenge')
-  const heading = page.getByRole('heading', { name: 'VIE → BAN' })
-  await expect(heading).toBeVisible()
+  const puzzle = page.getByRole('heading', { name: /^[A-Z]{3} → [A-Z]{3}$/ })
+  const heading = (await puzzle.textContent())!
+  const [start, target] = heading.toLowerCase().split(' → ')
+  const path = dictionary.path(start, target)!
   await expect(page.getByRole('button', { name: 'Hint' })).toHaveCount(0)
-  await submit(page, 'cat')
+  const invalidMove = ['cat', 'dog', 'pen'].find(word => (
+    Array.from(word).filter((letter, index) => letter !== start[index]).length > 1
+  ))!
+  await submit(page, invalidMove)
   await expect(page.getByRole('status')).toHaveText('Change exactly one letter')
-  await submit(page, 'vix')
+  await submit(page, 'zzz')
   await expect(page.getByRole('status')).toHaveText('Not in dictionary')
-  await submit(page, 'die')
+  await submit(page, path[1])
   await expect(page.getByText('1 step', { exact: true })).toBeVisible()
-  await submit(page, 'vie')
+  await submit(page, start)
   await expect(page.getByRole('status')).toHaveText('Already in the chain')
   await page.getByRole('button', { name: 'Undo' }).click()
   await expect(page.getByText('0 steps', { exact: true })).toBeVisible()
-  for (const word of ['die', 'din', 'bin', 'ban']) await submit(page, word)
+  for (const word of path.slice(1)) await submit(page, word)
   await expect(page.getByRole('heading', { name: 'Optimal!' })).toBeVisible()
   await expect(page.getByText('+150', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Back to menu' }).click()
   await expect(page.getByLabel('Session stats').getByText('150', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Play', exact: true }).click()
-  await expect(heading).toBeVisible()
+  await expect(page.getByRole('heading', { name: heading })).toBeVisible()
 })
 
 test('Time Attack advances rounds without hints, then remembers the best for that difficulty', async ({ page }) => {
-  await page.route('**/wordchains/words.txt', route => route.fulfill({ body: 'cat\ncot\ndot\ndog\n' }))
-  await page.route('**/wordchains/puzzle-words.txt', route => route.fulfill({ body: 'cat\ndog\n' }))
+  await page.route(`**${SOLO_API}`, route => {
+    if (route.request().postDataJSON()?.action === 'start') {
+      return route.fulfill({ json: { start: 'cat', target: 'dog' } })
+    }
+    return route.continue()
+  })
   const start = new Date('2026-11-26T12:00:00Z')
   await page.clock.install({ time: start })
   await page.setViewportSize({ width: 320, height: 700 })
@@ -53,9 +65,7 @@ test('Time Attack advances rounds without hints, then remembers the best for tha
   await openEasy(page, 'Time Attack')
   await expect(page.getByRole('button', { name: 'Hint' })).toHaveCount(0)
   await expect(page.getByText('Time left')).toBeVisible()
-  const puzzle = page.getByRole('heading', { name: /CAT → DOG|DOG → CAT/ })
-  const path = (await puzzle.textContent())?.startsWith('CAT') ? ['cot', 'dot', 'dog'] : ['dot', 'cot', 'cat']
-  for (const word of path) await submit(page, word)
+  for (const word of ['cot', 'dot', 'dog']) await submit(page, word)
   await expect(page.getByRole('status')).toContainText('Solved!')
   await page.clock.runFor(800)
   await expect(page.getByText('0 steps', { exact: true })).toBeVisible()
@@ -85,4 +95,17 @@ test('Quick Play starts five-letter puzzles and keeps the controls on a narrow s
   await expect(input).toHaveValue(/^[a-z]{5}$/)
   await input.press('Enter')
   await expect(page.getByText('1 step', { exact: true })).toBeVisible()
+})
+
+test('the browser receives puzzle words and no dictionary or seed', async ({ request }) => {
+  const response = await request.post(SOLO_API, { data: { action: 'start', mode: 'daily', length: 3 } })
+  expect(response.ok()).toBe(true)
+  const puzzle = await response.json()
+  expect(Object.keys(puzzle).sort()).toEqual(['start', 'target'])
+  const hint = await request.post(SOLO_API, { data: { action: 'hint', mode: 'daily', puzzle, chain: [puzzle.start] } })
+  expect(hint.status()).toBe(400)
+  const dictionarySource = await request.get('/server/wordchains/words.ts')
+  expect(dictionarySource.status()).toBe(403)
+  const oldDictionary = await request.get('/wordchains/words.txt')
+  expect(await oldDictionary.text()).not.toContain(words.slice(0, 80))
 })

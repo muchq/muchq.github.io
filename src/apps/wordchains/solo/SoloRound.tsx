@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { safeLocalStorage } from '@/utils/safeLocalStorage'
-import { clockText } from '../race'
-import { DIFFICULTIES, makePuzzle, scoreFor, validateWord, type Dictionary, type Length, type Mode, type Puzzle } from './puzzles'
+import { clockText, steps } from '../race'
+import { playWord, requestHint, startPuzzle } from './api'
+import { DIFFICULTIES, type Length, type Mode, type Puzzle, type Result } from './contract'
 import styles from './SoloWordchains.module.css'
 
 interface RoundProps {
-  dictionary: Dictionary
+  starting: boolean
   length: Length
   mode: Mode
   firstPuzzle: Puzzle
@@ -48,7 +49,7 @@ function Tiles({ word, previous, target = false }: { word: string; previous?: st
   )
 }
 
-export default function SoloRound({ dictionary, length, mode, firstPuzzle, startedAt, onSolved, onReplay, onMenu }: RoundProps) {
+export default function SoloRound({ starting, length, mode, firstPuzzle, startedAt, onSolved, onReplay, onMenu }: RoundProps) {
   const difficulty = DIFFICULTIES[length]
   const sprint = mode === 'sprint'
   const deadline = startedAt + difficulty.seconds * 1000
@@ -61,14 +62,19 @@ export default function SoloRound({ dictionary, length, mode, firstPuzzle, start
   const [feedback, setFeedback] = useState('')
   const [sprintStats, setSprintStats] = useState({ solved: 0, points: 0 })
   const [advanceAt, setAdvanceAt] = useState<number | null>(null)
+  const [advancingFailed, setAdvancingFailed] = useState(false)
+  const [result, setResult] = useState<Result | null>(null)
+  const pending = useRef<AbortController | null>(null)
+  const [sending, setSending] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const resultRef = useRef<HTMLHeadingElement>(null)
   const ladderRef = useRef<HTMLDivElement>(null)
   const moves = chain.length - 1
-  const solved = chain.at(-1) === puzzle.target
+  const solved = result !== null
   const timeUp = sprint && now >= deadline
   const finished = timeUp || (!sprint && solved)
-  const points = scoreFor(moves, puzzle.optimalSteps)
+  const points = result?.points ?? 0
+  const optimalSteps = result?.optimalSteps ?? 0
 
   useEffect(() => {
     if (!sprint || timeUp) return
@@ -78,21 +84,34 @@ export default function SoloRound({ dictionary, length, mode, firstPuzzle, start
 
   useEffect(() => {
     if (advanceAt === null || timeUp) return
-    const timer = window.setTimeout(() => {
+    const controller = new AbortController()
+    const timer = window.setTimeout(async () => {
       const time = Date.now()
       setNow(time)
       if (time >= deadline) return
-      const next = makePuzzle(dictionary, 'sprint', length)
-      if (!next) {
-        setFeedback('Could not start the next puzzle.')
-        return
+      try {
+        const next = await startPuzzle('sprint', length, controller.signal)
+        if (controller.signal.aborted) return
+        if (Date.now() >= deadline) {
+          setNow(Date.now())
+          return
+        }
+        setPuzzle(next)
+        setChain([next.start])
+        setResult(null)
+      } catch {
+        if (controller.signal.aborted) return
+        setAdvancingFailed(true)
       }
-      setPuzzle(next)
-      setChain([next.start])
       setAdvanceAt(null)
     }, Math.max(0, advanceAt - Date.now()))
-    return () => window.clearTimeout(timer)
-  }, [advanceAt, deadline, dictionary, length, timeUp])
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [advanceAt, deadline, length, timeUp])
+
+  useEffect(() => () => pending.current?.abort(), [])
 
   useEffect(() => {
     if (timeUp && sprintStats.points > (Number(safeLocalStorage.get(bestKey)) || 0)) {
@@ -118,37 +137,63 @@ export default function SoloRound({ dictionary, length, mode, firstPuzzle, start
     return !solved
   }
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const word = draft.trim().toLowerCase()
-    if (!word || !canPlay()) return
-    inputRef.current?.focus({ preventScroll: true })
-    const problem = validateWord(dictionary, chain, word)
-    setFeedback(problem ?? '')
-    if (problem) return
-
-    setChain([...chain, word])
-    setDraft('')
-    if (word !== puzzle.target) return
-
-    const optimal = moves + 1 === puzzle.optimalSteps
-    const earned = scoreFor(moves + 1, puzzle.optimalSteps)
-    onSolved(earned, optimal)
-    if (sprint) {
-      setSprintStats(previous => ({ solved: previous.solved + 1, points: previous.points + earned }))
-      setAdvanceAt(Date.now() + CELEBRATION_MS)
+  const send = async (action: (signal: AbortSignal) => Promise<void>) => {
+    if (pending.current || !canPlay()) return
+    const controller = new AbortController()
+    pending.current = controller
+    setSending(true)
+    setFeedback('')
+    try {
+      await action(controller.signal)
+    } catch {
+      if (!controller.signal.aborted) setFeedback('Could not reach Word Chains. Try again.')
+    } finally {
+      if (!controller.signal.aborted) {
+        pending.current = null
+        setSending(false)
+        inputRef.current?.focus({ preventScroll: true })
+      }
     }
   }
 
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const word = draft.trim().toLowerCase()
+    if (!word) return
+    void send(async signal => {
+      const move = await playWord(puzzle, chain, word, signal)
+      if (signal.aborted || !canPlay()) return
+      if (move.status === 'rejected') {
+        setFeedback(move.feedback)
+        return
+      }
+
+      setChain([...chain, word])
+      setDraft('')
+      if (move.status !== 'solved') return
+
+      const { points, optimalSteps } = move.result
+      setResult(move.result)
+      onSolved(points, moves + 1 === optimalSteps)
+      if (sprint) {
+        setSprintStats(previous => ({ solved: previous.solved + 1, points: previous.points + points }))
+        setAdvanceAt(Date.now() + CELEBRATION_MS)
+      }
+    })
+  }
+
   const hint = () => {
-    const next = dictionary.path(chain[chain.length - 1], puzzle.target, chain.slice(0, -1))?.[1]
-    setFeedback(next ? '' : 'No unused route. Undo to try another path.')
-    if (next) setDraft(next)
-    inputRef.current?.focus({ preventScroll: true })
+    if (mode !== 'quick') return
+    void send(async signal => {
+      const { word } = await requestHint(puzzle, chain, signal)
+      if (signal.aborted) return
+      if (word) setDraft(word)
+      else setFeedback('No unused route. Undo to try another path.')
+    })
   }
 
   const undo = () => {
-    if (!canPlay() || moves === 0) return
+    if (pending.current || !canPlay() || moves === 0) return
     setChain(chain.slice(0, -1))
     setDraft('')
     setFeedback('')
@@ -160,16 +205,16 @@ export default function SoloRound({ dictionary, length, mode, firstPuzzle, start
     return (
       <section className={`${styles.card} ${styles.results}`} aria-labelledby="solo-result">
         <h2 ref={resultRef} tabIndex={-1} id="solo-result">
-          {timeUp ? 'Time’s up' : moves === puzzle.optimalSteps ? 'Optimal!' : moves === puzzle.optimalSteps + 1 ? 'Great job!' : 'Complete!'}
+          {timeUp ? 'Time’s up' : moves === optimalSteps ? 'Optimal!' : moves === optimalSteps + 1 ? 'Great job!' : 'Complete!'}
         </h2>
         <p>{timeUp ? `${difficulty.label} · ${difficulty.seconds} seconds` : `${puzzle.start.toUpperCase()} → ${puzzle.target.toUpperCase()}`}</p>
         <Numbers items={timeUp
           ? [['Solved', sprintStats.solved], ['Points', sprintStats.points], ['Best', best]]
-          : [['Steps', moves], ['Optimal', puzzle.optimalSteps], ['Points', `+${points}`]]} />
+          : [['Steps', moves], ['Optimal', optimalSteps], ['Points', `+${points}`]]} />
         {timeUp && sprintStats.points > previousBest && <p className={styles.success}>New personal best!</p>}
         {!timeUp && <p className={styles.chainSummary}>{chain.join(' → ')}</p>}
         <div className={styles.actions}>
-          <button className={styles.primary} type="button" onClick={onReplay}>{mode === 'quick' ? 'New puzzle' : 'Play again'}</button>
+          <button className={styles.primary} type="button" onClick={onReplay} disabled={starting}>{starting ? 'Starting…' : mode === 'quick' ? 'New puzzle' : 'Play again'}</button>
           <button type="button" onClick={onMenu}>Back to menu</button>
         </div>
       </section>
@@ -181,7 +226,7 @@ export default function SoloRound({ dictionary, length, mode, firstPuzzle, start
       <div className={styles.roundTop}>
         <button type="button" onClick={onMenu}>‹ Menu</button>
         <span>{difficulty.label} · {length} letters</span>
-        <span>{moves} {moves === 1 ? 'step' : 'steps'}</span>
+        <span>{steps(moves)}</span>
       </div>
       <h2 id="solo-puzzle">{puzzle.start.toUpperCase()} <span>→</span> {puzzle.target.toUpperCase()}</h2>
       <div className={styles.ladder} ref={ladderRef}>
@@ -199,13 +244,17 @@ export default function SoloRound({ dictionary, length, mode, firstPuzzle, start
         <p role="status" className={solved ? styles.success : styles.feedback}>{feedback || (solved ? `Solved! +${points} points` : '')}</p>
         <div className={styles.entryRow}>
           <input ref={inputRef} aria-label="Next word" placeholder="Enter a word…" value={draft}
-            autoComplete="off" autoCapitalize="none" spellCheck={false} enterKeyHint="go" readOnly={solved}
+            autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="go" readOnly={solved || sending}
             onChange={event => { setDraft(event.target.value); setFeedback('') }} />
-          <button type="submit" className={styles.primary} disabled={solved || !draft.trim()}>Submit</button>
+          <button type="submit" className={styles.primary} disabled={sending || solved || !draft.trim()}>Submit</button>
         </div>
         <div className={styles.tools}>
-          <button type="button" onClick={undo} disabled={moves === 0 || solved}>Undo</button>
-          {mode === 'quick' && <button type="button" onClick={hint}>Hint</button>}
+          {advancingFailed && <button type="button" onClick={() => {
+            setAdvancingFailed(false)
+            setAdvanceAt(Date.now())
+          }}>Retry next puzzle</button>}
+          <button type="button" onClick={undo} disabled={sending || moves === 0 || solved}>Undo</button>
+          {mode === 'quick' && <button type="button" onClick={hint} disabled={sending}>Hint</button>}
         </div>
       </form>
     </section>

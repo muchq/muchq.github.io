@@ -1,18 +1,4 @@
-export const DIFFICULTIES = {
-  3: { label: 'Easy', seconds: 90 },
-  4: { label: 'Medium', seconds: 120 },
-  5: { label: 'Hard', seconds: 180 },
-} as const
-
-export const LENGTHS = [3, 4, 5] as const
-export type Length = typeof LENGTHS[number]
-export type Mode = 'quick' | 'daily' | 'sprint'
-
-export interface Puzzle {
-  start: string
-  target: string
-  optimalSteps: number
-}
+import type { Length, Mode, Puzzle } from '../../src/apps/wordchains/solo/contract.ts'
 
 export function createDictionary(wordList: string, endpointList: string) {
   const words = new Set(wordList.trim().split(/\s+/).filter(word => /^[a-z]{3,5}$/.test(word)))
@@ -68,7 +54,7 @@ export function createDictionary(wordList: string, endpointList: string) {
       if (start === target) continue
       const chain = path(start, target)
       if (!chain) continue
-      const found = { start, target, optimalSteps: chain.length - 1 }
+      const found = { start, target }
       if (chain.length >= 3 && chain.length <= 8) return found
       fallback ??= found
     }
@@ -78,16 +64,12 @@ export function createDictionary(wordList: string, endpointList: string) {
   return { has: (word: string) => words.has(word), path, puzzle }
 }
 
-export type Dictionary = ReturnType<typeof createDictionary>
+type Dictionary = ReturnType<typeof createDictionary>
 
 // Use the iOS generator's 64-bit LCG and its count of whole calendar days
-// from the Unix epoch to the start of today in the player's time zone.
+// since the Unix epoch, using UTC for the shared web puzzle.
 export function dailyIndex(length: Length, date: Date): (size: number) => number {
-  const epoch = new Date(0)
-  const calendarDay = (value: Date) =>
-    Date.UTC(value.getFullYear(), value.getMonth(), value.getDate()) / 86_400_000
-  const startsAtMidnight = epoch.getHours() === 0 && epoch.getMinutes() === 0 && epoch.getSeconds() === 0
-  const days = calendarDay(date) - calendarDay(epoch) - (startsAtMidnight ? 0 : 1)
+  const days = Math.floor(date.getTime() / 86_400_000)
   let seed = BigInt.asUintN(64, BigInt(days) * 2654435761n + BigInt(length) * 7919n)
   return size => {
     seed = BigInt.asUintN(64, seed * 6364136223846793005n + 1442695040888963407n)
