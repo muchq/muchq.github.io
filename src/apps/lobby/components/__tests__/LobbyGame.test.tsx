@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useEffect, useImperativeHandle, type Ref } from 'react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { UseLobby } from '@/hooks/useLobby'
 import { fakeVoiceMesh } from '@/test/fakeVoice'
 import type { CastleView } from '@/apps/castle/wire'
@@ -48,7 +48,11 @@ const state = {
   pong: { view: null as PongView | null, opening: false, roundRobins: [], loadRoundRobins: vi.fn(), latestFrame: () => null },
   spades: { view: null as SpadesView | null, opening: false },
   go: { view: null as GoView | null, opening: false, history: null, loadHistory: vi.fn() },
-  wordchain: { view: null as WordchainView | null, opening: false }
+  wordchain: {
+    view: null as WordchainView | null, opening: false, sending: false, refusals: 0,
+    startTable: vi.fn(), leaveTable: vi.fn(), playAgain: vi.fn(),
+    play: vi.fn(), retract: vi.fn(), seek: vi.fn()
+  }
 } as unknown as UseLobby
 
 vi.mock('@/hooks/useLobby', async importOriginal => ({
@@ -78,7 +82,6 @@ vi.mock('@/apps/chess/components/ChessTable', () => ({ default: () => <div>chess
 vi.mock('@/apps/pong/components/PongTable', () => ({ default: () => <div>pong table</div> }))
 vi.mock('@/apps/spades/components/SpadesTable', () => ({ default: () => <div>spades table</div> }))
 vi.mock('@/apps/go/components/GoTable', () => ({ default: () => <div>go table</div> }))
-vi.mock('@/apps/wordchains/components/WordchainTable', () => ({ default: () => <div>wordchain table</div> }))
 vi.mock('@/apps/chess/components/GameReview', () => ({
   default: ({ review, onClose }: { review: ChessReview; onClose: () => void }) => (
     <button type="button" onClick={onClose}>
@@ -106,8 +109,22 @@ import LobbyGame from '../LobbyGame'
 
 const view = { gameId: 'G1', phase: 'waiting', players: [], drawPileCount: 0, pileCount: 0, run: [], finished: [] } as unknown as CastleView
 const golfView = { id: 'G2', gamePhase: 'waiting', players: [] } as unknown as GameState
+const raceView = (over: Partial<WordchainView> = {}): WordchainView => ({
+  gameId: 'W1', phase: 'racing', start: 'cold', target: 'warm', par: 5,
+  runners: [
+    { playerId: 'alice', words: 0, left: false, ladder: [], wins: 0 },
+    { playerId: 'bob', words: 0, left: false, wins: 0 }
+  ],
+  racesPlayed: 0, practice: false, ...over
+})
 
 describe('LobbyGame', () => {
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
+  })
+
   beforeEach(() => {
     cleanup()
     state.castle.view = null
@@ -306,7 +323,7 @@ describe('LobbyGame', () => {
     // A word chains race takes focus as a chess game does: the world, the
     // panel and chat give way while it runs, and Escape gives them back.
     it('focuses a word chains race, exits with Escape, and restores scrolling', () => {
-      state.wordchain.view = { gameId: 'W1', phase: 'racing' } as WordchainView
+      state.wordchain.view = raceView()
       const { container } = render(<LobbyGame />)
       fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
       expect(screen.getByRole('button', { name: 'Exit focus' })).toHaveAttribute('aria-pressed', 'true')
@@ -319,21 +336,68 @@ describe('LobbyGame', () => {
       expect(document.body.style.overflow).toBe('')
     })
 
+    it('closes a definition before leaving race focus on the next Escape', async () => {
+      vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false }) as Response))
+      state.wordchain.view = raceView()
+      const { container } = render(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
+      const word = screen.getByRole('button', { name: 'Define warm' })
+      fireEvent.click(word)
+      expect(await screen.findByText('Could not find definition for "warm"')).toBeInTheDocument()
+      fireEvent.keyDown(screen.getByRole('button', { name: 'Close' }), { key: 'Escape' })
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(word).toHaveFocus()
+      expect(container.querySelector('[data-table-focus="wordchain"]')).toBeInTheDocument()
+      expect(document.body.style.overflow).toBe('hidden')
+      fireEvent.keyDown(word, { key: 'Escape' })
+      expect(container.querySelector('[data-table-focus]')).toBeNull()
+      expect(document.body.style.overflow).toBe('')
+    })
+
+    it('offers focus after a seek matches and keeps it through the countdown', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(1_000_000)
+      state.wordchain.view = raceView({
+        phase: 'waiting', start: undefined, target: undefined, par: undefined,
+        runners: [{ playerId: 'alice', words: 0, left: false, wins: 0 }],
+        seek: { deadlineMs: Date.now() + 90_000, expired: false }
+      })
+      const { rerender, container } = render(<LobbyGame />)
+      expect(screen.getByText('Looking for a player…')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Focus game' })).toBeNull()
+      state.wordchain.view = raceView({ startedAtMs: Date.now() + 3_000, deadlineMs: Date.now() + 183_000 })
+      rerender(<LobbyGame />)
+      expect(screen.getByText('Starting in 3')).toBeInTheDocument()
+      expect(screen.queryByRole('textbox', { name: 'next word' })).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
+      expect(container.querySelector('[data-table-focus="wordchain"]')).toBeInTheDocument()
+      act(() => vi.advanceTimersByTime(3_000))
+      expect(screen.queryByText(/Starting in/)).toBeNull()
+      expect(screen.getByRole('textbox', { name: 'next word' })).toHaveFocus()
+      expect(container.querySelector('[data-table-focus="wordchain"]')).toBeInTheDocument()
+      expect(document.body.style.overflow).toBe('hidden')
+    })
+
     // Between races the result, the shortest ladder and Next race need the
     // room back, as a chess ending does.
-    it('leaves word chains focus when the race is over', () => {
-      state.wordchain.view = { gameId: 'W1', phase: 'racing' } as WordchainView
+    it('leaves word chains focus when the race is over and asks again for the next race', () => {
+      state.wordchain.view = raceView()
       const { rerender, container } = render(<LobbyGame />)
       fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
-      state.wordchain.view = { gameId: 'W1', phase: 'over' } as WordchainView
+      state.wordchain.view = raceView({ phase: 'over' })
       rerender(<LobbyGame />)
       expect(container.querySelector('[data-table-focus]')).toBeNull()
       expect(screen.queryByRole('button', { name: /focus/i })).toBeNull()
       expect(document.body.style.overflow).toBe('')
+      state.wordchain.view = raceView({ startedAtMs: Date.now() })
+      rerender(<LobbyGame />)
+      expect(container.querySelector('[data-table-focus]')).toBeNull()
+      expect(screen.getByRole('button', { name: 'Focus game' })).toHaveAttribute('aria-pressed', 'false')
+      expect(document.body.style.overflow).toBe('')
     })
 
     it('offers no word chains focus toggle while the table waits', () => {
-      state.wordchain.view = { gameId: 'W1', phase: 'waiting' } as WordchainView
+      state.wordchain.view = raceView({ phase: 'waiting' })
       render(<LobbyGame />)
       expect(screen.queryByRole('button', { name: 'Focus game' })).toBeNull()
     })
@@ -352,20 +416,20 @@ describe('LobbyGame', () => {
       expect(document.body.style.overflow).toBe('')
     })
 
-  // A chess review takes the screen over any table, a focused race's too.
-  it('a chess review takes the screen from a focused race', () => {
-    state.wordchain.view = { gameId: 'W1', phase: 'racing' } as WordchainView
-    const { rerender, container } = render(<LobbyGame />)
-    fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
-    try {
-      state.chess.review = { summary: { gameId: 'K1' } } as ChessReview
-      rerender(<LobbyGame />)
-      expect(container.querySelector('[data-table-focus]')).toBeNull()
-      expect(document.body.style.overflow).toBe('')
-    } finally {
-      state.chess.review = null
-    }
-  })
+    // A chess review takes the screen over any table, a focused race's too.
+    it('a chess review takes the screen from a focused race', () => {
+      state.wordchain.view = raceView()
+      const { rerender, container } = render(<LobbyGame />)
+      fireEvent.click(screen.getByRole('button', { name: 'Focus game' }))
+      try {
+        state.chess.review = { summary: { gameId: 'K1' } } as ChessReview
+        rerender(<LobbyGame />)
+        expect(container.querySelector('[data-table-focus]')).toBeNull()
+        expect(document.body.style.overflow).toBe('')
+      } finally {
+        state.chess.review = null
+      }
+    })
   })
 
   it('a chess table is a table too: over the world, the panel folded', () => {
