@@ -121,3 +121,8 @@
   align-items: center;
   gap: 0.5rem;
 }
+
+/* Focus (the lobby's Focus game): give the climb more room. */
+:global([data-table-focus='wordchain']) .table {
+  gap: 0.5rem;
+}

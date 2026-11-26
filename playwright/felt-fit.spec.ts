@@ -71,6 +71,39 @@ test('chess fits and stays centered under the overlay', async ({ page }) => {
   expect(m.ring).toBeNull()
 })
 
+for (const size of [{ width: 1440, height: 900 }, { width: 390, height: 844 }, { width: 375, height: 667 }, { width: 844, height: 390 }]) {
+  for (const focused of [false, true]) {
+    test(`word chains ${focused ? 'focused' : 'unfocused'} controls fit ${size.width}×${size.height}`, async ({ page }) => {
+      await page.setViewportSize(size)
+      await page.goto(`/playwright/felt-fit.html?fixture=wordchain${focused ? '&focus' : ''}`)
+      const sound = page.getByRole('checkbox', { name: 'Sound effects' })
+      const focus = page.getByRole('button', { name: focused ? 'Exit focus' : 'Focus game' })
+      const input = page.getByRole('textbox', { name: 'next word' })
+      await expect(sound).toBeVisible()
+      await expect(input).toBeVisible()
+      const controlBoxes = await Promise.all([sound, focus, input].map(control => control.boundingBox()))
+      for (const box of controlBoxes) {
+        expect(box!.x).toBeGreaterThanOrEqual(0)
+        expect(box!.x + box!.width).toBeLessThanOrEqual(size.width)
+        expect(box!.y).toBeGreaterThanOrEqual(0)
+        expect(box!.y + box!.height).toBeLessThanOrEqual(size.height)
+      }
+      const [soundBox, focusBox] = controlBoxes
+      expect(soundBox!.y).toBeGreaterThanOrEqual(focusBox!.y + focusBox!.height)
+      await expect(sound).toBeChecked()
+      await sound.uncheck()
+      await expect(sound).not.toBeChecked()
+      const m = await overlayMetrics(page)
+      expect(m.centered).toBe(true)
+      // Short landscape may scroll vertically; controls must still fit.
+      if (size.height >= 667) expect(m.scroll).toBeLessThanOrEqual(1)
+      const horizontalOverflow = await page.locator('[data-table-overlay]').evaluate(el => el.scrollWidth - el.clientWidth)
+      expect(horizontalOverflow).toBeLessThanOrEqual(1)
+      await test.info().attach('race controls', { body: await page.screenshot(), contentType: 'image/png' })
+    })
+  }
+}
+
 for (const size of [{ width: 390, height: 844 }, { width: 375, height: 667 }, { width: 844, height: 390 }]) {
   test(`chess focus fits ${size.width}×${size.height}`, async ({ page }) => {
     await page.setViewportSize(size)
@@ -132,7 +165,7 @@ for (const size of [{ width: 390, height: 844 }, { width: 375, height: 667 }]) {
         const r = el.getBoundingClientRect()
         return r.width > 0 && r.top >= -1 && r.left >= -1 && r.bottom <= window.innerHeight + 1 && r.right <= window.innerWidth + 1
       }
-      return { a1: inView('a1'), h1: inView('h1'), a8: inView('a8'), h8: inView('h8'), focus: document.querySelector('[data-chess-focus="true"]') !== null }
+      return { a1: inView('a1'), h1: inView('h1'), a8: inView('a8'), h8: inView('h8'), focus: document.querySelector('[data-table-focus="chess"]') !== null }
     })
     expect(corners.focus).toBe(true)
     expect({ a1: corners.a1, h1: corners.h1, a8: corners.a8, h8: corners.h8 }).toEqual({ a1: true, h1: true, a8: true, h8: true })

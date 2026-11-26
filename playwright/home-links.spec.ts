@@ -32,33 +32,51 @@ test('the chess shortcut stays visible on phone and desktop, with keyboard and r
   expect(await knight.evaluate(el => el.parentElement!.getAnimations().length)).toBe(0)
 })
 
-test('the wordchains shortcut animates within the viewport, pauses on focus, and respects reduced motion', async ({ page }) => {
-  for (const viewport of [{ width: 320, height: 568 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
+for (const viewport of [{ width: 320, height: 568 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
+  test(`the wordchains shortcut animates without overlap at ${viewport.width}×${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport)
     await page.goto('/')
     const link = page.getByRole('link', { name: 'Wordchains quick race' })
     await expect(link).toBeVisible()
     await expect(link).toHaveAttribute('href', '/games?play=wordchain')
-    const positions = []
-    for (const time of [0, 4750, 9500, 14250, 19000]) {
-      await showAt(page, time)
-      const box = (await link.boundingBox())!
+    // Sample each frame and its neighbours together. Separate browser calls
+    // can each wait behind a software-rendered Julia frame on CI.
+    const frames = await link.evaluate((link, hrefs) => {
+      const neighbours = hrefs.map(href => {
+        const element = document.querySelector(`a[href="${href}"]`)
+        if (!element) throw new Error(`Missing homepage link: ${href}`)
+        return element
+      })
+      const animations = document.getAnimations()
+      animations.forEach(animation => animation.pause())
+      const boxOf = (element: Element) => {
+        const { x, y, width, height } = element.getBoundingClientRect()
+        return { x, y, width, height }
+      }
+      return [0, 4750, 9500, 14250, 19000].map(time => {
+        animations.forEach(animation => { animation.currentTime = time })
+        return { time, box: boxOf(link), neighbours: neighbours.map(boxOf) }
+      })
+    }, [...courseHrefs, '/games?play=chess'])
+    for (const { time, box, neighbours } of frames) {
       expect(box.x).toBeGreaterThanOrEqual(0)
       expect(box.y).toBeGreaterThan(NAV_PX)
       expect(box.x + box.width).toBeLessThanOrEqual(viewport.width)
       expect(box.y + box.height).toBeLessThanOrEqual(viewport.height)
       expect(box.width).toBeGreaterThanOrEqual(44)
       expect(box.height).toBeGreaterThanOrEqual(44)
-      for (const href of [...courseHrefs, '/games?play=chess']) {
-        const other = await boxOf(page, href)
+      for (const [index, other] of neighbours.entries()) {
         expect(box.x + box.width < other.x || other.x + other.width < box.x
           || box.y + box.height < other.y || other.y + other.height < box.y,
-        `Wordchains overlaps ${href} at ${viewport.width}×${viewport.height}`).toBe(true)
+        `Wordchains overlaps ${[...courseHrefs, '/games?play=chess'][index]} at ${viewport.width}×${viewport.height}, ${time}ms`).toBe(true)
       }
-      positions.push(box.x)
     }
+    const positions = frames.map(frame => frame.box.x)
     expect(Math.max(...positions) - Math.min(...positions)).toBeGreaterThan(viewport.width * 0.02)
-  }
+  })
+}
+
+test('the wordchains shortcut pauses on focus and respects reduced motion', async ({ page }) => {
   await page.goto('/')
   const link = page.getByRole('link', { name: 'Wordchains quick race' })
   const animations = () => link.evaluate(el => el.parentElement!.getAnimations({ subtree: true }).map(a => a.playState))
@@ -72,6 +90,7 @@ test('the wordchains shortcut animates within the viewport, pauses on focus, and
 })
 
 test('the homepage wordchains shortcut seeks an opponent and opens the waiting table', async ({ page }) => {
+  test.slow()
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.route('**/games/v2/session?client=web', route => route.fulfill({ json: { playerId: 'alice', ticket: 'test', resumeToken: 'test' } }))
   const moves: unknown[] = []
@@ -97,7 +116,9 @@ test('the homepage wordchains shortcut seeks an opponent and opens the waiting t
   await link.focus()
   await link.press('Enter')
   await expect(page).toHaveURL(/\/games\?play=wordchain$/)
-  await expect(page.getByRole('heading', { name: /Word chains/ })).toBeVisible()
+  // As in challenges.spec.ts, software WebGL startup can delay the lobby
+  // beyond the default 5s assertion timeout even after navigation finishes.
+  await expect(page.getByRole('heading', { name: /Word chains/ })).toBeVisible({ timeout: 30_000 })
   await expect(page.getByText('Looking for a player…', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible()
   expect(moves).toEqual([{ seek: {} }])

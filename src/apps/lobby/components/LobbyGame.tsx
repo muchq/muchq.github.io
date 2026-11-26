@@ -29,6 +29,17 @@ import styles from './LobbyGame.module.css'
 // opens where there is room for it beside the world.
 const PANEL_KEY = 'lobby.panel'
 
+// The games whose tables can take the screen, and while: chess while a
+// game is played, word chains while a race runs.
+const FOCUS_WHILE: { [G in 'chess' | 'wordchain']: NonNullable<LobbyTables[G]['view']>['phase'] } = {
+  chess: 'playing', wordchain: 'racing'
+}
+const focusableView = (game: HubGameName, tables: LobbyTables) => {
+  if (game !== 'chess' && game !== 'wordchain') return null
+  const view = tables[game].view
+  return view?.phase === FOCUS_WHILE[game] ? view : null
+}
+
 const panelWanted = (): boolean => safeLocalStorage.get(PANEL_KEY) !== 'hidden' && window.innerWidth > 700
 
 const LobbyGame = (props: UseLobbyProps) => {
@@ -44,25 +55,33 @@ const LobbyGame = (props: UseLobbyProps) => {
   const { history: goHistory, loadHistory: loadGoHistory } = lobby.go
   // A chess review (MoonBase#1637) takes the screen as a table does.
   const atTable = HUB_GAMES.some(game => lobby[game].view !== null) || chess.review !== null
-  const [focusGame, setFocusGame] = useState<string | null>(null)
-  if (focusGame !== null && chess.view === null) setFocusGame(null)
-  // Focus is for play: body scroll locks and the foot shrinks. The ending's
-  // chrome needs that space, and keeping the lock while autofocus lands on
-  // Next game has left iOS Safari's visual viewport stuck zoomed on phones.
-  // phase === 'playing' is on focused itself so the first ended render drops
-  // the overlay — clearing focusGame alone would still paint one focus+ended frame.
-  if (focusGame !== null && chess.view !== null && chess.view.phase !== 'playing') setFocusGame(null)
-  const focused =
-    chess.view !== null && chess.view.gameId === focusGame && chess.review === null && chess.view.phase === 'playing'
+  // Focus is for play: body scroll locks and the table takes the screen.
+  // The ending's chrome needs that space, and keeping the lock while
+  // autofocus lands on Next game has left iOS Safari's visual viewport
+  // stuck zoomed on phones. In play is part of focusedGame itself so the
+  // first ended render drops the overlay — clearing focus alone would still
+  // paint one focus+ended frame. Each new race deliberately asks for
+  // focus again, leaving its result and next-race controls room between races.
+  const [focus, setFocus] = useState<{ game: HubGameName; gameId: string } | null>(null)
+  const focusedGame = ((): HubGameName | null => {
+    if (focus === null || chess.review !== null) return null
+    const view = focusableView(focus.game, lobby)
+    if (view === null || view.gameId !== focus.gameId) return null
+    return focus.game
+  })()
+  if (focus !== null && focusedGame === null) setFocus(null)
+  const focused = focusedGame !== null
   useEffect(() => {
     if (!focused) return
     const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const escape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
+      // The topmost dialog owns Escape; the table stays focused beneath it.
+      if (document.querySelector('[role="dialog"]')) return
       event.preventDefault()
       event.stopImmediatePropagation()
-      setFocusGame(null)
+      setFocus(null)
     }
     window.addEventListener('keydown', escape, true)
     return () => {
@@ -171,19 +190,26 @@ const LobbyGame = (props: UseLobbyProps) => {
     <>
       <ThoughtsGame link={lobby.world} commands={commands} onTripleTap={openMenu} />
       <ChallengeDiscovery key={room?.roomId ?? 'plaza'} lobby={lobby} selected={challenge} onSelect={setChallenge} />
-      {HUB_GAMES.map(
-        game =>
-          lobby[game].view !== null && (
-            <div key={game} className={`${styles.tableOverlay} ${game === 'chess' && focused ? styles.focusOverlay : ''}`} data-chess-focus={game === 'chess' && focused ? 'true' : undefined}>
-              {game === 'chess' && chess.view?.phase === 'playing' && (
-                <button type="button" className={styles.focusToggle} aria-pressed={focused} onClick={() => setFocusGame(focused ? null : chess.view!.gameId)}>
-                  {focused ? 'Exit focus' : 'Focus game'}
-                </button>
-              )}
-              <GameTableView game={game} tables={lobby} context={tableContext} />
-            </div>
-          )
-      )}
+      {HUB_GAMES.map(game => {
+        const focusView = focusableView(game, lobby)
+        return lobby[game].view !== null && (
+          <div key={game} className={`${styles.tableOverlay} ${focusedGame === game ? styles.focusOverlay : ''}`} data-table-focus={focusedGame === game ? game : undefined}>
+            {focusView !== null && (
+              <button
+                type="button"
+                className={styles.focusToggle}
+                aria-pressed={focusedGame === game}
+                onClick={() =>
+                  setFocus(focusedGame === game ? null : { game, gameId: focusView.gameId })
+                }
+              >
+                {focusedGame === game ? 'Exit focus' : 'Focus game'}
+              </button>
+            )}
+            <GameTableView game={game} tables={lobby} context={tableContext} />
+          </div>
+        )
+      })}
       {/* A finished game under review, over any table: closing it goes
           back to whatever was under it. */}
       {chess.review !== null && (

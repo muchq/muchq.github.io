@@ -64,12 +64,15 @@ const WordDefinitionModal = ({ word, onClose }: WordDefinitionModalProps) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
         onClose()
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    // Claim Escape before the lobby's command-menu listener sees it.
+    document.addEventListener('keydown', handleKeyDown, true)
+    return () => document.removeEventListener('keydown', handleKeyDown, true)
   }, [onClose])
 
   const oedUrl = `https://www.oed.com/search/dictionary/?scope=Entries&q=${encodeURIComponent(word)}`
