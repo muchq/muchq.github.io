@@ -14,7 +14,8 @@ const at = async (path: string) => {
       <App />
     </MemoryRouter>
   )
-  await screen.findByRole('main')
+  await act(async () => { await vi.dynamicImportSettled() })
+  await screen.findByRole('main', {}, { timeout: 3000 })
   return view
 }
 

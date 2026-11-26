@@ -356,13 +356,10 @@ export function bucketMs(timestamp: string, window: SeriesWindow): number {
 // Six ticks that all say "6:35 AM" identify no day at all, so multi-day
 // windows carry the date in the label.
 export function timeTickFormatter(window: SeriesWindow): (ms: number) => string {
-  const multiDay = window.endMs - window.startMs > 24 * 3600 * 1000
-  return (ms: number) => {
-    const date = new Date(ms)
-    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    if (!multiDay) return time
-    return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`
-  }
+  const time = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' })
+  if (window.endMs - window.startMs <= 24 * 3600 * 1000) return time.format
+  const date = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
+  return ms => `${date.format(ms)} ${time.format(ms)}`
 }
 
 // One row per bucket across the whole window, missing buckets taking
