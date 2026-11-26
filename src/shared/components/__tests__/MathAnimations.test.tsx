@@ -25,6 +25,15 @@ describe('MathAnimations', () => {
     expect(screen.getByText('the games')).toBeInTheDocument()
   })
 
+  it('the word ladder opens the wordchains quick race in one click', async () => {
+    home()
+    const link = screen.getByRole('link', { name: 'Wordchains quick race' })
+    expect(link).toHaveAttribute('href', '/games?play=wordchain')
+    expect([...link.querySelectorAll('[data-word]')].map(row => row.textContent)).toEqual(['COLD', 'CORD', 'CARD'])
+    await userEvent.click(link)
+    expect(screen.getByText('the games')).toBeInTheDocument()
+  })
+
   it('the isomorphism theorem links to the group theory course', async () => {
     home()
     const link = screen.getByRole('link', { name: 'Group theory course' })
