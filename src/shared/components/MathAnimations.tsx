@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import styles from './MathAnimations.module.css'
 
+const wordLadder = ['COLD', 'CORD', 'CARD']
+
 const MathAnimations = () => {
   return (
     <>
@@ -55,6 +57,27 @@ const MathAnimations = () => {
         <div className={styles.chessFloat}>
           <Link to="/games?play=chess" className={`${styles.pill} ${styles.chessLink}`} aria-label="Play chess" title="Play chess">
             <span aria-hidden="true">♘</span>
+          </Link>
+        </div>
+        <div className={styles.wordchainFloat}>
+          <Link
+            to="/games?play=wordchain"
+            className={`${styles.pill} ${styles.wordchainLink}`}
+            aria-label="Wordchains quick race"
+            title="Wordchains: find an opponent for a quick race"
+          >
+            <span className={styles.wordLadder} aria-hidden="true">
+              {wordLadder.map((word, rung) => (
+                <span key={word} className={styles.wordRung} data-word={word}>
+                  {[...word].map((letter, index) => (
+                    <span key={index} className={rung > 0 && wordLadder[rung - 1][index] !== letter ? styles.changedLetter : undefined}>
+                      {letter}
+                    </span>
+                  ))}
+                </span>
+              ))}
+            </span>
+            <span className={styles.raceLabel}>Quick race</span>
           </Link>
         </div>
         <div className={styles.setsBob}>
