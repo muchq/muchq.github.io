@@ -53,13 +53,16 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 844, height: 390 }
         const { x, y, width, height } = element.getBoundingClientRect()
         return { x, y, width, height }
       }
-      return [0, 4750, 9500, 14250, 19000].map(time => {
+      const wordStep = link.querySelector('span')!
+      const times = Array.from({ length: 23 }, (_, index) => index * 4_000)
+      return times.map(time => {
         animations.forEach(animation => { animation.currentTime = time })
         return {
           time,
           box: boxOf(link),
           neighbours: neighbours.map(boxOf),
           opacity: Number(getComputedStyle(link).opacity),
+          rotation: Number.parseFloat(getComputedStyle(wordStep).rotate),
         }
       })
     }, [...courseHrefs, '/games?play=chess'])
@@ -76,15 +79,21 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 844, height: 390 }
         `Wordchains overlaps ${[...courseHrefs, '/games?play=chess'][index]} at ${viewport.width}×${viewport.height}, ${time}ms`).toBe(true)
       }
     }
-    const [start, rising, peak, falling, end] = frames.map(frame => frame.opacity)
+    const fadeFrames = frames.filter(({ time }) => time <= 48_000 && time % 12_000 === 0)
+    const [start, rising, peak, falling, end] = fadeFrames.map(frame => frame.opacity)
     expect(start).toBe(0)
     expect(rising).toBeGreaterThan(start)
     expect(peak).toBeGreaterThan(rising)
     expect(falling).toBeLessThan(peak)
     expect(end).toBe(0)
 
-    const positions = frames.map(frame => frame.box.x)
-    expect(Math.max(...positions) - Math.min(...positions)).toBeGreaterThan(viewport.width * 0.02)
+    const xs = frames.map(frame => frame.box.x)
+    const ys = frames.map(frame => frame.box.y)
+    const rotations = frames.map(frame => frame.rotation)
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(viewport.width * 0.02)
+    expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(viewport.height * 0.03)
+    expect(Math.min(...rotations)).toBeLessThan(-5)
+    expect(Math.max(...rotations)).toBeGreaterThan(5)
   })
 }
 
@@ -93,10 +102,10 @@ test('the wordchains shortcut pauses on focus and respects reduced motion', asyn
   const link = page.getByRole('link', { name: 'Wordchains quick race' })
   const animations = () => link.evaluate(el => el.parentElement!.getAnimations({ subtree: true }).map(a => a.playState))
   await link.focus()
-  expect(await animations()).toEqual(['paused', 'paused'])
+  expect(await animations()).toEqual(['paused', 'paused', 'paused'])
   await expect(link).toHaveCSS('opacity', '1')
   await link.evaluate(el => (el as HTMLElement).blur())
-  expect(await animations()).toEqual(['running', 'running', 'running'])
+  expect(await animations()).toEqual(['running', 'running', 'running', 'running'])
   await page.emulateMedia({ reducedMotion: 'reduce' })
   expect(await animations()).toEqual([])
   await expect(link).toHaveCSS('opacity', '1')

@@ -225,8 +225,26 @@
 }
 
 @keyframes wordchain-float {
+  25% {
+    transform: translate(-1vw, -2vh);
+  }
   50% {
-    transform: translate(-3vw, 1vh);
+    transform: translate(-3vw, 0);
+  }
+  75% {
+    transform: translate(-1vw, 2vh);
+  }
+}
+
+@keyframes wordchain-rotate {
+  0%, 100% {
+    rotate: 0deg;
+  }
+  25% {
+    rotate: -10deg;
+  }
+  75% {
+    rotate: 10deg;
   }
 }
 
@@ -275,15 +293,19 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .wordchainFloat {
-    animation: wordchain-float 19s ease-in-out infinite;
+    animation: wordchain-float 32s ease-in-out infinite;
   }
 
   .wordchainLink {
-    animation: wordchain-fade 19s ease-in-out infinite;
+    animation: wordchain-fade 48s ease-in-out infinite;
   }
 
   .courses:focus-within .wordchainLink {
     animation: none;
+  }
+
+  .wordStep {
+    animation: wordchain-rotate 88s ease-in-out infinite;
   }
 
   .changedLetter {
