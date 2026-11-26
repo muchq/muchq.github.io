@@ -1,0 +1,389 @@
+.shell {
+  --paper: #fff;
+  --ink: #1f243c;
+  --muted: #515974;
+  --line: #dce0ec;
+  --accent: #4748b8;
+  --tint: #efefff;
+  --gradient: linear-gradient(110deg, #3f55ba, #6240ad);
+  min-height: 100%;
+  padding: 61px 0 2.5rem;
+  color: var(--ink);
+  background: radial-gradient(ellipse at top, #e8eafd, #f6f7fb 36rem);
+  font-family: "Lexend Deca", system-ui, sans-serif;
+}
+
+.main {
+  width: min(100% - 2rem, 56rem);
+  margin-inline: auto;
+}
+
+.playing {
+  width: min(100% - 2rem, 34rem);
+}
+
+.header {
+  padding: clamp(1.75rem, 5vw, 3.5rem) 0 1.55rem;
+}
+
+.header h1 {
+  margin: 0;
+  color: #40349c;
+  font-size: clamp(2.2rem, 6vw, 3.45rem);
+  font-weight: 650;
+  letter-spacing: -0.06em;
+  line-height: 1.08;
+}
+
+.header p {
+  margin: 0.6rem 0 0;
+  color: var(--muted);
+}
+
+.playing .header {
+  padding: 1.35rem 0 1rem;
+}
+
+.playing .header h1 {
+  font-size: 1.65rem;
+  letter-spacing: -0.035em;
+}
+
+.menu {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16rem;
+  gap: 1rem;
+  align-items: start;
+}
+
+.card {
+  min-width: 0;
+  padding: clamp(1rem, 3.5vw, 1.65rem);
+  border: 1px solid var(--line);
+  border-radius: 1.2rem;
+  background: var(--paper);
+  box-shadow: 0 1rem 2rem #4140800c;
+}
+
+.card fieldset {
+  min-inline-size: 0;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  border: 0;
+}
+
+.card legend,
+.stats h2 {
+  margin: 0 0 0.65rem;
+  padding: 0;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.modes {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  cursor: pointer;
+}
+
+.choice:hover {
+  border-color: var(--accent);
+}
+
+.choice:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--tint);
+}
+
+.choice input {
+  flex: none;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.choice strong,
+.choice small {
+  display: block;
+}
+
+.choice small {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.modeIcon {
+  display: grid;
+  flex: 0 0 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 0.48rem;
+  background: var(--tint);
+  color: var(--accent);
+  font: 700 1.3rem/1 system-ui;
+}
+
+.choice:has(input:checked) .modeIcon {
+  background: var(--accent);
+  color: #fff;
+}
+
+.difficulties {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.difficulties .choice {
+  flex-wrap: wrap;
+  column-gap: 0.4rem;
+  row-gap: 0.25rem;
+  padding-inline: 0.5rem;
+}
+
+.card button {
+  min-height: 44px;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: var(--paper);
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.card button:hover:enabled {
+  border-color: var(--accent);
+}
+
+.card .primary {
+  border-color: transparent;
+  background: var(--gradient);
+  color: #fff;
+}
+
+.menu .primary {
+  width: 100%;
+}
+
+.card button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.card :is(button, input):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.numbers {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  margin: 0;
+  padding: 0.6rem 0;
+  border-radius: 0.65rem;
+  background: #f0f1fa;
+  text-align: center;
+}
+
+.numbers div + div {
+  border-inline-start: 1px solid var(--line);
+}
+
+.numbers dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.numbers dd {
+  margin: 0.2rem 0 0;
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.roundTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.round h2 {
+  margin: 0.65rem 0;
+  text-align: center;
+  font: 700 clamp(1.4rem, 6vw, 1.9rem)/1.2 ui-monospace, monospace;
+}
+
+.round h2 span {
+  color: var(--accent);
+}
+
+.ladder {
+  max-height: 38dvh;
+  min-height: 8.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-bottom: 0.75rem;
+  padding: 0.65rem;
+  border-radius: 0.75rem;
+  background: #f6f7fb;
+  text-align: center;
+}
+
+.ladder ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ladder li + li::before,
+.goal::before {
+  display: block;
+  width: 2px;
+  height: 0.65rem;
+  margin: 0.15rem auto;
+  border-inline-start: 2px dotted #8e92bb;
+  content: '';
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.tiles {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.tiles > span {
+  display: grid;
+  width: clamp(2rem, 10vw, 2.6rem);
+  height: 2.5rem;
+  place-items: center;
+  border: 1px solid #d5d9ee;
+  border-radius: 0.45rem;
+  background: var(--paper);
+  font: 700 1.2rem/1 ui-monospace, monospace;
+}
+
+.tiles .changedTile {
+  border-color: transparent;
+  background: var(--gradient);
+  color: #fff;
+}
+
+.tiles .targetTile {
+  border: 1px dashed #848bc0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.goal > span:last-child {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.entryRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.entryRow input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  font: inherit;
+  color: var(--ink);
+}
+
+.tools,
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.feedback,
+.success {
+  margin: 0.5rem 0;
+  color: #a22840;
+  font-size: 0.875rem;
+}
+
+.entry p {
+  min-height: 1.25rem;
+}
+
+.success {
+  color: #126849;
+}
+
+.results {
+  text-align: center;
+}
+
+.results h2 {
+  margin: 0.25rem 0 0;
+  color: var(--accent);
+  font-size: 1.9rem;
+}
+
+.results p {
+  color: var(--muted);
+}
+
+.results .chainSummary {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, monospace;
+}
+
+@media (max-width: 650px) {
+  .menu {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 360px) {
+  .modeIcon {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ladder li:last-child .changedTile {
+    animation: tile-arrival 180ms ease-out;
+  }
+}
+
+@keyframes tile-arrival {
+  from {
+    transform: translateY(0.25rem);
+    opacity: 0.6;
+  }
+}

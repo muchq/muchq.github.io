@@ -1,82 +1,121 @@
-import { useState } from 'react'
-import styles from './WordchainsPage.module.css'
-import WordchainGame from '../components/WordchainGame'
+import { useEffect, useRef, useState } from 'react'
 import Navigation from '@/shared/components/Navigation'
 import NavTagline from '@/shared/components/nav/NavTagline'
+import { loadDictionary } from '../solo/dictionary'
+import { DIFFICULTIES, LENGTHS, makePuzzle, type Dictionary, type Length, type Mode, type Puzzle } from '../solo/puzzles'
+import SoloRound, { Numbers } from '../solo/SoloRound'
+import styles from '../solo/SoloWordchains.module.css'
+
+const MODES = {
+  quick: { title: 'Quick Play', description: 'A random puzzle at your own pace.', icon: '⇄' },
+  daily: { title: 'Daily Challenge', description: 'A new puzzle each day for each difficulty.', icon: '□' },
+  sprint: { title: 'Time Attack', description: 'Solve as many puzzles as you can before time runs out.', icon: '◷' },
+} satisfies Record<Mode, { title: string; description: string; icon: string }>
+
+const MODE_OPTIONS: Mode[] = ['quick', 'daily', 'sprint']
+
+interface Game {
+  id: number
+  mode: Mode
+  length: Length
+  puzzle: Puzzle
+  startedAt: number
+}
 
 const WordchainsPage = () => {
-  const [result, setResult] = useState<string[] | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [mode, setMode] = useState<Mode>('quick')
+  const [length, setLength] = useState<Length>(4)
+  const [dictionary, setDictionary] = useState<Dictionary | null>(null)
+  const [retry, setRetry] = useState(0)
+  const [error, setError] = useState('')
+  const [game, setGame] = useState<Game | null>(null)
+  const [stats, setStats] = useState({ solved: 0, optimal: 0, points: 0 })
+  const gameId = useRef(0)
+  const title = useRef<HTMLHeadingElement>(null)
 
-  const handleSolve = async (startWord: string, endWord: string) => {
-    setIsLoading(true)
-    setError(null)
-    setResult(null)
+  useEffect(() => {
+    let active = true
+    loadDictionary().then(
+      loaded => { if (active) setDictionary(loaded) },
+      () => { if (active) setError('Could not load the dictionary.') },
+    )
+    return () => { active = false }
+  }, [retry])
 
-    // Scroll to result section on mobile
-    if (window.innerWidth <= 768) {
-      const resultSection = document.querySelector('.resultSection')
-      if (resultSection) {
-        resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
+  useEffect(() => {
+    if (!game && gameId.current > 0) title.current?.focus()
+  }, [game])
+
+  const play = () => {
+    if (!dictionary) return
+    const puzzle = makePuzzle(dictionary, mode, length)
+    if (!puzzle) {
+      setGame(null)
+      setError('Could not find a puzzle. Try again.')
+      return
     }
-
-    // Use environment variable for API URL, defaulting to production URL
-    const apiUrl = import.meta.env.VITE_MITHRIL_API_URL || 'https://api.muchq.com/mithril/v1/wordchain'
-
-    try {
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          start: startWord,
-          end: endWord
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data = await response.json()
-      setResult(data.path)
-
-      // Auto-scroll to result after successful solve on mobile
-      setTimeout(() => {
-        if (window.innerWidth <= 768) {
-          const resultElement = document.querySelector('.result, .noResult')
-          if (resultElement) {
-            resultElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
-          }
-        }
-      }, 100)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to solve word chain')
-      console.error('Wordchain solve error:', err)
-    } finally {
-      setIsLoading(false)
-    }
+    setError('')
+    setGame({ id: ++gameId.current, mode, length, puzzle, startedAt: Date.now() })
   }
 
   return (
-    <div className={styles.container}>
-      <Navigation appName="Wordchains" context={<NavTagline text="Word Chain Solver" />} />
-      <header className={styles.header}>
-        <h1>Wordchains</h1>
-        <p>Find the shortest path between two words</p>
-      </header>
-
-      <div className={styles.content}>
-        <WordchainGame
-          onSolve={handleSolve}
-          isLoading={isLoading}
-          result={result}
-          error={error}
-        />
-      </div>
+    <div className={styles.shell}>
+      <Navigation appName="Wordchains" context={<NavTagline text="Single player" />} />
+      <main className={`${styles.main} ${game ? styles.playing : ''}`}>
+        <header className={styles.header}>
+          <h1 ref={title} tabIndex={-1}>Word Chains</h1>
+          <p>{game ? MODES[game.mode].title : 'Change one letter at a time.'}</p>
+        </header>
+        {game && dictionary ? (
+          <SoloRound key={game.id} dictionary={dictionary} length={game.length} mode={game.mode}
+            firstPuzzle={game.puzzle} startedAt={game.startedAt} onReplay={play} onMenu={() => setGame(null)}
+            onSolved={(points, optimal) => setStats(previous => ({
+              solved: previous.solved + 1,
+              optimal: previous.optimal + Number(optimal),
+              points: previous.points + points,
+            }))} />
+        ) : (
+          <div className={styles.menu}>
+            <div className={styles.card}>
+              <fieldset>
+                <legend>Game mode</legend>
+                <div className={styles.modes}>
+                  {MODE_OPTIONS.map(value => (
+                    <label className={styles.choice} key={value}>
+                      <input type="radio" name="solo-mode" checked={mode === value} onChange={() => setMode(value)} />
+                      <span className={styles.modeIcon} aria-hidden="true">{MODES[value].icon}</span>
+                      <span>
+                        <strong>{MODES[value].title}</strong>
+                        <small>{MODES[value].description}</small>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <fieldset>
+                <legend>Difficulty</legend>
+                <div className={styles.difficulties}>
+                  {LENGTHS.map(value => (
+                    <label className={styles.choice} key={value}>
+                      <input type="radio" name="solo-difficulty" checked={length === value} onChange={() => setLength(value)} />
+                      <span><strong>{DIFFICULTIES[value].label}</strong><small>{value} letters</small></span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <button className={styles.primary} type="button" onClick={play} disabled={!dictionary}>
+                {dictionary || error ? 'Play' : 'Loading dictionary…'}
+              </button>
+              {error && <p role="alert" className={styles.feedback}>{error}</p>}
+              {error && !dictionary && <button type="button" onClick={() => { setError(''); setRetry(value => value + 1) }}>Retry</button>}
+            </div>
+            <aside className={`${styles.card} ${styles.stats}`} aria-label="Session stats">
+              <h2>Stats</h2>
+              <Numbers items={[['Solved', stats.solved], ['Optimal', stats.optimal], ['Score', stats.points]]} />
+            </aside>
+          </div>
+        )}
+      </main>
     </div>
   )
 }
