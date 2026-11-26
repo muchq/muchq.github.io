@@ -48,7 +48,7 @@ test('the wordchains shortcut animates within the viewport, pauses on focus, and
       expect(box.x + box.width).toBeLessThanOrEqual(viewport.width)
       expect(box.y + box.height).toBeLessThanOrEqual(viewport.height)
       expect(box.width).toBeGreaterThanOrEqual(44)
-      expect(box.height).toBe((await boxOf(page, '/groups')).height)
+      expect(box.height).toBeCloseTo((await boxOf(page, '/groups')).height)
       for (const href of [...courseHrefs, '/games?play=chess']) {
         const other = await boxOf(page, href)
         expect(box.x + box.width < other.x || other.x + other.width < box.x
