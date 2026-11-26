@@ -55,7 +55,12 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 844, height: 390 }
       }
       return [0, 4750, 9500, 14250, 19000].map(time => {
         animations.forEach(animation => { animation.currentTime = time })
-        return { time, box: boxOf(link), neighbours: neighbours.map(boxOf) }
+        return {
+          time,
+          box: boxOf(link),
+          neighbours: neighbours.map(boxOf),
+          opacity: Number(getComputedStyle(link).opacity),
+        }
       })
     }, [...courseHrefs, '/games?play=chess'])
     for (const { time, box, neighbours } of frames) {
@@ -71,6 +76,13 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 844, height: 390 }
         `Wordchains overlaps ${[...courseHrefs, '/games?play=chess'][index]} at ${viewport.width}×${viewport.height}, ${time}ms`).toBe(true)
       }
     }
+    const [start, rising, peak, falling, end] = frames.map(frame => frame.opacity)
+    expect(start).toBe(0)
+    expect(rising).toBeGreaterThan(start)
+    expect(peak).toBeGreaterThan(rising)
+    expect(falling).toBeLessThan(peak)
+    expect(end).toBe(0)
+
     const positions = frames.map(frame => frame.box.x)
     expect(Math.max(...positions) - Math.min(...positions)).toBeGreaterThan(viewport.width * 0.02)
   })
@@ -82,10 +94,12 @@ test('the wordchains shortcut pauses on focus and respects reduced motion', asyn
   const animations = () => link.evaluate(el => el.parentElement!.getAnimations({ subtree: true }).map(a => a.playState))
   await link.focus()
   expect(await animations()).toEqual(['paused', 'paused'])
+  await expect(link).toHaveCSS('opacity', '1')
   await link.evaluate(el => (el as HTMLElement).blur())
-  expect(await animations()).toEqual(['running', 'running'])
+  expect(await animations()).toEqual(['running', 'running', 'running'])
   await page.emulateMedia({ reducedMotion: 'reduce' })
   expect(await animations()).toEqual([])
+  await expect(link).toHaveCSS('opacity', '1')
   await expect(link).toHaveText('COLD → CORD')
 })
 

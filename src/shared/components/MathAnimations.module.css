@@ -230,6 +230,15 @@
   }
 }
 
+@keyframes wordchain-fade {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.92;
+  }
+}
+
 @keyframes letter-lift {
   0%, 65%, 100% { transform: translateY(0); }
   80% { transform: translateY(-3px); }
@@ -267,6 +276,14 @@
 @media (prefers-reduced-motion: no-preference) {
   .wordchainFloat {
     animation: wordchain-float 19s ease-in-out infinite;
+  }
+
+  .wordchainLink {
+    animation: wordchain-fade 19s ease-in-out infinite;
+  }
+
+  .courses:focus-within .wordchainLink {
+    animation: none;
   }
 
   .changedLetter {
