@@ -205,7 +205,7 @@ export default function SoloRound({ dictionary, length, mode, firstPuzzle, start
         </div>
         <div className={styles.tools}>
           <button type="button" onClick={undo} disabled={moves === 0 || solved}>Undo</button>
-          {!sprint && <button type="button" onClick={hint}>Hint</button>}
+          {mode === 'quick' && <button type="button" onClick={hint}>Hint</button>}
         </div>
       </form>
     </section>
