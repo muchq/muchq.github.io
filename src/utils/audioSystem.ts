@@ -432,6 +432,7 @@ export function renderNote(
   { frequency, startTime, duration, volume, wave, filter }: RenderedNote,
   loop = false
 ): void {
+  if (volume === 0) return
   const startSample = Math.floor(startTime * sampleRate)
   const frames = Math.floor(duration * sampleRate)
   let pole = 0

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import styles from './PermalinkDisplay.module.css'
 
 export interface PermalinkDisplayProps {
@@ -26,12 +26,13 @@ const PermalinkDisplay = ({ label, url, onCopy, className }: PermalinkDisplayPro
       console.error('Failed to copy permalink:', error)
       setCopyStatus('error')
     }
-
-    // Reset status after 2 seconds
-    setTimeout(() => {
-      setCopyStatus('idle')
-    }, 2000)
   }, [url, onCopy, copyStatus])
+
+  useEffect(() => {
+    if (copyStatus !== 'success' && copyStatus !== 'error') return
+    const timer = window.setTimeout(() => setCopyStatus('idle'), 2000)
+    return () => window.clearTimeout(timer)
+  }, [copyStatus])
 
   const getButtonText = () => {
     switch (copyStatus) {
