@@ -63,8 +63,8 @@ test('Time Attack advances rounds without hints, then remembers the best for tha
   await page.setViewportSize({ width: 320, height: 700 })
   await page.goto('/wordchains')
   await openEasy(page, 'Time Attack')
-  await expect(page.getByRole('button', { name: 'Hint' })).toHaveCount(0)
   await expect(page.getByText('Time left')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Hint' })).toHaveCount(0)
   for (const word of ['cot', 'dot', 'dog']) await submit(page, word)
   await expect(page.getByRole('status')).toContainText('Solved!')
   await page.clock.runFor(800)
@@ -74,6 +74,11 @@ test('Time Attack advances rounds without hints, then remembers the best for tha
   await expect(page.getByText('New personal best!')).toBeVisible()
   await expect.poll(() => page.evaluate(() => localStorage.getItem('wordchains.timeAttackBest.3.90s'))).toBe('150')
   await page.getByRole('button', { name: 'Play again' }).click()
+  // The clock only fires timers that already exist. The next round installs
+  // its countdown after this click's puzzle response, so wait for that round
+  // before jumping ahead.
+  await expect(page.getByRole('heading', { name: 'CAT → DOG' })).toBeVisible()
+  await expect(page.getByText('0 steps', { exact: true })).toBeVisible()
   await page.clock.fastForward(91_000)
   await expect(page.getByRole('heading', { name: 'Time’s up' })).toBeVisible()
   await expect(page.getByText('150', { exact: true })).toBeVisible()

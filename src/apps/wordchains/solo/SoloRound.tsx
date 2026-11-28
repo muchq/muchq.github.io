@@ -78,7 +78,11 @@ export default function SoloRound({ starting, length, mode, firstPuzzle, started
 
   useEffect(() => {
     if (!sprint || timeUp) return
-    const timer = window.setInterval(() => setNow(Date.now()), 200)
+    const tick = () => setNow(Date.now())
+    // Sample once immediately so a clock jump that lands before this effect
+    // still ends the round. The interval keeps the display moving after that.
+    tick()
+    const timer = window.setInterval(tick, 200)
     return () => window.clearInterval(timer)
   }, [sprint, timeUp])
 
@@ -224,7 +228,7 @@ export default function SoloRound({ starting, length, mode, firstPuzzle, started
   return (
     <section className={`${styles.card} ${styles.round}`} aria-labelledby="solo-puzzle">
       <div className={styles.roundTop}>
-        <button type="button" onClick={onMenu}>‹ Menu</button>
+        <button type="button" onClick={onMenu}><span aria-hidden="true">‹ </span>Menu</button>
         <span>{difficulty.label} · {length} letters</span>
         <span>{steps(moves)}</span>
       </div>

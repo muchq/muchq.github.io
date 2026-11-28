@@ -51,7 +51,7 @@ node scripts/topology-sync.mjs --check
 | `/quest` | Quest — score-chasing arcade game |
 | `/tracy` | Ray tracer portraits |
 | `/posterize` | Image posterizer |
-| `/wordchains` | Word chain puzzles |
+| `/wordchains` | Single-player Word Chains: Quick Play, Daily Challenge, and Time Attack |
 | `/metrics` | Live service/host dashboards for the backend fleet |
 | `/stats` | What the apps did — rooms, games and queries — and what the gateway saw: crawlers, scanners, short-link popularity |
 | `/deja` | The anomaly detector over the access-log token stream, live: its tape, learning curve, and a way to ask it |

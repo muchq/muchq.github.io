@@ -48,13 +48,13 @@ export async function readSoloRequest(request: Request): Promise<Response> {
   }
 }
 
-export function handleSolo(value: unknown): Response {
+export function handleSolo(value: unknown, now = new Date()): Response {
   if (typeof value !== 'object' || value === null) return invalid()
   const body = value as Record<string, unknown>
   if (body.action === 'start') {
     if (!isMode(body.mode) || !isLength(body.length)) return invalid()
     const lexicon = dictionary ??= createDictionary(words, endpoints)
-    const puzzle = makePuzzle(lexicon, body.mode, body.length)
+    const puzzle = makePuzzle(lexicon, body.mode, body.length, now)
     if (!puzzle) return json({ error: 'Could not generate a puzzle' }, 503)
     return json({ start: puzzle.start, target: puzzle.target })
   }
